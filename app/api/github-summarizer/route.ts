@@ -1,5 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { ChatOpenAI } from "@langchain/openai";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { z } from "zod";
+
+// 1. Define the structured output schema using Zod
+const summarySchema = z.object({
+  summary: z.string().describe("A concise summary of the GitHub repository"),
+  cool_facts: z.array(z.string()).describe("A list of interesting or cool facts about the project found in the README"),
+});
 
 export async function POST(request: Request) {
   try {
@@ -48,16 +57,45 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      message: `Successfully fetched README for ${githubUrl}`,
-      data: {
-        owner: keyData.name,
-        repo: githubUrl,
-        content: readmeContent.slice(0, 500) + "...", // Sending a preview for now
-        totalLength: readmeContent.length,
-      },
-    });
+    // 6. AI Summarization Logic
+    try {
+      const model = new ChatOpenAI({
+        modelName: "gpt-4o", // You can also use "gpt-3.5-turbo"
+        temperature: 0,
+      });
+
+      const prompt = ChatPromptTemplate.fromMessages([
+        ["system", "You are a professional software engineer summarizing projects."],
+        ["user", "Summarize this github repository from this readme file content: {readmeContent}"],
+      ]);
+
+      // Bind the structured output schema to the model
+      const structuredLlm = model.withStructuredOutput(summarySchema);
+
+      // Create the chain
+      const chain = prompt.pipe(structuredLlm);
+
+      // Invoke the chain with the fetched README content
+      const aiResult = await chain.invoke({
+        readmeContent: readmeContent,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Successfully summarized ${githubUrl}`,
+        data: {
+          owner: keyData.name,
+          repo: githubUrl,
+          ...aiResult, // This will include 'summary' and 'cool_facts'
+        },
+      });
+    } catch (aiErr) {
+      console.error("AI Error:", aiErr);
+      return NextResponse.json(
+        { error: "Failed to generate AI summary. Check your OPENAI_API_KEY." },
+        { status: 500 }
+      );
+    }
   } catch (err) {
     console.error("API Error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
