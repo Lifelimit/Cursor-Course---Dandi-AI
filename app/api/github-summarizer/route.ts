@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     // 6. AI Summarization Logic
     try {
       const model = new ChatGoogleGenerativeAI({
-        model: "gemini-3-flash", // Using the latest Gemini 3 Flash model
+        model: "gemini-1.5-flash", // Reverting to stable 1.5 Flash
         maxOutputTokens: 2048,
       });
 
