@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { z } from "zod";
 
@@ -59,9 +59,9 @@ export async function POST(request: Request) {
 
     // 6. AI Summarization Logic
     try {
-      const model = new ChatOpenAI({
-        modelName: "gpt-4o", // You can also use "gpt-3.5-turbo"
-        temperature: 0,
+      const model = new ChatGoogleGenerativeAI({
+        modelName: "gemini-1.5-flash", // Gemini 1.5 Flash is free and very fast
+        maxOutputTokens: 2048,
       });
 
       const prompt = ChatPromptTemplate.fromMessages([
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     } catch (aiErr) {
       console.error("AI Error:", aiErr);
       return NextResponse.json(
-        { error: "Failed to generate AI summary. Check your OPENAI_API_KEY." },
+        { error: "Failed to generate AI summary. Check your GOOGLE_API_KEY." },
         { status: 500 }
       );
     }
