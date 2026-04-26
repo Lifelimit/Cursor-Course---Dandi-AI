@@ -15,6 +15,10 @@ function ProtectedContent() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    setIsLoading(true);
+    setIsValid(null);
+    setKeyName(null);
+
     if (!key) {
       setIsValid(false);
       setIsLoading(false);
