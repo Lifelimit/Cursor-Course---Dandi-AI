@@ -92,7 +92,10 @@ export async function POST(request: Request) {
     } catch (aiErr) {
       console.error("AI Error:", aiErr);
       return NextResponse.json(
-        { error: "Failed to generate AI summary. Check your GOOGLE_API_KEY." },
+        { 
+          error: "Failed to generate AI summary.", 
+          details: aiErr instanceof Error ? aiErr.message : String(aiErr)
+        },
         { status: 500 }
       );
     }
