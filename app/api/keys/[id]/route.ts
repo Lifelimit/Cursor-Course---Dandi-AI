@@ -1,0 +1,62 @@
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+
+const TABLE_NAME = "api_keys";
+
+type RouteContext = {
+  params: Promise<{ id: string }>;
+};
+
+type UpdatePayload = {
+  name?: string;
+  keyType?: "development" | "production";
+  monthlyLimit?: number | null;
+};
+
+export async function PATCH(request: Request, context: RouteContext) {
+  const { id } = await context.params;
+  const body = (await request.json()) as UpdatePayload;
+
+  const updates: Record<string, string | number | null> = {};
+
+  if (typeof body.name === "string") {
+    const name = body.name.trim();
+    if (!name) {
+      return NextResponse.json({ error: "Name is required." }, { status: 400 });
+    }
+    updates.name = name;
+  }
+
+  if (body.keyType === "development" || body.keyType === "production") {
+    updates.key_type = body.keyType;
+  }
+
+  if (typeof body.monthlyLimit === "number" || body.monthlyLimit === null) {
+    updates.monthly_limit = body.monthlyLimit;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_NAME)
+    .update(updates)
+    .eq("id", id)
+    .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at")
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
+
+  const { error } = await supabaseAdmin.from(TABLE_NAME).delete().eq("id", id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return new NextResponse(null, { status: 204 });
+}
