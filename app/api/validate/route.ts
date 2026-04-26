@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { validateApiKey } from "@/lib/services/api-key.service";
 
 export async function POST(request: Request) {
   try {
@@ -9,17 +9,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "API key is required" }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from("api_keys")
-      .select("id, name")
-      .eq("key_value", key)
-      .single();
-
-    if (error || !data) {
+    try {
+      const keyData = await validateApiKey(key);
+      return NextResponse.json({ valid: true, name: keyData.name });
+    } catch (validationError) {
       return NextResponse.json({ valid: false, error: "Invalid API key" }, { status: 404 });
     }
-
-    return NextResponse.json({ valid: true, name: data.name });
   } catch (err) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
