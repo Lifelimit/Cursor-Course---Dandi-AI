@@ -23,7 +23,15 @@ export default function PlaygroundPage() {
   const [apiKey, setApiKey] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
-  const [summaryResult, setSummaryResult] = useState<{ summary: string; cool_facts: string[] } | null>(null);
+  const [summaryResult, setSummaryResult] = useState<{ 
+    summary: string; 
+    cool_facts: string[];
+    metadata: {
+      stars: number;
+      license: string;
+      version: string;
+    }
+  } | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleSummarize = async (e: React.FormEvent) => {
@@ -148,6 +156,28 @@ export default function PlaygroundPage() {
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500">Intelligent Summary</p>
                     <h2 className="font-serif text-3xl font-bold italic">Repository Intelligence</h2>
                   </div>
+                  
+                  <div className="flex flex-wrap gap-4">
+                    <div className="flex items-center gap-2 rounded-full border border-zinc-100 bg-zinc-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600">
+                      <svg viewBox="0 0 24 24" className="h-3 w-3 text-amber-500" fill="currentColor">
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                      </svg>
+                      {summaryResult.metadata.stars.toLocaleString()} Stars
+                    </div>
+                    <div className="flex items-center gap-2 rounded-full border border-zinc-100 bg-zinc-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600">
+                      <svg viewBox="0 0 24 24" className="h-3 w-3 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="3">
+                        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      {summaryResult.metadata.license}
+                    </div>
+                    <div className="flex items-center gap-2 rounded-full border border-zinc-100 bg-zinc-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600">
+                      <svg viewBox="0 0 24 24" className="h-3 w-3 text-blue-500" fill="none" stroke="currentColor" strokeWidth="3">
+                        <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      {summaryResult.metadata.version}
+                    </div>
+                  </div>
+
                   <p className="text-lg font-medium leading-relaxed text-zinc-700">
                     {summaryResult.summary}
                   </p>

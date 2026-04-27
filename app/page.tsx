@@ -24,29 +24,29 @@ export default async function Home() {
       <Navbar session={session} />
 
       {/* Hero Section */}
-      <HeroSection />
+      <HeroSection session={session} />
 
       {/* Bento Feature Grid */}
       <FeatureGrid />
 
       {/* Pricing Section */}
-      <PricingSection />
+      <PricingSection session={session} />
 
-      {/* Final CTA */}
-      <section className="mx-auto max-w-7xl px-6 py-24 md:py-48 text-center">
-        <div className="space-y-10">
-          <h2 className="font-serif text-5xl font-bold md:text-8xl">Start building <br /> the future.</h2>
-          <form action={async () => { "use server"; await signIn("google", { redirectTo: "/dashboards" }); }}>
-            <button className="mx-auto flex items-center justify-center gap-3 rounded-full bg-[#18181b] px-12 py-6 text-sm font-bold uppercase tracking-[0.3em] text-white shadow-2xl transition-all hover:scale-105 hover:bg-zinc-800 active:scale-95">
+      {/* Final CTA - Only show if NOT logged in */}
+      {!session && (
+        <section className="mx-auto max-w-7xl px-6 py-24 md:py-48 text-center">
+          <div className="space-y-10">
+            <h2 className="font-serif text-5xl font-bold md:text-8xl">Start building <br /> the future.</h2>
+            <Link href="/login" className="mx-auto flex w-fit items-center justify-center gap-3 rounded-full bg-[#18181b] px-12 py-6 text-sm font-bold uppercase tracking-[0.3em] text-white shadow-2xl transition-all hover:scale-105 hover:bg-zinc-800 active:scale-95">
               Initialize Account
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
                 <path d="M12 2v20M2 12h20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-            </button>
-          </form>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">Instant Access via Google SSO</p>
-        </div>
-      </section>
+            </Link>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">Instant Access via Google SSO</p>
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="mx-auto max-w-7xl px-6 py-12 border-t border-zinc-200">

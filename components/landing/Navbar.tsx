@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
+import { loginAction, logoutAction } from "@/lib/auth-actions";
 import type { Session } from "next-auth";
 
 export function Navbar({ session }: { session: Session | null }) {
@@ -48,21 +48,34 @@ export function Navbar({ session }: { session: Session | null }) {
           
           <div className="hidden items-center gap-6 md:flex">
             {session ? (
-              <Link href="/dashboards" className="group flex items-center gap-3">
-                <span className="text-xs font-bold uppercase tracking-widest text-zinc-400 group-hover:text-zinc-900 transition-colors">Dashboard</span>
-                {session.user?.image && (
-                  <Image src={session.user.image} alt="Avatar" width={34} height={34} className="rounded-full border-2 border-white shadow-sm" />
-                )}
-              </Link>
+              <div className="flex items-center gap-6">
+                <Link href="/dashboards" className="group flex items-center gap-3">
+                  <span className="text-xs font-bold uppercase tracking-widest text-zinc-400 group-hover:text-zinc-900 transition-colors">Dashboard</span>
+                  {session.user?.image && (
+                    <Image src={session.user.image} alt="Avatar" width={34} height={34} className="rounded-full border-2 border-white shadow-sm" />
+                  )}
+                </Link>
+                <button 
+                  onClick={() => logoutAction()}
+                  className="text-xs font-bold uppercase tracking-widest text-rose-400 hover:text-rose-600 transition-colors"
+                >
+                  Sign Out
+                </button>
+              </div>
             ) : (
               <>
-                <Link href="/api/auth/signin" className="text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-900 transition-colors">Login</Link>
                 <button 
-                  onClick={() => signIn("google", { callbackUrl: "/dashboards" })}
+                  onClick={() => loginAction()}
+                  className="text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-900 transition-colors"
+                >
+                  Login
+                </button>
+                <Link 
+                  href="/login"
                   className="rounded-full bg-[#18181b] px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-zinc-900/10 transition-all hover:bg-zinc-800 hover:scale-105 active:scale-95"
                 >
                   Start Building
-                </button>
+                </Link>
               </>
             )}
           </div>
@@ -79,10 +92,18 @@ export function Navbar({ session }: { session: Session | null }) {
             <Link href="#" className="hover:text-zinc-900">Log</Link>
             <hr className="border-zinc-200" />
             {session ? (
-              <Link href="/dashboards" className="text-zinc-900">Go to Dashboard</Link>
+              <>
+                <Link href="/dashboards" className="text-zinc-900">Go to Dashboard</Link>
+                <button 
+                  onClick={() => logoutAction()}
+                  className="text-rose-600 text-left"
+                >
+                  Sign Out
+                </button>
+              </>
             ) : (
               <button 
-                onClick={() => signIn("google", { callbackUrl: "/dashboards" })}
+                onClick={() => loginAction()}
                 className="text-zinc-900 text-left"
               >
                 Sign In

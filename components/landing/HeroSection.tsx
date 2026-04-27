@@ -1,4 +1,6 @@
-import { signIn } from "@/auth";
+import Link from "next/link";
+import { signIn, auth } from "@/auth";
+import type { Session } from "next-auth";
 
 const STATS_DATA = [
   { label: "Semantic Search", val: "82%", color: "bg-emerald-500" },
@@ -9,7 +11,7 @@ const STATS_DATA = [
 const TRAFFIC_BARS = [4, 7, 5, 9, 6, 8, 4];
 const AVATAR_IDS = [1, 2, 3];
 
-export async function HeroSection() {
+export async function HeroSection({ session }: { session: Session | null }) {
   return (
     <header className="relative mx-auto max-w-7xl px-4 pt-20 pb-16 md:px-6 md:pt-56 md:pb-40 overflow-hidden">
       <div className="grid items-center gap-16 xl:grid-cols-2 xl:gap-24">
@@ -31,16 +33,16 @@ export async function HeroSection() {
             The high-performance API orchestration layer for engineering teams who demand precision and speed.
           </p>
           
-          <div className="flex flex-col gap-4 sm:flex-row justify-center xl:justify-start">
-            <form action={async () => { "use server"; await signIn("google", { redirectTo: "/dashboards" }); }}>
-              <button className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-full bg-[#18181b] px-6 py-4 text-sm font-bold uppercase tracking-widest text-white shadow-2xl transition-all hover:bg-zinc-800 sm:w-auto md:px-10 md:py-5">
+          {!session && (
+            <div className="flex flex-col gap-4 sm:flex-row justify-center xl:justify-start">
+              <Link href="/login" className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-full bg-[#18181b] px-6 py-4 text-sm font-bold uppercase tracking-widest text-white shadow-2xl transition-all hover:bg-zinc-800 sm:w-auto md:px-10 md:py-5">
                 <span className="relative z-10 text-[9px] sm:text-xs">Initialize Session</span>
                 <svg viewBox="0 0 24 24" className="relative z-10 h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
                   <path d="M5 12h14m-7-7l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-              </button>
-            </form>
-          </div>
+              </Link>
+            </div>
+          )}
 
           {/* Code Snippet Component */}
           <div className="group relative w-full max-w-[calc(100vw-2rem)] md:max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-[#1e1e1e] p-4 md:p-6 shadow-2xl transition-all hover:border-zinc-500/30 mx-auto xl:mx-0">

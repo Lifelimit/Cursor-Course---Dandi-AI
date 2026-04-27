@@ -1,3 +1,8 @@
+"use client";
+
+import Link from "next/link";
+import { loginAction } from "@/lib/auth-actions";
+
 const HOBBY_FEATURES = [
   "1,000 requests / mo",
   "3 Active API Keys",
@@ -15,7 +20,7 @@ const RESEARCHER_FEATURES = [
   "Custom Branding",
 ];
 
-export function PricingSection() {
+export function PricingSection({ session }: { session: Session | null }) {
   return (
     <section className="bg-white/50 py-24 md:py-40 backdrop-blur-sm border-y border-zinc-200">
       <div className="mx-auto max-w-7xl px-6">
@@ -39,7 +44,14 @@ export function PricingSection() {
                 </li>
               ))}
             </ul>
-            <button className="mt-auto w-full rounded-full border border-zinc-200 py-4 text-sm font-bold uppercase tracking-widest transition-colors hover:bg-zinc-50">Get Started</button>
+            {!session && (
+              <Link 
+                href="/login"
+                className="mt-auto w-full rounded-full border border-zinc-200 py-4 text-center text-sm font-bold uppercase tracking-widest transition-colors hover:bg-zinc-50"
+              >
+                Get Started
+              </Link>
+            )}
           </div>
 
           {/* Premium Plan */}
@@ -57,7 +69,14 @@ export function PricingSection() {
                 </li>
               ))}
             </ul>
-            <button className="mt-auto w-full rounded-full bg-zinc-900 py-4 text-sm font-bold uppercase tracking-widest text-white shadow-xl transition-all hover:bg-zinc-800">Choose Premium</button>
+            {!session && (
+              <Link 
+                href="/login"
+                className="mt-auto w-full rounded-full bg-zinc-900 py-4 text-center text-sm font-bold uppercase tracking-widest text-white shadow-xl transition-all hover:bg-zinc-800"
+              >
+                Choose Premium
+              </Link>
+            )}
           </div>
 
           {/* Researcher Plan */}
@@ -74,7 +93,14 @@ export function PricingSection() {
                 </li>
               ))}
             </ul>
-            <button className="mt-auto w-full rounded-full border border-zinc-700 py-4 text-sm font-bold uppercase tracking-widest transition-colors hover:bg-zinc-800">Go Researcher</button>
+            {!session && (
+              <Link 
+                href="/login"
+                className="mt-auto w-full rounded-full border border-zinc-700 py-4 text-center text-sm font-bold uppercase tracking-widest transition-colors hover:bg-zinc-800"
+              >
+                Go Researcher
+              </Link>
+            )}
           </div>
         </div>
       </div>

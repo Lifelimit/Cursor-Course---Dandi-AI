@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
-import { fetchGitHubReadme } from "@/lib/services/github.service";
+import { fetchGitHubReadme, fetchGitHubMetadata } from "@/lib/services/github.service";
 import { generateGithubSummary } from "@/lib/services/ai.service";
 
 export async function POST(request: Request) {
@@ -34,13 +34,17 @@ export async function POST(request: Request) {
     // 3. Track Usage (Non-blocking)
     incrementKeyUsage(keyData.id, keyData.usage_count || 0);
 
-    // 4. Fetch README from GitHub
+    // 4. Fetch README and Metadata
     let readmeContent = "";
+    let metadata = null;
     try {
-      readmeContent = await fetchGitHubReadme(githubUrl);
+      [readmeContent, metadata] = await Promise.all([
+        fetchGitHubReadme(githubUrl),
+        fetchGitHubMetadata(githubUrl)
+      ]);
     } catch (fetchErr) {
       return NextResponse.json(
-        { error: fetchErr instanceof Error ? fetchErr.message : "Failed to fetch README" },
+        { error: fetchErr instanceof Error ? fetchErr.message : "Failed to fetch repository data" },
         { status: 422 }
       );
     }
@@ -55,6 +59,7 @@ export async function POST(request: Request) {
         data: {
           owner: keyData.name,
           repo: githubUrl,
+          metadata: metadata,
           ...aiResult,
         },
       });
