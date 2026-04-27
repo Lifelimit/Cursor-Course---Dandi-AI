@@ -22,6 +22,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async signIn({ user, account }) {
       if (!user.email) return false;
 
+      console.log("NextAuth: Attempting to sync user:", user.email);
+
       try {
         // Sync user to our public.profiles table
         const { error } = await supabaseAdmin
@@ -35,15 +37,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }, { onConflict: "email" });
 
         if (error) {
-          console.error("Error syncing user to Supabase:", error);
+          console.error("NextAuth: Supabase sync error:", error.message);
           return true; // Still allow sign in even if sync fails
         }
+        
+        console.log("NextAuth: User sync successful");
         return true;
       } catch (err) {
-        console.error("Fatal error in signIn callback:", err);
+        console.error("NextAuth: Fatal error in sync:", err);
         return true;
       }
     },
+
     async session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub;
