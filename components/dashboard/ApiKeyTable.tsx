@@ -70,22 +70,15 @@ export function ApiKeyTable({
   };
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-zinc-300 bg-white">
-      <table className="w-full table-fixed border-collapse text-left text-sm">
-        <colgroup>
-          <col className="w-[20%]" />
-          <col className="w-[12%]" />
-          <col className="w-[12%]" />
-          <col className="w-[36%]" />
-          <col className="w-[20%]" />
-        </colgroup>
-        <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
+    <div className="overflow-x-auto rounded-xl border border-zinc-300 bg-white shadow-sm">
+      <table className="w-full min-w-[800px] border-collapse text-left text-sm">
+        <thead className="bg-zinc-50 text-xs font-bold uppercase tracking-widest text-zinc-400">
           <tr className="border-b border-zinc-200">
-            <th className="px-5 py-3">Name</th>
-            <th className="px-4 py-3">Type</th>
-            <th className="px-4 py-3">Usage</th>
-            <th className="px-4 py-3">Key</th>
-            <th className="px-4 py-3 text-center">Options</th>
+            <th className="px-5 py-4">Name</th>
+            <th className="px-4 py-4">Type</th>
+            <th className="px-4 py-4">Usage</th>
+            <th className="px-4 py-4">Key</th>
+            <th className="px-4 py-4 text-center">Options</th>
           </tr>
         </thead>
         <tbody>

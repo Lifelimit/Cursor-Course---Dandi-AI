@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { auth, signIn } from "@/auth";
+import { Navbar } from "@/components/landing/Navbar";
 
 export default async function Home() {
   const session = await auth();
@@ -8,53 +9,9 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-[#f4f2ed] font-sans text-[#18181b] selection:bg-zinc-200 overflow-x-hidden">
       {/* Navigation */}
-      <nav className="fixed top-0 z-50 w-full border-b border-zinc-200/50 bg-[#f4f2ed]/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2 group cursor-pointer">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#18181b] text-white transition-transform group-hover:rotate-12">
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold tracking-tight uppercase">Dandi AI</span>
-          </div>
-          
-          <div className="hidden items-center gap-10 text-xs font-bold uppercase tracking-widest text-zinc-500 md:flex">
-            <Link href="#" className="transition hover:text-[#18181b]">Engine</Link>
-            <Link href="#" className="transition hover:text-[#18181b]">Network</Link>
-            <Link href="#" className="transition hover:text-[#18181b]">Pricing</Link>
-            <Link href="#" className="transition hover:text-[#18181b]">Log</Link>
-          </div>
+      <Navbar session={session} />
 
-          <div className="flex items-center gap-4">
-            <div className="md:hidden">
-              <button className="p-2 text-zinc-500">
-                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
-                  <path d="M4 6h16M4 12h16m-7 6h7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </div>
-            {session ? (
-
-              <Link href="/dashboards" className="group flex items-center gap-3">
-                <span className="text-xs font-bold uppercase tracking-widest text-zinc-400 group-hover:text-zinc-900 transition-colors">Dashboard</span>
-                {session.user?.image && (
-                  <Image src={session.user.image} alt="Avatar" width={34} height={34} className="rounded-full border-2 border-white shadow-sm" />
-                )}
-              </Link>
-            ) : (
-              <div className="flex items-center gap-6">
-                <Link href="/api/auth/signin" className="text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-900 transition-colors">Login</Link>
-                <form action={async () => { "use server"; await signIn("google", { redirectTo: "/dashboards" }); }}>
-                  <button className="rounded-full bg-[#18181b] px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-zinc-900/10 transition-all hover:bg-zinc-800 hover:scale-105 active:scale-95">
-                    Start Building
-                  </button>
-                </form>
-              </div>
-            )}
-          </div>
-        </div>
-      </nav>
+      {/* Hero Section */}
 
       {/* Hero Section */}
       <header className="relative mx-auto max-w-7xl px-6 pt-32 pb-24 md:pt-56 md:pb-40">
