@@ -27,7 +27,15 @@ export default async function Home() {
           </div>
 
           <div className="flex items-center gap-4">
+            <div className="md:hidden">
+              <button className="p-2 text-zinc-500">
+                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
+                  <path d="M4 6h16M4 12h16m-7 6h7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
             {session ? (
+
               <Link href="/dashboards" className="group flex items-center gap-3">
                 <span className="text-xs font-bold uppercase tracking-widest text-zinc-400 group-hover:text-zinc-900 transition-colors">Dashboard</span>
                 {session.user?.image && (
