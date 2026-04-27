@@ -180,6 +180,8 @@ export default function DashboardClient({ initialSession }: { initialSession: an
               isOpen={isSubModalOpen}
               onClose={() => setIsSubModalOpen(false)}
               planName={currentPlan}
+              onSuccess={(msg) => showToast("success", msg)}
+              onError={(msg) => showToast("error", msg)}
             />
             <Toast toast={toast} />
           </div>

@@ -55,7 +55,15 @@ const PLANS = [
   }
 ];
 
-export function PricingSection({ session }: { session: Session | null }) {
+export function PricingSection({ 
+  session, 
+  onSuccess, 
+  onError 
+}: { 
+  session: Session | null,
+  onSuccess?: (msg: string) => void,
+  onError?: (msg: string) => void
+}) {
   const router = useRouter();
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
 
@@ -67,11 +75,12 @@ export function PricingSection({ session }: { session: Session | null }) {
     setLoadingPlanId(planId);
     try {
       await updatePlanAction(planId);
+      onSuccess?.(`Successfully switched to ${planId} plan.`);
       // Re-fetch session data by refreshing the page
       router.refresh();
     } catch (error) {
       console.error("Failed to update plan:", error);
-      alert("Failed to update plan. Please try again.");
+      onError?.("Failed to update plan. Please try again.");
     } finally {
       setLoadingPlanId(null);
     }
