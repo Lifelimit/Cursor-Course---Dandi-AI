@@ -52,8 +52,13 @@ export function useApiKeys() {
             );
           } else if (payload.eventType === "INSERT") {
             const newRow = payload.new as ApiKeyApiResponse;
-            setApiKeys((current) => [mapApiKey(newRow), ...current]);
+            setApiKeys((current) => {
+              // Deduplicate: Don't add if the key is already in the list (from the manual create update)
+              if (current.some((k) => k.id === newRow.id)) return current;
+              return [mapApiKey(newRow), ...current];
+            });
           } else if (payload.eventType === "DELETE") {
+
             const oldRow = payload.old as { id: string };
             setApiKeys((current) => current.filter((key) => key.id !== oldRow.id));
           }
