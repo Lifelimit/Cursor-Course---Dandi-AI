@@ -25,7 +25,7 @@ export default function PlaygroundPage() {
         <Sidebar totalUsage={totalUsage} plan={currentPlan} limit={currentLimit} isUnlimited={isUnlimited} />
         
         <main className="w-full min-w-0 flex-1 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div className="rounded-[32px] border border-zinc-200 bg-white/50 p-8 backdrop-blur-sm">
+          <div className="h-full rounded-[32px] border border-zinc-200 bg-white/50 p-8 backdrop-blur-sm">
             <div className="space-y-2">
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400">Environment / Testing</p>
               <h1 className="font-serif text-4xl font-bold md:text-5xl">API Playground.</h1>
