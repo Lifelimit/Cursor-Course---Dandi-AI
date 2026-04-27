@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ApiKey, ApiKeyApiResponse, mapApiKey } from "../types/api";
+import { supabase } from "../lib/supabase-client";
 
 export function useApiKeys() {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
@@ -29,6 +30,42 @@ export function useApiKeys() {
   useEffect(() => {
     loadKeys();
   }, [loadKeys]);
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel("api_keys_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: "public",
+          table: "api_keys",
+        },
+        (payload) => {
+          if (payload.eventType === "UPDATE") {
+            const updatedRow = payload.new as ApiKeyApiResponse;
+            setApiKeys((current) =>
+              current.map((key) => (key.id === updatedRow.id ? mapApiKey(updatedRow) : key))
+            );
+          } else if (payload.eventType === "INSERT") {
+            const newRow = payload.new as ApiKeyApiResponse;
+            setApiKeys((current) => [mapApiKey(newRow), ...current]);
+          } else if (payload.eventType === "DELETE") {
+            const oldRow = payload.old as { id: string };
+            setApiKeys((current) => current.filter((key) => key.id !== oldRow.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
 
   const createKey = async (data: { name: string; keyType: string; monthlyLimit: number | null }) => {
     try {
