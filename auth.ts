@@ -31,8 +31,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             email: user.email,
             full_name: user.name,
             avatar_url: user.image,
+            plan: "Hobby",
             updated_at: new Date().toISOString(),
-          });
+          }, { onConflict: 'id' });
 
         if (error) {
           console.error("NextAuth: Supabase sync error:", error.message, error.details);
@@ -59,6 +60,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Force the session ID to be the stable providerAccountId from the token
       if (session.user) {
         session.user.id = (token.sub || token.id) as string;
+        
+        // Fetch the user's plan directly from Supabase to ensure it's always real-time
+        try {
+          const { data, error } = await supabaseAdmin
+            .from("profiles")
+            .select("plan")
+            .eq("id", session.user.id)
+            .single();
+            
+          if (data && !error) {
+            (session.user as any).plan = data.plan || "Hobby";
+          } else {
+            (session.user as any).plan = "Hobby";
+          }
+        } catch (err) {
+          console.error("NextAuth session callback: Error fetching plan:", err);
+          (session.user as any).plan = "Hobby";
+        }
       }
       return session;
     },
