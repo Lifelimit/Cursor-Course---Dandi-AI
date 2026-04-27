@@ -25,8 +25,8 @@ export default async function Home() {
               v1.0 Live on Edge
             </div>
             
-            <h1 className="font-serif text-[clamp(2.2rem,11vw,5rem)] font-bold leading-[1.1] tracking-tight md:text-8xl md:leading-[1.05] break-words">
-              Infrastructure <br className="hidden xl:block" />
+            <h1 className="font-serif text-[clamp(1.8rem,8vw,5.5rem)] font-bold leading-[1.1] tracking-tight md:text-8xl md:leading-[1.05]">
+              Infrastructure <br className="hidden md:block" />
               <span className="text-zinc-400 italic">for <span className="whitespace-nowrap">Intelligence.</span></span>
             </h1>
             
