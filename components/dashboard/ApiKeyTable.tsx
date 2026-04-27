@@ -102,7 +102,10 @@ export function ApiKeyTable({
               <td className="px-4 py-3 text-zinc-600">
                 {key.type === "production" ? "prod" : "dev"}
               </td>
-              <td className="px-4 py-3 text-zinc-600">{key.usage_count}</td>
+              <td className="px-4 py-3 text-zinc-600">
+                {key.usage_count} / {key.monthly_limit ?? "∞"}
+              </td>
+
               <td className="px-4 py-3">
                 <div className="flex w-full items-center gap-2">
                   <span
