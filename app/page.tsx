@@ -88,19 +88,18 @@ export default async function Home() {
                 <div className="h-3 w-3 rounded-full bg-emerald-500/20 border border-emerald-500/50"></div>
                 <span className="ml-2 font-mono text-[10px] text-zinc-500 uppercase tracking-widest">dandi.init.js</span>
               </div>
-              <pre className="font-mono text-sm leading-relaxed">
-                <code className="block text-zinc-400">
-                  <span className="text-emerald-400">const</span> dandi = <span className="text-blue-400">await</span> Dandi.<span className="text-amber-400">connect</span>(<span className="text-zinc-500">process.env.DANDI_KEY</span>);<br /><br />
-                  <span className="text-zinc-600">// Validate & track usage instantly</span><br />
-                  <span className="text-emerald-400">const</span> session = <span className="text-blue-400">await</span> dandi.<span className="text-amber-400">authorize</span>({<br />
-                  {"  "}user: <span className="text-zinc-500">&quot;researcher_01&quot;</span>,<br />
-                  {"  "}limit: <span className="text-zinc-500">1000</span><br />
-                  });
-                </code>
+              <pre className="font-mono text-sm leading-relaxed text-zinc-400">
+                <span className="text-emerald-400">const</span> dandi = <span className="text-blue-400">await</span> Dandi.<span className="text-amber-400">connect</span>(process.env.DANDI_KEY);<br />
+                <br />
+                <span className="text-zinc-600">// Validate & track usage instantly</span><br />
+                <span className="text-emerald-400">const</span> session = <span className="text-blue-400">await</span> dandi.<span className="text-amber-400">authorize</span>(&#123;<br />
+                &nbsp;&nbsp;user: <span className="text-zinc-500">&quot;researcher_01&quot;</span>,<br />
+                &nbsp;&nbsp;limit: <span className="text-zinc-500">1000</span><br />
+                &#125;);
               </pre>
-
               <div className="absolute top-4 right-4 animate-pulse rounded bg-emerald-500/10 px-2 py-1 text-[8px] font-bold text-emerald-400 uppercase tracking-tighter">Connected</div>
             </div>
+
           </div>
 
           {/* Floating Card Mockup */}
