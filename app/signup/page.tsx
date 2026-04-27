@@ -1,8 +1,8 @@
 import { signIn } from "@/auth";
 import Link from "next/link";
-import { LoginForm } from "@/components/auth/LoginForm";
+import { SignupForm } from "@/components/auth/SignupForm";
 
-export default function LoginPage() {
+export default function SignupPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#f4f2ed] p-6 selection:bg-zinc-200">
       <div className="w-full max-w-sm space-y-12">
@@ -16,17 +16,17 @@ export default function LoginPage() {
             </div>
             <div className="text-center">
               <h1 className="font-serif text-3xl font-bold tracking-tight uppercase text-zinc-900">Dandi AI</h1>
-              <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400">Secure Access Portal</p>
+              <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400">Secure Registration</p>
             </div>
           </Link>
         </div>
 
-        {/* Login Card */}
+        {/* Signup Card */}
         <div className="rounded-[32px] border border-zinc-200 bg-white p-10 shadow-2xl shadow-zinc-200/50">
           <div className="space-y-6">
             <div className="space-y-2">
-              <h2 className="font-serif text-2xl font-bold">Welcome back.</h2>
-              <p className="text-sm text-zinc-500">Sign in to manage your secure API credentials and monitor orchestration nodes.</p>
+              <h2 className="font-serif text-2xl font-bold">Create your account.</h2>
+              <p className="text-sm text-zinc-500">Sign up to manage your secure API credentials and monitor orchestration nodes.</p>
             </div>
 
             <form
@@ -45,7 +45,7 @@ export default function LoginPage() {
                   <path d="M5.74 13.88c-.23-.66-.36-1.37-.36-2.12s.13-1.46.36-2.12V6.77H2.18C1.4 8.35 1 10.12 1 12s.4 3.65 1.18 5.23l3.56-2.77z" fill="#FBBC05" />
                   <path d="M12 4.64c1.69 0 3.21.58 4.41 1.72l3.31-3.31C17.71 1.06 15.1 0 12 0 7.37 0 3.4 2.65 1.18 6.77l3.56 2.77c.88-2.65 3.35-4.62 6.26-4.62z" fill="#EA4335" />
                 </svg>
-                Continue with Google
+                Sign up with Google
               </button>
             </form>
 
@@ -55,12 +55,12 @@ export default function LoginPage() {
               <div className="flex-grow border-t border-zinc-200"></div>
             </div>
 
-            <LoginForm />
+            <SignupForm />
 
             <div className="mt-6 text-center text-sm text-zinc-500">
-              Don't have an account?{" "}
-              <Link href="/signup" className="font-bold text-zinc-900 hover:underline">
-                Sign up
+              Already have an account?{" "}
+              <Link href="/login" className="font-bold text-zinc-900 hover:underline">
+                Sign in
               </Link>
             </div>
           </div>

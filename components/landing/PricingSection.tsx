@@ -112,7 +112,7 @@ export function PricingSection({
   };
 
   return (
-    <section className="bg-white/50 py-24 md:py-40 backdrop-blur-sm border-y border-zinc-200">
+    <section id="pricing" className="bg-white/50 py-24 md:py-40 backdrop-blur-sm border-y border-zinc-200">
       <div className="mx-auto max-w-7xl px-6">
         <div className="mb-20 text-center space-y-4">
           <h2 className="font-serif text-4xl font-bold md:text-5xl">Simple, transparent <br /> pricing for builders.</h2>
@@ -165,7 +165,7 @@ export function PricingSection({
 
                 {!session ? (
                   <Link 
-                    href="/login"
+                    href="/signup"
                     className={`mt-auto w-full rounded-full border py-4 text-center text-sm font-bold uppercase tracking-widest transition-all ${
                       plan.dark 
                         ? 'border-zinc-700 hover:bg-zinc-800' 

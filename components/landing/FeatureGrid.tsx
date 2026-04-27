@@ -2,7 +2,7 @@ const PULSE_BARS = [1, 2, 3, 4];
 
 export function FeatureGrid() {
   return (
-    <section className="mx-auto max-w-7xl px-6 py-24 md:py-40">
+    <section id="features" className="mx-auto max-w-7xl px-6 py-24 md:py-40">
       <div className="mb-20 space-y-4 text-center md:text-left">
         <h2 className="font-serif text-4xl font-bold md:text-6xl">Architected for <br /> the next generation.</h2>
         <p className="mx-auto max-w-md text-zinc-500 md:mx-0">Every component of Dandi is built with a singular focus on performance and reliability.</p>

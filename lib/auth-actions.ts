@@ -1,8 +1,10 @@
 "use server";
 
 import { signIn, signOut, auth } from "@/auth";
+import { AuthError } from "next-auth";
 import { createClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,4 +33,75 @@ export async function updatePlanAction(newPlanId: string) {
   revalidatePath("/");
   revalidatePath("/dashboards");
   return { success: true };
+}
+
+export async function credentialsSignupAction(formData: FormData) {
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+  const fullName = formData.get("fullName") as string;
+
+  if (!email || !password || !fullName) {
+    return { error: "Missing required fields" };
+  }
+
+  const { data: existingUser } = await supabaseAdmin
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .single();
+
+  if (existingUser) {
+    return { error: "Account already exists with this email" };
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const id = crypto.randomUUID();
+
+  const { error } = await supabaseAdmin
+    .from("profiles")
+    .insert({
+      id,
+      email,
+      full_name: fullName,
+      hashed_password: hashedPassword,
+      plan: "Hobby",
+      updated_at: new Date().toISOString()
+    });
+
+  if (error) {
+    console.error("Signup error:", error);
+    return { error: "Failed to create account" };
+  }
+
+  try {
+    await signIn("credentials", { email, password, redirectTo: "/" });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return { error: "Invalid credentials" };
+    }
+    throw error; // Rethrow to allow redirect
+  }
+}
+
+export async function credentialsLoginAction(formData: FormData) {
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+
+  if (!email || !password) {
+    return { error: "Missing required fields" };
+  }
+
+  try {
+    await signIn("credentials", { email, password, redirectTo: "/" });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case "CredentialsSignin":
+          return { error: "Invalid email or password" };
+        default:
+          return { error: "Something went wrong" };
+      }
+    }
+    throw error; // Rethrow to allow redirect
+  }
 }

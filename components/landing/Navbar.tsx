@@ -22,10 +22,9 @@ export function Navbar({ session }: { session: Session | null }) {
         </Link>
         
         <div className="hidden items-center gap-10 text-xs font-bold uppercase tracking-widest text-zinc-500 md:flex">
-          <Link href="#" className="transition hover:text-[#18181b]">Engine</Link>
-          <Link href="#" className="transition hover:text-[#18181b]">Network</Link>
-          <Link href="#" className="transition hover:text-[#18181b]">Pricing</Link>
-          <Link href="#" className="transition hover:text-[#18181b]">Log</Link>
+          <Link href="/#features" className="transition hover:text-[#18181b]">Features</Link>
+          <Link href="/docs" className="transition hover:text-[#18181b]">Documentation</Link>
+          <Link href="/#pricing" className="transition hover:text-[#18181b]">Pricing</Link>
         </div>
 
         <div className="flex items-center gap-4">
@@ -64,14 +63,14 @@ export function Navbar({ session }: { session: Session | null }) {
               </div>
             ) : (
               <>
-                <button 
-                  onClick={() => loginAction()}
+                <Link 
+                  href="/login"
                   className="text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-900 transition-colors"
                 >
                   Login
-                </button>
+                </Link>
                 <Link 
-                  href="/login"
+                  href="/signup"
                   className="rounded-full bg-[#18181b] px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-zinc-900/10 transition-all hover:bg-zinc-800 hover:scale-105 active:scale-95"
                 >
                   Start Building
@@ -86,10 +85,9 @@ export function Navbar({ session }: { session: Session | null }) {
       {isOpen && (
         <div className="border-t border-zinc-200 bg-[#f4f2ed] p-6 md:hidden animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex flex-col gap-6 text-sm font-bold uppercase tracking-[0.2em] text-zinc-500">
-            <Link href="#" className="hover:text-zinc-900">Engine</Link>
-            <Link href="#" className="hover:text-zinc-900">Network</Link>
-            <Link href="#" className="hover:text-zinc-900">Pricing</Link>
-            <Link href="#" className="hover:text-zinc-900">Log</Link>
+            <Link href="/#features" className="hover:text-zinc-900">Features</Link>
+            <Link href="/docs" className="hover:text-zinc-900">Documentation</Link>
+            <Link href="/#pricing" className="hover:text-zinc-900">Pricing</Link>
             <hr className="border-zinc-200" />
             {session ? (
               <>
@@ -102,12 +100,12 @@ export function Navbar({ session }: { session: Session | null }) {
                 </button>
               </>
             ) : (
-              <button 
-                onClick={() => loginAction()}
+              <Link 
+                href="/login"
                 className="text-zinc-900 text-left"
               >
                 Sign In
-              </button>
+              </Link>
             )}
           </div>
         </div>

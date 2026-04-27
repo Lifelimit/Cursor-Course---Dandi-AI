@@ -35,7 +35,7 @@ export function HeroSection({ session }: { session: Session | null }) {
           
           {!session && (
             <div className="flex flex-col gap-4 sm:flex-row justify-center xl:justify-start">
-              <Link href="/login" className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-full bg-[#18181b] px-6 py-4 text-sm font-bold uppercase tracking-widest text-white shadow-2xl transition-all hover:bg-zinc-800 sm:w-auto md:px-10 md:py-5">
+              <Link href="/signup" className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-full bg-[#18181b] px-6 py-4 text-sm font-bold uppercase tracking-widest text-white shadow-2xl transition-all hover:bg-zinc-800 sm:w-auto md:px-10 md:py-5">
                 <span className="relative z-10 text-[9px] sm:text-xs">Initialize Session</span>
                 <svg viewBox="0 0 24 24" className="relative z-10 h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
                   <path d="M5 12h14m-7-7l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
