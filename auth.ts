@@ -7,7 +7,12 @@ import { createClient } from "@supabase/supabase-js";
 // Initialize Supabase admin client for user syncing
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    global: {
+      fetch: (url, options) => fetch(url, { ...options, cache: "no-store" })
+    }
+  }
 );
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -99,7 +104,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const { data, error } = await supabaseAdmin
             .from("profiles")
             .select("plan")
-            .eq("id", session.user.id)
+            .eq("email", session.user.email)
             .single();
             
           if (data && !error) {

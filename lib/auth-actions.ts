@@ -8,7 +8,12 @@ import bcrypt from "bcryptjs";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    global: {
+      fetch: (url, options) => fetch(url, { ...options, cache: "no-store" })
+    }
+  }
 );
 
 export async function loginAction() {
@@ -21,12 +26,12 @@ export async function logoutAction() {
 
 export async function updatePlanAction(newPlanId: string) {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
+  if (!session?.user?.email) throw new Error("Unauthorized");
 
   const { error } = await supabaseAdmin
     .from("profiles")
     .update({ plan: newPlanId })
-    .eq("id", session.user.id);
+    .eq("email", session.user.email);
 
   if (error) throw new Error(error.message);
   

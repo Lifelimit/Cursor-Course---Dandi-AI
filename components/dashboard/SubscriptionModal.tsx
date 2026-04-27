@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { updatePlanAction } from "@/lib/auth-actions";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 type SubscriptionModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  planName: string;
   onSuccess?: (message: string) => void;
   onError?: (message: string) => void;
   initialView?: "overview" | "change-plan" | "cancel-confirm" | "update-payment";
@@ -40,6 +42,7 @@ const PLAN_RANKS: Record<string, number> = {
 
 export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onError, initialView, initialPendingPlan }: SubscriptionModalProps) {
   const router = useRouter();
+  const { update } = useSession();
   const [view, setView] = useState<"overview" | "change-plan" | "cancel-confirm" | "update-payment">(initialView || "overview");
   const [isLoading, setIsLoading] = useState(false);
   const [showCvc, setShowCvc] = useState(false);
@@ -83,6 +86,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     setIsLoading(true);
     try {
       await updatePlanAction("Hobby");
+      await update();
       router.refresh();
       onSuccess?.("Subscription cancelled successfully.");
       onClose();
@@ -116,6 +120,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
       if (pendingPlan) {
         try {
           await updatePlanAction(pendingPlan);
+          await update();
           router.refresh();
           const actionText = PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? "upgraded" : "downgraded";
           onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
@@ -208,6 +213,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
       setIsLoading(true);
       try {
         await updatePlanAction(newPlan);
+        await update();
         router.refresh();
         const actionText = PLAN_RANKS[newPlan] > PLAN_RANKS[planName] ? "upgraded" : "downgraded";
         onSuccess?.(`Successfully ${actionText} to ${newPlan} plan.`);

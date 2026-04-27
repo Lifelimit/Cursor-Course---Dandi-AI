@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Session } from "next-auth";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { loginAction, updatePlanAction } from "@/lib/auth-actions";
 import { useRouter } from "next/navigation";
@@ -66,10 +67,13 @@ export function PricingSection({
   onError?: (msg: string) => void
 }) {
   const router = useRouter();
+  const { data: clientSession, update } = useSession();
+  const activeSession = clientSession || session;
+
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
 
   // Use the real plan from the session (populated in auth.ts)
-  const currentPlanId = session?.user ? (session.user as any).plan : null;
+  const currentPlanId = activeSession?.user ? (activeSession.user as any).plan : null;
   const currentPlan = PLANS.find(p => p.id === currentPlanId);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -99,6 +103,7 @@ export function PricingSection({
     setLoadingPlanId(planId);
     try {
       await updatePlanAction(planId);
+      await update();
       const isDowngrade = currentPlan && targetPlan && targetPlan.level < currentPlan.level;
       onSuccess?.(`Successfully ${isDowngrade ? 'downgraded' : 'upgraded'} to ${planId} plan.`);
       // Re-fetch session data by refreshing the page
