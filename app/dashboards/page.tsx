@@ -90,27 +90,30 @@ export default function DashboardsPage() {
             )}
           </div>
 
-          {/* Plan Section */}
-          <section className="rounded-[32px] border border-zinc-200 bg-white p-8 shadow-sm transition-all hover:shadow-md">
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Current active plan</p>
-                <h2 className="mt-1 font-serif text-3xl font-bold italic">Researcher</h2>
+          {/* Plan Status Card */}
+          <div className="rounded-[32px] border border-zinc-200 bg-white p-8">
+            <div className="flex items-center justify-between mb-8">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Current Active Plan</p>
+                <h2 className="font-serif text-4xl font-bold italic">Researcher</h2>
               </div>
-              <button
-                type="button"
-                className="rounded-full bg-zinc-900 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800"
-              >
+              <button className="rounded-full bg-[#18181b] px-6 py-2 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800">
                 Manage
               </button>
             </div>
-            <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
-              <div className="h-full w-[15%] rounded-full bg-emerald-500" />
+            
+            <div className="space-y-4">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
+                <div 
+                  className="h-full bg-emerald-500 transition-all duration-1000 ease-out" 
+                  style={{ width: `${Math.min((totalUsage / 50000) * 100, 100)}%` }}
+                ></div>
+              </div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                {totalUsage.toLocaleString()} / 50,000 <span className="text-zinc-900">Total Requests Consumed</span>
+              </p>
             </div>
-            <p className="mt-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-              <span className="text-zinc-900">150</span> / 1,000 Credits Initialized
-            </p>
-          </section>
+          </div>
 
           {/* Keys Section */}
           <section className="rounded-[32px] border border-zinc-200 bg-white p-8 shadow-sm">
