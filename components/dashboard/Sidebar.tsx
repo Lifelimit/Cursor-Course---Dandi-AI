@@ -27,10 +27,7 @@ export function Sidebar({
 
   return (
     <aside className="flex w-full flex-col gap-6 rounded-[32px] border border-zinc-200 bg-white/50 p-8 backdrop-blur-sm md:w-72 md:shrink-0">
-      <div className="flex items-center justify-between md:mb-4">
-        <div className="flex items-center gap-2 group cursor-pointer">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#18181b] text-white">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
+      <div className="flex items-center justify-between md:mb-8">
         <Link href="/" className="flex items-center gap-2 group cursor-pointer">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#18181b] text-white transition-transform group-hover:scale-110">
             <span className="font-serif text-lg font-bold italic">D</span>
