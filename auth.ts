@@ -49,20 +49,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
     },
 
-    async jwt({ token, account, user }) {
-      // Persist the permanent Google ID to the token
-      if (account) {
+    async jwt({ token, account }) {
+      // Persist the permanent Google ID to the token as early as possible
+      if (account?.providerAccountId) {
         token.sub = account.providerAccountId;
+        token.id = account.providerAccountId;
       }
       return token;
     },
     async session({ session, token }) {
-      // Use the stable sub (which is the providerAccountId) for the session user ID
-      if (session.user && token.sub) {
-        session.user.id = token.sub;
+      // Force the session ID to be the stable providerAccountId from the token
+      if (session.user) {
+        session.user.id = (token.sub || token.id) as string;
       }
       return session;
     },
+
 
 
     authorized({ auth, request: { nextUrl } }) {

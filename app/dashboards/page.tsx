@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useApiKeys } from "../../hooks/useApiKeys";
 import { useToast } from "../../hooks/useToast";
+import { useSession } from "next-auth/react";
 import { ApiKey } from "../../types/api";
 import { Toast } from "../../components/ui/Toast";
 import { Sidebar } from "../../components/dashboard/Sidebar";
@@ -11,6 +12,7 @@ import { ApiKeyModal } from "../../components/dashboard/ApiKeyModal";
 import { ApiKeyTable } from "../../components/dashboard/ApiKeyTable";
 
 export default function DashboardsPage() {
+  const { data: session } = useSession();
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey } = useApiKeys();
   const { toast, showToast } = useToast();
   
@@ -136,6 +138,10 @@ export default function DashboardsPage() {
             ) : null}
           </section>
 
+          {/* DEBUG INFO */}
+          <div className="mt-8 rounded-xl border border-zinc-200 bg-white/50 p-4 text-[10px] text-zinc-400">
+            <p className="font-mono text-center">DEBUG: USER_ID = {session?.user?.id || "not-found"}</p>
+          </div>
         </main>
 
       </div>
