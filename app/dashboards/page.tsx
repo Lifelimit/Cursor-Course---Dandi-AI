@@ -15,6 +15,15 @@ export default function DashboardsPage() {
   const { data: session } = useSession();
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey } = useApiKeys();
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
+  
+  // Dynamic Tier Logic
+  const currentPlan = "Researcher"; // This could eventually come from session.user.plan
+  const PLAN_LIMITS = {
+    Hobby: 1000,
+    Researcher: 50000
+  };
+  const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
+
   const { toast, showToast } = useToast();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,7 +71,7 @@ export default function DashboardsPage() {
   return (
     <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 p-6 md:flex-row md:py-12">
-        <Sidebar totalUsage={totalUsage} />
+        <Sidebar totalUsage={totalUsage} plan={currentPlan} limit={currentLimit} />
 
         <main className="min-w-0 flex-1 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           {/* Header Section */}
@@ -95,7 +104,7 @@ export default function DashboardsPage() {
             <div className="flex items-center justify-between mb-8">
               <div className="space-y-1">
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Current Active Plan</p>
-                <h2 className="font-serif text-4xl font-bold italic">Researcher</h2>
+                <h2 className="font-serif text-4xl font-bold italic">{currentPlan}</h2>
               </div>
               <button className="rounded-full bg-[#18181b] px-6 py-2 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800">
                 Manage
@@ -106,11 +115,11 @@ export default function DashboardsPage() {
               <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
                 <div 
                   className="h-full bg-emerald-500 transition-all duration-1000 ease-out" 
-                  style={{ width: `${Math.min((totalUsage / 50000) * 100, 100)}%` }}
+                  style={{ width: `${Math.min((totalUsage / currentLimit) * 100, 100)}%` }}
                 ></div>
               </div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-                {totalUsage.toLocaleString()} / 50,000 <span className="text-zinc-900">Total Requests Consumed</span>
+                {totalUsage.toLocaleString()} / {currentLimit.toLocaleString()} <span className="text-zinc-900">Total Requests Consumed</span>
               </p>
             </div>
           </div>

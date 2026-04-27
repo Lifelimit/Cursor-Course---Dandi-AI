@@ -12,7 +12,7 @@ const NAV_ITEMS = [
   { name: "Documentation", href: "#" },
 ];
 
-export function Sidebar({ totalUsage = 0 }: { totalUsage?: number }) {
+export function Sidebar({ totalUsage = 0, plan = "Researcher", limit = 50000 }: { totalUsage?: number; plan?: string; limit?: number }) {
   const pathname = usePathname();
 
   return (
@@ -54,12 +54,12 @@ export function Sidebar({ totalUsage = 0 }: { totalUsage?: number }) {
       </nav>
 
       <div className="hidden md:block mt-6 rounded-2xl bg-zinc-900 p-5 text-white shadow-xl">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 italic">Researcher</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 italic">{plan}</p>
         <p className="mt-1 text-sm font-bold">Standard Tier</p>
         <div className="mt-4 h-1 w-full rounded-full bg-zinc-800">
           <div 
             className="h-full rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-all duration-500" 
-            style={{ width: `${Math.min((totalUsage / 50000) * 100, 100)}%` }}
+            style={{ width: `${Math.min((totalUsage / limit) * 100, 100)}%` }}
           ></div>
         </div>
       </div>
