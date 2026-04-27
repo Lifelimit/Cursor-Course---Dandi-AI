@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { credentialsSignupAction } from "@/lib/auth-actions";
-import { isRedirectError } from "next/dist/client/components/redirect";
+import { isRedirectError } from "next/navigation";
 
 export function SignupForm() {
   const [error, setError] = useState<string | null>(null);

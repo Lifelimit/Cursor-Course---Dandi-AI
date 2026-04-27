@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { credentialsLoginAction } from "@/lib/auth-actions";
-import { isRedirectError } from "next/dist/client/components/redirect";
+import { isRedirectError } from "next/navigation";
 
 export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
