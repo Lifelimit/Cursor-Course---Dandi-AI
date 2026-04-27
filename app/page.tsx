@@ -25,7 +25,7 @@ export default async function Home() {
               v1.0 Live on Edge
             </div>
             
-            <h1 className="font-serif text-[clamp(2.2rem,11vw,5rem)] font-bold leading-[1.1] tracking-tight md:text-8xl md:leading-[1.05] break-words">
+            <h1 className="font-serif text-[clamp(2rem,10vw,5rem)] font-bold leading-[1.1] tracking-tight md:text-8xl md:leading-[1.05] break-words hyphens-auto">
               Infrastructure <br />
               <span className="text-zinc-400 italic">for Intelligence.</span>
             </h1>
@@ -46,7 +46,7 @@ export default async function Home() {
             </div>
 
             {/* Code Snippet Component */}
-            <div className="group relative w-full overflow-hidden rounded-2xl border border-zinc-200 bg-[#1e1e1e] p-4 md:p-6 shadow-2xl transition-all hover:border-zinc-500/30">
+            <div className="group relative w-full max-w-[calc(100vw-2rem)] md:max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-[#1e1e1e] p-4 md:p-6 shadow-2xl transition-all hover:border-zinc-500/30">
               <div className="mb-4 flex items-center justify-between border-b border-white/5 pb-4">
                 <div className="flex items-center gap-2">
                   <div className="h-2.5 w-2.5 rounded-full bg-red-500/20 border border-red-500/50"></div>
