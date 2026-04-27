@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { auth } from "@/auth";
+import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 
 const TABLE_NAME = "api_keys";
 
@@ -15,65 +15,65 @@ type UpdatePayload = {
 };
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const userId = await getAuthenticatedUserId();
+    const { id } = await context.params;
+    const body = (await request.json()) as UpdatePayload;
 
-  const { id } = await context.params;
-  const body = (await request.json()) as UpdatePayload;
+    const updates: Record<string, string | number | null> = {};
 
-  const updates: Record<string, string | number | null> = {};
-
-  if (typeof body.name === "string") {
-    const name = body.name.trim();
-    if (!name) {
-      return NextResponse.json({ error: "Name is required." }, { status: 400 });
+    if (typeof body.name === "string") {
+      const name = body.name.trim();
+      if (!name) {
+        return NextResponse.json({ error: "Name is required." }, { status: 400 });
+      }
+      updates.name = name;
     }
-    updates.name = name;
+
+    if (body.keyType === "development" || body.keyType === "production") {
+      updates.key_type = body.keyType;
+    }
+
+    if (typeof body.monthlyLimit === "number" || body.monthlyLimit === null) {
+      updates.monthly_limit = body.monthlyLimit;
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from(TABLE_NAME)
+      .update(updates)
+      .eq("id", id)
+      .eq("user_id", userId) // Security: Ensure owner
+      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at")
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(data);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 401 });
   }
-
-  if (body.keyType === "development" || body.keyType === "production") {
-    updates.key_type = body.keyType;
-  }
-
-  if (typeof body.monthlyLimit === "number" || body.monthlyLimit === null) {
-    updates.monthly_limit = body.monthlyLimit;
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from(TABLE_NAME)
-    .update(updates)
-    .eq("id", id)
-    .eq("user_id", session.user.id) // Security: Ensure owner
-    .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at")
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json(data);
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const userId = await getAuthenticatedUserId();
+    const { id } = await context.params;
+
+    const { error } = await supabaseAdmin
+      .from(TABLE_NAME)
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId); // Security: Ensure owner
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return new NextResponse(null, { status: 204 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 401 });
   }
-
-  const { id } = await context.params;
-
-  const { error } = await supabaseAdmin
-    .from(TABLE_NAME)
-    .delete()
-    .eq("id", id)
-    .eq("user_id", session.user.id); // Security: Ensure owner
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return new NextResponse(null, { status: 204 });
 }
 
