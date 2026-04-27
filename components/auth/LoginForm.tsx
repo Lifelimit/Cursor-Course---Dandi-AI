@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { credentialsLoginAction } from "@/lib/auth-actions";
-import { isRedirectError } from "next/navigation";
 
 export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
@@ -17,8 +16,8 @@ export function LoginForm() {
       if (result?.error) {
         setError(result.error);
       }
-    } catch (err) {
-      if (isRedirectError(err)) {
+    } catch (err: any) {
+      if (err?.message === "NEXT_REDIRECT" || err?.digest?.startsWith("NEXT_REDIRECT")) {
         throw err;
       }
       setError("An unexpected error occurred");
