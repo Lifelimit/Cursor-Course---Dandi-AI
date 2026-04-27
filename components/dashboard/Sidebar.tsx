@@ -65,7 +65,7 @@ export function Sidebar({
 
       <div className="hidden md:block mt-6 rounded-2xl bg-zinc-900 p-5 text-white shadow-xl">
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 italic">{plan}</p>
-        <p className="mt-1 text-sm font-bold">Standard Tier</p>
+        <p className="mt-1 text-sm font-bold">Production Scale</p>
         <div className="mt-4 h-1 w-full rounded-full bg-zinc-800">
           <div 
             className="h-full rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-all duration-500" 
