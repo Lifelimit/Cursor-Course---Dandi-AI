@@ -31,35 +31,44 @@ export function Sidebar({
         <div className="flex items-center gap-2 group cursor-pointer">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#18181b] text-white">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+        <Link href="/" className="flex items-center gap-2 group cursor-pointer">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#18181b] text-white transition-transform group-hover:scale-110">
+            <span className="font-serif text-lg font-bold italic">D</span>
           </div>
-          <span className="text-sm font-black tracking-widest uppercase">Dandi AI</span>
-        </div>
-        <div className="md:hidden">
-           <span className="rounded-full bg-zinc-900 px-3 py-1 text-[8px] font-black text-white uppercase tracking-widest italic">Researcher</span>
-        </div>
+          <span className="font-serif text-lg font-bold tracking-tight">DANDI AI</span>
+        </Link>
       </div>
 
-      <nav className="flex flex-col gap-2 overflow-x-auto no-scrollbar md:overflow-visible">
-        <p className="hidden md:block mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Navigation</p>
-        <div className="flex flex-row gap-2 md:flex-col">
+      <nav className="flex-1">
+        <div className="space-y-1">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-all md:py-3 ${
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${
                   isActive
-                    ? "bg-[#18181b] text-white shadow-lg shadow-zinc-900/10"
-                    : "text-zinc-500 hover:bg-white hover:text-zinc-900"
+                    ? "bg-[#18181b] text-white shadow-lg shadow-zinc-200"
+                    : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
                 }`}
               >
                 {item.name}
               </Link>
             );
           })}
+          
+          <div className="my-4 h-px bg-zinc-100" />
+          
+          <Link
+            href="/"
+            className="flex items-center gap-3 rounded-xl px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400 transition-all hover:bg-rose-50 hover:text-rose-600"
+          >
+            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
+              <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Exit to Site
+          </Link>
         </div>
       </nav>
 
