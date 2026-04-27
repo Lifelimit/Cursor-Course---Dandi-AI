@@ -18,9 +18,11 @@ export async function POST(request: Request) {
     let keyData;
     try {
       keyData = await validateApiKey(apiKey);
-    } catch (keyError) {
-      return NextResponse.json({ error: "Invalid API key" }, { status: 403 });
+    } catch (keyError: any) {
+      const status = keyError.message.includes("Usage limit exceeded") ? 403 : 401;
+      return NextResponse.json({ error: keyError.message }, { status });
     }
+
 
     // 2. Extract GitHub URL
     const { githubUrl } = await request.json();
