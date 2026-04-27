@@ -14,9 +14,9 @@ export default async function Home() {
       {/* Hero Section */}
 
       {/* Hero Section */}
-      <header className="relative mx-auto max-w-7xl px-6 pt-32 pb-24 md:pt-56 md:pb-40">
-        <div className="grid items-center gap-20 lg:grid-cols-2">
-          <div className="space-y-10 animate-in fade-in slide-in-from-left-8 duration-1000 ease-out">
+      <header className="relative mx-auto max-w-7xl px-6 pt-24 pb-20 md:pt-56 md:pb-40">
+        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-20">
+          <div className="space-y-8 animate-in fade-in slide-in-from-left-8 duration-1000 ease-out">
             <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white/50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -25,19 +25,19 @@ export default async function Home() {
               v1.0 Live on Edge
             </div>
             
-            <h1 className="font-serif text-6xl font-bold leading-[1.05] tracking-tight md:text-8xl">
+            <h1 className="font-serif text-5xl font-bold leading-[1.1] tracking-tight md:text-8xl md:leading-[1.05]">
               Infrastructure <br />
               <span className="text-zinc-400 italic">for Intelligence.</span>
             </h1>
             
-            <p className="max-w-md text-xl leading-relaxed text-zinc-500">
+            <p className="max-w-md text-lg leading-relaxed text-zinc-500 md:text-xl">
               The high-performance API orchestration layer for engineering teams who demand precision and speed.
             </p>
             
             <div className="flex flex-col gap-4 sm:flex-row">
               <form action={async () => { "use server"; await signIn("google", { redirectTo: "/dashboards" }); }}>
                 <button className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-full bg-[#18181b] px-10 py-5 text-sm font-bold uppercase tracking-widest text-white shadow-2xl transition-all hover:bg-zinc-800 sm:w-auto">
-                  <span className="relative z-10">Initialize Session</span>
+                  <span className="relative z-10 text-[10px] sm:text-xs">Initialize Session</span>
                   <svg viewBox="0 0 24 24" className="relative z-10 h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
                     <path d="M5 12h14m-7-7l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -46,14 +46,14 @@ export default async function Home() {
             </div>
 
             {/* Code Snippet Component */}
-            <div className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-[#1e1e1e] p-6 shadow-2xl transition-all hover:border-zinc-500/30">
+            <div className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-[#1e1e1e] p-5 md:p-6 shadow-2xl transition-all hover:border-zinc-500/30">
               <div className="mb-4 flex items-center gap-2 border-b border-white/5 pb-4">
                 <div className="h-3 w-3 rounded-full bg-red-500/20 border border-red-500/50"></div>
                 <div className="h-3 w-3 rounded-full bg-amber-500/20 border border-amber-500/50"></div>
                 <div className="h-3 w-3 rounded-full bg-emerald-500/20 border border-emerald-500/50"></div>
                 <span className="ml-2 font-mono text-[10px] text-zinc-500 uppercase tracking-widest">dandi.init.js</span>
               </div>
-              <pre className="font-mono text-sm leading-relaxed text-zinc-400">
+              <pre className="font-mono text-xs leading-relaxed text-zinc-400 overflow-x-auto no-scrollbar md:text-sm">
                 <span className="text-emerald-400">const</span> dandi = <span className="text-blue-400">await</span> Dandi.<span className="text-amber-400">connect</span>(process.env.DANDI_KEY);<br />
                 <br />
                 <span className="text-zinc-600">// Validate & track usage instantly</span><br />
@@ -64,8 +64,8 @@ export default async function Home() {
               </pre>
               <div className="absolute top-4 right-4 animate-pulse rounded bg-emerald-500/10 px-2 py-1 text-[8px] font-bold text-emerald-400 uppercase tracking-tighter">Connected</div>
             </div>
-
           </div>
+
 
           {/* Floating Card Mockup */}
           <div className="relative hidden lg:block animate-in fade-in zoom-in duration-1000 delay-300">
