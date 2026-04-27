@@ -136,34 +136,8 @@ export default function DashboardsPage() {
             ) : null}
           </section>
 
-          <section className="rounded-2xl border border-[#e3dfd4] bg-[#efebe2] p-5">
-            <h2 className="text-xl font-semibold">Coupon</h2>
-            <p className="mt-1 text-sm text-zinc-600">Have a coupon code to redeem free credits?</p>
-            <div className="mt-4 flex max-w-md items-center gap-2">
-              <input
-                type="text"
-                placeholder="Enter coupon code"
-                className="h-10 flex-1 rounded-lg border border-zinc-300 px-3 text-sm outline-none ring-blue-500/20 transition focus:ring-4"
-              />
-              <button type="button" className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white">
-                Apply
-              </button>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-[#e3dfd4] bg-[#efebe2] p-5">
-            <h2 className="text-xl font-semibold">Remote MCP</h2>
-            <p className="mt-1 text-sm text-zinc-600">Connect directly to your MCP server for seamless local development.</p>
-            <div className="mt-4 flex max-w-md items-center gap-2">
-              <select className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm outline-none ring-blue-500/20 transition focus:ring-4">
-                <option>default</option>
-              </select>
-              <button type="button" className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white">
-                Generate MCP Link
-              </button>
-            </div>
-          </section>
         </main>
+
       </div>
 
       <ApiKeyModal
