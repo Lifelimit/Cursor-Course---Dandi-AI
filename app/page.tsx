@@ -93,11 +93,12 @@ export default async function Home() {
                   <span className="text-emerald-400">const</span> dandi = <span className="text-blue-400">await</span> Dandi.<span className="text-amber-400">connect</span>(<span className="text-zinc-500">process.env.DANDI_KEY</span>);<br /><br />
                   <span className="text-zinc-600">// Validate & track usage instantly</span><br />
                   <span className="text-emerald-400">const</span> session = <span className="text-blue-400">await</span> dandi.<span className="text-amber-400">authorize</span>({<br />
-                  &nbsp;&nbsp;user: <span className="text-zinc-500">&quot;researcher_01&quot;</span>,<br />
-                  &nbsp;&nbsp;limit: <span className="text-zinc-500">1000</span><br />
+                  {"  "}user: <span className="text-zinc-500">&quot;researcher_01&quot;</span>,<br />
+                  {"  "}limit: <span className="text-zinc-500">1000</span><br />
                   });
                 </code>
               </pre>
+
               <div className="absolute top-4 right-4 animate-pulse rounded bg-emerald-500/10 px-2 py-1 text-[8px] font-bold text-emerald-400 uppercase tracking-tighter">Connected</div>
             </div>
           </div>
