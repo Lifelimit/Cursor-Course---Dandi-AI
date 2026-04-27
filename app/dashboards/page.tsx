@@ -59,67 +59,72 @@ export default function DashboardsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f2ed] text-zinc-900">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 md:flex-row md:p-6">
+    <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 p-6 md:flex-row md:py-12">
         <Sidebar />
 
-        <main className="min-w-0 flex-1 space-y-4">
-          <div className="rounded-2xl border border-[#e3dfd4] bg-[#efebe2] p-5">
+        <main className="min-w-0 flex-1 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          {/* Header Section */}
+          <div className="rounded-[32px] border border-zinc-200 bg-white/50 p-8 backdrop-blur-sm">
             <div className="flex items-center justify-between gap-4">
-              <Link href="/" className="group flex items-center gap-2 text-sm text-zinc-600 transition hover:text-zinc-900">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor">
-                  <path d="M15 18l-6-6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Link href="/" className="group flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition hover:text-zinc-900">
+                <svg viewBox="0 0 24 24" className="h-3 w-3 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor">
+                  <path d="M15 18l-6-6 6-6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                PAGES / OVERVIEW
+                Engine / Overview
               </Link>
-              <Link href="/" className="rounded-full border border-zinc-200 bg-white px-4 py-1.5 text-sm font-medium transition hover:bg-zinc-50">
-                Back Home
+              <Link href="/" className="rounded-full border border-zinc-200 bg-white px-4 py-1.5 text-[10px] font-black uppercase tracking-widest transition hover:bg-zinc-50">
+                Exit
               </Link>
             </div>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight">Overview</h1>
+            <h1 className="mt-4 font-serif text-5xl font-bold tracking-tight">Overview</h1>
             {errorMessage ? (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                 {errorMessage}
               </div>
             ) : (
-              <p className="mt-4 rounded-lg bg-white px-3 py-2 text-sm text-zinc-600">
-                API key management for your workspace.
+              <p className="mt-4 text-sm font-medium text-zinc-500">
+                System status and secure credentials management.
               </p>
             )}
           </div>
 
-          <section className="rounded-2xl border border-[#e3dfd4] bg-[#efebe2] p-5">
-            <div className="mb-4 flex items-center justify-between">
+          {/* Plan Section */}
+          <section className="rounded-[32px] border border-zinc-200 bg-white p-8 shadow-sm transition-all hover:shadow-md">
+            <div className="mb-6 flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-zinc-500">Current plan</p>
-                <h2 className="text-3xl font-semibold">Researcher</h2>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Current active plan</p>
+                <h2 className="mt-1 font-serif text-3xl font-bold italic">Researcher</h2>
               </div>
               <button
                 type="button"
-                className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
+                className="rounded-full bg-zinc-900 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800"
               >
-                Manage Plan
+                Manage
               </button>
             </div>
-            <div className="h-2 rounded-full bg-zinc-200">
-              <div className="h-full w-[15%] rounded-full bg-zinc-500" />
+            <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
+              <div className="h-full w-[15%] rounded-full bg-emerald-500" />
             </div>
-            <p className="mt-2 text-sm text-zinc-600">0 / 1000 credits used</p>
+            <p className="mt-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+              <span className="text-zinc-900">150</span> / 1,000 Credits Initialized
+            </p>
           </section>
 
-          <section className="rounded-2xl border border-[#e3dfd4] bg-[#efebe2] p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">API Keys</h2>
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-700">
-                  {apiKeys.length} total
+          {/* Keys Section */}
+          <section className="rounded-[32px] border border-zinc-200 bg-white p-8 shadow-sm">
+            <div className="mb-8 flex items-center justify-between">
+              <h2 className="font-serif text-2xl font-bold">Encrypted Keys</h2>
+              <div className="flex items-center gap-3">
+                <span className="rounded-full bg-zinc-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400 border border-zinc-100">
+                  {apiKeys.length} Records
                 </span>
                 <button
                   type="button"
                   onClick={handleOpenCreateModal}
-                  className="rounded-full bg-zinc-900 px-4 py-2 text-xs font-medium text-white transition hover:bg-zinc-700"
+                  className="rounded-full bg-zinc-900 px-5 py-2 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800 shadow-lg shadow-zinc-900/10"
                 >
-                  Create New Key
+                  New Key
                 </button>
               </div>
             </div>
@@ -134,12 +139,15 @@ export default function DashboardsPage() {
             />
 
             {!isLoading && apiKeys.length === 0 ? (
-              <p className="mt-4 text-sm text-zinc-600">No keys yet. Create your first one.</p>
+              <div className="mt-8 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-100 py-12 text-center">
+                <p className="text-sm font-medium text-zinc-400">No encrypted keys found in this workspace.</p>
+                <button onClick={handleOpenCreateModal} className="mt-4 text-xs font-bold uppercase tracking-widest text-zinc-900 hover:underline">Create first key</button>
+              </div>
             ) : null}
           </section>
         </main>
-
       </div>
+
 
       <ApiKeyModal
         isOpen={isModalOpen}

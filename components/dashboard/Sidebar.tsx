@@ -16,25 +16,29 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex w-full flex-col rounded-2xl border border-[#e3dfd4] bg-[#efebe2] p-4 md:w-64 md:shrink-0">
-      <div className="mb-6 flex items-center gap-2">
-        <div className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-semibold text-white">DA</div>
-        <p className="text-lg font-semibold">Dandi AI</p>
+    <aside className="flex w-full flex-col rounded-[32px] border border-zinc-200 bg-white/50 p-6 backdrop-blur-sm md:w-72 md:shrink-0">
+      <div className="mb-10 flex items-center gap-2 group cursor-pointer">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#18181b] text-white">
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        <span className="text-sm font-black tracking-widest uppercase">Dandi AI</span>
       </div>
 
-      <nav className="space-y-1 text-sm">
-        <p className="mb-2 px-3 text-xs uppercase tracking-wide text-zinc-500">Pages</p>
-        <div className="grid grid-cols-2 gap-1 md:grid-cols-1">
+      <nav className="space-y-1 text-xs font-bold uppercase tracking-widest">
+        <p className="mb-4 px-3 text-[10px] text-zinc-400">Navigation</p>
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-1">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={`w-full rounded-lg px-3 py-2 text-left transition ${
+                className={`w-full rounded-xl px-4 py-3 text-left transition-all ${
                   isActive
-                    ? "bg-white font-medium text-zinc-900 shadow-sm"
-                    : "text-zinc-600 hover:bg-white/70"
+                    ? "bg-[#18181b] text-white shadow-lg shadow-zinc-900/10"
+                    : "text-zinc-500 hover:bg-white hover:text-zinc-900"
                 }`}
               >
                 {item.name}
@@ -44,10 +48,14 @@ export function Sidebar() {
         </div>
       </nav>
 
-      <div className="mt-auto rounded-xl bg-white p-3 text-xs text-zinc-600">
-        <p className="font-medium text-zinc-800">Personal Plan</p>
-        <p className="mt-1">Manage API keys and integrations.</p>
+      <div className="mt-12 rounded-2xl bg-zinc-900 p-5 text-white shadow-xl">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 italic">Researcher</p>
+        <p className="mt-1 text-sm font-bold">Standard Tier</p>
+        <div className="mt-4 h-1 w-full rounded-full bg-zinc-800">
+          <div className="h-full w-1/3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+        </div>
       </div>
     </aside>
   );
 }
+
