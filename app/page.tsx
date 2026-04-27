@@ -56,7 +56,7 @@ export default async function Home() {
                 </div>
                 <div className="animate-pulse rounded bg-emerald-500/10 px-1.5 py-0.5 text-[7px] font-bold text-emerald-400 uppercase tracking-tighter">Live</div>
               </div>
-              <pre className="font-mono text-[9px] leading-relaxed text-zinc-400 overflow-x-auto no-scrollbar md:text-sm text-left">
+              <pre className="font-mono text-[9px] leading-relaxed text-zinc-400 md:text-sm text-left whitespace-pre-wrap break-all md:break-normal">
                 <span className="text-emerald-400">const</span> dandi = <span className="text-blue-400">await</span> Dandi.<span className="text-amber-400">connect</span>(process.env.DANDI_KEY);<br />
                 <br />
                 <span className="text-zinc-600">// Validate & track usage instantly</span><br />
