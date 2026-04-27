@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 type SubscriptionModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  planName: string;
   onSuccess?: (message: string) => void;
   onError?: (message: string) => void;
+  initialView?: "overview" | "change-plan" | "cancel-confirm" | "update-payment";
+  initialPendingPlan?: string | null;
 };
 
 const PLAN_DETAILS = {
@@ -31,12 +32,18 @@ const PLAN_DETAILS = {
   }
 };
 
-export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onError }: SubscriptionModalProps) {
+const PLAN_RANKS: Record<string, number> = {
+  "Hobby": 0,
+  "Premium": 1,
+  "Researcher": 2
+};
+
+export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onError, initialView, initialPendingPlan }: SubscriptionModalProps) {
   const router = useRouter();
-  const [view, setView] = useState<"overview" | "change-plan" | "cancel-confirm" | "update-payment">("overview");
+  const [view, setView] = useState<"overview" | "change-plan" | "cancel-confirm" | "update-payment">(initialView || "overview");
   const [isLoading, setIsLoading] = useState(false);
   const [showCvc, setShowCvc] = useState(false);
-  const [pendingPlan, setPendingPlan] = useState<string | null>(null);
+  const [pendingPlan, setPendingPlan] = useState<string | null>(initialPendingPlan || null);
   
   // State for card details
   const [cardData, setCardData] = useState({
@@ -54,11 +61,11 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     cvc: ""
   });
 
-  // Reset to overview whenever the modal is opened
+  // Reset to overview or initial state whenever the modal is opened
   useEffect(() => {
     if (isOpen) {
-      setView("overview");
-      setPendingPlan(null);
+      setView(initialView || "overview");
+      setPendingPlan(initialPendingPlan || null);
       setFormValues({
         name: "",
         number: "",
@@ -110,12 +117,13 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
         try {
           await updatePlanAction(pendingPlan);
           router.refresh();
-          onSuccess?.(`Successfully upgraded to ${pendingPlan} plan.`);
+          const actionText = PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? "upgraded" : "downgraded";
+          onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
           setView("overview");
           setPendingPlan(null);
           onClose();
         } catch (error) {
-          onError?.("Failed to upgrade plan.");
+          onError?.(`Failed to change plan.`);
         } finally {
           setIsLoading(false);
         }
@@ -178,18 +186,42 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     } else if (name === "expiry") {
       setFormValues(prev => ({ ...prev, expiry: formatExpiry(value, prev.expiry).substring(0, 5) }));
     } else if (name === "cvc") {
-      setFormValues(prev => ({ ...prev, cvc: value.replace(/[^0-9]/gi, "").substring(0, 4) }));
+      setFormValues(prev => {
+        const isAmex = prev.number.startsWith("34") || prev.number.startsWith("37");
+        return { ...prev, cvc: value.replace(/[^0-9]/gi, "").substring(0, isAmex ? 4 : 3) };
+      });
     } else {
       setFormValues(prev => ({ ...prev, [name]: value }));
     }
   };
 
-  const handlePlanSelection = (newPlan: string) => {
+  const handlePlanSelection = async (newPlan: string) => {
     if (newPlan === planName) return;
+    
     if (newPlan === "Hobby") {
       setView("cancel-confirm");
       return;
     }
+
+    // If already on a paid plan, skip payment details and execute immediately
+    if (planName !== "Hobby") {
+      setIsLoading(true);
+      try {
+        await updatePlanAction(newPlan);
+        router.refresh();
+        const actionText = PLAN_RANKS[newPlan] > PLAN_RANKS[planName] ? "upgraded" : "downgraded";
+        onSuccess?.(`Successfully ${actionText} to ${newPlan} plan.`);
+        setView("overview");
+        onClose();
+      } catch (error) {
+        onError?.(`Failed to change plan.`);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Otherwise (upgrading from Hobby), require payment details
     setPendingPlan(newPlan);
     setView("update-payment");
   };
@@ -211,7 +243,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
           
           <div className="space-y-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 italic">
-              {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? "Complete Upgrade" : "Secure Billing") : "Confirm Cancellation"}
+              {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : "Confirm Cancellation"}
             </p>
             <h3 className="font-serif text-4xl font-bold italic">
               {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : "Wait! Are you sure?"}
@@ -346,12 +378,14 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                   disabled={isLoading}
                   className="w-full rounded-full bg-zinc-900 py-4 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800 shadow-xl shadow-zinc-900/10"
                 >
-                  {isLoading ? "Validating Card..." : (pendingPlan ? `Upgrade to ${pendingPlan}` : "Save Payment Method")}
+                  {isLoading ? "Validating Card..." : (pendingPlan ? (PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? `Upgrade to ${pendingPlan}` : `Downgrade to ${pendingPlan}`) : "Save Payment Method")}
                 </button>
                 <button 
                   type="button"
                   onClick={() => {
-                    if (pendingPlan) {
+                    if (initialView === "update-payment") {
+                      onClose();
+                    } else if (pendingPlan) {
                       setView("change-plan");
                       setPendingPlan(null);
                     } else {
@@ -360,7 +394,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                   }}
                   className="w-full rounded-full border border-zinc-200 bg-white py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-900"
                 >
-                  {pendingPlan ? "Go Back" : "Cancel"}
+                  {initialView === "update-payment" ? "Cancel" : (pendingPlan ? "Go Back" : "Cancel")}
                 </button>
               </div>
             </form>

@@ -89,10 +89,7 @@ export default function DashboardClient({ initialSession }: { initialSession: an
                   <svg viewBox="0 0 24 24" className="h-3 w-3 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor">
                     <path d="M15 18l-6-6 6-6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  Engine / Overview
-                </Link>
-                <Link href="/" className="rounded-full border border-zinc-200 bg-white px-4 py-1.5 text-[10px] font-black uppercase tracking-widest transition hover:bg-zinc-50">
-                  Exit
+                  Back to Home
                 </Link>
               </div>
               <h1 className="mt-4 font-serif text-5xl font-bold tracking-tight">Overview</h1>

@@ -11,7 +11,7 @@ const STATS_DATA = [
 const TRAFFIC_BARS = [4, 7, 5, 9, 6, 8, 4];
 const AVATAR_IDS = [1, 2, 3];
 
-export async function HeroSection({ session }: { session: Session | null }) {
+export function HeroSection({ session }: { session: Session | null }) {
   return (
     <header className="relative mx-auto max-w-7xl px-4 pt-20 pb-16 md:px-6 md:pt-56 md:pb-40 overflow-hidden">
       <div className="grid items-center gap-16 xl:grid-cols-2 xl:gap-24">

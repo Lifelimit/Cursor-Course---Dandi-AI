@@ -5,6 +5,7 @@ import type { Session } from "next-auth";
 import Link from "next/link";
 import { loginAction, updatePlanAction } from "@/lib/auth-actions";
 import { useRouter } from "next/navigation";
+import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 
 const PLANS = [
   {
@@ -71,16 +72,40 @@ export function PricingSection({
   const currentPlanId = session?.user ? (session.user as any).plan : null;
   const currentPlan = PLANS.find(p => p.id === currentPlanId);
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalInitialView, setModalInitialView] = useState<"overview" | "cancel-confirm" | "update-payment">("overview");
+  const [modalPendingPlan, setModalPendingPlan] = useState<string | null>(null);
+
   const handleUpdatePlan = async (planId: string) => {
+    const targetPlan = PLANS.find(p => p.id === planId);
+    
+    // Downgrading to Hobby -> show cancel confirm warning
+    if (planId === "Hobby" && currentPlanId !== "Hobby") {
+      setModalInitialView("cancel-confirm");
+      setModalPendingPlan(null);
+      setIsModalOpen(true);
+      return;
+    }
+
+    // Upgrading from Hobby to a paid plan -> show payment details for that plan
+    if (currentPlanId === "Hobby" && planId !== "Hobby") {
+      setModalInitialView("update-payment");
+      setModalPendingPlan(planId);
+      setIsModalOpen(true);
+      return;
+    }
+
+    // Otherwise (downgrading, or switching between already paid plans), execute instantly
     setLoadingPlanId(planId);
     try {
       await updatePlanAction(planId);
-      onSuccess?.(`Successfully switched to ${planId} plan.`);
+      const isDowngrade = currentPlan && targetPlan && targetPlan.level < currentPlan.level;
+      onSuccess?.(`Successfully ${isDowngrade ? 'downgraded' : 'upgraded'} to ${planId} plan.`);
       // Re-fetch session data by refreshing the page
       router.refresh();
     } catch (error) {
       console.error("Failed to update plan:", error);
-      onError?.("Failed to update plan. Please try again.");
+      onError?.("Failed to change plan. Please try again.");
     } finally {
       setLoadingPlanId(null);
     }
@@ -181,6 +206,16 @@ export function PricingSection({
           })}
         </div>
       </div>
+      
+      <SubscriptionModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        planName={currentPlanId || "Hobby"}
+        onSuccess={onSuccess}
+        onError={onError}
+        initialView={modalInitialView}
+        initialPendingPlan={modalPendingPlan}
+      />
     </section>
   );
 }
