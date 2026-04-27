@@ -1,21 +1,41 @@
 "use client";
 
 import { Sidebar } from "@/components/dashboard/Sidebar";
+import { useApiKeys } from "@/hooks/useApiKeys";
+import { useSession } from "next-auth/react";
 
 export default function PlaygroundPage() {
+  const { data: session } = useSession();
+  const { apiKeys } = useApiKeys();
+  const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
+  
+  // Dynamic Tier Logic
+  const currentPlan = "Researcher"; 
+  const PLAN_LIMITS = {
+    Hobby: 1000,
+    Premium: 5000,
+    Researcher: 1000000 
+  };
+  const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
+  const isUnlimited = currentPlan === "Researcher";
+
   return (
-    <div className="min-h-screen bg-[#f4f2ed] text-zinc-900">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 md:flex-row md:p-6">
-        <Sidebar />
-        <main className="min-w-0 flex-1 space-y-6">
-          <div className="rounded-2xl border border-[#e3dfd4] bg-[#efebe2] p-6">
-            <h1 className="text-3xl font-bold tracking-tight">API Playground</h1>
-            <p className="mt-2 text-zinc-600">Test your API keys by submitting them below.</p>
+    <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 p-6 md:flex-row md:py-12">
+        <Sidebar totalUsage={totalUsage} plan={currentPlan} limit={currentLimit} isUnlimited={isUnlimited} />
+        
+        <main className="min-w-0 flex-1 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="rounded-[32px] border border-zinc-200 bg-white/50 p-10 backdrop-blur-sm">
+            <div className="space-y-2">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400">Environment / Testing</p>
+              <h1 className="font-serif text-4xl font-bold md:text-5xl">API Playground.</h1>
+              <p className="mt-4 text-sm font-medium text-zinc-500">Validate your secure credentials and monitor live orchestration response times.</p>
+            </div>
             
-            <form action="/protected" method="GET" className="mt-8 max-w-lg space-y-4">
-              <div>
-                <label htmlFor="api-key" className="block text-sm font-medium text-zinc-700 mb-1">
-                  Enter API Key
+            <form action="/protected" method="GET" className="mt-12 max-w-lg space-y-8">
+              <div className="space-y-3">
+                <label htmlFor="api-key" className="block text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">
+                  Enter Secure Access Token
                 </label>
                 <input
                   id="api-key"
@@ -23,16 +43,29 @@ export default function PlaygroundPage() {
                   type="text"
                   required
                   placeholder="sk_live_..."
-                  className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none ring-blue-500/20 transition focus:ring-4 focus:border-blue-400"
+                  className="w-full rounded-2xl border border-zinc-200 bg-white/80 px-6 py-4 font-mono text-sm outline-none transition-all focus:border-zinc-900 focus:ring-4 focus:ring-zinc-900/5"
                 />
               </div>
               <button
                 type="submit"
-                className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700"
+                className="group flex w-full items-center justify-center gap-3 rounded-full bg-[#18181b] px-8 py-5 text-xs font-bold uppercase tracking-widest text-white transition-all hover:bg-zinc-800 shadow-xl shadow-zinc-900/10"
               >
                 Validate Key
+                <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
+                  <path d="M5 12h14m-7-7l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
             </form>
+
+            <div className="mt-16 pt-8 border-t border-zinc-100">
+              <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                Edge Simulation Active
+              </div>
+            </div>
           </div>
         </main>
       </div>
