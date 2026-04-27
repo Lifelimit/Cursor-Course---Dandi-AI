@@ -72,55 +72,56 @@ export default async function Home() {
 
 
           {/* Floating Card Mockup */}
-          <div className="relative hidden lg:block animate-in fade-in zoom-in duration-1000 delay-300">
+          <div className="relative mt-12 block lg:mt-0 animate-in fade-in zoom-in duration-1000 delay-300 scale-90 sm:scale-100">
             <div className="relative z-10 overflow-hidden rounded-3xl border border-zinc-200 bg-white p-3 shadow-[0_32px_64px_-15px_rgba(0,0,0,0.1)] transition-all hover:scale-[1.02] hover:-rotate-1">
-              <div className="rounded-[20px] bg-zinc-50 p-8">
-                <div className="mb-8 flex items-center justify-between border-b border-zinc-200 pb-6">
-                  <div>
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-300">Workspace</h3>
-                    <p className="text-lg font-bold">Project Alpha</p>
+              <div className="rounded-2xl bg-zinc-50/50 p-6">
+                <div className="mb-8 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Workspace</p>
+                    <h4 className="text-lg font-bold">Project Alpha</h4>
                   </div>
                   <div className="flex -space-x-2">
-                    {[1,2,3].map(i => <div key={i} className="h-8 w-8 rounded-full border-2 border-white bg-zinc-200 shadow-sm"></div>)}
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-8 w-8 rounded-full border-2 border-white bg-zinc-200" />
+                    ))}
                   </div>
                 </div>
-                
+
                 <div className="space-y-6">
                   {[
-                    { name: 'Semantic Search', usage: '82%', status: 'Stable', color: 'bg-emerald-500' },
-                    { name: 'LLM Gateway', usage: '44%', status: 'Active', color: 'bg-blue-500' },
-                    { name: 'Vector Sync', usage: '12%', status: 'Standby', color: 'bg-zinc-300' },
-                  ].map((row, i) => (
-                    <div key={i} className="space-y-2">
-                      <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
-                        <span className="text-zinc-400">{row.name}</span>
-                        <span className="text-zinc-900">{row.usage}</span>
+                    { label: "Semantic Search", val: "82%", color: "bg-emerald-500" },
+                    { label: "LLM Gateway", val: "44%", color: "bg-blue-500" },
+                    { label: "Vector Sync", val: "12%", color: "bg-zinc-300" },
+                  ].map((stat) => (
+                    <div key={stat.label} className="space-y-2">
+                      <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
+                        <span className="text-zinc-400">{stat.label}</span>
+                        <span className="text-zinc-900">{stat.val}</span>
                       </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200/50">
-                        <div className={`h-full ${row.color} transition-all duration-1000`} style={{ width: row.usage }}></div>
+                      <div className="h-1.5 w-full rounded-full bg-zinc-100">
+                        <div className={`h-full rounded-full ${stat.color}`} style={{ width: stat.val }} />
                       </div>
                     </div>
                   ))}
                 </div>
-                
-                <div className="mt-10 rounded-2xl bg-[#18181b] p-5 text-white">
+
+                <div className="mt-10 rounded-2xl bg-zinc-900 p-5 text-white">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Live Traffic</p>
-                      <p className="text-xl font-bold">14,204 <span className="text-[10px] font-normal text-zinc-500">req/s</span></p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Live Traffic</p>
+                      <p className="mt-1 text-2xl font-bold">14,204 <span className="text-xs font-normal text-zinc-500">req/s</span></p>
                     </div>
-                    <div className="flex gap-1 h-8 items-end">
-                      {[40, 70, 45, 90, 65, 80, 50].map((h, i) => (
-                        <div key={i} className="w-1 bg-emerald-400 rounded-t-full transition-all hover:bg-white" style={{ height: `${h}%` }}></div>
+                    <div className="flex items-end gap-1">
+                      {[4, 7, 5, 9, 6, 8, 4].map((h, i) => (
+                        <div key={i} className="w-1 rounded-full bg-emerald-500" style={{ height: `${h * 2}px` }} />
                       ))}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            {/* Decorative Orbs */}
-            <div className="absolute -top-20 -right-20 h-96 w-96 rounded-full bg-blue-100/30 blur-[100px] animate-pulse"></div>
-            <div className="absolute -bottom-20 -left-20 h-96 w-96 rounded-full bg-zinc-200/30 blur-[100px]"></div>
+            {/* Background Glow for Card */}
+            <div className="absolute -inset-4 z-0 bg-gradient-to-tr from-blue-100/50 to-emerald-100/50 blur-3xl opacity-50"></div>
           </div>
         </div>
       </header>
