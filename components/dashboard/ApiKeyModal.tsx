@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { ApiKey } from "../../types/api";
+import { ApiKey } from "@/types/api";
 
 type ApiKeyModalProps = {
   isOpen: boolean;

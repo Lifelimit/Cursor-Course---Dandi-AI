@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ApiKey } from "../../types/api";
+import { useState, useRef, useEffect } from "react";
+import { ApiKey } from "@/types/api";
 import { EyeIcon, EyeOffIcon, CopyIcon, CopyCheckIcon, EditIcon, TrashIcon } from "../icons";
 
 type ApiKeyTableProps = {
@@ -21,6 +21,14 @@ export function ApiKeyTable({
 }: ApiKeyTableProps) {
   const [visibleKeyIds, setVisibleKeyIds] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
 
   const toggleKeyVisibility = (id: string) => {
     setVisibleKeyIds((current) => ({
@@ -52,7 +60,12 @@ export function ApiKeyTable({
       }
       setCopiedId(id);
       onCopySuccess();
-      setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 1200);
+
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopiedId((current) => (current === id ? null : current));
+        copyTimeoutRef.current = null;
+      }, 1200);
     } catch {
       onCopyError("Could not copy API key. Please copy it manually.");
     }
@@ -71,14 +84,14 @@ export function ApiKeyTable({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-zinc-300 bg-white shadow-sm">
-      <table className="w-full min-w-[800px] border-collapse text-left text-sm">
+      <table className="w-full min-w-[700px] border-collapse text-left text-sm table-fixed">
         <thead className="bg-zinc-50 text-xs font-bold uppercase tracking-widest text-zinc-400">
           <tr className="border-b border-zinc-200">
-            <th className="px-5 py-4">Name</th>
-            <th className="px-4 py-4">Type</th>
-            <th className="px-4 py-4">Usage</th>
-            <th className="px-4 py-4">Key</th>
-            <th className="px-4 py-4 text-center">Options</th>
+            <th className="px-5 py-4 w-[18%]">Name</th>
+            <th className="px-4 py-4 w-[10%]">Type</th>
+            <th className="px-4 py-4 w-[12%]">Usage</th>
+            <th className="px-4 py-4 w-[45%]">Key</th>
+            <th className="px-4 py-4 text-center w-[15%]">Options</th>
           </tr>
         </thead>
         <tbody>
@@ -91,8 +104,8 @@ export function ApiKeyTable({
           ) : null}
           {apiKeys.map((key) => (
             <tr key={key.id} className="border-b border-zinc-100">
-              <td className="px-5 py-4 font-medium">{key.name}</td>
-              <td className="px-4 py-3 text-zinc-600">
+              <td className="px-5 py-4 font-medium truncate">{key.name}</td>
+              <td className="px-4 py-3 text-zinc-600 truncate">
                 {key.type === "production" ? "prod" : "dev"}
               </td>
               <td className="px-4 py-3 text-zinc-600">
@@ -100,11 +113,11 @@ export function ApiKeyTable({
               </td>
 
               <td className="px-4 py-3">
-                <div className="flex w-full items-center gap-2">
+                <div className="flex items-center gap-2 overflow-hidden">
                   <span
-                    className={`block w-full whitespace-nowrap font-mono text-xs ${
+                    className={`block font-mono text-xs whitespace-nowrap ${
                       visibleKeyIds[key.id] ? "overflow-x-auto" : "truncate"
-                    }`}
+                    } flex-1`}
                   >
                     {visibleKeyIds[key.id] ? key.key_value : maskApiKey(key.key_value)}
                   </span>

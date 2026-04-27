@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import { ApiKey, ApiKeyApiResponse, mapApiKey } from "../types/api";
-import { supabase } from "../lib/supabase-client";
+import { useState, useEffect, useCallback, useId } from "react";
+import { ApiKey, ApiKeyApiResponse, mapApiKey } from "@/types/api";
+import { supabase } from "@/lib/supabase-client";
 
 export function useApiKeys() {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
@@ -31,12 +31,13 @@ export function useApiKeys() {
     loadKeys();
   }, [loadKeys]);
 
+  const hookId = useId();
   // Real-time subscription
   useEffect(() => {
     if (!supabase) return;
 
     const channel = supabase
-      .channel("api_keys_changes")
+      .channel(`api_keys_changes_${hookId}`)
       .on(
         "postgres_changes",
         {

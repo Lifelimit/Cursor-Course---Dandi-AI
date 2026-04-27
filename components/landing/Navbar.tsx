@@ -4,8 +4,9 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
+import type { Session } from "next-auth";
 
-export function Navbar({ session }: { session: any }) {
+export function Navbar({ session }: { session: Session | null }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (

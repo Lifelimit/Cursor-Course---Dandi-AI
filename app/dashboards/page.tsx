@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useApiKeys } from "../../hooks/useApiKeys";
-import { useToast } from "../../hooks/useToast";
+import { useApiKeys } from "@/hooks/useApiKeys";
+import { useToast } from "@/hooks/useToast";
 import { useSession } from "next-auth/react";
-import { ApiKey } from "../../types/api";
-import { Toast } from "../../components/ui/Toast";
-import { Sidebar } from "../../components/dashboard/Sidebar";
-import { ApiKeyModal } from "../../components/dashboard/ApiKeyModal";
-import { ApiKeyTable } from "../../components/dashboard/ApiKeyTable";
+import { ApiKey } from "@/types/api";
+import { Toast } from "@/components/ui/Toast";
+import { Sidebar } from "@/components/dashboard/Sidebar";
+import { ApiKeyModal } from "@/components/dashboard/ApiKeyModal";
+import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
+import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 
 export default function DashboardsPage() {
   const { data: session } = useSession();
@@ -29,6 +30,7 @@ export default function DashboardsPage() {
   const { toast, showToast } = useToast();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
 
   const handleOpenCreateModal = () => {
@@ -72,105 +74,114 @@ export default function DashboardsPage() {
 
   return (
     <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
-      <div className="mx-auto flex w-full max-w-7xl flex-col items-stretch gap-8 p-6 md:flex-row md:py-12">
+      <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-stretch gap-8 p-6 md:flex-row md:py-12">
         <Sidebar totalUsage={totalUsage} plan={currentPlan} limit={currentLimit} isUnlimited={isUnlimited} />
-
-        <main className="min-w-0 flex-1 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          {/* Header Section */}
-          <div className="rounded-[32px] border border-zinc-200 bg-white/50 p-8 backdrop-blur-sm">
-            <div className="flex items-center justify-between gap-4">
-              <Link href="/" className="group flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition hover:text-zinc-900">
-                <svg viewBox="0 0 24 24" className="h-3 w-3 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor">
-                  <path d="M15 18l-6-6 6-6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                Engine / Overview
-              </Link>
-              <Link href="/" className="rounded-full border border-zinc-200 bg-white px-4 py-1.5 text-[10px] font-black uppercase tracking-widest transition hover:bg-zinc-50">
-                Exit
-              </Link>
-            </div>
-            <h1 className="mt-4 font-serif text-5xl font-bold tracking-tight">Overview</h1>
-            {errorMessage ? (
-              <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                {errorMessage}
+        
+        <main className="min-w-0 flex-1">
+          <div className="space-y-8">
+            {/* Header Section */}
+            <div className="rounded-[32px] border border-zinc-200 bg-white/50 p-8 backdrop-blur-sm">
+              <div className="flex items-center justify-between gap-4">
+                <Link href="/" className="group flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition hover:text-zinc-900">
+                  <svg viewBox="0 0 24 24" className="h-3 w-3 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor">
+                    <path d="M15 18l-6-6 6-6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Engine / Overview
+                </Link>
+                <Link href="/" className="rounded-full border border-zinc-200 bg-white px-4 py-1.5 text-[10px] font-black uppercase tracking-widest transition hover:bg-zinc-50">
+                  Exit
+                </Link>
               </div>
-            ) : (
-              <p className="mt-4 text-sm font-medium text-zinc-500">
-                System status and secure credentials management.
-              </p>
-            )}
-          </div>
-
-          {/* Plan Status Card */}
-          <div className="rounded-[32px] border border-zinc-200 bg-white p-8">
-            <div className="flex items-center justify-between mb-8">
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Current Active Plan</p>
-                <h2 className="font-serif text-4xl font-bold italic">{currentPlan}</h2>
-              </div>
-              <button className="rounded-full bg-[#18181b] px-6 py-2 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800">
-                Manage
-              </button>
+              <h1 className="mt-4 font-serif text-5xl font-bold tracking-tight">Overview</h1>
+              {errorMessage ? (
+                <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  {errorMessage}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm font-medium text-zinc-500">
+                  System status and secure credentials management.
+                </p>
+              )}
             </div>
-            
-            <div className="space-y-4">
-              <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
-                <div 
-                  className="h-full bg-emerald-500 transition-all duration-1000 ease-out" 
-                  style={{ width: `${isUnlimited ? 100 : Math.min((totalUsage / currentLimit) * 100, 100)}%` }}
-                ></div>
-              </div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-                {totalUsage.toLocaleString()} / {isUnlimited ? "∞" : currentLimit.toLocaleString()} <span className="text-zinc-900">{isUnlimited ? "Unlimited Requests Enabled" : "Total Requests Consumed"}</span>
-              </p>
-            </div>
-          </div>
 
-          {/* Keys Section */}
-          <section className="rounded-[32px] border border-zinc-200 bg-white p-8 shadow-sm">
-            <div className="mb-8 flex items-center justify-between">
-              <h2 className="font-serif text-2xl font-bold">Encrypted Keys</h2>
-              <div className="flex items-center gap-3">
-                <span className="rounded-full bg-zinc-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400 border border-zinc-100">
-                  {apiKeys.length} Records
-                </span>
-                <button
-                  type="button"
-                  onClick={handleOpenCreateModal}
-                  className="rounded-full bg-zinc-900 px-5 py-2 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800 shadow-lg shadow-zinc-900/10"
+            {/* Plan Status Card */}
+            <div className="rounded-[32px] border border-zinc-200 bg-white p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Current Active Plan</p>
+                  <h2 className="font-serif text-4xl font-bold italic">{currentPlan}</h2>
+                </div>
+                <button 
+                  onClick={() => setIsSubModalOpen(true)}
+                  className="rounded-full bg-[#18181b] px-6 py-2 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800"
                 >
-                  New Key
+                  Manage
                 </button>
               </div>
+              
+              <div className="space-y-4">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
+                  <div 
+                    className="h-full bg-emerald-500 transition-all duration-1000 ease-out" 
+                    style={{ width: `${isUnlimited ? 100 : Math.min((totalUsage / currentLimit) * 100, 100)}%` }}
+                  ></div>
+                </div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                  {totalUsage.toLocaleString()} / {isUnlimited ? "∞" : currentLimit.toLocaleString()} <span className="text-zinc-900">{isUnlimited ? "Unlimited Requests Enabled" : "Total Requests Consumed"}</span>
+                </p>
+              </div>
             </div>
 
-            <ApiKeyTable
-              apiKeys={apiKeys}
-              isLoading={isLoading}
-              onEdit={handleOpenEditModal}
-              onDelete={handleDelete}
-              onCopySuccess={() => showToast("success", "API key copied to clipboard.")}
-              onCopyError={(msg) => showToast("error", msg)}
-            />
-
-            {!isLoading && apiKeys.length === 0 ? (
-              <div className="mt-8 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-100 py-12 text-center">
-                <p className="text-sm font-medium text-zinc-400">No encrypted keys found in this workspace.</p>
-                <button onClick={handleOpenCreateModal} className="mt-4 text-xs font-bold uppercase tracking-widest text-zinc-900 hover:underline">Create first key</button>
+            {/* Keys Section */}
+            <section className="rounded-[32px] border border-zinc-200 bg-white p-8 shadow-sm">
+              <div className="mb-8 flex items-center justify-between">
+                <h2 className="font-serif text-2xl font-bold">Encrypted Keys</h2>
+                <div className="flex items-center gap-3">
+                  <span className="rounded-full bg-zinc-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400 border border-zinc-100">
+                    {apiKeys.length} Records
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleOpenCreateModal}
+                    className="rounded-full bg-zinc-900 px-5 py-2 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800 shadow-lg shadow-zinc-900/10"
+                  >
+                    New Key
+                  </button>
+                </div>
               </div>
-            ) : null}
-          </section>
+
+              <ApiKeyTable
+                apiKeys={apiKeys}
+                isLoading={isLoading}
+                onEdit={handleOpenEditModal}
+                onDelete={handleDelete}
+                onCopySuccess={() => showToast("success", "API key copied to clipboard.")}
+                onCopyError={(msg) => showToast("error", msg)}
+              />
+
+              {!isLoading && apiKeys.length === 0 ? (
+                <div className="mt-8 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-100 py-12 text-center">
+                  <p className="text-sm font-medium text-zinc-400">No encrypted keys found in this workspace.</p>
+                  <button onClick={handleOpenCreateModal} className="mt-4 text-xs font-bold uppercase tracking-widest text-zinc-900 hover:underline">Create first key</button>
+                </div>
+              ) : null}
+            </section>
+
+            <ApiKeyModal
+              isOpen={isModalOpen}
+              onClose={() => setIsModalOpen(false)}
+              initialData={editingKey}
+              onSubmit={handleModalSubmit}
+            />
+            <SubscriptionModal 
+              isOpen={isSubModalOpen}
+              onClose={() => setIsSubModalOpen(false)}
+              planName={currentPlan}
+            />
+            <Toast toast={toast} />
+          </div>
         </main>
       </div>
-
-
-      <ApiKeyModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        initialData={editingKey}
-        onSubmit={handleModalSubmit}
-      />
-      <Toast toast={toast} />
     </div>
   );
 }
