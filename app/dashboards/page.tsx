@@ -14,6 +14,7 @@ import { ApiKeyTable } from "../../components/dashboard/ApiKeyTable";
 export default function DashboardsPage() {
   const { data: session } = useSession();
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey } = useApiKeys();
+  const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   const { toast, showToast } = useToast();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
