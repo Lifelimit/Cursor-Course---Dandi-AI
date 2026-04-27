@@ -137,11 +137,6 @@ export default function DashboardsPage() {
               <p className="mt-4 text-sm text-zinc-600">No keys yet. Create your first one.</p>
             ) : null}
           </section>
-
-          {/* DEBUG INFO */}
-          <div className="mt-8 rounded-xl border border-zinc-200 bg-white/50 p-4 text-[10px] text-zinc-400">
-            <p className="font-mono text-center">DEBUG: USER_ID = {session?.user?.id || "not-found"}</p>
-          </div>
         </main>
 
       </div>

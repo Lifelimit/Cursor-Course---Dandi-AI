@@ -22,8 +22,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async signIn({ user, account }) {
       if (!user.email || !account?.providerAccountId) return false;
 
-      console.log("NextAuth: Attempting to sync user:", user.email);
-
       try {
         // Use the permanent Google ID (providerAccountId) instead of the random user.id
         const { error } = await supabaseAdmin
@@ -41,7 +39,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return true;
         }
         
-        console.log("NextAuth: User sync successful with ID:", account.providerAccountId);
         return true;
       } catch (err) {
         console.error("NextAuth: Fatal error in sync:", err);
@@ -57,6 +54,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return token;
     },
+
     async session({ session, token }) {
       // Force the session ID to be the stable providerAccountId from the token
       if (session.user) {

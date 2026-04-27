@@ -42,11 +42,8 @@ export async function POST(request: Request) {
   const session = await auth();
   
   if (!session?.user?.id) {
-    console.error("API Keys POST: No session user ID found");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  console.log("API Keys POST: Creating key for user:", session.user.id);
 
   const body = await request.json();
 
@@ -75,12 +72,11 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    console.error("API Keys POST: Supabase insert error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  console.log("API Keys POST: Key created successfully:", data.id);
   return NextResponse.json(data as ApiKeyRow, { status: 201 });
 }
+
 
 
