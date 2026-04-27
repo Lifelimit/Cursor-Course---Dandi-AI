@@ -15,10 +15,12 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
   const [monthlyLimit, setMonthlyLimit] = useState("1000");
   const [errorMessage, setErrorMessage] = useState("");
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditing = Boolean(initialData);
 
   useEffect(() => {
     if (isOpen) {
+      setIsSubmitting(false);
       if (initialData) {
         setKeyName(initialData.name);
         setKeyType(initialData.type);
@@ -38,6 +40,8 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) return;
+
     const trimmedName = keyName.trim();
     if (!trimmedName) {
       setErrorMessage("Name is required.");
@@ -51,6 +55,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
       return;
     }
 
+    setIsSubmitting(true);
     const result = await onSubmit({
       name: trimmedName,
       keyType,
@@ -59,6 +64,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
 
     if (!result.success) {
       setErrorMessage(result.error || "An error occurred.");
+      setIsSubmitting(false);
     } else {
       onClose();
     }
@@ -85,7 +91,8 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
               value={keyName}
               onChange={(event) => setKeyName(event.target.value)}
               placeholder="Key Name"
-              className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm outline-none ring-blue-500/20 transition focus:ring-4"
+              className="h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm outline-none ring-blue-500/20 transition focus:ring-4 disabled:opacity-50"
+              disabled={isSubmitting}
             />
           </div>
 
@@ -97,7 +104,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
                   keyType === "development"
                     ? "border-blue-400 bg-white ring-2 ring-blue-100"
                     : "border-zinc-200 bg-zinc-100 text-zinc-500"
-                }`}
+                } ${isSubmitting ? "opacity-50 pointer-events-none" : ""}`}
               >
                 <input
                   type="radio"
@@ -105,6 +112,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
                   checked={keyType === "development"}
                   onChange={() => setKeyType("development")}
                   className="mt-1"
+                  disabled={isSubmitting}
                 />
                 <div>
                   <p className="text-sm font-medium">Development</p>
@@ -116,7 +124,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
                   keyType === "production"
                     ? "border-blue-400 bg-white ring-2 ring-blue-100 text-zinc-900"
                     : "border-zinc-200 bg-zinc-100 text-zinc-500"
-                }`}
+                } ${isSubmitting ? "opacity-50 pointer-events-none" : ""}`}
               >
                 <input
                   type="radio"
@@ -124,6 +132,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
                   checked={keyType === "production"}
                   onChange={() => setKeyType("production")}
                   className="mt-1"
+                  disabled={isSubmitting}
                 />
                 <div>
                   <p className="text-sm font-medium">Production</p>
@@ -133,12 +142,13 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
             </div>
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-white p-3">
+          <div className={`rounded-xl border border-zinc-200 bg-white p-3 ${isSubmitting ? "opacity-50" : ""}`}>
             <label className="flex items-center gap-2 text-sm font-medium text-zinc-700">
               <input
                 type="checkbox"
                 checked={hasUsageLimit}
                 onChange={(event) => setHasUsageLimit(event.target.checked)}
+                disabled={isSubmitting}
               />
               Limit monthly usage
             </label>
@@ -146,7 +156,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
               type="number"
               value={monthlyLimit}
               onChange={(event) => setMonthlyLimit(event.target.value)}
-              disabled={!hasUsageLimit}
+              disabled={!hasUsageLimit || isSubmitting}
               className="mt-2 h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm disabled:bg-zinc-100"
             />
           </div>
@@ -160,14 +170,26 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
           <div className="flex items-center justify-center gap-3 pt-1">
             <button
               type="submit"
-              className="rounded-full bg-zinc-900 px-6 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
+              disabled={isSubmitting}
+              className="flex items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:bg-zinc-400"
             >
-              {isEditing ? "Save" : "Create"}
+              {isSubmitting ? (
+                <>
+                  <svg className="h-4 w-4 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {isEditing ? "Saving..." : "Creating..."}
+                </>
+              ) : (
+                isEditing ? "Save" : "Create"
+              )}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full px-6 py-2 text-sm text-zinc-600 transition hover:bg-zinc-200"
+              disabled={isSubmitting}
+              className="rounded-full px-6 py-2 text-sm text-zinc-600 transition hover:bg-zinc-200 disabled:opacity-50"
             >
               Cancel
             </button>
