@@ -20,16 +20,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     async signIn({ user, account }) {
-      if (!user.email) return false;
+      if (!user.email || !account?.providerAccountId) return false;
 
       console.log("NextAuth: Attempting to sync user:", user.email);
 
       try {
-        // Sync user to our public.profiles table
+        // Use the permanent Google ID (providerAccountId) instead of the random user.id
         const { error } = await supabaseAdmin
           .from("profiles")
           .upsert({
-            id: user.id,
+            id: account.providerAccountId, 
             email: user.email,
             full_name: user.name,
             avatar_url: user.image,
@@ -38,11 +38,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (error) {
           console.error("NextAuth: Supabase sync error:", error.message, error.details);
-          return true; // Still allow sign in even if sync fails
+          return true;
         }
-
         
-        console.log("NextAuth: User sync successful");
+        console.log("NextAuth: User sync successful with ID:", account.providerAccountId);
         return true;
       } catch (err) {
         console.error("NextAuth: Fatal error in sync:", err);
@@ -51,11 +50,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
 
     async session({ session, token }) {
+      // Use the stable sub (which is the providerAccountId) for the session user ID
       if (session.user && token.sub) {
         session.user.id = token.sub;
       }
       return session;
     },
+
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
       const isOnDashboard = nextUrl.pathname.startsWith("/dashboards");
