@@ -39,26 +39,46 @@ export default async function Home() {
         </div>
         <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
           {session ? (
-            <div className="flex flex-col sm:flex-row gap-4 items-center">
-              <span className="text-zinc-600 dark:text-zinc-400">
-                Signed in as {session.user?.email}
-              </span>
-              <form
-                action={async () => {
-                  "use server";
-                  await signOut();
-                }}
-              >
-                <button className="flex h-12 items-center justify-center rounded-full border border-solid border-red-500/20 px-5 text-red-600 transition-colors hover:bg-red-50 dark:border-red-400/20 dark:text-red-400 dark:hover:bg-red-950/40">
-                  Sign Out
-                </button>
-              </form>
-              <Link
-                className="flex h-12 items-center justify-center rounded-full bg-blue-600 px-5 text-white transition-colors hover:bg-blue-700 md:w-[220px]"
-                href="/dashboards"
-              >
-                Go to Dashboard
-              </Link>
+            <div className="flex flex-col sm:flex-row gap-6 items-center bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+              <div className="flex items-center gap-3">
+                {session.user?.image && (
+                  <Image
+                    src={session.user.image}
+                    alt={session.user.name || "User avatar"}
+                    width={40}
+                    height={40}
+                    className="rounded-full border border-zinc-200 dark:border-zinc-700"
+                  />
+                )}
+                <div className="flex flex-col">
+                  <span 
+                    className="font-semibold text-zinc-900 dark:text-zinc-50 cursor-help"
+                    title={session.user?.email || ""}
+                  >
+                    {session.user?.name || "User"}
+                  </span>
+                  <span className="text-xs text-zinc-500">Logged in</span>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <Link
+                  className="flex h-10 items-center justify-center rounded-full bg-blue-600 px-5 text-sm text-white transition-colors hover:bg-blue-700"
+                  href="/dashboards"
+                >
+                  Dashboard
+                </Link>
+                <form
+                  action={async () => {
+                    "use server";
+                    await signOut();
+                  }}
+                >
+                  <button className="flex h-10 items-center justify-center rounded-full border border-zinc-200 dark:border-zinc-700 px-5 text-sm text-zinc-600 dark:text-zinc-400 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                    Sign Out
+                  </button>
+                </form>
+              </div>
             </div>
           ) : (
             <form
