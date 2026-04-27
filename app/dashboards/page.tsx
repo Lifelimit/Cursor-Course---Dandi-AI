@@ -17,12 +17,14 @@ export default function DashboardsPage() {
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
   // Dynamic Tier Logic
-  const currentPlan = "Researcher"; // This could eventually come from session.user.plan
+  const currentPlan = "Researcher"; // Toggle this to test: "Hobby" | "Premium" | "Researcher"
   const PLAN_LIMITS = {
     Hobby: 1000,
-    Researcher: 50000
+    Premium: 5000,
+    Researcher: 1000000 // High number for visual progress on "Unlimited"
   };
   const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
+  const isUnlimited = currentPlan === "Researcher";
 
   const { toast, showToast } = useToast();
   
@@ -71,7 +73,7 @@ export default function DashboardsPage() {
   return (
     <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 p-6 md:flex-row md:py-12">
-        <Sidebar totalUsage={totalUsage} plan={currentPlan} limit={currentLimit} />
+        <Sidebar totalUsage={totalUsage} plan={currentPlan} limit={currentLimit} isUnlimited={isUnlimited} />
 
         <main className="min-w-0 flex-1 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           {/* Header Section */}
@@ -115,11 +117,11 @@ export default function DashboardsPage() {
               <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
                 <div 
                   className="h-full bg-emerald-500 transition-all duration-1000 ease-out" 
-                  style={{ width: `${Math.min((totalUsage / currentLimit) * 100, 100)}%` }}
+                  style={{ width: `${isUnlimited ? 100 : Math.min((totalUsage / currentLimit) * 100, 100)}%` }}
                 ></div>
               </div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-                {totalUsage.toLocaleString()} / {currentLimit.toLocaleString()} <span className="text-zinc-900">Total Requests Consumed</span>
+                {totalUsage.toLocaleString()} / {isUnlimited ? "∞" : currentLimit.toLocaleString()} <span className="text-zinc-900">{isUnlimited ? "Unlimited Requests Enabled" : "Total Requests Consumed"}</span>
               </p>
             </div>
           </div>

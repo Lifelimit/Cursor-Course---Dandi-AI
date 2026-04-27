@@ -12,7 +12,17 @@ const NAV_ITEMS = [
   { name: "Documentation", href: "#" },
 ];
 
-export function Sidebar({ totalUsage = 0, plan = "Researcher", limit = 50000 }: { totalUsage?: number; plan?: string; limit?: number }) {
+export function Sidebar({ 
+  totalUsage = 0, 
+  plan = "Researcher", 
+  limit = 50000, 
+  isUnlimited = false 
+}: { 
+  totalUsage?: number; 
+  plan?: string; 
+  limit?: number;
+  isUnlimited?: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -59,7 +69,7 @@ export function Sidebar({ totalUsage = 0, plan = "Researcher", limit = 50000 }: 
         <div className="mt-4 h-1 w-full rounded-full bg-zinc-800">
           <div 
             className="h-full rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-all duration-500" 
-            style={{ width: `${Math.min((totalUsage / limit) * 100, 100)}%` }}
+            style={{ width: `${isUnlimited ? 100 : Math.min((totalUsage / limit) * 100, 100)}%` }}
           ></div>
         </div>
       </div>
