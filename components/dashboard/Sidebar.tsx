@@ -12,7 +12,7 @@ const NAV_ITEMS = [
   { name: "Documentation", href: "#" },
 ];
 
-export function Sidebar() {
+export function Sidebar({ totalUsage = 0 }: { totalUsage?: number }) {
   const pathname = usePathname();
 
   return (
@@ -57,11 +57,12 @@ export function Sidebar() {
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 italic">Researcher</p>
         <p className="mt-1 text-sm font-bold">Standard Tier</p>
         <div className="mt-4 h-1 w-full rounded-full bg-zinc-800">
-          <div className="h-full w-1/3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+          <div 
+            className="h-full rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-all duration-500" 
+            style={{ width: `${Math.min((totalUsage / 50000) * 100, 100)}%` }}
+          ></div>
         </div>
       </div>
     </aside>
   );
 }
-
-

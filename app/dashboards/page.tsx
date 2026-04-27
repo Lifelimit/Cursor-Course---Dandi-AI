@@ -61,7 +61,7 @@ export default function DashboardsPage() {
   return (
     <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 p-6 md:flex-row md:py-12">
-        <Sidebar />
+        <Sidebar totalUsage={totalUsage} />
 
         <main className="min-w-0 flex-1 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           {/* Header Section */}
