@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { auth } from "@/auth";
 
 const TABLE_NAME = "api_keys";
 
@@ -11,6 +12,7 @@ type ApiKeyRow = {
   usage_count: number;
   monthly_limit: number | null;
   created_at: string;
+  user_id: string;
 };
 
 function buildKeyValue() {
@@ -18,9 +20,15 @@ function buildKeyValue() {
 }
 
 export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { data, error } = await supabaseAdmin
     .from(TABLE_NAME)
     .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at")
+    .eq("user_id", session.user.id)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -31,6 +39,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const body = await request.json();
 
   const name = typeof body?.name === "string" ? body.name.trim() : "";
@@ -52,6 +65,7 @@ export async function POST(request: Request) {
       key_type: keyType,
       usage_count: 0,
       monthly_limit: monthlyLimit,
+      user_id: session.user.id,
     })
     .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at")
     .single();
@@ -62,3 +76,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json(data as ApiKeyRow, { status: 201 });
 }
+

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { auth } from "@/auth";
 
 const TABLE_NAME = "api_keys";
 
@@ -14,6 +15,11 @@ type UpdatePayload = {
 };
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await context.params;
   const body = (await request.json()) as UpdatePayload;
 
@@ -39,6 +45,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     .from(TABLE_NAME)
     .update(updates)
     .eq("id", id)
+    .eq("user_id", session.user.id) // Security: Ensure owner
     .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at")
     .single();
 
@@ -50,9 +57,18 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await context.params;
 
-  const { error } = await supabaseAdmin.from(TABLE_NAME).delete().eq("id", id);
+  const { error } = await supabaseAdmin
+    .from(TABLE_NAME)
+    .delete()
+    .eq("id", id)
+    .eq("user_id", session.user.id); // Security: Ensure owner
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -60,3 +76,4 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   return new NextResponse(null, { status: 204 });
 }
+
