@@ -34,12 +34,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             full_name: user.name,
             avatar_url: user.image,
             updated_at: new Date().toISOString(),
-          }, { onConflict: "email" });
+          });
 
         if (error) {
-          console.error("NextAuth: Supabase sync error:", error.message);
+          console.error("NextAuth: Supabase sync error:", error.message, error.details);
           return true; // Still allow sign in even if sync fails
         }
+
         
         console.log("NextAuth: User sync successful");
         return true;
