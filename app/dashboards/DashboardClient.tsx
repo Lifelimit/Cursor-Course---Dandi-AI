@@ -12,7 +12,6 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { ApiKeyModal } from "@/components/dashboard/ApiKeyModal";
 import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
 import { useRouter } from "next/navigation";
-import { SystemAlertBanner } from "@/components/dashboard/SystemAlertBanner";
 
 export default function DashboardClient({ initialSession }: { initialSession: Session | null }) {
   const router = useRouter();
@@ -86,13 +85,13 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
 
   return (
     <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
-      <SystemAlertBanner alerts={alerts} />
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-start gap-8 p-6 md:flex-row md:py-12">
         <Sidebar 
           totalUsage={totalUsage} 
           plan={currentPlan} 
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
+          alerts={alerts}
         />
         
         <main className="min-w-0 flex-1">

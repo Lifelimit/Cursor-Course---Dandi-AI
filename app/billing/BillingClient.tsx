@@ -15,7 +15,13 @@ import { InvoiceTable } from "@/components/billing/InvoiceTable";
 type BillingData = {
   totalUsage: number;
   resetDate: string | null;
-  keys: unknown[];
+  keys: {
+    name: string;
+    usage_count: number;
+    monthly_limit: number | null;
+    alert_threshold: number | null;
+    alert_channels: string[] | null;
+  }[];
 };
 
 const MOCK_CARDS = [
@@ -58,6 +64,14 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
   const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
   const isUnlimited = currentPlan === "Researcher";
 
+  const alerts = (data?.keys || [])
+    .filter(k => k.alert_threshold !== null && k.alert_channels?.includes('in-page'))
+    .map(k => {
+      const pct = k.monthly_limit ? (k.usage_count / k.monthly_limit) * 100 : 0;
+      return { keyName: k.name, pct, threshold: k.alert_threshold! };
+    })
+    .filter(a => a.pct >= a.threshold);
+
   const handleUpgrade = async (plan: string) => {
     showToast("success", `Requesting upgrade to ${plan}...`);
     // This would normally trigger Stripe checkout
@@ -73,6 +87,7 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
           plan={currentPlan} 
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
+          alerts={alerts}
         />
         
         <main className="min-w-0 flex-1 space-y-12">

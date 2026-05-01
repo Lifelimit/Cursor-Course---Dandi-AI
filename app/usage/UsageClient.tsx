@@ -62,6 +62,14 @@ export default function UsageClient({ initialSession }: { initialSession: Sessio
   const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
   const isUnlimited = currentPlan === "Researcher";
 
+  const alerts = (data?.keys || [])
+    .filter(k => k.alert_threshold !== null && k.alert_channels?.includes('in-page'))
+    .map(k => {
+      const pct = k.monthly_limit ? (k.usage_count / k.monthly_limit) * 100 : 0;
+      return { keyName: k.name, pct, threshold: k.alert_threshold! };
+    })
+    .filter(a => a.pct >= a.threshold);
+
   const handleExport = () => {
     window.location.href = "/api/usage/export";
     showToast("success", "Usage report export started.");
@@ -75,6 +83,7 @@ export default function UsageClient({ initialSession }: { initialSession: Sessio
           plan={currentPlan} 
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
+          alerts={alerts}
         />
         
         <main className="min-w-0 flex-1 space-y-8">

@@ -5,7 +5,6 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useSession } from "next-auth/react";
 import type { Session } from "next-auth";
-import { SystemAlertBanner } from "@/components/dashboard/SystemAlertBanner";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { CodeSnippet } from "@/components/playground/CodeSnippet";
@@ -118,13 +117,13 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
 
   return (
     <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
-      <SystemAlertBanner alerts={alerts} />
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-stretch gap-8 p-6 md:flex-row md:py-12">
         <Sidebar 
           totalUsage={totalUsage} 
           plan={currentPlan} 
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
+          alerts={alerts}
         />
         
         <main className="min-w-0 flex-1 space-y-8">
