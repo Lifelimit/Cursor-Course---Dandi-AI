@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { loginAction, logoutAction } from "@/lib/auth-actions";
+import { logoutAction } from "@/lib/auth-actions";
 import type { Session } from "next-auth";
 
 export function Navbar({ session }: { session: Session | null }) {

@@ -18,9 +18,9 @@ export async function POST(request: Request) {
     let keyData;
     try {
       keyData = await validateApiKey(apiKey);
-    } catch (keyError: any) {
-      const status = keyError.message.includes("Usage limit exceeded") ? 403 : 401;
-      return NextResponse.json({ error: keyError.message }, { status });
+    } catch (keyError) {
+      const status = (keyError as Error).message.includes("Usage limit exceeded") ? 403 : 401;
+      return NextResponse.json({ error: (keyError as Error).message }, { status });
     }
 
 

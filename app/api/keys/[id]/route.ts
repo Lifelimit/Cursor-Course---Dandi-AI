@@ -51,8 +51,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     return NextResponse.json(data);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 401 });
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 401 });
   }
 }
 
@@ -72,8 +72,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
     }
 
     return new NextResponse(null, { status: 204 });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 401 });
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 401 });
   }
 }
 

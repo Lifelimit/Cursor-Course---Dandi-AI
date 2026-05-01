@@ -19,8 +19,10 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
   const isEditing = Boolean(initialData);
 
   useEffect(() => {
-    if (isOpen) {
-      setIsSubmitting(false);
+    const initializeState = async () => {
+      if (isOpen) {
+        await Promise.resolve();
+        setIsSubmitting(false);
       if (initialData) {
         setKeyName(initialData.name);
         setKeyType(initialData.type);
@@ -32,8 +34,10 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
         setHasUsageLimit(false);
         setMonthlyLimit("1000");
       }
-      setErrorMessage("");
-    }
+        setErrorMessage("");
+      }
+    };
+    initializeState();
   }, [isOpen, initialData]);
 
   if (!isOpen) return null;

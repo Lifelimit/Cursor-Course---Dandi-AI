@@ -34,8 +34,8 @@ export async function GET() {
     }
 
     return NextResponse.json((data ?? []) as ApiKeyRow[]);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 401 });
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 401 });
   }
 }
 
@@ -73,8 +73,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(data as ApiKeyRow, { status: 201 });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 401 });
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 401 });
   }
 }
 

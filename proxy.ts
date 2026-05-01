@@ -1,6 +1,5 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
 // Simple in-memory rate limiter for "existing stuff" approach
 const rateLimitMap = new Map<string, { count: number; lastReset: number }>();

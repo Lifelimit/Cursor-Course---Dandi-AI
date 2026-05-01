@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useToast } from "@/hooks/useToast";
 import { useSession } from "next-auth/react";
+import type { Session } from "next-auth";
 import { ApiKey } from "@/types/api";
 import { Toast } from "@/components/ui/Toast";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -12,7 +13,7 @@ import { ApiKeyModal } from "@/components/dashboard/ApiKeyModal";
 import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 
-export default function DashboardClient({ initialSession }: { initialSession: any }) {
+export default function DashboardClient({ initialSession }: { initialSession: Session | null }) {
   const { data: session } = useSession();
   // Prioritize the server-side session (initialSession) because it's fetched fresh on every load
   const activeSession = initialSession || session; 
@@ -21,7 +22,7 @@ export default function DashboardClient({ initialSession }: { initialSession: an
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
   // Dynamic Tier Logic - Using the most recent session data available
-  const currentPlan = (activeSession?.user as any)?.plan || "Hobby"; 
+  const currentPlan = activeSession?.user?.plan || "Hobby"; 
   const PLAN_LIMITS = {
     Hobby: 1000,
     Premium: 5000,

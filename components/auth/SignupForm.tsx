@@ -42,8 +42,9 @@ export function SignupForm() {
       if (result?.error) {
         setError(result.error);
       }
-    } catch (err: any) {
-      if (err?.message === "NEXT_REDIRECT" || err?.digest?.startsWith("NEXT_REDIRECT")) {
+    } catch (err) {
+      const e = err as Error & { digest?: string };
+      if (e.message === "NEXT_REDIRECT" || e.digest?.startsWith("NEXT_REDIRECT")) {
         throw err;
       }
       setError("An unexpected error occurred");

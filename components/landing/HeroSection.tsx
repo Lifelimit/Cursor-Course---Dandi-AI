@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { signIn, auth } from "@/auth";
 import type { Session } from "next-auth";
 
 const STATS_DATA = [

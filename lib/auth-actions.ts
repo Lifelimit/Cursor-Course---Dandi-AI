@@ -42,7 +42,7 @@ export async function updatePlanAction(
   const session = await auth();
   if (!session?.user?.email) throw new Error("Unauthorized");
 
-  const updateData: any = { plan: newPlanId };
+  const updateData: Record<string, string | null> = { plan: newPlanId };
   
   if (billingDetails) {
     updateData.billing_street = billingDetails.street;

@@ -4,11 +4,12 @@ import { useState } from "react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useSession } from "next-auth/react";
+import type { Session } from "next-auth";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 
-export default function PlaygroundClient({ initialSession }: { initialSession: any }) {
+export default function PlaygroundClient({ initialSession }: { initialSession: Session | null }) {
   const { data: session } = useSession();
   const activeSession = initialSession || session;
   
@@ -16,7 +17,7 @@ export default function PlaygroundClient({ initialSession }: { initialSession: a
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
   // Dynamic Tier Logic
-  const currentPlan = (activeSession?.user as any)?.plan || "Hobby"; 
+  const currentPlan = activeSession?.user?.plan || "Hobby"; 
   const PLAN_LIMITS = {
     Hobby: 1000,
     Premium: 5000,
@@ -64,8 +65,8 @@ export default function PlaygroundClient({ initialSession }: { initialSession: a
       }
 
       setSummaryResult(data.data);
-    } catch (err: any) {
-      setErrorMessage(err.message);
+    } catch (err) {
+      setErrorMessage((err as Error).message);
     } finally {
       setIsLoadingSummary(false);
     }

@@ -4,60 +4,11 @@ import { useState } from "react";
 import type { Session } from "next-auth";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { loginAction, updatePlanAction } from "@/lib/auth-actions";
+import { updatePlanAction } from "@/lib/auth-actions";
 import { useRouter } from "next/navigation";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 
-const PLANS = [
-  {
-    id: "Hobby",
-    name: "The Hobbyist",
-    price: "$0",
-    features: [
-      "1,000 requests / mo",
-      "3 Active API Keys",
-    ],
-    level: 0,
-    className: "border-zinc-200 bg-white",
-    textColor: "text-zinc-600",
-    priceColor: "text-zinc-900",
-    labelColor: "text-zinc-400",
-  },
-  {
-    id: "Premium",
-    name: "The Premium",
-    price: "$20",
-    features: [
-      "5,000 requests / mo",
-      "Unlimited Active Keys",
-      "Priority Support",
-    ],
-    level: 1,
-    recommended: true,
-    className: "border-2 border-zinc-900 bg-white shadow-2xl",
-    textColor: "text-zinc-600",
-    priceColor: "text-zinc-900",
-    labelColor: "text-zinc-400",
-  },
-  {
-    id: "Researcher",
-    name: "The Researcher",
-    price: "$99",
-    features: [
-      "Unlimited requests / mo",
-      "Unlimited Active Keys",
-      "Custom Branding",
-      "Priority Support",
-    ],
-    level: 2,
-    dark: true,
-    className: "border-zinc-200 bg-[#18181b] text-white",
-    textColor: "text-zinc-400",
-    priceColor: "text-white",
-    labelColor: "text-zinc-500",
-  }
-];
-
+import { PLANS } from "@/lib/constants";
 export function PricingSection({ 
   session, 
   onSuccess, 

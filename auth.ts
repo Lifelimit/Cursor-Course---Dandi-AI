@@ -108,22 +108,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             .single();
             
           if (data && !error) {
-            (session.user as any).plan = data.plan || "Hobby";
-            (session.user as any).full_name = data.full_name;
-            (session.user as any).billing_street = data.billing_street;
-            (session.user as any).billing_city = data.billing_city;
-            (session.user as any).billing_state = data.billing_state;
-            (session.user as any).billing_zip = data.billing_zip;
-            (session.user as any).billing_country = data.billing_country;
-            (session.user as any).payment_method_last4 = data.payment_method_last4;
-            (session.user as any).payment_method_brand = data.payment_method_brand;
-            (session.user as any).payment_method_expiry = data.payment_method_expiry;
+            session.user.plan = data.plan || "Hobby";
+            session.user.full_name = data.full_name;
+            session.user.billing_street = data.billing_street;
+            session.user.billing_city = data.billing_city;
+            session.user.billing_state = data.billing_state;
+            session.user.billing_zip = data.billing_zip;
+            session.user.billing_country = data.billing_country;
+            session.user.payment_method_last4 = data.payment_method_last4;
+            session.user.payment_method_brand = data.payment_method_brand;
+            session.user.payment_method_expiry = data.payment_method_expiry;
           } else {
-            (session.user as any).plan = "Hobby";
+            session.user.plan = "Hobby";
           }
         } catch (err) {
           console.error("NextAuth session callback: Error fetching plan:", err);
-          (session.user as any).plan = "Hobby";
+          session.user.plan = "Hobby";
         }
       }
       return session;

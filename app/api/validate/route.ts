@@ -12,10 +12,10 @@ export async function POST(request: Request) {
     try {
       const keyData = await validateApiKey(key);
       return NextResponse.json({ valid: true, name: keyData.name });
-    } catch (validationError) {
-      return NextResponse.json({ valid: false, error: "Invalid API key" }, { status: 404 });
+    } catch {
+      return NextResponse.json({ error: "Invalid API Key" }, { status: 401 });
     }
-  } catch (err) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

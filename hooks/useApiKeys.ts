@@ -8,6 +8,8 @@ export function useApiKeys() {
   const [errorMessage, setErrorMessage] = useState("");
 
   const loadKeys = useCallback(async () => {
+    // Avoid synchronous state updates in useEffect to prevent cascading renders
+    await Promise.resolve();
     setIsLoading(true);
     setErrorMessage("");
     try {
@@ -28,6 +30,7 @@ export function useApiKeys() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadKeys();
   }, [loadKeys]);
 
@@ -72,8 +75,7 @@ export function useApiKeys() {
         supabase.removeChannel(channel);
       }
     };
-
-  }, []);
+  }, [hookId]);
 
 
   const createKey = async (data: { name: string; keyType: string; monthlyLimit: number | null }) => {

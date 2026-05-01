@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useSession } from "next-auth/react";
+import type { Session } from "next-auth";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 
 function ProtectedContent() {
@@ -18,17 +19,18 @@ function ProtectedContent() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setIsLoading(true);
-    setIsValid(null);
-    setKeyName(null);
+    const initializeState = async () => {
+      await Promise.resolve();
+      setIsLoading(true);
+      setIsValid(null);
+      setKeyName(null);
 
-    if (!key) {
-      setIsValid(false);
-      setIsLoading(false);
-      return;
-    }
+      if (!key) {
+        setIsValid(false);
+        setIsLoading(false);
+        return;
+      }
 
-    const validateKey = async () => {
       try {
         const response = await fetch("/api/validate", {
           method: "POST",
@@ -45,7 +47,7 @@ function ProtectedContent() {
           setIsValid(false);
           showToast("error", "Invalid API Key. Access Denied.");
         }
-      } catch (err) {
+      } catch {
         setIsValid(false);
         showToast("error", "Error validating key.");
       } finally {
@@ -53,7 +55,7 @@ function ProtectedContent() {
       }
     };
 
-    validateKey();
+    initializeState();
   }, [key, showToast]);
 
   return (
@@ -138,15 +140,16 @@ function ProtectedContent() {
   );
 }
 
-export default function ProtectedClient({ initialSession }: { initialSession: any }) {
+export default function ProtectedClient({ initialSession }: { initialSession: Session | null }) {
   const { data: session } = useSession();
   const activeSession = initialSession || session;
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const { toast, showToast } = useToast();
+  const { apiKeys } = useApiKeys();
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
   // Dynamic Tier Logic
-  const currentPlan = (activeSession?.user as any)?.plan || "Hobby"; 
+  const currentPlan = activeSession?.user?.plan || "Hobby"; 
   const PLAN_LIMITS = {
     Hobby: 1000,
     Premium: 5000,
@@ -186,6 +189,7 @@ export default function ProtectedClient({ initialSession }: { initialSession: an
         onSuccess={(msg) => showToast("success", msg)}
         onError={(msg) => showToast("error", msg)}
       />
+      <Toast toast={toast} />
     </div>
   );
 }
