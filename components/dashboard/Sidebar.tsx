@@ -21,6 +21,7 @@ type SidebarAlert = {
   pct: number;
   threshold: number;
   currentLimit: number;
+  dailyTrend: { date: string, count: number }[];
 };
 
 export function Sidebar({ 

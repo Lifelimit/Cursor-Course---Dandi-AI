@@ -73,7 +73,8 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
         keyName: k.name, 
         pct, 
         threshold: k.alert_threshold!,
-        currentLimit: k.monthly_limit || 1000 
+        currentLimit: k.monthly_limit || 1000,
+        dailyTrend: k.dailyTrend || []
       };
     })
     .filter(a => a.pct >= a.threshold);

@@ -37,7 +37,8 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
         keyName: k.name, 
         pct, 
         threshold: k.alert_threshold!,
-        currentLimit: k.monthly_limit || 1000 
+        currentLimit: k.monthly_limit || 1000,
+        dailyTrend: k.dailyTrend || []
       };
     })
     .filter(a => a.pct >= a.threshold);
