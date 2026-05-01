@@ -15,6 +15,7 @@ type PaymentFormProps = {
   pendingPlan: string | null;
   planName: string;
   onClose: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setView: (view: any) => void;
   setPendingPlan: (plan: string | null) => void;
   initialView?: string;

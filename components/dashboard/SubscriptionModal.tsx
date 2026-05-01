@@ -426,6 +426,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
               isLoading={isLoading}
               formValues={formValues}
               cardData={cardData}
+              setView={setView}
               onConfirm={handleExecutePlanChange}
               onBack={() => { setView("change-plan"); setPendingPlan(null); }}
             />

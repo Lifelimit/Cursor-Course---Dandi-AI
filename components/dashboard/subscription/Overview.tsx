@@ -7,6 +7,7 @@ type OverviewProps = {
   formValues: BillingDetails;
   cardData: BillingDetails & { number: string; brand: string };
   isLoading: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setView: (view: any) => void;
   handleRemoveCard: () => void;
 };

@@ -7,7 +7,9 @@ type PlanReviewProps = {
   planName: string;
   isLoading: boolean;
   formValues: BillingDetails;
-  cardData: { number: string; street: string; city: string; state: string; zip: string; country: string };
+  cardData: BillingDetails & { number: string; brand: string };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setView: (view: any) => void;
   onConfirm: () => void;
   onBack: () => void;
 };
@@ -18,6 +20,7 @@ export function PlanReview({
   isLoading,
   formValues,
   cardData,
+  setView,
   onConfirm,
   onBack
 }: PlanReviewProps) {
@@ -72,6 +75,31 @@ export function PlanReview({
                     <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Country</span>
                     <span className="text-sm font-bold text-zinc-900">{formValues.country || cardData.country}</span>
                   </div>
+                </div>
+              </div>
+              <div className="h-px bg-zinc-200" />
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <svg viewBox="0 0 24 24" className="h-3 w-3 text-zinc-400" fill="none" stroke="currentColor">
+                    <path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Charging To</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-bold text-zinc-900">
+                      {cardData.number ? `Card ending in ${cardData.number.slice(-4)}` : "No payment method saved"}
+                    </p>
+                    <p className="text-[9px] text-zinc-400 italic">
+                      {cardData.number ? `${cardData.brand || "Primary"} • Primary method` : "Please add a card to continue"}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setView("update-payment")}
+                    className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 underline underline-offset-4 transition-colors"
+                  >
+                    {cardData.number ? "Change" : "Add Card"}
+                  </button>
                 </div>
               </div>
             </div>
