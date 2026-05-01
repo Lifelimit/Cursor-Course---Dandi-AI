@@ -179,7 +179,7 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
                               <div className="flex items-center justify-between">
                                 <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">{k.name}</span>
                                 <span className={`text-[9px] font-bold tabular-nums ${
-                                  isOver ? "text-red-500" : pct !== null && pct > 75 ? "text-amber-500" : "text-zinc-500"
+                                  isOver ? "text-red-500" : pct !== null && pct >= 70 ? "text-amber-500" : "text-zinc-500"
                                 }`}>
                                   {k.usage_count.toLocaleString()} / {k.monthly_limit ? k.monthly_limit.toLocaleString() : "∞"} requests
                                 </span>
@@ -188,7 +188,7 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
                                 <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-100">
                                   <div
                                     className={`h-full rounded-full transition-all ${
-                                      isOver ? "bg-red-500" : pct > 75 ? "bg-amber-400" : "bg-emerald-500"
+                                      isOver ? "bg-red-500" : pct > 70 ? "bg-amber-400" : "bg-emerald-500"
                                     }`}
                                     style={{ width: `${pct}%` }}
                                   />
