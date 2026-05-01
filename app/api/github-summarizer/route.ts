@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     }
 
     // 3. Track Usage (Non-blocking)
-    incrementKeyUsage(keyData.id, keyData.usage_count || 0);
+    incrementKeyUsage(keyData.id, keyData.usage_count || 0, keyData.user_id, githubUrl);
 
     // 4. Fetch README and Metadata
     let readmeContent = "";

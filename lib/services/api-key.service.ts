@@ -13,7 +13,7 @@ export async function validateApiKey(keyValue: string) {
 
   const { data, error } = await supabaseAdmin
     .from("api_keys")
-    .select("id, name, usage_count, monthly_limit")
+    .select("id, name, usage_count, monthly_limit, user_id")
     .eq("key_value", keyValue)
     .eq("is_active", true)
     .single();
@@ -30,16 +30,30 @@ export async function validateApiKey(keyValue: string) {
   return data;
 }
 
-export async function incrementKeyUsage(keyId: string, currentCount: number) {
+export async function incrementKeyUsage(keyId: string, currentCount: number, userId: string, repoUrl?: string) {
   if (keyId === "demo-id") return;
 
-  const { error } = await supabaseAdmin
+  // 1. Update the aggregate count on the key
+  const { error: updateError } = await supabaseAdmin
     .from("api_keys")
     .update({ usage_count: currentCount + 1 })
     .eq("id", keyId);
 
-  if (error) {
-    console.error("Failed to increment usage count for key:", keyId, error);
+  if (updateError) {
+    console.error("Failed to increment usage count for key:", keyId, updateError);
+  }
+
+  // 2. Log the individual usage event for analytics
+  const { error: logError } = await supabaseAdmin
+    .from("api_usage_log")
+    .insert({
+      api_key_id: keyId,
+      user_id: userId,
+      repo_url: repoUrl,
+    });
+
+  if (logError) {
+    console.error("Failed to log usage event:", logError);
   }
 }
 
