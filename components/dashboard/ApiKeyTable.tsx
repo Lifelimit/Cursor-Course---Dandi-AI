@@ -103,12 +103,21 @@ export function ApiKeyTable({
             </tr>
           ) : null}
           {apiKeys.map((key) => (
-            <tr key={key.id} className="border-b border-zinc-100">
-              <td className="px-5 py-4 font-medium truncate">{key.name}</td>
-              <td className="px-4 py-3 text-zinc-600 truncate">
+            <tr key={key.id} className={`border-b border-zinc-100 transition-colors ${!key.is_active ? "bg-zinc-50 opacity-60" : "hover:bg-zinc-50/40"}`}>
+              <td className="px-5 py-4 font-medium truncate">
+                <div className="flex items-center gap-2">
+                  <span className={!key.is_active ? "text-zinc-400" : ""}>{key.name}</span>
+                  {!key.is_active && (
+                    <span className="shrink-0 rounded-full bg-zinc-200 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500">
+                      Disabled
+                    </span>
+                  )}
+                </div>
+              </td>
+              <td className={`px-4 py-3 truncate ${!key.is_active ? "text-zinc-400" : "text-zinc-600"}`}>
                 {key.type === "production" ? "prod" : "dev"}
               </td>
-              <td className="px-4 py-3 text-zinc-600">
+              <td className={`px-4 py-3 ${!key.is_active ? "text-zinc-400" : "text-zinc-600"}`}>
                 {key.usage_count} / {key.monthly_limit ?? "∞"}
               </td>
 
@@ -117,14 +126,14 @@ export function ApiKeyTable({
                   <span
                     className={`block font-mono text-xs whitespace-nowrap ${
                       visibleKeyIds[key.id] ? "overflow-x-auto" : "truncate"
-                    } flex-1`}
+                    } flex-1 ${!key.is_active ? "text-zinc-400" : ""}`}
                   >
                     {visibleKeyIds[key.id] ? key.key_value : maskApiKey(key.key_value)}
                   </span>
                 </div>
               </td>
               <td className="px-4 py-3">
-                <div className="flex flex-nowrap items-center justify-center gap-2 text-zinc-600">
+                <div className={`flex flex-nowrap items-center justify-center gap-2 ${!key.is_active ? "text-zinc-300 pointer-events-none" : "text-zinc-600"}`}>
                   <button
                     type="button"
                     onClick={() => toggleKeyVisibility(key.id)}
@@ -155,7 +164,7 @@ export function ApiKeyTable({
                   <button
                     onClick={() => handleDelete(key.id)}
                     type="button"
-                    className="rounded-md p-1.5 text-red-500 transition hover:bg-red-50 hover:text-red-700"
+                    className={`rounded-md p-1.5 transition ${!key.is_active ? "text-zinc-300" : "text-red-500 hover:bg-red-50 hover:text-red-700"}`}
                     aria-label="Delete API key"
                     title="Delete"
                   >
