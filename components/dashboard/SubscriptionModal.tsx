@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { updatePlanAction } from "@/lib/auth-actions";
+import { updatePlanAction, removePaymentMethodAction } from "@/lib/auth-actions";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
@@ -9,7 +9,7 @@ type SubscriptionModalProps = {
   planName: string;
   onSuccess?: (message: string) => void;
   onError?: (message: string) => void;
-  initialView?: "overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review";
+  initialView?: "overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review" | "remove-card-confirm";
   initialPendingPlan?: string | null;
 };
 
@@ -99,22 +99,25 @@ const COUNTRIES = Object.keys(LOCATION_DATA);
 export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onError, initialView, initialPendingPlan }: SubscriptionModalProps) {
   const router = useRouter();
   const { data: session, update } = useSession();
-  const [view, setView] = useState<"overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review">(initialView || "overview");
+  const [transactionId] = useState(() => Math.random().toString(36).substring(2, 9).toUpperCase());
+  const [view, setView] = useState<"overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review" | "remove-card-confirm">(initialView || "overview");
   const [isLoading, setIsLoading] = useState(false);
   const [showCvc, setShowCvc] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<string | null>(initialPendingPlan || null);
+  const [showAddressForm, setShowAddressForm] = useState(false);
   
   // State for card details
   const [cardData, setCardData] = useState({
     name: "",
-    number: "•••• •••• •••• 4242",
-    expiry: "12/26",
+    number: "",
+    brand: "",
+    expiry: "",
     cvc: "•••",
-    street: "Street Address",
-    city: "City",
-    state: "State",
-    zip: "Postal Code",
-    country: "Country"
+    street: "",
+    city: "",
+    state: "",
+    zip: "",
+    country: ""
   });
 
   // Temp state for the form inputs
@@ -141,17 +144,21 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
         setCardData(prev => ({
           ...prev,
           name: s.full_name || prev.name,
+          number: s.payment_method_last4 ? `•••• •••• •••• ${s.payment_method_last4}` : "",
+          brand: s.payment_method_brand || "",
+          expiry: s.payment_method_expiry || "",
           street: s.billing_street || prev.street,
           city: s.billing_city || prev.city,
           state: s.billing_state || prev.state,
           zip: s.billing_zip || prev.zip,
           country: s.billing_country || prev.country
         }));
+        setShowAddressForm(!s.billing_street);
         
         setFormValues({
           name: s.full_name || "",
           number: "",
-          expiry: "",
+          expiry: s.payment_method_expiry || "",
           cvc: "",
           street: s.billing_street || "",
           city: s.billing_city || "",
@@ -216,12 +223,22 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     }
 
     setIsLoading(true);
+    // Detect Brand
+    const brand = cleanNumber.startsWith("4") ? "Visa" : cleanNumber.startsWith("5") ? "Mastercard" : "Card";
+    
     // Simulate API call for card validation
     setTimeout(async () => {
+      const paymentMetadata = {
+        last4: cleanNumber.slice(-4),
+        brand: brand,
+        expiry: formValues.expiry
+      };
+
       setCardData({
         name: formValues.name,
-        number: `•••• •••• •••• ${cleanNumber.slice(-4)}`,
-        expiry: formValues.expiry,
+        number: `•••• •••• •••• ${paymentMetadata.last4}`,
+        brand: paymentMetadata.brand,
+        expiry: paymentMetadata.expiry,
         cvc: formValues.cvc,
         street: formValues.street,
         city: formValues.city,
@@ -238,7 +255,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
             state: formValues.state,
             zip: formValues.zip,
             country: formValues.country
-          });
+          }, paymentMetadata);
           await update();
           router.refresh();
           const actionText = PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "upgraded" : "downgraded";
@@ -252,9 +269,24 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
           setIsLoading(false);
         }
       } else {
-        setIsLoading(false);
-        onSuccess?.("Payment method updated successfully.");
-        setView("overview");
+        try {
+          // If just updating payment, still use updatePlanAction but with current plan
+          await updatePlanAction(planName, {
+            street: formValues.street,
+            city: formValues.city,
+            state: formValues.state,
+            zip: formValues.zip,
+            country: formValues.country
+          }, paymentMetadata);
+          await update();
+          router.refresh();
+          setIsLoading(false);
+          onSuccess?.("Payment method updated and saved.");
+          setView("overview");
+        } catch (error) {
+          onError?.("Failed to save payment method.");
+          setIsLoading(false);
+        }
       }
     }, 1500);
   };
@@ -291,7 +323,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     }
     
     if (v.length >= 2) {
-      let month = parseInt(v.substring(0, 2), 10);
+      const month = parseInt(v.substring(0, 2), 10);
       if (month > 12) {
         v = "12" + v.substring(2);
       } else if (month === 0) {
@@ -349,7 +381,11 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
         state: formValues.state || cardData.state,
         zip: formValues.zip || cardData.zip,
         country: formValues.country || cardData.country
-      });
+      }, cardData.number ? {
+        last4: cardData.number.slice(-4),
+        brand: cardData.brand,
+        expiry: cardData.expiry
+      } : undefined);
       await update();
       router.refresh();
       const actionText = PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "upgraded" : "downgraded";
@@ -362,12 +398,32 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     }
   };
 
+  const handleRemoveCard = () => {
+    setView("remove-card-confirm");
+  };
+
+  const executeRemoveCard = async () => {
+    setIsLoading(true);
+    try {
+      await removePaymentMethodAction();
+      await update();
+      router.refresh();
+      setCardData(prev => ({ ...prev, number: "", brand: "", expiry: "" }));
+      onSuccess?.("Payment method removed successfully.");
+      setView("overview");
+    } catch (error) {
+      onError?.("Failed to remove payment method.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className={`w-full overflow-hidden rounded-[32px] border border-zinc-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300 transition-all duration-500 ${(view === 'update-payment' || view === 'success') ? 'max-w-4xl' : 'max-w-lg'}`}>
+      <div className={`w-full overflow-hidden rounded-[32px] border border-zinc-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300 transition-all duration-500 ${(view === 'update-payment' || view === 'success' || view === 'plan-change-review') ? 'max-w-4xl' : 'max-w-lg'}`}>
         
         {/* Header Section */}
-        <div className={`relative p-8 transition-colors duration-500 ${view === 'cancel-confirm' ? 'bg-rose-600 text-white' : 'bg-[#18181b] text-white'}`}>
+        <div className={`relative p-8 transition-colors duration-500 ${(view === 'cancel-confirm' || view === 'remove-card-confirm') ? 'bg-rose-600 text-white' : 'bg-[#18181b] text-white'}`}>
           <button 
             onClick={onClose}
             className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors"
@@ -379,10 +435,10 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
           
           <div className="space-y-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 italic">
-              {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : "Confirm Cancellation"}
+              {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : view === "remove-card-confirm" ? "Confirm Removal" : "Confirm Cancellation"}
             </p>
             <h3 className="font-serif text-4xl font-bold italic">
-              {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Thank You!" : view === "plan-change-review" ? "Confirm Switch" : "Wait! Are you sure?"}
+              {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Thank You!" : view === "plan-change-review" ? "Confirm Switch" : view === "remove-card-confirm" ? "Remove Card?" : "Wait! Are you sure?"}
             </h3>
           </div>
 
@@ -432,7 +488,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
               {/* Left Column: Payment Form */}
               <form onSubmit={handleSavePayment} className="flex-1 space-y-6">
                 <div className="grid gap-6 sm:grid-cols-2">
-                  <div className="space-y-2">
+                  <div className="space-y-2 sm:col-span-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Cardholder Name</label>
                     <input 
                       type="text" 
@@ -445,7 +501,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                     />
                   </div>
                   
-                  <div className="space-y-2">
+                  <div className="space-y-2 sm:col-span-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Card Number</label>
                     <div className="relative">
                       <input 
@@ -455,7 +511,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                         value={formValues.number}
                         onChange={handleInputChange}
                         placeholder="0000 0000 0000 0000"
-                        className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors pr-12"
+                        className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors pr-28 tracking-tight"
                       />
                       <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-1">
                         <div className="h-4 w-6 rounded bg-zinc-200" />
@@ -508,107 +564,135 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                   </div>
                 </div>
 
-                {/* Sequential Address Reveal */}
-                <div className="space-y-4">
-                  {/* 1. Country */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Country</label>
-                    <select 
-                      name="country"
-                      required
-                      value={formValues.country}
-                      onChange={(e) => {
-                        const newCountry = e.target.value;
-                        setFormValues(prev => ({ 
-                          ...prev, 
-                          country: newCountry,
-                          state: "",
-                          city: "",
-                          zip: "",
-                          street: ""
-                        }));
-                      }}
-                      className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors appearance-none"
-                    >
-                      <option value="">Select Country</option>
-                      {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-
-                  {formValues.country && (
-                    <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                      {/* 2. State */}
+                {/* Sequential Address Reveal / Summary */}
+                <div className="space-y-4 pt-4">
+                  {!showAddressForm ? (
+                    <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 flex items-center justify-between group animate-in fade-in duration-300">
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Billing Address</p>
+                        <p className="text-xs font-medium text-zinc-900 line-clamp-1">
+                          {formValues.street || cardData.street}, {formValues.city || cardData.city}
+                        </p>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => setShowAddressForm(true)}
+                        className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 underline underline-offset-4 transition-opacity"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                      {/* 1. Country */}
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">State / Province</label>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Country</label>
                         <select 
-                          name="state"
+                          name="country"
                           required
-                          value={formValues.state}
+                          value={formValues.country}
                           onChange={(e) => {
-                            const newState = e.target.value;
-                            setFormValues(prev => ({ ...prev, state: newState, city: "", zip: "", street: "" }));
+                            const newCountry = e.target.value;
+                            setFormValues(prev => ({ 
+                              ...prev, 
+                              country: newCountry,
+                              state: "",
+                              city: "",
+                              zip: "",
+                              street: ""
+                            }));
                           }}
                           className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors appearance-none"
                         >
-                          <option value="">Select State</option>
-                          {Object.keys(LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].states).map(state => (
-                            <option key={state} value={state}>{state}</option>
-                          ))}
+                          <option value="">Select Country</option>
+                          {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                       </div>
 
-                      {/* 3. City */}
-                      {formValues.state && (
-                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">City</label>
-                          <select 
-                            name="city"
-                            required
-                            value={formValues.city}
-                            onChange={(e) => setFormValues(prev => ({ ...prev, city: e.target.value }))}
-                            className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors appearance-none"
-                          >
-                            <option value="">Select City</option>
-                            {LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].states[formValues.state].map(city => (
-                              <option key={city} value={city}>{city}</option>
-                            ))}
-                          </select>
+                      {formValues.country && (
+                        <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">State / Province</label>
+                            <select 
+                              name="state"
+                              required
+                              value={formValues.state}
+                              onChange={(e) => {
+                                const newState = e.target.value;
+                                setFormValues(prev => ({ ...prev, state: newState, city: "", zip: "", street: "" }));
+                              }}
+                              className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors appearance-none"
+                            >
+                              <option value="">Select State</option>
+                              {formValues.country && LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].states && 
+                                Object.keys(LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].states).map(s => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))
+                              }
+                            </select>
+                          </div>
+
+                          {formValues.state && (
+                            <div className="space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">City</label>
+                              <select 
+                                name="city"
+                                required
+                                value={formValues.city}
+                                onChange={(e) => {
+                                  const newCity = e.target.value;
+                                  setFormValues(prev => ({ ...prev, city: newCity, zip: "", street: "" }));
+                                }}
+                                className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors appearance-none"
+                              >
+                                <option value="">Select City</option>
+                                {formValues.state && LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].states[formValues.state].map(c => (
+                                  <option key={c} value={c}>{c}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </div>
                       )}
-                    </div>
-                  )}
 
-                  {formValues.city && (
-                    <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                      {/* 4. Zip Code */}
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-                          {LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].zipLabel}
-                        </label>
-                        <input 
-                          type="text" 
-                          name="zip"
-                          required
-                          value={formValues.zip}
-                          onChange={handleInputChange}
-                          placeholder={LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].zipPlaceholder}
-                          className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
-                        />
-                      </div>
-
-                      {/* 5. Street Address */}
-                      <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Street Address</label>
-                        <input 
-                          type="text" 
-                          name="street"
-                          required
-                          value={formValues.street}
-                          onChange={handleInputChange}
-                          placeholder="123 Example St"
-                          className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
-                        />
-                      </div>
+                      {formValues.city && (
+                        <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                              {LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].zipLabel}
+                            </label>
+                            <input 
+                              type="text" 
+                              name="zip"
+                              required
+                              value={formValues.zip}
+                              onChange={handleInputChange}
+                              placeholder={LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].zipPlaceholder}
+                              className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Street Address</label>
+                            <input 
+                              type="text" 
+                              name="street"
+                              required
+                              value={formValues.street}
+                              onChange={handleInputChange}
+                              placeholder="123 Main St"
+                              className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
+                      <button 
+                        type="button"
+                        onClick={() => setShowAddressForm(false)}
+                        className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-900 pt-2 text-left"
+                      >
+                        ← Back to Summary
+                      </button>
                     </div>
                   )}
                 </div>
@@ -715,14 +799,14 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                     </svg>
                   </div>
                   <div className="space-y-2">
-                    <h2 className="font-serif text-3xl font-bold">Thank you for your purchase, {(session?.user as any)?.full_name || session?.user?.name || session?.user?.email}!</h2>
+                    <h2 className="font-serif text-3xl font-bold">Thank you for your purchase, {session?.user?.name || session?.user?.email}!</h2>
                     <p className="text-sm font-medium text-zinc-500 italic">Your {pendingPlan} subscription is now active and ready for orchestration.</p>
                   </div>
                 </div>
 
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-6 space-y-4">
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 italic">What's included</h4>
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 italic">What&apos;s included</h4>
                     <ul className="space-y-3">
                       {pendingPlan && PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].features.map((feature, i) => (
                         <li key={i} className="flex items-center gap-3 text-xs font-bold text-zinc-600 uppercase tracking-tighter">
@@ -773,7 +857,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Transaction ID</span>
-                      <span className="text-[10px] font-mono font-bold text-zinc-900">#TXN-{Math.random().toString(36).substring(2, 9).toUpperCase()}</span>
+                      <span className="text-[10px] font-mono font-bold text-zinc-900">#TXN-{transactionId}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Billing Date</span>
@@ -824,9 +908,21 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                           </svg>
                           <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Charging</span>
                         </div>
-                        <div className="space-y-0.5">
-                          <p className="text-sm font-bold text-zinc-900">Card ending in {cardData.number.slice(-4)}</p>
-                          <p className="text-[9px] text-zinc-400 italic">Primary method</p>
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <p className="text-sm font-bold text-zinc-900">
+                              {cardData.number ? `Card ending in ${cardData.number.slice(-4)}` : "No payment method saved"}
+                            </p>
+                            <p className="text-[9px] text-zinc-400 italic">
+                              {cardData.number ? `${cardData.brand} • Primary method` : "Please add a card to continue"}
+                            </p>
+                          </div>
+                          <button 
+                            onClick={() => setView("update-payment")}
+                            className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 underline underline-offset-4"
+                          >
+                            {cardData.number ? "Change" : "Add Card"}
+                          </button>
                         </div>
                       </div>
                       <div className="space-y-2">
@@ -871,10 +967,12 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                 <div className="flex flex-col gap-3">
                   <button 
                     onClick={handleExecutePlanChange}
-                    disabled={isLoading}
-                    className="w-full rounded-full bg-zinc-900 py-5 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800 shadow-xl"
+                    disabled={isLoading || !cardData.number}
+                    className={`w-full rounded-full py-5 text-[10px] font-black uppercase tracking-widest text-white transition shadow-xl ${
+                      !cardData.number ? 'bg-zinc-300 cursor-not-allowed opacity-50' : 'bg-zinc-900 hover:bg-zinc-800'
+                    }`}
                   >
-                    {isLoading ? "Processing Switch..." : `Confirm Switch to ${pendingPlan}`}
+                    {isLoading ? "Processing Switch..." : !cardData.number ? "Payment Method Required" : `Confirm Switch to ${pendingPlan}`}
                   </button>
                   <button 
                     onClick={() => { setView("change-plan"); setPendingPlan(null); }}
@@ -891,12 +989,12 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                 
                 {pendingPlan && (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <p className="text-sm font-bold">{pendingPlan} Plan</p>
-                        <p className="text-[10px] text-white/40 italic">VAT inclusive</p>
+                    <div className="flex items-start justify-between pb-2">
+                      <div className="space-y-1.5">
+                        <p className="text-lg font-bold tracking-tight">{pendingPlan} Plan</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400/80 bg-emerald-400/10 px-2 py-0.5 rounded-md w-fit">VAT inclusive</p>
                       </div>
-                      <p className="text-sm font-bold">{PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price}</p>
+                      <p className="text-xl font-bold">{PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price}</p>
                     </div>
 
                     <div className="h-px bg-white/10" />
@@ -921,9 +1019,12 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
 
                     <div className="h-px bg-white/10" />
 
-                    <div className="flex justify-between items-center pt-2">
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Total Price</span>
-                      <span className="text-xl font-bold text-emerald-400">
+                    <div className="flex justify-between items-center pt-6 border-t border-white/10 mt-2">
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Total</span>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Amount</p>
+                      </div>
+                      <span className="text-4xl font-bold text-emerald-400 tracking-tight">
                         {PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price}.00
                       </span>
                     </div>
@@ -942,7 +1043,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                 <div className="space-y-2">
                   <p className="text-lg font-bold text-zinc-900">Downgrading to Hobby</p>
                   <p className="text-sm text-zinc-500 max-w-xs mx-auto">
-                    You'll lose access to premium features like priority support and higher request limits.
+                    You&apos;ll lose access to premium features like priority support and higher request limits.
                   </p>
                 </div>
               </div>
@@ -960,6 +1061,38 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                   className="w-full rounded-full border border-zinc-200 bg-white py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-900"
                 >
                   Keep My Plan
+                </button>
+              </div>
+            </div>
+          ) : view === "remove-card-confirm" ? (
+            <div className="flex flex-col flex-1 justify-between py-4">
+              <div className="space-y-6 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-rose-500">
+                  <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor">
+                    <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-lg font-bold text-zinc-900">Remove Payment Method?</p>
+                  <p className="text-sm text-zinc-500 max-w-xs mx-auto">
+                    You&apos;ll need to add a new card if you want to upgrade or renew your subscription in the future.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 mt-12">
+                <button 
+                  onClick={executeRemoveCard}
+                  disabled={isLoading}
+                  className="w-full rounded-full bg-rose-600 py-4 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-rose-700 shadow-xl shadow-rose-900/10"
+                >
+                  {isLoading ? "Processing..." : "Remove Card"}
+                </button>
+                <button 
+                  onClick={() => setView("overview")}
+                  className="w-full rounded-full border border-zinc-200 bg-white py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-900"
+                >
+                  Keep Card
                 </button>
               </div>
             </div>
@@ -1031,8 +1164,29 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                         <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Charging</p>
                       </div>
                       <div className="space-y-0.5">
-                        <p className="text-sm font-bold text-zinc-900">{cardData.number}</p>
-                        <p className="text-[9px] text-zinc-400 italic">Primary method</p>
+                        <p className="text-sm font-bold text-zinc-900">{cardData.number || "No card saved"}</p>
+                        <p className="text-[9px] text-zinc-400 italic">{cardData.number ? `${cardData.brand} • Primary method` : "Add a payment method to upgrade"}</p>
+                        
+                        {!cardData.number ? (
+                          <div className="pt-3">
+                            <button 
+                              onClick={() => setView("update-payment")}
+                              className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 underline underline-offset-4 transition-colors"
+                            >
+                              Add Card
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="pt-3">
+                            <button 
+                              onClick={handleRemoveCard}
+                              disabled={isLoading}
+                              className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-rose-500 underline underline-offset-4 transition-colors disabled:opacity-50"
+                            >
+                              Remove Card
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

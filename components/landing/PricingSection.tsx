@@ -74,15 +74,14 @@ export function PricingSection({
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
 
   // Use the real plan from the session (populated in auth.ts)
-  const currentPlanId = activeSession?.user ? (activeSession.user as any).plan : null;
+  const currentPlanId = (activeSession?.user as { plan?: string })?.plan || null;
   const currentPlan = PLANS.find(p => p.id === currentPlanId);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalInitialView, setModalInitialView] = useState<"overview" | "cancel-confirm" | "update-payment">("overview");
+  const [modalInitialView, setModalInitialView] = useState<"overview" | "cancel-confirm" | "update-payment" | "plan-change-review">("overview");
   const [modalPendingPlan, setModalPendingPlan] = useState<string | null>(null);
 
   const handleUpdatePlan = async (planId: string) => {
-    const targetPlan = PLANS.find(p => p.id === planId);
     
     // Downgrading to Hobby -> show cancel confirm warning
     if (planId === "Hobby" && currentPlanId !== "Hobby") {
@@ -135,7 +134,6 @@ export function PricingSection({
           {PLANS.map((plan) => {
             const isCurrent = currentPlanId === plan.id;
             const isUpgrade = currentPlan && plan.level > currentPlan.level;
-            const isDowngrade = currentPlan && plan.level < currentPlan.level;
             const isLoading = loadingPlanId === plan.id;
 
             return (

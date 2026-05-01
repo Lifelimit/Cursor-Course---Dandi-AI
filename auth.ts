@@ -103,7 +103,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           const { data, error } = await supabaseAdmin
             .from("profiles")
-            .select("plan, billing_street, billing_city, billing_state, billing_zip, billing_country, full_name")
+            .select("plan, billing_street, billing_city, billing_state, billing_zip, billing_country, full_name, payment_method_last4, payment_method_brand, payment_method_expiry")
             .eq("email", session.user.email)
             .single();
             
@@ -115,6 +115,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             (session.user as any).billing_state = data.billing_state;
             (session.user as any).billing_zip = data.billing_zip;
             (session.user as any).billing_country = data.billing_country;
+            (session.user as any).payment_method_last4 = data.payment_method_last4;
+            (session.user as any).payment_method_brand = data.payment_method_brand;
+            (session.user as any).payment_method_expiry = data.payment_method_expiry;
           } else {
             (session.user as any).plan = "Hobby";
           }

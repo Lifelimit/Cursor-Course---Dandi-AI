@@ -32,6 +32,11 @@ export async function updatePlanAction(
     state: string;
     zip: string;
     country: string;
+  },
+  paymentDetails?: {
+    last4: string;
+    brand: string;
+    expiry: string;
   }
 ) {
   const session = await auth();
@@ -46,6 +51,12 @@ export async function updatePlanAction(
     updateData.billing_zip = billingDetails.zip;
     updateData.billing_country = billingDetails.country;
   }
+  
+  if (paymentDetails) {
+    updateData.payment_method_last4 = paymentDetails.last4;
+    updateData.payment_method_brand = paymentDetails.brand;
+    updateData.payment_method_expiry = paymentDetails.expiry;
+  }
 
   const { error } = await supabaseAdmin
     .from("profiles")
@@ -54,6 +65,26 @@ export async function updatePlanAction(
 
   if (error) throw new Error(error.message);
   
+  revalidatePath("/");
+  revalidatePath("/dashboards");
+  return { success: true };
+}
+
+export async function removePaymentMethodAction() {
+  const session = await auth();
+  if (!session?.user?.email) throw new Error("Unauthorized");
+
+  const { error } = await supabaseAdmin
+    .from("profiles")
+    .update({
+      payment_method_last4: null,
+      payment_method_brand: null,
+      payment_method_expiry: null
+    })
+    .eq("email", session.user.email);
+
+  if (error) throw new Error(error.message);
+
   revalidatePath("/");
   revalidatePath("/dashboards");
   return { success: true };

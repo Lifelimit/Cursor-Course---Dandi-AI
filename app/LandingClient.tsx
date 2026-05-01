@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Session } from "next-auth";
 import { Navbar } from "@/components/landing/Navbar";
 import { HeroSection } from "@/components/landing/HeroSection";
 import dynamic from "next/dynamic";
@@ -18,7 +19,7 @@ const PricingSection = dynamic(() => import("@/components/landing/PricingSection
   ssr: true,
 });
 
-export default function LandingClient({ initialSession }: { initialSession: any }) {
+export default function LandingClient({ initialSession }: { initialSession: Session | null }) {
   const { toast, showToast } = useToast();
   const session = initialSession;
 
