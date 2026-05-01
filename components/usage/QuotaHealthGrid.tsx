@@ -12,6 +12,8 @@ type KeyData = {
   monthly_limit: number | null;
   is_active: boolean;
   alert_threshold: number | null;
+  alert_channels: string[] | null;
+  alert_phone: string | null;
   pct: number;
   dailyTrend: { date: string, count: number }[];
 };
@@ -84,6 +86,8 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
             <AlertThresholdControl 
               keyId={key.id} 
               initialThreshold={key.alert_threshold}
+              initialChannels={key.alert_channels || ['email', 'in-page']}
+              initialPhone={key.alert_phone || ''}
               limit={key.monthly_limit}
               onUpdate={onUpdate}
             />

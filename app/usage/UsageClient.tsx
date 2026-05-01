@@ -21,6 +21,8 @@ type UsageData = {
     monthly_limit: number | null;
     is_active: boolean;
     alert_threshold: number | null;
+    alert_channels: string[] | null;
+    alert_phone: string | null;
     pct: number;
     dailyTrend: { date: string; count: number }[];
   }[];

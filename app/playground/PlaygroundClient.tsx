@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useSession } from "next-auth/react";
 import type { Session } from "next-auth";
+import { SystemAlertBanner } from "@/components/dashboard/SystemAlertBanner";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { CodeSnippet } from "@/components/playground/CodeSnippet";
@@ -27,6 +28,14 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
   };
   const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
   const isUnlimited = currentPlan === "Researcher";
+
+  const alerts = apiKeys
+    .filter(k => k.alert_threshold !== null && k.alert_channels?.includes('in-page'))
+    .map(k => {
+      const pct = k.monthly_limit ? (k.usage_count / k.monthly_limit) * 100 : 0;
+      return { keyName: k.name, pct, threshold: k.alert_threshold! };
+    })
+    .filter(a => a.pct >= a.threshold);
 
   const [apiKey, setApiKey] = useState("");
   const [selectedKey, setSelectedKey] = useState<string>(""); // tracks which key was chosen from dropdown
@@ -109,6 +118,7 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
 
   return (
     <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
+      <SystemAlertBanner alerts={alerts} />
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-stretch gap-8 p-6 md:flex-row md:py-12">
         <Sidebar 
           totalUsage={totalUsage} 

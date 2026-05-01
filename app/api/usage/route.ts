@@ -9,7 +9,7 @@ export async function GET() {
     // 1. Fetch all API keys for the user
     const { data: keys, error: keysError } = await supabaseAdmin
       .from("api_keys")
-      .select("id, name, key_type, usage_count, monthly_limit, is_active, alert_threshold, created_at")
+      .select("id, name, key_type, usage_count, monthly_limit, is_active, alert_threshold, alert_channels, alert_phone, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 

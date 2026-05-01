@@ -7,6 +7,9 @@ export type ApiKey = {
   monthly_limit: number | null;
   createdAt: string;
   is_active: boolean;
+  alert_threshold: number | null;
+  alert_channels: string[] | null;
+  alert_phone: string | null;
 };
 
 export type ApiKeyApiResponse = {
@@ -18,6 +21,9 @@ export type ApiKeyApiResponse = {
   monthly_limit: number | null;
   created_at: string;
   is_active: boolean;
+  alert_threshold: number | null;
+  alert_channels: string[] | null;
+  alert_phone: string | null;
 };
 
 export function formatDate(date: Date) {
@@ -34,5 +40,8 @@ export function mapApiKey(row: ApiKeyApiResponse): ApiKey {
     monthly_limit: row.monthly_limit ?? null,
     createdAt: row.created_at ? formatDate(new Date(row.created_at)) : formatDate(new Date()),
     is_active: row.is_active ?? true,
+    alert_threshold: row.alert_threshold ?? null,
+    alert_channels: row.alert_channels ?? null,
+    alert_phone: row.alert_phone ?? null,
   };
 }
