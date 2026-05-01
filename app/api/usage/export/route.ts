@@ -23,8 +23,8 @@ export async function GET() {
     const rows = (logs || []).map(log => [
       log.used_at,
       log.repo_url || "",
-      (log.api_keys as any)?.[0]?.name || "Unknown",
-      (log.api_keys as any)?.[0]?.key_type || "Unknown"
+      (log.api_keys as unknown as { name: string, key_type: string }[])?.[0]?.name || "Unknown",
+      (log.api_keys as unknown as { name: string, key_type: string }[])?.[0]?.key_type || "Unknown"
     ]);
 
     const csvContent = [

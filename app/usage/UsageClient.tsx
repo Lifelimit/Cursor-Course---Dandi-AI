@@ -42,9 +42,10 @@ export default function UsageClient({ initialSession }: { initialSession: Sessio
     try {
       const res = await fetch("/api/usage");
       const json = await res.json();
+      console.log("Usage Data Loaded:", json); // Debug log
       setData(json);
     } catch (err) {
-      console.error(err);
+      console.error("Usage Fetch Error:", err);
       showToast("error", "Failed to load usage analytics.");
     } finally {
       setIsLoading(false);
@@ -123,7 +124,16 @@ export default function UsageClient({ initialSession }: { initialSession: Sessio
               )}
 
               {/* Quota Health Grid */}
-              <QuotaHealthGrid keys={data?.keys || []} onUpdate={fetchUsageData} />
+              {data?.keys && data.keys.length > 0 ? (
+                <QuotaHealthGrid keys={data.keys} onUpdate={fetchUsageData} />
+              ) : (
+                <div className="rounded-[32px] border border-zinc-200 border-dashed p-12 text-center bg-white/30">
+                  <p className="text-sm font-medium text-zinc-400">No active API keys found for tracking.</p>
+                  <Link href="/dashboards" className="mt-4 inline-block text-[10px] font-black uppercase tracking-widest text-zinc-900 hover:underline">
+                    Create your first key →
+                  </Link>
+                </div>
+              )}
 
               {/* Bottom Section */}
               <div className="grid gap-8 lg:grid-cols-2">
