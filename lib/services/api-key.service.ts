@@ -7,7 +7,8 @@ export async function validateApiKey(keyValue: string) {
       id: "demo-id",
       name: "Playground Demo User",
       usage_count: 0,
-      monthly_limit: null
+      monthly_limit: null,
+      user_id: "demo-user-id"
     };
   }
 
