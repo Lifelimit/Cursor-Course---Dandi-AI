@@ -1,6 +1,16 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function validateApiKey(keyValue: string) {
+  // Special case for Playground Demo Key
+  if (keyValue === "sk_live_demo_key_dandi_2026") {
+    return {
+      id: "demo-id",
+      name: "Playground Demo User",
+      usage_count: 0,
+      monthly_limit: null
+    };
+  }
+
   const { data, error } = await supabaseAdmin
     .from("api_keys")
     .select("id, name, usage_count, monthly_limit")
@@ -20,6 +30,8 @@ export async function validateApiKey(keyValue: string) {
 }
 
 export async function incrementKeyUsage(keyId: string, currentCount: number) {
+  if (keyId === "demo-id") return;
+
   const { error } = await supabaseAdmin
     .from("api_keys")
     .update({ usage_count: currentCount + 1 })
