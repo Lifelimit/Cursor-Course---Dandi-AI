@@ -27,9 +27,8 @@ export function SidebarAlerts({ alerts }: { alerts: Alert[] }) {
           const isWarning = alert.pct >= 80 && alert.pct < 95;
           
           return (
-            <Link 
+            <div 
               key={i}
-              href="/billing"
               className="group block rounded-2xl border border-zinc-100 bg-white p-3 transition-all hover:border-zinc-200 hover:shadow-md"
             >
               <div className="flex items-center gap-3">
@@ -39,9 +38,9 @@ export function SidebarAlerts({ alerts }: { alerts: Alert[] }) {
                   'bg-zinc-400'
                 }`} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[10px] font-black uppercase tracking-tight text-zinc-900">
+                  <Link href="/billing" className="block truncate text-[10px] font-black uppercase tracking-tight text-zinc-900 hover:underline">
                     {alert.keyName}
-                  </p>
+                  </Link>
                   <div className="flex items-center gap-2">
                     <p className="text-[9px] font-bold text-zinc-400">
                       {Math.round(alert.pct)}%
@@ -56,11 +55,13 @@ export function SidebarAlerts({ alerts }: { alerts: Alert[] }) {
                     )}
                   </div>
                 </div>
-                <svg viewBox="0 0 24 24" className="h-3 w-3 translate-x-1 text-zinc-300 transition-all group-hover:translate-x-2 group-hover:text-zinc-900" fill="none" stroke="currentColor">
-                  <path d="M9 18l6-6-6-6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <Link href="/billing">
+                  <svg viewBox="0 0 24 24" className="h-3 w-3 translate-x-1 text-zinc-300 transition-all group-hover:translate-x-2 group-hover:text-zinc-900" fill="none" stroke="currentColor">
+                    <path d="M9 18l6-6-6-6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
               </div>
-            </Link>
+            </div>
           );
         })}
       </div>
