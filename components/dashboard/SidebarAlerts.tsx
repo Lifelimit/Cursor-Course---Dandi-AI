@@ -42,9 +42,19 @@ export function SidebarAlerts({ alerts }: { alerts: Alert[] }) {
                   <p className="truncate text-[10px] font-black uppercase tracking-tight text-zinc-900">
                     {alert.keyName}
                   </p>
-                  <p className="text-[9px] font-bold text-zinc-400">
-                    {Math.round(alert.pct)}% Capacity
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[9px] font-bold text-zinc-400">
+                      {Math.round(alert.pct)}%
+                    </p>
+                    {(isCritical || isWarning) && (
+                      <Link 
+                        href="/billing"
+                        className="text-[8px] font-black uppercase tracking-widest text-emerald-600 hover:underline"
+                      >
+                        + Increase
+                      </Link>
+                    )}
+                  </div>
                 </div>
                 <svg viewBox="0 0 24 24" className="h-3 w-3 translate-x-1 text-zinc-300 transition-all group-hover:translate-x-2 group-hover:text-zinc-900" fill="none" stroke="currentColor">
                   <path d="M9 18l6-6-6-6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />

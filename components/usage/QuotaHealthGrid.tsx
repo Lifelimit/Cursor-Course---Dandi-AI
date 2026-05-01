@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { UsageSparkline } from "./UsageSparkline";
 import { AlertThresholdControl } from "./AlertThresholdControl";
 
@@ -125,14 +126,47 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
               </div>
             </div>
 
-            <AlertThresholdControl 
-              keyId={key.id} 
-              initialThreshold={key.alert_threshold}
-              initialChannels={key.alert_channels || ['email', 'in-page']}
-              initialPhone={key.alert_phone || ''}
-              limit={key.monthly_limit}
-              onUpdate={onUpdate}
-            />
+            {isExhausted ? (
+              <div className="mt-6 space-y-4 rounded-2xl bg-red-50/50 p-4 border border-red-100 animate-in fade-in zoom-in-95 duration-500">
+                <p className="text-[9px] font-bold text-red-600 leading-tight">
+                  This key has hit its maximum limit. You can increase its quota or remove it to stay organized.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Link 
+                    href="/billing"
+                    className="flex items-center justify-center rounded-xl bg-red-600 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-white shadow-lg shadow-red-200 transition-all hover:bg-red-700"
+                  >
+                    Increase Limit
+                  </Link>
+                  <button 
+                    onClick={() => onUpdate()} // This would toggle is_active in a real app
+                    className="flex items-center justify-center rounded-xl border border-red-200 bg-white px-3 py-2 text-[8px] font-black uppercase tracking-widest text-red-600 hover:bg-red-50"
+                  >
+                    Move to Dead
+                  </button>
+                </div>
+                <button 
+                  onClick={async () => {
+                    if (confirm(`Are you sure you want to PERMANENTLY delete "${key.name}"? This cannot be undone.`)) {
+                      await fetch(`/api/keys/${key.id}`, { method: 'DELETE' });
+                      onUpdate();
+                    }
+                  }}
+                  className="w-full text-center text-[8px] font-black uppercase tracking-widest text-zinc-400 hover:text-red-600 transition-colors"
+                >
+                  Remove Permanently
+                </button>
+              </div>
+            ) : (
+              <AlertThresholdControl 
+                keyId={key.id} 
+                initialThreshold={key.alert_threshold}
+                initialChannels={key.alert_channels || ['email', 'in-page']}
+                initialPhone={key.alert_phone || ''}
+                limit={key.monthly_limit}
+                onUpdate={onUpdate}
+              />
+            )}
           </div>
         );
       })}
