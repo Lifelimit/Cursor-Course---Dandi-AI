@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { ApiKey } from "@/types/api";
 import { EyeIcon, EyeOffIcon, CopyIcon, CopyCheckIcon, EditIcon, TrashIcon } from "../icons";
 
@@ -9,6 +9,7 @@ type ApiKeyTableProps = {
   onDelete: (id: string) => Promise<{ success: boolean; error?: string }>;
   onCopySuccess: () => void;
   onCopyError: (msg: string) => void;
+  onUpgradePrompt: () => void;
 };
 
 export function ApiKeyTable({
@@ -18,9 +19,11 @@ export function ApiKeyTable({
   onDelete,
   onCopySuccess,
   onCopyError,
+  onUpgradePrompt,
 }: ApiKeyTableProps) {
   const [visibleKeyIds, setVisibleKeyIds] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [promptedKeyId, setPromptedKeyId] = useState<string | null>(null);
   const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Clear timeout on unmount
@@ -103,7 +106,11 @@ export function ApiKeyTable({
             </tr>
           ) : null}
           {apiKeys.map((key) => (
-            <tr key={key.id} className={`border-b border-zinc-100 transition-colors ${!key.is_active ? "bg-zinc-50 opacity-60" : "hover:bg-zinc-50/40"}`}>
+            <React.Fragment key={key.id}>
+            <tr
+              className={`border-b border-zinc-100 transition-colors ${!key.is_active ? "bg-zinc-50 opacity-60 cursor-pointer" : "hover:bg-zinc-50/40"}`}
+              onClick={!key.is_active ? () => setPromptedKeyId(promptedKeyId === key.id ? null : key.id) : undefined}
+            >
               <td className="px-5 py-4 font-medium truncate">
                 <div className="flex items-center gap-2">
                   <span className={!key.is_active ? "text-zinc-400" : ""}>{key.name}</span>
@@ -133,7 +140,7 @@ export function ApiKeyTable({
                 </div>
               </td>
               <td className="px-4 py-3">
-                <div className={`flex flex-nowrap items-center justify-center gap-2 ${!key.is_active ? "text-zinc-300 pointer-events-none" : "text-zinc-600"}`}>
+                <div className={`flex flex-nowrap items-center justify-center gap-2 ${!key.is_active ? "text-zinc-300" : "text-zinc-600"}`}>
                   <button
                     type="button"
                     onClick={() => toggleKeyVisibility(key.id)}
@@ -173,6 +180,33 @@ export function ApiKeyTable({
                 </div>
               </td>
             </tr>
+            {!key.is_active && promptedKeyId === key.id && (
+              <tr className="border-b border-amber-100 bg-amber-50">
+                <td colSpan={5} className="px-5 py-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor">
+                          <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <p className="text-xs font-medium text-amber-800">
+                        <span className="font-bold">{key.name}</span> is disabled — it was deactivated when you downgraded to Hobby.
+                        Upgrade your plan to re-enable it.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onUpgradePrompt(); }}
+                      className="shrink-0 rounded-full bg-amber-600 px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-white transition hover:bg-amber-700"
+                    >
+                      Upgrade Plan
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            )}
+            </React.Fragment>
           ))}
         </tbody>
       </table>

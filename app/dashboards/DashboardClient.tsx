@@ -164,6 +164,7 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
                 onDelete={handleDelete}
                 onCopySuccess={() => showToast("success", "API key copied to clipboard.")}
                 onCopyError={(msg) => showToast("error", msg)}
+                onUpgradePrompt={() => setIsSubModalOpen(true)}
               />
 
               {!isLoading && apiKeys.length === 0 ? (
