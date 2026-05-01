@@ -73,7 +73,6 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
           plan={currentPlan} 
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
-          onManageClick={() => {}} // No longer needed
         />
         
         <main className="min-w-0 flex-1 space-y-12">
