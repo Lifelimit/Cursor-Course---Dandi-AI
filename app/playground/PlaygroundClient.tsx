@@ -132,14 +132,14 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
                 <form onSubmit={handleSummarize} className="space-y-8">
                   <div className="grid gap-8 md:grid-cols-2">
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between ml-1">
-                        <label htmlFor="api-key" className="block text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                      <div className="flex items-end justify-between px-1">
+                        <label htmlFor="api-key" className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
                           Secure Access Token
                         </label>
                         {apiKeys.length > 0 && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] text-zinc-400 font-bold uppercase">Quick Select:</span>
-                          <select 
+                          <div className="flex items-center gap-2">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-300">Quick Select</span>
+                            <select 
                               value={selectValue}
                               onChange={(e) => {
                                 const val = e.target.value;
@@ -147,18 +147,18 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
                                 setSelectedKey(val);
                                 setSelectValue(val);
                               }}
-                              className="text-[9px] font-bold uppercase tracking-widest text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded outline-none border-none cursor-pointer"
+                              className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 bg-emerald-50/50 hover:bg-emerald-50 px-2.5 py-1 rounded-lg outline-none border-none cursor-pointer transition-colors"
                             >
                               {/* Hidden sentinel — shows as label when demo mode is active, not listed in dropdown */}
                               <option value="__demo__" hidden>Demo</option>
                               <option value="">Custom Key</option>
                               {apiKeys.map(k => {
                                 const usageLabel = k.monthly_limit
-                                  ? `${k.usage_count} / ${k.monthly_limit}`
-                                  : `${k.usage_count} / ∞`;
+                                  ? `${k.usage_count}/${k.monthly_limit}`
+                                  : `${k.usage_count}/∞`;
                                 return (
                                   <option key={k.id} value={k.key_value}>
-                                    {k.name} — {usageLabel}
+                                    {k.name} ({usageLabel})
                                   </option>
                                 );
                               })}
