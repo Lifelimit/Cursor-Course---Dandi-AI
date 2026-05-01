@@ -130,42 +130,41 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
                 </div>
                 
                 <form onSubmit={handleSummarize} className="space-y-8">
-                  <div className="grid gap-8 md:grid-cols-2">
-                    <div className="space-y-3">
-                      <div className="flex items-end justify-between px-1">
-                        <label htmlFor="api-key" className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-                          Secure Access Token
-                        </label>
-                        {apiKeys.length > 0 && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-300">Quick Select</span>
-                            <select 
-                              value={selectValue}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setApiKey(val);
-                                setSelectedKey(val);
-                                setSelectValue(val);
-                              }}
-                              className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 bg-emerald-50/50 hover:bg-emerald-50 px-2.5 py-1 rounded-lg outline-none border-none cursor-pointer transition-colors"
-                            >
-                              {/* Hidden sentinel — shows as label when demo mode is active, not listed in dropdown */}
-                              <option value="__demo__" hidden>Demo</option>
-                              <option value="">Custom Key</option>
-                              {apiKeys.map(k => {
-                                const usageLabel = k.monthly_limit
-                                  ? `${k.usage_count}/${k.monthly_limit}`
-                                  : `${k.usage_count}/∞`;
-                                return (
-                                  <option key={k.id} value={k.key_value}>
-                                    {k.name} ({usageLabel})
-                                  </option>
-                                );
-                              })}
-                            </select>
-                          </div>
-                        )}
-                      </div>
+                    <div className="grid gap-8 md:grid-cols-2">
+                      <div className="space-y-3">
+                        <div className="flex h-7 items-end justify-between px-1">
+                          <label htmlFor="api-key" className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 leading-none">
+                            Secure Access Token
+                          </label>
+                          {apiKeys.length > 0 && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-zinc-300">Quick Select</span>
+                              <select 
+                                value={selectValue}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setApiKey(val);
+                                  setSelectedKey(val);
+                                  setSelectValue(val);
+                                }}
+                                className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 bg-emerald-50/50 hover:bg-emerald-50 px-2.5 py-1 rounded-lg outline-none border-none cursor-pointer transition-colors"
+                              >
+                                <option value="__demo__" hidden>Demo</option>
+                                <option value="">Custom Key</option>
+                                {apiKeys.map(k => {
+                                  const usageLabel = k.monthly_limit
+                                    ? `${k.usage_count}/${k.monthly_limit}`
+                                    : `${k.usage_count}/∞`;
+                                  return (
+                                    <option key={k.id} value={k.key_value}>
+                                      {k.name} ({usageLabel})
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+                          )}
+                        </div>
                       <input
                         id="api-key"
                         type="text"
@@ -211,10 +210,12 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
                       })()}
                     </div>
 
-                    <div className="space-y-3">
-                      <label htmlFor="github-url" className="block text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">
-                        GitHub Repository URL
-                      </label>
+                      <div className="space-y-3">
+                        <div className="flex h-7 items-end px-1">
+                          <label htmlFor="github-url" className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 leading-none">
+                            GitHub Repository URL
+                          </label>
+                        </div>
                       <input
                         id="github-url"
                         type="url"
