@@ -9,7 +9,7 @@ type SubscriptionModalProps = {
   planName: string;
   onSuccess?: (message: string) => void;
   onError?: (message: string) => void;
-  initialView?: "overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review" | "remove-card-confirm";
+  initialView?: "overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review" | "remove-card-confirm" | "key-downgrade-selector";
   initialPendingPlan?: string | null;
 };
 
@@ -21,12 +21,13 @@ import { PaymentForm } from "./subscription/PaymentForm";
 import { CancelConfirmation, RemoveCardConfirmation } from "./subscription/ConfirmationViews";
 import { PlanReview } from "./subscription/PlanReview";
 import { Overview } from "./subscription/Overview";
+import { KeyDowngradeSelector } from "./subscription/KeyDowngradeSelector";
 
 export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onError, initialView, initialPendingPlan }: SubscriptionModalProps) {
   const router = useRouter();
   const { data: session, update } = useSession();
   const [transactionId] = useState(() => Math.random().toString(36).substring(2, 9).toUpperCase());
-  const [view, setView] = useState<"overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review" | "remove-card-confirm">(initialView || "overview");
+  const [view, setView] = useState<"overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review" | "remove-card-confirm" | "key-downgrade-selector">(initialView || "overview");
   const [isLoading, setIsLoading] = useState(false);
   const [showCvc, setShowCvc] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<string | null>(initialPendingPlan || null);
@@ -286,6 +287,15 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     if (newPlan === planName) return;
     
     if (newPlan === "Hobby") {
+      // Check if the user has more than 3 keys — if so, show the key selector step
+      try {
+        const res = await fetch("/api/keys");
+        const keys = await res.json();
+        if (Array.isArray(keys) && keys.length > 3) {
+          setView("key-downgrade-selector");
+          return;
+        }
+      } catch { /* Fallback to normal cancel flow if fetch fails */ }
       setView("cancel-confirm");
       return;
     }
@@ -300,6 +310,30 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     // Otherwise (upgrading from Hobby), require payment details
     setPendingPlan(newPlan);
     setView("update-payment");
+  };
+
+  const handleKeyDowngradeConfirm = async (idsToDelete: string[]) => {
+    setIsLoading(true);
+    try {
+      if (idsToDelete.length > 0) {
+        const res = await fetch("/api/keys/bulk-delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: idsToDelete }),
+        });
+        if (!res.ok) throw new Error("Failed to delete excess keys.");
+      }
+      // Now execute the actual plan downgrade
+      await updatePlanAction("Hobby");
+      await update();
+      router.refresh();
+      onSuccess?.("Downgraded to Hobby. Excess keys removed.");
+      onClose();
+    } catch {
+      onError?.("Failed to downgrade plan. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleExecutePlanChange = async () => {
@@ -351,10 +385,10 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className={`w-full overflow-hidden rounded-[32px] border border-zinc-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300 transition-all duration-500 ${(view === 'update-payment' || view === 'success' || view === 'plan-change-review') ? 'max-w-4xl' : 'max-w-lg'}`}>
+      <div className={`w-full overflow-hidden rounded-[32px] border border-zinc-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300 transition-all duration-500 ${(view === 'update-payment' || view === 'success' || view === 'plan-change-review') ? 'max-w-4xl' : view === 'key-downgrade-selector' ? 'max-w-xl' : 'max-w-lg'}`}>
         
         {/* Header Section */}
-        <div className={`relative p-8 transition-colors duration-500 ${(view === 'cancel-confirm' || view === 'remove-card-confirm') ? 'bg-rose-600 text-white' : 'bg-[#18181b] text-white'}`}>
+        <div className={`relative p-8 transition-colors duration-500 ${(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector') ? 'bg-rose-600 text-white' : 'bg-[#18181b] text-white'}`}>
           <button 
             onClick={onClose}
             className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors"
@@ -366,10 +400,10 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
           
           <div className="space-y-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 italic">
-              {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : view === "remove-card-confirm" ? "Confirm Removal" : "Confirm Cancellation"}
+              {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : view === "remove-card-confirm" ? "Confirm Removal" : view === "key-downgrade-selector" ? "Hobby Plan Limit" : "Confirm Cancellation"}
             </p>
             <h3 className="font-serif text-4xl font-bold italic">
-              {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Thank You!" : view === "plan-change-review" ? "Confirm Switch" : view === "remove-card-confirm" ? "Remove Card?" : "Wait! Are you sure?"}
+              {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Thank You!" : view === "plan-change-review" ? "Confirm Switch" : view === "remove-card-confirm" ? "Remove Card?" : view === "key-downgrade-selector" ? "Select Keys to Keep" : "Wait! Are you sure?"}
             </h3>
           </div>
 
@@ -429,6 +463,12 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
               setView={setView}
               onConfirm={handleExecutePlanChange}
               onBack={() => { setView("change-plan"); setPendingPlan(null); }}
+            />
+          ) : view === "key-downgrade-selector" ? (
+            <KeyDowngradeSelector
+              isLoading={isLoading}
+              onConfirm={handleKeyDowngradeConfirm}
+              onBack={() => setView("change-plan")}
             />
           ) : view === "cancel-confirm" ? (
             <CancelConfirmation 

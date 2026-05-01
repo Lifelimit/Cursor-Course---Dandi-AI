@@ -64,8 +64,8 @@ export function HeroSection({ session }: { session: Session | null }) {
               <span className="text-emerald-400">const</span> res = <span className="text-blue-400">await</span> dandi.<span className="text-amber-400">summarize</span>(&quot;facebook/react&quot;);<br />
               <br />
               <span className="text-zinc-600">{"// Get instant intelligence"}</span><br />
-              console.<span className="text-amber-400">log</span>(res.metadata.stars); <span className="text-zinc-500">// 225,402</span><br />
-              console.<span className="text-amber-400">log</span>(res.summary); <span className="text-zinc-500">// &quot;React is a...&quot;</span>
+              console.<span className="text-amber-400">log</span>(res.metadata.stars); <span className="text-zinc-500">{"// 225,402"}</span><br />
+              console.<span className="text-amber-400">log</span>(res.summary); <span className="text-zinc-500">{"// \"React is a...\""}</span>
             </pre>
           </div>
         </div>
