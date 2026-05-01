@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useToast } from "@/hooks/useToast";
@@ -36,20 +36,6 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
-
-  // Auto-heal: if the user is on a paid plan but has disabled keys (lingering from a downgrade),
-  // silently re-enable them. This covers the case where the upgrade flow's re-enable didn't fire.
-  useEffect(() => {
-    if (currentPlan === "Hobby" || isLoading) return;
-    const disabledKeys = apiKeys.filter((k) => !k.is_active);
-    if (disabledKeys.length === 0) return;
-    const ids = disabledKeys.map((k) => k.id);
-    fetch("/api/keys/bulk-delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids, action: "enable" }),
-    }).catch(() => { /* best-effort */ });
-  }, [currentPlan, apiKeys, isLoading]);
 
   const handleOpenCreateModal = () => {
     setEditingKey(null);
