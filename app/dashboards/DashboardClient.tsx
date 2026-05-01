@@ -78,7 +78,13 @@ export default function DashboardClient({ initialSession }: { initialSession: an
   return (
     <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-start gap-8 p-6 md:flex-row md:py-12">
-        <Sidebar totalUsage={totalUsage} plan={currentPlan} limit={currentLimit} isUnlimited={isUnlimited} />
+        <Sidebar 
+          totalUsage={totalUsage} 
+          plan={currentPlan} 
+          limit={currentLimit} 
+          isUnlimited={isUnlimited} 
+          onManageClick={() => setIsSubModalOpen(true)}
+        />
         
         <main className="min-w-0 flex-1">
           <div className="space-y-8">

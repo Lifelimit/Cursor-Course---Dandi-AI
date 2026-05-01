@@ -9,7 +9,7 @@ type SubscriptionModalProps = {
   planName: string;
   onSuccess?: (message: string) => void;
   onError?: (message: string) => void;
-  initialView?: "overview" | "change-plan" | "cancel-confirm" | "update-payment";
+  initialView?: "overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review";
   initialPendingPlan?: string | null;
 };
 
@@ -42,8 +42,8 @@ const PLAN_RANKS: Record<string, number> = {
 
 export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onError, initialView, initialPendingPlan }: SubscriptionModalProps) {
   const router = useRouter();
-  const { update } = useSession();
-  const [view, setView] = useState<"overview" | "change-plan" | "cancel-confirm" | "update-payment">(initialView || "overview");
+  const { data: session, update } = useSession();
+  const [view, setView] = useState<"overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review">(initialView || "overview");
   const [isLoading, setIsLoading] = useState(false);
   const [showCvc, setShowCvc] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<string | null>(initialPendingPlan || null);
@@ -61,7 +61,11 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     name: "",
     number: "",
     expiry: "",
-    cvc: ""
+    cvc: "",
+    street: "",
+    city: "",
+    zip: "",
+    country: ""
   });
 
   // Reset to overview or initial state whenever the modal is opened
@@ -73,7 +77,11 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
         name: "",
         number: "",
         expiry: "",
-        cvc: ""
+        cvc: "",
+        street: "",
+        city: "",
+        zip: "",
+        country: ""
       });
     }
   }, [isOpen]);
@@ -124,9 +132,8 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
           router.refresh();
           const actionText = PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? "upgraded" : "downgraded";
           onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
-          setView("overview");
-          setPendingPlan(null);
-          onClose();
+          setView("success");
+          // setPendingPlan(null); // Keep pendingPlan for the success view to show details
         } catch (error) {
           onError?.(`Failed to change plan.`);
         } finally {
@@ -183,7 +190,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     return v;
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
     if (name === "number") {
@@ -208,22 +215,10 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
       return;
     }
 
-    // If already on a paid plan, skip payment details and execute immediately
+    // If already on a paid plan, show review screen
     if (planName !== "Hobby") {
-      setIsLoading(true);
-      try {
-        await updatePlanAction(newPlan);
-        await update();
-        router.refresh();
-        const actionText = PLAN_RANKS[newPlan] > PLAN_RANKS[planName] ? "upgraded" : "downgraded";
-        onSuccess?.(`Successfully ${actionText} to ${newPlan} plan.`);
-        setView("overview");
-        onClose();
-      } catch (error) {
-        onError?.(`Failed to change plan.`);
-      } finally {
-        setIsLoading(false);
-      }
+      setPendingPlan(newPlan);
+      setView("plan-change-review");
       return;
     }
 
@@ -232,9 +227,26 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     setView("update-payment");
   };
 
+  const handleExecutePlanChange = async () => {
+    if (!pendingPlan) return;
+    setIsLoading(true);
+    try {
+      await updatePlanAction(pendingPlan);
+      await update();
+      router.refresh();
+      const actionText = PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? "upgraded" : "downgraded";
+      onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
+      setView("success");
+    } catch (error) {
+      onError?.(`Failed to change plan.`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="w-full max-w-lg overflow-hidden rounded-[32px] border border-zinc-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300">
+      <div className={`w-full overflow-hidden rounded-[32px] border border-zinc-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300 transition-all duration-500 ${(view === 'update-payment' || view === 'success') ? 'max-w-4xl' : 'max-w-lg'}`}>
         
         {/* Header Section */}
         <div className={`relative p-8 transition-colors duration-500 ${view === 'cancel-confirm' ? 'bg-rose-600 text-white' : 'bg-[#18181b] text-white'}`}>
@@ -249,10 +261,10 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
           
           <div className="space-y-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 italic">
-              {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : "Confirm Cancellation"}
+              {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : "Confirm Cancellation"}
             </p>
             <h3 className="font-serif text-4xl font-bold italic">
-              {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : "Wait! Are you sure?"}
+              {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Thank You!" : view === "plan-change-review" ? "Confirm Switch" : "Wait! Are you sure?"}
             </h3>
           </div>
 
@@ -298,41 +310,42 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
               </button>
             </div>
           ) : view === "update-payment" ? (
-            <form onSubmit={handleSavePayment} className="flex flex-col flex-1 justify-between gap-8">
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Cardholder Name</label>
-                  <input 
-                    type="text" 
-                    name="name"
-                    required
-                    value={formValues.name}
-                    onChange={handleInputChange}
-                    placeholder="Enter full name"
-                    className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Card Number</label>
-                  <div className="relative">
+            <div className="flex flex-col gap-8 md:flex-row">
+              {/* Left Column: Payment Form */}
+              <form onSubmit={handleSavePayment} className="flex-1 space-y-6">
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Cardholder Name</label>
                     <input 
                       type="text" 
-                      name="number"
+                      name="name"
                       required
-                      value={formValues.number}
+                      value={formValues.name}
                       onChange={handleInputChange}
-                      placeholder="0000 0000 0000 0000"
-                      className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors pr-12"
+                      placeholder="Enter full name"
+                      className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
                     />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-1">
-                      <div className="h-4 w-6 rounded bg-zinc-200" />
-                      <div className="h-4 w-6 rounded bg-zinc-300" />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Card Number</label>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        name="number"
+                        required
+                        value={formValues.number}
+                        onChange={handleInputChange}
+                        placeholder="0000 0000 0000 0000"
+                        className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors pr-12"
+                      />
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-1">
+                        <div className="h-4 w-6 rounded bg-zinc-200" />
+                        <div className="h-4 w-6 rounded bg-zinc-300" />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Expiry</label>
                     <input 
@@ -376,34 +389,328 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                     </div>
                   </div>
                 </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Street Address</label>
+                    <input 
+                      type="text" 
+                      name="street"
+                      required
+                      value={formValues.street}
+                      onChange={handleInputChange}
+                      placeholder="123 AI Avenue"
+                      className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">City</label>
+                      <input 
+                        type="text" 
+                        name="city"
+                        required
+                        value={formValues.city}
+                        onChange={handleInputChange}
+                        placeholder="San Francisco"
+                        className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Postal Code</label>
+                      <input 
+                        type="text" 
+                        name="zip"
+                        required
+                        value={formValues.zip}
+                        onChange={handleInputChange}
+                        placeholder="94103"
+                        className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Country</label>
+                    <input 
+                      type="text" 
+                      name="country"
+                      required
+                      value={formValues.country}
+                      onChange={handleInputChange}
+                      placeholder="United States"
+                      className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 pt-4">
+                  <button 
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full rounded-full bg-zinc-900 py-4 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800 shadow-xl shadow-zinc-900/10"
+                  >
+                    {isLoading ? "Validating..." : (pendingPlan ? (PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? `Upgrade to ${pendingPlan}` : `Downgrade to ${pendingPlan}`) : "Save Payment Method")}
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (initialView === "update-payment") {
+                        onClose();
+                      } else if (pendingPlan) {
+                        setView("change-plan");
+                        setPendingPlan(null);
+                      } else {
+                        setView("overview");
+                      }
+                    }}
+                    className="w-full rounded-full border border-zinc-200 bg-white py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-900"
+                  >
+                    Go Back
+                  </button>
+                </div>
+              </form>
+
+              {/* Right Column: Order Summary */}
+              <div className="w-full md:w-80 rounded-2xl bg-zinc-50 p-6 border border-zinc-100 h-fit space-y-6">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Order Summary</h4>
+                
+                {pendingPlan && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-zinc-900">{pendingPlan} Plan</p>
+                        <p className="text-[10px] text-zinc-400">Monthly subscription</p>
+                      </div>
+                      <p className="text-sm font-bold text-zinc-900">{PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price}</p>
+                    </div>
+
+                    <div className="h-px bg-zinc-200" />
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-medium text-zinc-500">
+                        <span>Subtotal</span>
+                        <span>${(parseFloat(PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price.replace("$", "")) / 1.2).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs font-medium text-zinc-500">
+                        <span>VAT (20%)</span>
+                        <span>${(parseFloat(PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price.replace("$", "")) - (parseFloat(PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price.replace("$", "")) / 1.2)).toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-zinc-200" />
+
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-900">Total</span>
+                      <span className="text-xl font-bold text-emerald-600">
+                        {PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price}.00
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-xl bg-white p-4 border border-zinc-100">
+                  <div className="flex gap-3">
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-500 mt-0.5">
+                      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
+                        <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <p className="text-[10px] font-medium leading-relaxed text-zinc-500 italic">
+                      Your plan will be active immediately after the transaction is confirmed.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : view === "success" ? (
+            <div className="flex flex-col gap-8 md:flex-row animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="flex-1 space-y-8">
+                <div className="space-y-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white shadow-xl shadow-emerald-500/20">
+                    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
+                      <path d="M5 13l4 4L19 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <div className="space-y-2">
+                    <h2 className="font-serif text-3xl font-bold">Thank you for your purchase, {(session?.user as any)?.full_name || session?.user?.name || session?.user?.email}!</h2>
+                    <p className="text-sm font-medium text-zinc-500 italic">Your {pendingPlan} subscription is now active and ready for orchestration.</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-6 space-y-4">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 italic">What's included</h4>
+                    <ul className="space-y-3">
+                      {pendingPlan && PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].features.map((feature, i) => (
+                        <li key={i} className="flex items-center gap-3 text-xs font-bold text-zinc-600 uppercase tracking-tighter">
+                          <div className="h-1 w-1 rounded-full bg-emerald-500" />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-6 space-y-4">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 italic">Next Steps</h4>
+                    <div className="space-y-4">
+                      <button 
+                        onClick={() => { onClose(); router.push("/playground"); }}
+                        className="group flex w-full items-center justify-between text-left transition-colors hover:text-emerald-600"
+                      >
+                        <span className="text-xs font-bold uppercase tracking-widest">API Playground</span>
+                        <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
+                          <path d="M9 5l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      <button 
+                        onClick={() => { onClose(); }}
+                        className="group flex w-full items-center justify-between text-left transition-colors hover:text-emerald-600"
+                      >
+                        <span className="text-xs font-bold uppercase tracking-widest">Create New Key</span>
+                        <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
+                          <path d="M9 5l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => { setPendingPlan(null); setView("overview"); onClose(); }}
+                  className="w-full rounded-full bg-[#18181b] py-5 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800 shadow-xl"
+                >
+                  Return to Dashboard
+                </button>
               </div>
 
-              <div className="flex flex-col gap-3">
-                <button 
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full rounded-full bg-zinc-900 py-4 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800 shadow-xl shadow-zinc-900/10"
-                >
-                  {isLoading ? "Validating Card..." : (pendingPlan ? (PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? `Upgrade to ${pendingPlan}` : `Downgrade to ${pendingPlan}`) : "Save Payment Method")}
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => {
-                    if (initialView === "update-payment") {
-                      onClose();
-                    } else if (pendingPlan) {
-                      setView("change-plan");
-                      setPendingPlan(null);
-                    } else {
-                      setView("overview");
-                    }
-                  }}
-                  className="w-full rounded-full border border-zinc-200 bg-white py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-900"
-                >
-                  {initialView === "update-payment" ? "Cancel" : (pendingPlan ? "Go Back" : "Cancel")}
-                </button>
+              <div className="w-full md:w-80 space-y-6">
+                <div className="rounded-2xl border border-dashed border-zinc-200 p-6 space-y-6 bg-white/50">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Order Receipt</h4>
+                  
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Transaction ID</span>
+                      <span className="text-[10px] font-mono font-bold text-zinc-900">#TXN-{Math.random().toString(36).substring(2, 9).toUpperCase()}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Billing Date</span>
+                      <span className="text-[10px] font-bold text-zinc-900">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-900">Total Charged</span>
+                      <span className="text-lg font-black text-emerald-600">
+                        {PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price}.00
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="rounded-xl bg-zinc-900 p-4 text-white">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2 italic underline underline-offset-4">Billing To</p>
+                    <div className="text-[10px] font-medium leading-relaxed opacity-70">
+                      <p>{formValues.street}</p>
+                      <p>{formValues.city}, {formValues.zip}</p>
+                      <p>{formValues.country}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </form>
+            </div>
+          ) : view === "plan-change-review" ? (
+            <div className="flex flex-col gap-8 md:flex-row animate-in fade-in slide-in-from-right-4 duration-500">
+              <div className="flex-1 space-y-8">
+                <div className="space-y-6">
+                  <div className="flex items-center gap-8">
+                    <div className="flex-1 space-y-1">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Current Plan</p>
+                      <p className="text-xl font-bold text-zinc-900">{planName}</p>
+                    </div>
+                    <div className="h-8 w-px bg-zinc-200" />
+                    <div className="flex-1 space-y-1">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">New Plan</p>
+                      <p className="text-xl font-bold text-zinc-900">{pendingPlan}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-6 space-y-6">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Billing Information</h4>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium text-zinc-500">Payment Method</span>
+                        <span className="text-sm font-bold text-zinc-900">Card ending in {cardData.number.slice(-4)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium text-zinc-500">Billing Cycle</span>
+                        <span className="text-sm font-bold text-zinc-900">Monthly</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={handleExecutePlanChange}
+                    disabled={isLoading}
+                    className="w-full rounded-full bg-zinc-900 py-5 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800 shadow-xl"
+                  >
+                    {isLoading ? "Processing Switch..." : `Confirm Switch to ${pendingPlan}`}
+                  </button>
+                  <button 
+                    onClick={() => { setView("change-plan"); setPendingPlan(null); }}
+                    className="w-full rounded-full border border-zinc-200 bg-white py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-900"
+                  >
+                    Change Selection
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Column: Order Summary */}
+              <div className="w-full md:w-80 rounded-2xl bg-[#18181b] p-6 text-white h-fit space-y-6 shadow-2xl">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-white/40">New Plan Summary</h4>
+                
+                {pendingPlan && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold">{pendingPlan} Plan</p>
+                        <p className="text-[10px] text-white/40 italic">VAT inclusive</p>
+                      </div>
+                      <p className="text-sm font-bold">{PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price}</p>
+                    </div>
+
+                    <div className="h-px bg-white/10" />
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-medium text-white/60">
+                        <span>Price Change</span>
+                        <span>
+                          {PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? "+" : "-"} 
+                          ${Math.abs(parseFloat(PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price.replace("$", "")) - parseFloat(PLAN_DETAILS[planName as keyof typeof PLAN_DETAILS].price.replace("$", ""))).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs font-medium text-white/60">
+                        <span>Original Price</span>
+                        <span>${(parseFloat(PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price.replace("$", "")) / 1.2).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs font-medium text-white/60">
+                        <span>VAT (20%)</span>
+                        <span>${(parseFloat(PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price.replace("$", "")) - (parseFloat(PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price.replace("$", "")) / 1.2)).toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-white/10" />
+
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="text-[10px] font-bold uppercase tracking-widest">Total Price</span>
+                      <span className="text-xl font-bold text-emerald-400">
+                        {PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price}.00
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           ) : view === "cancel-confirm" ? (
             <div className="flex flex-col flex-1 justify-between py-4">
               <div className="space-y-6 text-center">
