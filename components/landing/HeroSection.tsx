@@ -2,9 +2,9 @@ import Link from "next/link";
 import type { Session } from "next-auth";
 
 const STATS_DATA = [
-  { label: "Semantic Search", val: "82%", color: "bg-emerald-500" },
-  { label: "LLM Gateway", val: "44%", color: "bg-blue-500" },
-  { label: "Vector Sync", val: "12%", color: "bg-zinc-300" },
+  { label: "AI Summarization", val: "94%", color: "bg-emerald-500" },
+  { label: "Metadata Sync", val: "76%", color: "bg-blue-500" },
+  { label: "Edge Response", val: "12ms", color: "bg-zinc-300" },
 ];
 
 const TRAFFIC_BARS = [4, 7, 5, 9, 6, 8, 4];
@@ -24,24 +24,30 @@ export function HeroSection({ session }: { session: Session | null }) {
           </div>
           
           <h1 className="font-serif text-[clamp(1.8rem,8vw,5.5rem)] font-bold leading-[1.1] tracking-tight md:text-8xl md:leading-[1.05]">
-            Infrastructure <br className="hidden md:block" />
-            <span className="text-zinc-400 italic">for <span className="whitespace-nowrap">Intelligence.</span></span>
+            Orchestrate <br className="hidden md:block" />
+            <span className="text-zinc-400 italic">your <span className="whitespace-nowrap">Intelligence.</span></span>
           </h1>
           
           <p className="max-w-md text-sm leading-relaxed text-zinc-500 md:text-xl mx-auto xl:mx-0">
-            The high-performance API orchestration layer for engineering teams who demand precision and speed.
+            The high-performance API layer for summarizing codebases, tracking metadata, and distilling repository insights in seconds.
           </p>
           
-          {!session && (
-            <div className="flex flex-col gap-4 sm:flex-row justify-center xl:justify-start">
+          <div className="flex flex-col gap-4 sm:flex-row justify-center xl:justify-start">
+            {!session && (
               <Link href="/signup" className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-full bg-[#18181b] px-6 py-4 text-sm font-bold uppercase tracking-widest text-white shadow-2xl transition-all hover:bg-zinc-800 sm:w-auto md:px-10 md:py-5">
                 <span className="relative z-10 text-[9px] sm:text-xs">Initialize Session</span>
                 <svg viewBox="0 0 24 24" className="relative z-10 h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
                   <path d="M5 12h14m-7-7l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </Link>
-            </div>
-          )}
+            )}
+            <Link href="/playground" className="flex items-center justify-center gap-2 rounded-full border border-zinc-200 bg-white px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-400 transition-all hover:bg-zinc-50 hover:text-zinc-900 sm:w-auto md:px-10 md:py-5 shadow-sm">
+              Launch Playground
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6H9.4L11 7.7a1 1 0 0 0-1.4-1.4l-3.3 3.3a1 1 0 0 0 0 1.4l3.3 3.3a1 1 0 0 0 1.4-1.4L9.4 11.7h6.9l-1.6 1.6a1 1 0 0 0 1.4 1.4l3.3-3.3a1 1 0 0 0 0-1.4l-3.3-3.3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
+          </div>
 
           {/* Code Snippet Component */}
           <div className="group relative w-full max-w-[calc(100vw-2rem)] md:max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-[#1e1e1e] p-4 md:p-6 shadow-2xl transition-all hover:border-zinc-500/30 mx-auto xl:mx-0">
@@ -50,18 +56,16 @@ export function HeroSection({ session }: { session: Session | null }) {
                 <div className="h-2.5 w-2.5 rounded-full bg-red-500/20 border border-red-500/50"></div>
                 <div className="h-2.5 w-2.5 rounded-full bg-amber-500/20 border border-amber-500/50"></div>
                 <div className="h-2.5 w-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/50"></div>
-                <span className="ml-2 font-mono text-[9px] text-zinc-500 uppercase tracking-widest">dandi.init.js</span>
+                <span className="ml-2 font-mono text-[9px] text-zinc-500 uppercase tracking-widest">dandi.summarize.js</span>
               </div>
               <div className="animate-pulse rounded bg-emerald-500/10 px-1.5 py-0.5 text-[7px] font-bold text-emerald-400 uppercase tracking-tighter">Live</div>
             </div>
             <pre className="font-mono text-[9px] leading-relaxed text-zinc-400 md:text-sm text-left whitespace-pre-wrap break-all md:break-normal">
-              <span className="text-emerald-400">const</span> dandi = <span className="text-blue-400">await</span> Dandi.<span className="text-amber-400">connect</span>(process.env.DANDI_KEY);<br />
+              <span className="text-emerald-400">const</span> res = <span className="text-blue-400">await</span> dandi.<span className="text-amber-400">summarize</span>(&quot;facebook/react&quot;);<br />
               <br />
-              <span className="text-zinc-600">{"// Validate & track usage instantly"}</span><br />
-              <span className="text-emerald-400">const</span> session = <span className="text-blue-400">await</span> dandi.<span className="text-amber-400">authorize</span>(&#123;<br />
-              &nbsp;&nbsp;user: <span className="text-zinc-500">&quot;researcher_01&quot;</span>,<br />
-              &nbsp;&nbsp;limit: <span className="text-zinc-500">1000</span><br />
-              &#125;);
+              <span className="text-zinc-600">{"// Get instant intelligence"}</span><br />
+              console.<span className="text-amber-400">log</span>(res.metadata.stars); <span className="text-zinc-500">// 225,402</span><br />
+              console.<span className="text-amber-400">log</span>(res.summary); <span className="text-zinc-500">// &quot;React is a...&quot;</span>
             </pre>
           </div>
         </div>
@@ -73,7 +77,7 @@ export function HeroSection({ session }: { session: Session | null }) {
               <div className="mb-8 flex items-center justify-between">
                 <div className="space-y-1">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Workspace</p>
-                  <h4 className="text-lg font-bold">Project Alpha</h4>
+                  <h4 className="text-lg font-bold">Research Labs</h4>
                 </div>
                 <div className="flex -space-x-2">
                   {AVATAR_IDS.map((i) => (
@@ -90,7 +94,7 @@ export function HeroSection({ session }: { session: Session | null }) {
                       <span className="text-zinc-900">{stat.val}</span>
                     </div>
                     <div className="h-1.5 w-full rounded-full bg-zinc-100">
-                      <div className={`h-full rounded-full ${stat.color}`} style={{ width: stat.val }} />
+                      <div className={`h-full rounded-full ${stat.color}`} style={{ width: stat.label === "Edge Response" ? "12%" : stat.val }} />
                     </div>
                   </div>
                 ))}
