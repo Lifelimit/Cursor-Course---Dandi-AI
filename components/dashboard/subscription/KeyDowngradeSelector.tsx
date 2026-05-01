@@ -7,14 +7,16 @@ const HOBBY_KEY_LIMIT = 3;
 
 type KeyDowngradeSelectorProps = {
   isLoading: boolean;
-  onConfirm: (idsToDelete: string[]) => void;
+  hasCard: boolean;
+  onConfirm: (idsToDelete: string[], keepCard: boolean) => void;
   onBack: () => void;
 };
 
-export function KeyDowngradeSelector({ isLoading, onConfirm, onBack }: KeyDowngradeSelectorProps) {
+export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: KeyDowngradeSelectorProps) {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [isFetching, setIsFetching] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [keepCard, setKeepCard] = useState(true);
 
   useEffect(() => {
     const fetchKeys = async () => {
@@ -51,7 +53,7 @@ export function KeyDowngradeSelector({ isLoading, onConfirm, onBack }: KeyDowngr
 
   const handleConfirm = () => {
     const idsToDelete = keys.filter((k) => !selectedIds.has(k.id)).map((k) => k.id);
-    onConfirm(idsToDelete);
+    onConfirm(idsToDelete, keepCard);
   };
 
   const selectedCount = selectedIds.size;
@@ -155,6 +157,41 @@ export function KeyDowngradeSelector({ isLoading, onConfirm, onBack }: KeyDowngr
           );
         })}
       </div>
+
+      {/* Card Retention Toggle */}
+      {hasCard && (
+        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-3">Payment Method</p>
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => setKeepCard(true)}
+              className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${keepCard ? "border-zinc-900 bg-white shadow-sm" : "border-zinc-200 bg-white hover:border-zinc-300"}`}
+            >
+              <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${keepCard ? "border-zinc-900" : "border-zinc-300"}`}>
+                {keepCard && <div className="h-2 w-2 rounded-full bg-zinc-900" />}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-zinc-900">Keep card on file</p>
+                <p className="text-[10px] text-zinc-400">Reuse it instantly when you upgrade again</p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setKeepCard(false)}
+              className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${!keepCard ? "border-rose-500 bg-rose-50" : "border-zinc-200 bg-white hover:border-zinc-300"}`}
+            >
+              <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${!keepCard ? "border-rose-500" : "border-zinc-300"}`}>
+                {!keepCard && <div className="h-2 w-2 rounded-full bg-rose-500" />}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-zinc-900">Remove card</p>
+                <p className="text-[10px] text-zinc-400">You&apos;ll need to re-enter it when upgrading</p>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="mt-auto flex gap-3 pt-2">

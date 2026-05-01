@@ -10,6 +10,7 @@ type OverviewProps = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setView: (view: any) => void;
   handleRemoveCard: () => void;
+  onCancelSubscription: () => void;
 };
 
 export function Overview({
@@ -19,7 +20,8 @@ export function Overview({
   cardData,
   isLoading,
   setView,
-  handleRemoveCard
+  handleRemoveCard,
+  onCancelSubscription
 }: OverviewProps) {
   return (
     <>
@@ -136,7 +138,7 @@ export function Overview({
       </div>
       
       <button 
-        onClick={() => setView("cancel-confirm")}
+        onClick={onCancelSubscription}
         disabled={isLoading || planName === "Hobby"}
         className="w-full text-center text-[9px] font-bold uppercase tracking-widest text-zinc-300 hover:text-rose-500 transition-colors disabled:opacity-50 disabled:hover:text-zinc-300"
       >

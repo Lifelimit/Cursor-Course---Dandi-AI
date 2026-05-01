@@ -129,9 +129,12 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
 
   const currentPlan = PLAN_DETAILS[planName as keyof typeof PLAN_DETAILS] || PLAN_DETAILS.Hobby;
 
-  const handleCancelAction = async () => {
+  const handleCancelAction = async (keepCard: boolean) => {
     setIsLoading(true);
     try {
+      if (!keepCard) {
+        await removePaymentMethodAction();
+      }
       await updatePlanAction("Hobby");
       await update();
       router.refresh();
@@ -142,6 +145,18 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleInitiateDowngrade = async () => {
+    try {
+      const res = await fetch("/api/keys");
+      const keys = await res.json();
+      if (Array.isArray(keys) && keys.length > 3) {
+        setView("key-downgrade-selector");
+        return;
+      }
+    } catch { /* Fallback to cancel-confirm */ }
+    setView("cancel-confirm");
   };
 
   const handleSavePayment = async (e: React.FormEvent) => {
@@ -299,7 +314,6 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
       setView("cancel-confirm");
       return;
     }
-
     // If already on a paid plan, show review screen
     if (planName !== "Hobby") {
       setPendingPlan(newPlan);
@@ -312,7 +326,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     setView("update-payment");
   };
 
-  const handleKeyDowngradeConfirm = async (idsToDelete: string[]) => {
+  const handleKeyDowngradeConfirm = async (idsToDelete: string[], keepCard: boolean) => {
     setIsLoading(true);
     try {
       if (idsToDelete.length > 0) {
@@ -323,7 +337,9 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
         });
         if (!res.ok) throw new Error("Failed to delete excess keys.");
       }
-      // Now execute the actual plan downgrade
+      if (!keepCard) {
+        await removePaymentMethodAction();
+      }
       await updatePlanAction("Hobby");
       await update();
       router.refresh();
@@ -467,12 +483,14 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
           ) : view === "key-downgrade-selector" ? (
             <KeyDowngradeSelector
               isLoading={isLoading}
+              hasCard={!!cardData.number}
               onConfirm={handleKeyDowngradeConfirm}
               onBack={() => setView("change-plan")}
             />
           ) : view === "cancel-confirm" ? (
             <CancelConfirmation 
               isLoading={isLoading}
+              hasCard={!!cardData.number}
               onConfirm={handleCancelAction}
               onCancel={() => setView("overview")}
             />
@@ -491,6 +509,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
               isLoading={isLoading}
               setView={setView}
               handleRemoveCard={handleRemoveCard}
+              onCancelSubscription={handleInitiateDowngrade}
             />
           )}
         </div>
