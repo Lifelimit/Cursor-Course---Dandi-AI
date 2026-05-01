@@ -30,6 +30,7 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
   const isUnlimited = currentPlan === "Researcher";
 
   const [apiKey, setApiKey] = useState("");
+  const [selectedKey, setSelectedKey] = useState<string>(""); // tracks which key was chosen from dropdown
   const [githubUrl, setGithubUrl] = useState("");
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [viewMode, setViewMode] = useState<"visual" | "json">("visual");
@@ -135,14 +136,24 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
                         {apiKeys.length > 0 && (
                           <div className="flex items-center gap-1.5">
                             <span className="text-[9px] text-zinc-400 font-bold uppercase">Quick Select:</span>
-                            <select 
-                              onChange={(e) => setApiKey(e.target.value)}
+                          <select 
+                              onChange={(e) => {
+                                setApiKey(e.target.value);
+                                setSelectedKey(e.target.value);
+                              }}
                               className="text-[9px] font-bold uppercase tracking-widest text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded outline-none border-none cursor-pointer"
                             >
                               <option value="">Custom Key</option>
-                              {apiKeys.map(k => (
-                                <option key={k.id} value={k.key_value}>{k.name}</option>
-                              ))}
+                              {apiKeys.map(k => {
+                                const usageLabel = k.monthly_limit
+                                  ? `${k.usage_count} / ${k.monthly_limit}`
+                                  : `${k.usage_count} / ∞`;
+                                return (
+                                  <option key={k.id} value={k.key_value}>
+                                    {k.name} — {usageLabel}
+                                  </option>
+                                );
+                              })}
                             </select>
                           </div>
                         )}
@@ -152,10 +163,44 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
                         type="text"
                         required
                         value={apiKey}
-                        onChange={(e) => setApiKey(e.target.value)}
+                        onChange={(e) => { setApiKey(e.target.value); setSelectedKey(""); }}
                         placeholder="sk_live_..."
                         className="w-full rounded-2xl border border-zinc-200 bg-white/80 px-6 py-4 font-mono text-sm outline-none transition-all focus:border-zinc-900 focus:ring-4 focus:ring-zinc-900/5"
                       />
+                      {/* Usage badge — shown when a key from the dropdown is selected */}
+                      {(() => {
+                        const k = apiKeys.find(k => k.key_value === selectedKey);
+                        if (!k) return null;
+                        const pct = k.monthly_limit ? Math.min((k.usage_count / k.monthly_limit) * 100, 100) : null;
+                        const isOver = pct !== null && pct >= 100;
+                        return (
+                          <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-2.5">
+                            <div className="flex flex-1 flex-col gap-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">{k.name}</span>
+                                <span className={`text-[9px] font-bold tabular-nums ${
+                                  isOver ? "text-red-500" : pct !== null && pct > 75 ? "text-amber-500" : "text-zinc-500"
+                                }`}>
+                                  {k.usage_count.toLocaleString()} / {k.monthly_limit ? k.monthly_limit.toLocaleString() : "∞"} requests
+                                </span>
+                              </div>
+                              {pct !== null && (
+                                <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-100">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${
+                                      isOver ? "bg-red-500" : pct > 75 ? "bg-amber-400" : "bg-emerald-500"
+                                    }`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                            {pct === null && (
+                              <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-emerald-600">∞ Unlimited</span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="space-y-3">
