@@ -31,6 +31,7 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
 
   const [apiKey, setApiKey] = useState("");
   const [selectedKey, setSelectedKey] = useState<string>(""); // tracks which key was chosen from dropdown
+  const [selectValue, setSelectValue] = useState(""); // controls the <select> display value
   const [githubUrl, setGithubUrl] = useState("");
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [viewMode, setViewMode] = useState<"visual" | "json">("visual");
@@ -103,6 +104,8 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
   const handleDemoMode = () => {
     setApiKey("sk_live_demo_key_dandi_2026");
     setGithubUrl("https://github.com/facebook/react");
+    setSelectedKey("__demo__");
+    setSelectValue("__demo__");
     showToast("success", "Demo data populated. Hit Summarize!");
   };
 
@@ -137,12 +140,17 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
                           <div className="flex items-center gap-1.5">
                             <span className="text-[9px] text-zinc-400 font-bold uppercase">Quick Select:</span>
                           <select 
+                              value={selectValue}
                               onChange={(e) => {
-                                setApiKey(e.target.value);
-                                setSelectedKey(e.target.value);
+                                const val = e.target.value;
+                                setApiKey(val);
+                                setSelectedKey(val);
+                                setSelectValue(val);
                               }}
                               className="text-[9px] font-bold uppercase tracking-widest text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded outline-none border-none cursor-pointer"
                             >
+                              {/* Hidden sentinel — shows as label when demo mode is active, not listed in dropdown */}
+                              <option value="__demo__" hidden>Demo</option>
                               <option value="">Custom Key</option>
                               {apiKeys.map(k => {
                                 const usageLabel = k.monthly_limit
@@ -163,11 +171,11 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
                         type="text"
                         required
                         value={apiKey}
-                        onChange={(e) => { setApiKey(e.target.value); setSelectedKey(""); }}
+                        onChange={(e) => { setApiKey(e.target.value); setSelectedKey(""); setSelectValue(""); }}
                         placeholder="sk_live_..."
                         className="w-full rounded-2xl border border-zinc-200 bg-white/80 px-6 py-4 font-mono text-sm outline-none transition-all focus:border-zinc-900 focus:ring-4 focus:ring-zinc-900/5"
                       />
-                      {/* Usage badge — shown when a key from the dropdown is selected */}
+                      {/* Usage badge — shown only when a real user key is selected (not demo, not custom) */}
                       {(() => {
                         const k = apiKeys.find(k => k.key_value === selectedKey);
                         if (!k) return null;
