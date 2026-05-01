@@ -34,11 +34,67 @@ const PLAN_DETAILS = {
   }
 };
 
-const PLAN_RANKS: Record<string, number> = {
-  "Hobby": 0,
-  "Premium": 1,
-  "Researcher": 2
+const PLAN_RANKS = { Hobby: 0, Premium: 1, Researcher: 2 };
+
+type CountryData = {
+  states: Record<string, string[]>;
+  zipLabel: string;
+  zipPlaceholder: string;
 };
+
+const LOCATION_DATA: Record<string, CountryData> = {
+  "United States": {
+    states: {
+      "California": ["Los Angeles", "San Diego", "San Jose", "San Francisco"],
+      "New York": ["New York City", "Buffalo", "Rochester"],
+      "Texas": ["Houston", "San Antonio", "Dallas", "Austin"]
+    },
+    zipLabel: "Zip Code",
+    zipPlaceholder: "12345"
+  },
+  "United Kingdom": {
+    states: {
+      "England": ["London", "Birmingham", "Manchester", "Liverpool", "Leeds", "Sheffield", "Bristol", "Leicester"],
+      "Scotland": ["Glasgow", "Edinburgh"]
+    },
+    zipLabel: "Postcode",
+    zipPlaceholder: "SW1A 1AA"
+  },
+  "Canada": {
+    states: {
+      "Ontario": ["Toronto", "Ottawa", "Hamilton", "Kitchener"],
+      "Quebec": ["Montreal", "Quebec City"],
+      "British Columbia": ["Vancouver", "Victoria"],
+      "Alberta": ["Calgary", "Edmonton"]
+    },
+    zipLabel: "Postal Code",
+    zipPlaceholder: "A1B 2C3"
+  },
+  "Germany": {
+    states: {
+      "Bavaria": ["Munich", "Nuremberg", "Augsburg"],
+      "Berlin": ["Berlin"],
+      "Hamburg": ["Hamburg"],
+      "Hesse": ["Frankfurt", "Wiesbaden"],
+      "North Rhine-Westphalia": ["Cologne", "Düsseldorf", "Dortmund"]
+    },
+    zipLabel: "Postleitzahl",
+    zipPlaceholder: "10115"
+  },
+  "Australia": {
+    states: {
+      "NSW": ["Sydney", "Newcastle", "Wollongong"],
+      "Victoria": ["Melbourne", "Geelong"],
+      "Queensland": ["Brisbane", "Gold Coast", "Sunshine Coast"],
+      "Western Australia": ["Perth"],
+      "South Australia": ["Adelaide"]
+    },
+    zipLabel: "Postcode",
+    zipPlaceholder: "2000"
+  }
+};
+
+const COUNTRIES = Object.keys(LOCATION_DATA);
 
 export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onError, initialView, initialPendingPlan }: SubscriptionModalProps) {
   const router = useRouter();
@@ -53,7 +109,12 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     name: "",
     number: "•••• •••• •••• 4242",
     expiry: "12/26",
-    cvc: "•••"
+    cvc: "•••",
+    street: "Street Address",
+    city: "City",
+    state: "State",
+    zip: "Postal Code",
+    country: "Country"
   });
 
   // Temp state for the form inputs
@@ -64,6 +125,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     cvc: "",
     street: "",
     city: "",
+    state: "",
     zip: "",
     country: ""
   });
@@ -73,18 +135,56 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     if (isOpen) {
       setView(initialView || "overview");
       setPendingPlan(initialPendingPlan || null);
-      setFormValues({
-        name: "",
-        number: "",
-        expiry: "",
-        cvc: "",
-        street: "",
-        city: "",
-        zip: "",
-        country: ""
-      });
+      
+      const s = session?.user as any;
+      if (s) {
+        setCardData(prev => ({
+          ...prev,
+          name: s.full_name || prev.name,
+          street: s.billing_street || prev.street,
+          city: s.billing_city || prev.city,
+          state: s.billing_state || prev.state,
+          zip: s.billing_zip || prev.zip,
+          country: s.billing_country || prev.country
+        }));
+        
+        setFormValues({
+          name: s.full_name || "",
+          number: "",
+          expiry: "",
+          cvc: "",
+          street: s.billing_street || "",
+          city: s.billing_city || "",
+          state: s.billing_state || "",
+          zip: s.billing_zip || "",
+          country: s.billing_country || ""
+        });
+      } else {
+        setFormValues({
+          name: "",
+          number: "",
+          expiry: "",
+          cvc: "",
+          street: "",
+          city: "",
+          state: "",
+          zip: "",
+          country: ""
+        });
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, session]);
+
+  useEffect(() => {
+    if (view === "success" && isOpen) {
+      const timer = setTimeout(() => {
+        setPendingPlan(null);
+        setView("overview");
+        onClose();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [view, isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -122,18 +222,30 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
         name: formValues.name,
         number: `•••• •••• •••• ${cleanNumber.slice(-4)}`,
         expiry: formValues.expiry,
-        cvc: formValues.cvc
+        cvc: formValues.cvc,
+        street: formValues.street,
+        city: formValues.city,
+        state: formValues.state,
+        zip: formValues.zip,
+        country: formValues.country
       });
 
       if (pendingPlan) {
         try {
-          await updatePlanAction(pendingPlan);
+          await updatePlanAction(pendingPlan, {
+            street: formValues.street,
+            city: formValues.city,
+            state: formValues.state,
+            zip: formValues.zip,
+            country: formValues.country
+          });
           await update();
           router.refresh();
-          const actionText = PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? "upgraded" : "downgraded";
+          const actionText = PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "upgraded" : "downgraded";
           onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
-          setView("success");
-          // setPendingPlan(null); // Keep pendingPlan for the success view to show details
+          
+          // Close modal immediately on success to avoid re-mount state issues
+          onClose();
         } catch (error) {
           onError?.(`Failed to change plan.`);
         } finally {
@@ -231,12 +343,18 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     if (!pendingPlan) return;
     setIsLoading(true);
     try {
-      await updatePlanAction(pendingPlan);
+      await updatePlanAction(pendingPlan, {
+        street: formValues.street || cardData.street,
+        city: formValues.city || cardData.city,
+        state: formValues.state || cardData.state,
+        zip: formValues.zip || cardData.zip,
+        country: formValues.country || cardData.country
+      });
       await update();
       router.refresh();
-      const actionText = PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? "upgraded" : "downgraded";
+      const actionText = PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "upgraded" : "downgraded";
       onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
-      setView("success");
+      onClose();
     } catch (error) {
       onError?.(`Failed to change plan.`);
     } finally {
@@ -261,7 +379,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
           
           <div className="space-y-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 italic">
-              {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : "Confirm Cancellation"}
+              {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : "Confirm Cancellation"}
             </p>
             <h3 className="font-serif text-4xl font-bold italic">
               {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Thank You!" : view === "plan-change-review" ? "Confirm Switch" : "Wait! Are you sure?"}
@@ -390,58 +508,121 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                   </div>
                 </div>
 
+                {/* Sequential Address Reveal */}
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Street Address</label>
-                    <input 
-                      type="text" 
-                      name="street"
-                      required
-                      value={formValues.street}
-                      onChange={handleInputChange}
-                      placeholder="123 AI Avenue"
-                      className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">City</label>
-                      <input 
-                        type="text" 
-                        name="city"
-                        required
-                        value={formValues.city}
-                        onChange={handleInputChange}
-                        placeholder="San Francisco"
-                        className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Postal Code</label>
-                      <input 
-                        type="text" 
-                        name="zip"
-                        required
-                        value={formValues.zip}
-                        onChange={handleInputChange}
-                        placeholder="94103"
-                        className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
-                      />
-                    </div>
-                  </div>
-
+                  {/* 1. Country */}
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Country</label>
-                    <input 
-                      type="text" 
+                    <select 
                       name="country"
                       required
                       value={formValues.country}
-                      onChange={handleInputChange}
-                      placeholder="United States"
-                      className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
-                    />
+                      onChange={(e) => {
+                        const newCountry = e.target.value;
+                        setFormValues(prev => ({ 
+                          ...prev, 
+                          country: newCountry,
+                          state: "",
+                          city: "",
+                          zip: "",
+                          street: ""
+                        }));
+                      }}
+                      className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors appearance-none"
+                    >
+                      <option value="">Select Country</option>
+                      {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+
+                  {formValues.country && (
+                    <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                      {/* 2. State */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">State / Province</label>
+                        <select 
+                          name="state"
+                          required
+                          value={formValues.state}
+                          onChange={(e) => {
+                            const newState = e.target.value;
+                            setFormValues(prev => ({ ...prev, state: newState, city: "", zip: "", street: "" }));
+                          }}
+                          className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors appearance-none"
+                        >
+                          <option value="">Select State</option>
+                          {Object.keys(LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].states).map(state => (
+                            <option key={state} value={state}>{state}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* 3. City */}
+                      {formValues.state && (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">City</label>
+                          <select 
+                            name="city"
+                            required
+                            value={formValues.city}
+                            onChange={(e) => setFormValues(prev => ({ ...prev, city: e.target.value }))}
+                            className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors appearance-none"
+                          >
+                            <option value="">Select City</option>
+                            {LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].states[formValues.state].map(city => (
+                              <option key={city} value={city}>{city}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {formValues.city && (
+                    <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                      {/* 4. Zip Code */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                          {LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].zipLabel}
+                        </label>
+                        <input 
+                          type="text" 
+                          name="zip"
+                          required
+                          value={formValues.zip}
+                          onChange={handleInputChange}
+                          placeholder={LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].zipPlaceholder}
+                          className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
+                        />
+                      </div>
+
+                      {/* 5. Street Address */}
+                      <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Street Address</label>
+                        <input 
+                          type="text" 
+                          name="street"
+                          required
+                          value={formValues.street}
+                          onChange={handleInputChange}
+                          placeholder="123 Example St"
+                          className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Payment Security Badge */}
+                <div className="flex items-center gap-3 rounded-2xl bg-emerald-50/50 p-4 border border-emerald-100">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                      <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Secure Transaction</p>
+                    <p className="text-[9px] text-emerald-600/70">Your payment information is encrypted and never stored on our servers.</p>
                   </div>
                 </div>
 
@@ -451,7 +632,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                     disabled={isLoading}
                     className="w-full rounded-full bg-zinc-900 py-4 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800 shadow-xl shadow-zinc-900/10"
                   >
-                    {isLoading ? "Validating..." : (pendingPlan ? (PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? `Upgrade to ${pendingPlan}` : `Downgrade to ${pendingPlan}`) : "Save Payment Method")}
+                    {isLoading ? "Validating..." : (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? `Upgrade to ${pendingPlan}` : `Downgrade to ${pendingPlan}`) : "Save Payment Method")}
                   </button>
                   <button 
                     type="button"
@@ -608,9 +789,9 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                   
                   <div className="rounded-xl bg-zinc-900 p-4 text-white">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2 italic underline underline-offset-4">Billing To</p>
-                    <div className="text-[10px] font-medium leading-relaxed opacity-70">
+                    <div className="text-[10px] font-medium leading-relaxed opacity-70 space-y-0.5">
                       <p>{formValues.street}</p>
-                      <p>{formValues.city}, {formValues.zip}</p>
+                      <p>{formValues.city}, {formValues.state} {formValues.zip}</p>
                       <p>{formValues.country}</p>
                     </div>
                   </div>
@@ -635,14 +816,53 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
 
                   <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-6 space-y-6">
                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Billing Information</h4>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-medium text-zinc-500">Payment Method</span>
-                        <span className="text-sm font-bold text-zinc-900">Card ending in {cardData.number.slice(-4)}</span>
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5">
+                          <svg viewBox="0 0 24 24" className="h-3 w-3 text-zinc-400" fill="none" stroke="currentColor">
+                            <path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Charging</span>
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-bold text-zinc-900">Card ending in {cardData.number.slice(-4)}</p>
+                          <p className="text-[9px] text-zinc-400 italic">Primary method</p>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-medium text-zinc-500">Billing Cycle</span>
-                        <span className="text-sm font-bold text-zinc-900">Monthly</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5">
+                          <svg viewBox="0 0 24 24" className="h-3 w-3 text-zinc-400" fill="none" stroke="currentColor">
+                            <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Billing Cycle</span>
+                        </div>
+                        <p className="text-sm font-bold text-zinc-900">Monthly</p>
+                      </div>
+                      <div className="h-px bg-zinc-200" />
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5">
+                          <svg viewBox="0 0 24 24" className="h-3 w-3 text-zinc-400" fill="none" stroke="currentColor">
+                            <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Billing To</span>
+                        </div>
+                        <div className="space-y-3 pt-1">
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Street</span>
+                            <span className="text-sm font-bold text-zinc-900">{formValues.street || cardData.street}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Locality</span>
+                            <span className="text-sm font-bold text-zinc-900">
+                              {formValues.city || cardData.city}, {formValues.state || cardData.state} {formValues.zip || cardData.zip}
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Country</span>
+                            <span className="text-sm font-bold text-zinc-900">{formValues.country || cardData.country}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -685,7 +905,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
                       <div className="flex justify-between text-xs font-medium text-white/60">
                         <span>Price Change</span>
                         <span>
-                          {PLAN_RANKS[pendingPlan] > PLAN_RANKS[planName] ? "+" : "-"} 
+                          {PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "+" : "-"} 
                           ${Math.abs(parseFloat(PLAN_DETAILS[pendingPlan as keyof typeof PLAN_DETAILS].price.replace("$", "")) - parseFloat(PLAN_DETAILS[planName as keyof typeof PLAN_DETAILS].price.replace("$", ""))).toFixed(2)}
                         </span>
                       </div>
@@ -763,14 +983,57 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
 
               {planName !== "Hobby" && (
                 <div className="rounded-2xl bg-zinc-50 p-6 space-y-4 border border-zinc-100">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Next Billing Date</p>
-                      <p className="text-sm font-bold text-zinc-900">{currentPlan.nextBilling}</p>
+                  <div className="grid grid-cols-3 gap-6 pt-2">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <svg viewBox="0 0 24 24" className="h-3 w-3 text-zinc-400" fill="none" stroke="currentColor">
+                          <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Renewal</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-bold text-zinc-900">{currentPlan.nextBilling}</p>
+                        <p className="text-[9px] text-zinc-400 italic">Next charge date</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Payment Method</p>
-                      <p className="text-sm font-bold text-zinc-900">{cardData.number}</p>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <svg viewBox="0 0 24 24" className="h-3 w-3 text-zinc-400" fill="none" stroke="currentColor">
+                          <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Billing To</p>
+                      </div>
+                      <div className="space-y-3 pt-1">
+                        <div className="flex flex-col">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Street</span>
+                          <span className="text-sm font-bold text-zinc-900">{formValues.street || cardData.street}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Locality</span>
+                          <span className="text-sm font-bold text-zinc-900">
+                            {formValues.city || cardData.city}, {formValues.state || cardData.state} {formValues.zip || cardData.zip}
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Country</span>
+                          <span className="text-sm font-bold text-zinc-900">{formValues.country || cardData.country}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <svg viewBox="0 0 24 24" className="h-3 w-3 text-zinc-400" fill="none" stroke="currentColor">
+                          <path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Charging</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-bold text-zinc-900">{cardData.number}</p>
+                        <p className="text-[9px] text-zinc-400 italic">Primary method</p>
+                      </div>
                     </div>
                   </div>
                 </div>

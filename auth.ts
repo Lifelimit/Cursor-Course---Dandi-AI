@@ -103,12 +103,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           const { data, error } = await supabaseAdmin
             .from("profiles")
-            .select("plan")
+            .select("plan, billing_street, billing_city, billing_state, billing_zip, billing_country, full_name")
             .eq("email", session.user.email)
             .single();
             
           if (data && !error) {
             (session.user as any).plan = data.plan || "Hobby";
+            (session.user as any).full_name = data.full_name;
+            (session.user as any).billing_street = data.billing_street;
+            (session.user as any).billing_city = data.billing_city;
+            (session.user as any).billing_state = data.billing_state;
+            (session.user as any).billing_zip = data.billing_zip;
+            (session.user as any).billing_country = data.billing_country;
           } else {
             (session.user as any).plan = "Hobby";
           }

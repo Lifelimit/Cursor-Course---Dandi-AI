@@ -47,6 +47,7 @@ const PLANS = [
       "Unlimited requests / mo",
       "Unlimited Active Keys",
       "Custom Branding",
+      "Priority Support",
     ],
     level: 2,
     dark: true,
@@ -99,14 +100,20 @@ export function PricingSection({
       return;
     }
 
-    // Otherwise (downgrading, or switching between already paid plans), execute instantly
+    // Switching between paid plans (e.g., Premium <-> Researcher) -> show review screen
+    if (currentPlanId !== "Hobby" && planId !== "Hobby" && planId !== currentPlanId) {
+      setModalInitialView("plan-change-review");
+      setModalPendingPlan(planId);
+      setIsModalOpen(true);
+      return;
+    }
+
+    // Only allow instant update for cases not requiring specific views (rare if all paths are covered above)
     setLoadingPlanId(planId);
     try {
       await updatePlanAction(planId);
       await update();
-      const isDowngrade = currentPlan && targetPlan && targetPlan.level < currentPlan.level;
-      onSuccess?.(`Successfully ${isDowngrade ? 'downgraded' : 'upgraded'} to ${planId} plan.`);
-      // Re-fetch session data by refreshing the page
+      onSuccess?.(`Successfully updated to ${planId} plan.`);
       router.refresh();
     } catch (error) {
       console.error("Failed to update plan:", error);
@@ -152,9 +159,14 @@ export function PricingSection({
                   <p className={`text-[10px] font-bold uppercase tracking-[0.2em] ${plan.labelColor}`}>
                     {plan.name}
                   </p>
-                  <h4 className={`text-4xl font-bold ${plan.priceColor}`}>
-                    {plan.price}<span className="text-sm font-normal text-zinc-400">/mo</span>
-                  </h4>
+                  <div className="space-y-1">
+                    <h4 className={`text-4xl font-bold ${plan.priceColor}`}>
+                      {plan.price}<span className="text-sm font-normal text-zinc-400">/mo</span>
+                    </h4>
+                    {plan.id !== "Hobby" && (
+                      <p className={`text-[9px] font-medium italic ${plan.labelColor}`}>VAT inclusive</p>
+                    )}
+                  </div>
                 </div>
 
                 <ul className={`mb-12 space-y-4 text-sm ${plan.textColor}`}>

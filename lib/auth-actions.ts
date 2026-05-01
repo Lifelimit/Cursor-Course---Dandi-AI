@@ -24,13 +24,32 @@ export async function logoutAction() {
   await signOut({ redirectTo: "/" });
 }
 
-export async function updatePlanAction(newPlanId: string) {
+export async function updatePlanAction(
+  newPlanId: string, 
+  billingDetails?: {
+    street: string;
+    city: string;
+    state: string;
+    zip: string;
+    country: string;
+  }
+) {
   const session = await auth();
   if (!session?.user?.email) throw new Error("Unauthorized");
 
+  const updateData: any = { plan: newPlanId };
+  
+  if (billingDetails) {
+    updateData.billing_street = billingDetails.street;
+    updateData.billing_city = billingDetails.city;
+    updateData.billing_state = billingDetails.state;
+    updateData.billing_zip = billingDetails.zip;
+    updateData.billing_country = billingDetails.country;
+  }
+
   const { error } = await supabaseAdmin
     .from("profiles")
-    .update({ plan: newPlanId })
+    .update(updateData)
     .eq("email", session.user.email);
 
   if (error) throw new Error(error.message);
