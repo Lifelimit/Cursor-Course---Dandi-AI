@@ -159,6 +159,23 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     setView("cancel-confirm");
   };
 
+  const reEnableDisabledKeys = async () => {
+    try {
+      const keysRes = await fetch("/api/keys");
+      const allKeys = await keysRes.json();
+      const disabledIds = Array.isArray(allKeys)
+        ? allKeys.filter((k: { is_active: boolean }) => !k.is_active).map((k: { id: string }) => k.id)
+        : [];
+      if (disabledIds.length > 0) {
+        await fetch("/api/keys/bulk-delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: disabledIds, action: "enable" }),
+        });
+      }
+    } catch { /* Best-effort — do not block the upgrade */ }
+  };
+
   const handleSavePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -196,6 +213,10 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
 
       if (pendingPlan) {
         try {
+          // If upgrading from Hobby, re-enable any disabled keys
+          if (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS]) {
+            await reEnableDisabledKeys();
+          }
           await updatePlanAction(pendingPlan, {
             street: formValues.street,
             city: formValues.city,
@@ -361,19 +382,8 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     setIsLoading(true);
     try {
       // If upgrading FROM Hobby, re-enable any keys that were disabled during a previous downgrade
-      if (planName === "Hobby") {
-        const keysRes = await fetch("/api/keys");
-        const allKeys = await keysRes.json();
-        const disabledIds = Array.isArray(allKeys)
-          ? allKeys.filter((k: { is_active: boolean }) => !k.is_active).map((k: { id: string }) => k.id)
-          : [];
-        if (disabledIds.length > 0) {
-          await fetch("/api/keys/bulk-delete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ids: disabledIds, action: "enable" }),
-          });
-        }
+      if (planName === "Hobby" || PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS]) {
+        await reEnableDisabledKeys();
       }
       await updatePlanAction(pendingPlan, {
         street: formValues.street || cardData.street,
