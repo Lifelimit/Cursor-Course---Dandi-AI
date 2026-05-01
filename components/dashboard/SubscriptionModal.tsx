@@ -321,9 +321,13 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
       return;
     }
 
-    // Otherwise (upgrading from Hobby), require payment details
+    // Otherwise (upgrading from Hobby): if card is already on file, go to review; else collect payment
     setPendingPlan(newPlan);
-    setView("update-payment");
+    if (cardData.number) {
+      setView("plan-change-review");
+    } else {
+      setView("update-payment");
+    }
   };
 
   const handleKeyDowngradeConfirm = async (idsToDelete: string[], keepCard: boolean) => {
@@ -333,9 +337,9 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
         const res = await fetch("/api/keys/bulk-delete", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: idsToDelete }),
+          body: JSON.stringify({ ids: idsToDelete, action: "disable" }),
         });
-        if (!res.ok) throw new Error("Failed to delete excess keys.");
+        if (!res.ok) throw new Error("Failed to disable excess keys.");
       }
       if (!keepCard) {
         await removePaymentMethodAction();
@@ -343,7 +347,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
       await updatePlanAction("Hobby");
       await update();
       router.refresh();
-      onSuccess?.("Downgraded to Hobby. Excess keys removed.");
+      onSuccess?.("Downgraded to Hobby. Excess keys disabled.");
       onClose();
     } catch {
       onError?.("Failed to downgrade plan. Please try again.");
@@ -356,6 +360,21 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     if (!pendingPlan) return;
     setIsLoading(true);
     try {
+      // If upgrading FROM Hobby, re-enable any keys that were disabled during a previous downgrade
+      if (planName === "Hobby") {
+        const keysRes = await fetch("/api/keys");
+        const allKeys = await keysRes.json();
+        const disabledIds = Array.isArray(allKeys)
+          ? allKeys.filter((k: { is_active: boolean }) => !k.is_active).map((k: { id: string }) => k.id)
+          : [];
+        if (disabledIds.length > 0) {
+          await fetch("/api/keys/bulk-delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: disabledIds, action: "enable" }),
+          });
+        }
+      }
       await updatePlanAction(pendingPlan, {
         street: formValues.street || cardData.street,
         city: formValues.city || cardData.city,

@@ -15,6 +15,7 @@ export async function validateApiKey(keyValue: string) {
     .from("api_keys")
     .select("id, name, usage_count, monthly_limit")
     .eq("key_value", keyValue)
+    .eq("is_active", true)
     .single();
 
   if (error || !data) {

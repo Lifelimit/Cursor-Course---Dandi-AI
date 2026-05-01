@@ -6,6 +6,7 @@ export type ApiKey = {
   usage_count: number;
   monthly_limit: number | null;
   createdAt: string;
+  is_active: boolean;
 };
 
 export type ApiKeyApiResponse = {
@@ -16,6 +17,7 @@ export type ApiKeyApiResponse = {
   usage_count: number;
   monthly_limit: number | null;
   created_at: string;
+  is_active: boolean;
 };
 
 export function formatDate(date: Date) {
@@ -31,5 +33,6 @@ export function mapApiKey(row: ApiKeyApiResponse): ApiKey {
     usage_count: row.usage_count ?? 0,
     monthly_limit: row.monthly_limit ?? null,
     createdAt: row.created_at ? formatDate(new Date(row.created_at)) : formatDate(new Date()),
+    is_active: row.is_active ?? true,
   };
 }

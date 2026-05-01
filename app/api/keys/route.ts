@@ -13,6 +13,7 @@ type ApiKeyRow = {
   monthly_limit: number | null;
   created_at: string;
   user_id: string;
+  is_active: boolean;
 };
 
 function buildKeyValue() {
@@ -25,7 +26,7 @@ export async function GET() {
 
     const { data, error } = await supabaseAdmin
       .from(TABLE_NAME)
-      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at")
+      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
         monthly_limit: monthlyLimit,
         user_id: userId,
       })
-      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at")
+      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active")
       .single();
 
     if (error) {
