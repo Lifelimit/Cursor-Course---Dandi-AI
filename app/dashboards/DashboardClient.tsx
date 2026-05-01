@@ -11,11 +11,11 @@ import { Toast } from "@/components/ui/Toast";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { ApiKeyModal } from "@/components/dashboard/ApiKeyModal";
 import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
-import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
+import { useRouter } from "next/navigation";
 
 export default function DashboardClient({ initialSession }: { initialSession: Session | null }) {
+  const router = useRouter();
   const { data: session } = useSession();
-  // Prioritize the server-side session (initialSession) because it's fetched fresh on every load
   const activeSession = initialSession || session; 
   
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey } = useApiKeys();
@@ -34,7 +34,6 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
   const { toast, showToast } = useToast();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
 
   const handleOpenCreateModal = () => {
@@ -84,7 +83,6 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
           plan={currentPlan} 
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
-          onManageClick={() => setIsSubModalOpen(true)}
         />
         
         <main className="min-w-0 flex-1">
@@ -119,7 +117,7 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
                   <h2 className="font-serif text-4xl font-bold italic">{currentPlan}</h2>
                 </div>
                 <button 
-                  onClick={() => setIsSubModalOpen(true)}
+                  onClick={() => router.push("/billing")}
                   className="rounded-full bg-[#18181b] px-6 py-2 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800"
                 >
                   Manage
@@ -164,7 +162,7 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
                 onDelete={handleDelete}
                 onCopySuccess={() => showToast("success", "API key copied to clipboard.")}
                 onCopyError={(msg) => showToast("error", msg)}
-                onUpgradePrompt={() => setIsSubModalOpen(true)}
+                onUpgradePrompt={() => router.push("/billing")}
               />
 
               {!isLoading && apiKeys.length === 0 ? (
@@ -180,13 +178,6 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
               onClose={() => setIsModalOpen(false)}
               initialData={editingKey}
               onSubmit={handleModalSubmit}
-            />
-            <SubscriptionModal 
-              isOpen={isSubModalOpen}
-              onClose={() => setIsSubModalOpen(false)}
-              planName={currentPlan}
-              onSuccess={(msg) => showToast("success", msg)}
-              onError={(msg) => showToast("error", msg)}
             />
             <Toast toast={toast} />
           </div>

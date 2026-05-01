@@ -8,7 +8,6 @@ import { Toast } from "@/components/ui/Toast";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useSession } from "next-auth/react";
 import type { Session } from "next-auth";
-import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 
 function ProtectedContent() {
   const searchParams = useSearchParams();
@@ -143,8 +142,7 @@ function ProtectedContent() {
 export default function ProtectedClient({ initialSession }: { initialSession: Session | null }) {
   const { data: session } = useSession();
   const activeSession = initialSession || session;
-  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
-  const { toast, showToast } = useToast();
+  const { toast } = useToast();
   const { apiKeys } = useApiKeys();
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
@@ -166,7 +164,6 @@ export default function ProtectedClient({ initialSession }: { initialSession: Se
           plan={currentPlan} 
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
-          onManageClick={() => setIsSubModalOpen(true)}
         />
         
         <main className="min-w-0 flex-1">
@@ -182,13 +179,6 @@ export default function ProtectedClient({ initialSession }: { initialSession: Se
           </Suspense>
         </main>
       </div>
-      <SubscriptionModal 
-        isOpen={isSubModalOpen}
-        onClose={() => setIsSubModalOpen(false)}
-        planName={currentPlan}
-        onSuccess={(msg) => showToast("success", msg)}
-        onError={(msg) => showToast("error", msg)}
-      />
       <Toast toast={toast} />
     </div>
   );

@@ -5,7 +5,6 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useSession } from "next-auth/react";
 import type { Session } from "next-auth";
-import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { CodeSnippet } from "@/components/playground/CodeSnippet";
@@ -47,7 +46,6 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
     }
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
-  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const { toast, showToast } = useToast();
 
   const handleSummarize = async (e: React.FormEvent) => {
@@ -117,7 +115,6 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
           plan={currentPlan} 
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
-          onManageClick={() => setIsSubModalOpen(true)}
         />
         
         <main className="min-w-0 flex-1 space-y-8">
@@ -364,13 +361,6 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
           )}
         </main>
       </div>
-      <SubscriptionModal 
-        isOpen={isSubModalOpen}
-        onClose={() => setIsSubModalOpen(false)}
-        planName={currentPlan}
-        onSuccess={(msg) => showToast("success", msg)}
-        onError={(msg) => showToast("error", msg)}
-      />
       <Toast toast={toast} />
     </div>
   );

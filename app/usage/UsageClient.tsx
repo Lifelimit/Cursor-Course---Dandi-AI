@@ -7,7 +7,6 @@ import type { Session } from "next-auth";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { Sidebar } from "@/components/dashboard/Sidebar";
-import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 import { QuotaHealthGrid } from "@/components/usage/QuotaHealthGrid";
 import { TopReposTable } from "@/components/usage/TopReposTable";
 import { useCallback } from "react";
@@ -35,7 +34,6 @@ export default function UsageClient({ initialSession }: { initialSession: Sessio
   
   const [data, setData] = useState<UsageData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const { toast, showToast } = useToast();
 
   const fetchUsageData = useCallback(async () => {
@@ -75,7 +73,6 @@ export default function UsageClient({ initialSession }: { initialSession: Sessio
           plan={currentPlan} 
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
-          onManageClick={() => setIsSubModalOpen(true)}
         />
         
         <main className="min-w-0 flex-1 space-y-8">
@@ -160,12 +157,12 @@ export default function UsageClient({ initialSession }: { initialSession: Sessio
                       <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[8px] font-black text-emerald-400">OPTIMIZED</span>
                     </div>
                     <h3 className="font-serif text-2xl font-bold italic mb-6">Need more volume?</h3>
-                    <button 
-                      onClick={() => setIsSubModalOpen(true)}
-                      className="w-full rounded-full bg-white py-3 text-[10px] font-black uppercase tracking-widest text-zinc-900 transition hover:bg-zinc-200"
+                    <Link 
+                      href="/billing"
+                      className="w-full text-center block rounded-full bg-white py-3 text-[10px] font-black uppercase tracking-widest text-zinc-900 transition hover:bg-zinc-200"
                     >
                       View Plans
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -174,13 +171,6 @@ export default function UsageClient({ initialSession }: { initialSession: Sessio
         </main>
       </div>
 
-      <SubscriptionModal 
-        isOpen={isSubModalOpen}
-        onClose={() => setIsSubModalOpen(false)}
-        planName={currentPlan}
-        onSuccess={(msg) => showToast("success", msg)}
-        onError={(msg) => showToast("error", msg)}
-      />
       <Toast toast={toast} />
     </div>
   );

@@ -8,7 +8,7 @@ const NAV_ITEMS = [
   { name: "Overview", href: "/dashboards" },
   { name: "API Playground", href: "/playground" },
   { name: "Usage Center", href: "/usage" },
-  { name: "Billing", href: "#" },
+  { name: "Billing", href: "/billing" },
   { name: "Settings", href: "#" },
   { name: "Documentation", href: "#" },
 ];
@@ -17,14 +17,12 @@ export function Sidebar({
   totalUsage = 0, 
   plan = "Researcher", 
   limit = 50000, 
-  isUnlimited = false,
-  onManageClick
+  isUnlimited = false
 }: { 
   totalUsage?: number; 
   plan?: string; 
   limit?: number;
   isUnlimited?: boolean;
-  onManageClick?: () => void;
 }) {
   const pathname = usePathname();
 
@@ -43,17 +41,6 @@ export function Sidebar({
         <div className="space-y-1">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href;
-            if (item.name === "Billing") {
-              return (
-                <button
-                  key={item.name}
-                  onClick={onManageClick}
-                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-900"
-                >
-                  {item.name}
-                </button>
-              );
-            }
             return (
               <Link
                 key={item.name}
