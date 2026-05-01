@@ -3,13 +3,19 @@
 import React from "react";
 import Link from "next/link";
 
+import { IncreaseLimitModal } from "./IncreaseLimitModal";
+
 type Alert = {
+  id: string;
   keyName: string;
   pct: number;
   threshold: number;
+  currentLimit: number;
 };
 
-export function SidebarAlerts({ alerts }: { alerts: Alert[] }) {
+export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate: () => void }) {
+  const [activeModal, setActiveModal] = React.useState<Alert | null>(null);
+
   if (alerts.length === 0) return null;
 
   return (
@@ -23,35 +29,46 @@ export function SidebarAlerts({ alerts }: { alerts: Alert[] }) {
       
       <div className="space-y-2">
         {alerts.map((alert, i) => {
+          const isMaxed = alert.pct >= 100;
           const isCritical = alert.pct >= 95;
           const isWarning = alert.pct >= 80 && alert.pct < 95;
           
           return (
             <div 
               key={i}
-              className="group block rounded-2xl border border-zinc-100 bg-white p-3 transition-all hover:border-zinc-200 hover:shadow-md"
+              className={`group block rounded-2xl border bg-white p-3 transition-all hover:shadow-md ${
+                isMaxed ? 'border-red-200' : 'border-zinc-100 hover:border-zinc-200'
+              }`}
             >
               <div className="flex items-center gap-3">
                 <div className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                  isMaxed ? 'bg-red-600 animate-pulse' :
                   isCritical ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 
                   isWarning ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]' : 
                   'bg-zinc-400'
                 }`} />
                 <div className="min-w-0 flex-1">
-                  <Link href="/billing" className="block truncate text-[10px] font-black uppercase tracking-tight text-zinc-900 hover:underline">
-                    {alert.keyName}
-                  </Link>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Link href="/billing" className="block truncate text-[10px] font-black uppercase tracking-tight text-zinc-900 hover:underline">
+                      {alert.keyName}
+                    </Link>
+                    {isMaxed && (
+                      <span className="text-[8px] font-black text-red-600 uppercase">
+                        [CRITICAL]
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <p className="text-[9px] font-bold text-zinc-400">
                       {Math.round(alert.pct)}%
                     </p>
-                    {(isCritical || isWarning) && (
-                      <Link 
-                        href="/billing"
+                    {(isCritical || isWarning || isMaxed) && (
+                      <button 
+                        onClick={() => setActiveModal(alert)}
                         className="text-[8px] font-black uppercase tracking-widest text-emerald-600 hover:underline"
                       >
                         + Increase
-                      </Link>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -65,6 +82,16 @@ export function SidebarAlerts({ alerts }: { alerts: Alert[] }) {
           );
         })}
       </div>
+
+      {activeModal && (
+        <IncreaseLimitModal 
+          keyId={activeModal.id}
+          keyName={activeModal.keyName}
+          currentLimit={activeModal.currentLimit}
+          onClose={() => setActiveModal(null)}
+          onUpdate={onUpdate}
+        />
+      )}
     </div>
   );
 }

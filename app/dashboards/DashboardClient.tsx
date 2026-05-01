@@ -35,7 +35,13 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
     .filter(k => k.alert_threshold !== null && k.alert_channels?.includes('in-page'))
     .map(k => {
       const pct = k.monthly_limit ? (k.usage_count / k.monthly_limit) * 100 : 0;
-      return { keyName: k.name, pct, threshold: k.alert_threshold! };
+      return { 
+        id: k.id, 
+        keyName: k.name, 
+        pct, 
+        threshold: k.alert_threshold!,
+        currentLimit: k.monthly_limit || 1000 
+      };
     })
     .filter(a => a.pct >= a.threshold);
 
@@ -92,6 +98,7 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
           alerts={alerts}
+          onUpdate={refreshData}
         />
         
         <main className="min-w-0 flex-1">

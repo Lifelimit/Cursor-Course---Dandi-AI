@@ -16,9 +16,11 @@ const NAV_ITEMS = [
 import { SidebarAlerts } from "./SidebarAlerts";
 
 type SidebarAlert = {
+  id: string;
   keyName: string;
   pct: number;
   threshold: number;
+  currentLimit: number;
 };
 
 export function Sidebar({ 
@@ -26,13 +28,15 @@ export function Sidebar({
   plan = "Researcher", 
   limit = 50000, 
   isUnlimited = false,
-  alerts = []
+  alerts = [],
+  onUpdate = () => {}
 }: { 
   totalUsage?: number; 
   plan?: string; 
   limit?: number;
   isUnlimited?: boolean;
   alerts?: SidebarAlert[];
+  onUpdate?: () => void;
 }) {
   const pathname = usePathname();
 
@@ -92,7 +96,7 @@ export function Sidebar({
         </div>
       </nav>
 
-      <SidebarAlerts alerts={alerts} />
+      <SidebarAlerts alerts={alerts} onUpdate={onUpdate} />
 
       <div className="hidden md:block mt-6 rounded-2xl bg-zinc-900 p-5 text-white shadow-xl">
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 italic">{plan}</p>
