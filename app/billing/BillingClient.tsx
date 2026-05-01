@@ -96,7 +96,7 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
                 plan={currentPlan}
                 limit={currentLimit}
                 usage={data?.totalUsage || 0}
-                nextBillingDate={data?.resetDate}
+                nextBillingDate={data?.resetDate ?? null}
                 isUnlimited={isUnlimited}
               />
 
