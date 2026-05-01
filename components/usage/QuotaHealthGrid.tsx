@@ -22,15 +22,20 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {keys.map((key) => {
-        const isAlerted = key.alert_threshold !== null && key.pct >= key.alert_threshold;
-        const color = key.pct >= 90 ? "#ef4444" : key.pct >= 70 ? "#fbbf24" : "#10b981";
+        const isCritical = key.pct >= 95;
+        const isWarning = key.alert_threshold !== null && key.pct >= key.alert_threshold;
+        const color = key.pct >= 95 ? "#ef4444" : key.pct >= 80 ? "#fbbf24" : "#10b981";
+        
+        const alertStyles = isCritical 
+          ? 'border-red-200 ring-2 ring-red-50 shadow-red-100/20' 
+          : isWarning 
+            ? 'border-amber-200 ring-2 ring-amber-50 shadow-amber-100/20' 
+            : 'border-zinc-200';
 
         return (
           <div 
             key={key.id} 
-            className={`flex flex-col rounded-[32px] border bg-white p-8 transition-all shadow-sm ${
-              isAlerted ? 'border-amber-200 ring-2 ring-amber-50 shadow-amber-100/20' : 'border-zinc-200'
-            }`}
+            className={`flex flex-col rounded-[32px] border bg-white p-8 transition-all shadow-sm ${alertStyles}`}
           >
             <div className="flex items-start justify-between mb-6">
               <div className="space-y-1">
