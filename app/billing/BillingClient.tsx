@@ -39,13 +39,21 @@ export default function BillingClient({
   initialSession: Session | null, 
   initialInvoices?: Invoice[] 
 }) {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const activeSession = initialSession || session;
   
   const [data, setData] = useState<BillingData | null>(null);
   const [invoices] = useState(initialInvoices);
   const [isLoading, setIsLoading] = useState(true);
   const { toast, showToast } = useToast();
+
+  useEffect(() => {
+    // Check for success param to refresh session
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("success") === "true") {
+      update();
+    }
+  }, [update]);
 
   const fetchBillingData = useCallback(async () => {
     try {
