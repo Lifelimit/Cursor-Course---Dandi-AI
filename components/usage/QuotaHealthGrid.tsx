@@ -83,9 +83,9 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
             >
               {confirmingDeleteId === key.id && (
                 <div className="absolute inset-0 z-[20] flex flex-col items-center justify-center rounded-[32px] bg-zinc-900/95 p-8 text-white backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
-                  <div className="mb-4 rounded-full bg-white/10 p-4">
-                    <svg viewBox="0 0 24 24" className="h-8 w-8 text-white" fill="none" stroke="currentColor">
-                      <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <div className="mb-4 rounded-full bg-red-500/20 p-4 border border-red-500/50">
+                    <svg viewBox="0 0 24 24" className="h-8 w-8 text-red-500" fill="none" stroke="currentColor">
+                      <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
                   <h3 className="mb-2 font-serif text-xl font-bold italic tracking-tight">PERMANENT PURGE?</h3>
@@ -94,10 +94,10 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                     <span className="text-white">&quot;{key.name}&quot;</span> <br/>
                     forever.
                   </p>
-                  <div className="flex w-full gap-3">
+                  <div className="grid grid-cols-2 gap-3 w-full">
                     <button 
                       onClick={() => setConfirmingDeleteId(null)}
-                      className="flex-1 rounded-2xl bg-white/10 border border-white/30 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-white/20 transition-all active:scale-95"
+                      className="rounded-2xl bg-white/20 border border-white/40 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-white/30 transition-all active:scale-95 backdrop-blur-md"
                     >
                       Abort
                     </button>
@@ -107,9 +107,9 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                         setConfirmingDeleteId(null);
                         onUpdate();
                       }}
-                      className="flex-1 rounded-2xl bg-red-600 px-4 py-4 text-[10px] font-black uppercase tracking-widest text-white hover:bg-red-700 transition-all active:scale-95 shadow-xl"
+                      className="rounded-2xl bg-red-600 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-red-700 transition-all active:scale-95 shadow-xl shadow-red-900/40"
                     >
-                      Confirm Purge
+                      Confirm
                     </button>
                   </div>
                 </div>
@@ -271,9 +271,9 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
               <div key={key.id} className="group relative rounded-[32px] border border-zinc-100 bg-zinc-50/50 p-8 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all">
                 {confirmingDeleteId === key.id && (
                   <div className="absolute inset-0 z-[20] flex flex-col items-center justify-center rounded-[32px] bg-zinc-900/95 p-8 text-white backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
-                    <div className="mb-4 rounded-full bg-white/10 p-4">
-                      <svg viewBox="0 0 24 24" className="h-8 w-8 text-white" fill="none" stroke="currentColor">
-                        <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <div className="mb-4 rounded-full bg-red-500/20 p-4 border border-red-500/50">
+                      <svg viewBox="0 0 24 24" className="h-8 w-8 text-red-500" fill="none" stroke="currentColor">
+                        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
                     <h3 className="mb-2 font-serif text-xl font-bold italic tracking-tight">PERMANENT PURGE?</h3>
@@ -282,10 +282,10 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                       <span className="text-white">&quot;{key.name}&quot;</span> <br/>
                       forever.
                     </p>
-                    <div className="flex w-full gap-3">
+                    <div className="grid grid-cols-2 gap-3 w-full">
                       <button 
                         onClick={() => setConfirmingDeleteId(null)}
-                        className="flex-1 rounded-2xl bg-white/10 border border-white/30 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-white/20 transition-all active:scale-95"
+                        className="rounded-2xl bg-white/20 border border-white/40 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-white/30 transition-all active:scale-95 backdrop-blur-md"
                       >
                         Abort
                       </button>
@@ -295,9 +295,9 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                           setConfirmingDeleteId(null);
                           onUpdate();
                         }}
-                        className="flex-1 rounded-2xl bg-red-600 px-4 py-4 text-[10px] font-black uppercase tracking-widest text-white hover:bg-red-700 transition-all active:scale-95 shadow-xl"
+                        className="rounded-2xl bg-red-600 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-red-700 transition-all active:scale-95 shadow-xl shadow-red-900/40"
                       >
-                        Confirm Purge
+                        Confirm
                       </button>
                     </div>
                   </div>
