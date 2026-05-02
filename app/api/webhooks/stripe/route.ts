@@ -65,7 +65,19 @@ export async function POST(req: Request) {
       return new NextResponse(`Database update failed: ${error.message}`, { status: 500 });
     }
 
-    console.log("✅ Webhook: Profile updated successfully for user", session.metadata.userId);
+    // Verify the update
+    const { data: updatedProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("email, plan, billing_interval")
+      .eq("id", session.metadata.userId)
+      .single();
+
+    console.log("✅ Webhook: Profile updated successfully", {
+      userId: session.metadata.userId,
+      email: updatedProfile?.email,
+      newPlan: updatedProfile?.plan,
+      newInterval: updatedProfile?.billing_interval
+    });
   }
 
   if (event.type === "customer.subscription.deleted") {
