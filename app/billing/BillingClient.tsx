@@ -196,6 +196,7 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
       </div>
 
       <SubscriptionModal 
+        key={isModalOpen ? "open" : "closed"}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         planName={currentPlan}

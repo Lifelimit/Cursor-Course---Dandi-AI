@@ -177,6 +177,7 @@ export function PricingSection({
       </div>
       
       <SubscriptionModal 
+        key={isModalOpen ? "open" : "closed"}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         planName={currentPlanId || "Hobby"}
@@ -188,4 +189,3 @@ export function PricingSection({
     </section>
   );
 }
-

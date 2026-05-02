@@ -32,7 +32,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
   const [showCvc, setShowCvc] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<string | null>(initialPendingPlan || null);
   const [showAddressForm, setShowAddressForm] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(initialPendingPlan === "Hobby");
   
   // State for card details
   const [cardData, setCardData] = useState({
@@ -65,12 +65,12 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
   useEffect(() => {
     const initializeState = async () => {
       if (isOpen) {
-        setIsInitializing(true);
         let targetView = initialView || "overview";
         const finalPendingPlan = initialPendingPlan || null;
 
         // Unified Downgrade Audit
         if (finalPendingPlan === "Hobby") {
+          setIsInitializing(true);
           try {
             const res = await fetch("/api/keys");
             const keys = await res.json();
@@ -133,16 +133,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     initializeState();
   }, [isOpen, session, initialView, initialPendingPlan]);
 
-  // Mandatory state scrub when closed
-  useEffect(() => {
-    if (!isOpen) {
-      const timer = setTimeout(() => {
-        setView("overview");
-        setPendingPlan(null);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
+  // Remove the old state scrub to allow key-based mounting to handle it
 
   useEffect(() => {
     if (view === "success" && isOpen) {
