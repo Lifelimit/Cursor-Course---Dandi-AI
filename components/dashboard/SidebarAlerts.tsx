@@ -115,44 +115,56 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                 </div>
               </div>
 
-              {/* Horizontal Flyout Increase Form */}
+              {/* Horizontal Flyout Increase Form - Seamless Extension */}
               <div 
-                className={`absolute inset-y-0 right-0 z-[110] flex items-center transition-all duration-500 ease-out ${
-                  isFlying ? 'translate-x-[calc(100%+12px)] opacity-100' : 'translate-x-0 opacity-0 pointer-events-none'
+                className={`absolute left-full top-1/2 z-[110] -translate-y-1/2 flex items-center transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                  isFlying ? 'translate-x-3 opacity-100' : '-translate-x-4 opacity-0 pointer-events-none'
                 }`}
               >
-                <div className="flex flex-col gap-4 rounded-[24px] border border-zinc-200 bg-white p-5 shadow-2xl min-w-[200px]">
+                {/* Connector Bridge */}
+                <div className="h-6 w-3 bg-white border-y border-zinc-200 -mr-[1px] relative z-20" />
+                
+                <div className="flex flex-col gap-5 rounded-[24px] border border-zinc-200 bg-white p-6 shadow-[0_20px_50px_rgba(0,0,0,0.15)] min-w-[240px] relative z-10">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Update Quota</span>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 leading-none">Management</span>
+                      <span className="mt-1 text-[8px] font-bold text-zinc-300 uppercase italic">Quota Increase</span>
+                    </div>
                     <button 
                       onClick={() => setFlyoutKey(null)}
-                      className="rounded-full p-1 text-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 transition-all"
+                      className="rounded-full bg-zinc-50 p-1.5 text-zinc-400 hover:bg-zinc-900 hover:text-white transition-all"
                     >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                         <path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </button>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[8px] font-bold text-zinc-500 uppercase">New Limit</span>
-                      <span className="text-[8px] font-black text-zinc-300 uppercase">Credits</span>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[9px] font-black text-zinc-900 uppercase tracking-widest">New Monthly Limit</span>
                     </div>
-                    <input 
-                      type="number" 
-                      value={newLimit}
-                      onChange={(e) => setNewLimit(Number(e.target.value))}
-                      className="w-full rounded-xl border border-zinc-100 bg-zinc-50/50 px-3 py-2.5 font-serif text-lg font-bold text-zinc-900 focus:border-zinc-900 focus:bg-white focus:outline-none transition-all"
-                    />
+                    <div className="relative">
+                      <input 
+                        type="number" 
+                        value={newLimit}
+                        onChange={(e) => setNewLimit(Number(e.target.value))}
+                        className="w-full rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-4 font-serif text-2xl font-bold text-zinc-900 focus:border-zinc-900 focus:bg-white focus:outline-none transition-all"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black text-zinc-300 uppercase">Credits</span>
+                    </div>
+                    <p className="px-1 text-[8px] font-medium text-zinc-400 italic">
+                      Current: {alert.currentLimit.toLocaleString()}
+                    </p>
                   </div>
 
                   <button 
                     onClick={() => handleIncrease(alert)}
                     disabled={isUpdating}
-                    className="w-full rounded-xl bg-[#18181b] py-3 text-[9px] font-black uppercase tracking-widest text-white shadow-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+                    className="group relative w-full overflow-hidden rounded-2xl bg-[#18181b] py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                   >
-                    {isUpdating ? 'Updating...' : 'Save New Quota'}
+                    <span className="relative z-10">{isUpdating ? 'Synchronizing...' : 'Update Quota'}</span>
+                    <div className="absolute inset-0 z-0 bg-gradient-to-r from-emerald-600 to-teal-600 opacity-0 transition-opacity group-hover:opacity-10" />
                   </button>
                 </div>
               </div>
