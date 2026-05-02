@@ -10,6 +10,7 @@ import { PlanHero } from "@/components/billing/PlanHero";
 import { PlanComparison } from "@/components/billing/PlanComparison";
 import { PaymentMethodCard } from "@/components/billing/PaymentMethodCard";
 import { InvoiceTable } from "@/components/billing/InvoiceTable";
+import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 
 
 type BillingData = {
@@ -79,12 +80,35 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
     })
     .filter(a => a.pct >= a.threshold);
 
-  const handleUpgrade = async (plan: string) => {
-    showToast("success", `Requesting upgrade to ${plan}...`);
-    // This would normally trigger Stripe checkout
-  };
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalInitialView, setModalInitialView] = useState<"overview" | "cancel-confirm" | "update-payment" | "plan-change-review">("overview");
+  const [modalPendingPlan, setModalPendingPlan] = useState<string | null>(null);
 
-  // Using mock data defined outside component
+  const handleUpgrade = (planId: string) => {
+    // 1. Upgrading from Hobby to a paid plan -> show payment details for that plan
+    if (currentPlan === "Hobby" && planId !== "Hobby") {
+      setModalInitialView("update-payment");
+      setModalPendingPlan(planId);
+      setIsModalOpen(true);
+      return;
+    }
+
+    // 2. Downgrading to Hobby -> let modal handle the audit (selector vs confirm)
+    if (planId === "Hobby" && currentPlan !== "Hobby") {
+      setModalInitialView("overview");
+      setModalPendingPlan("Hobby");
+      setIsModalOpen(true);
+      return;
+    }
+
+    // 3. Switching between paid plans -> show review screen
+    if (currentPlan !== "Hobby" && planId !== "Hobby" && planId !== currentPlan) {
+      setModalInitialView("plan-change-review");
+      setModalPendingPlan(planId);
+      setIsModalOpen(true);
+      return;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
@@ -127,7 +151,16 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
               <section className="space-y-6">
                 <div className="flex items-center justify-between px-2">
                   <h3 className="font-serif text-2xl font-bold">Wallet</h3>
-                  <button className="text-[10px] font-black uppercase tracking-widest text-zinc-900 hover:underline">+ Add Card</button>
+                  <button 
+                    onClick={() => {
+                      setModalInitialView("update-payment");
+                      setModalPendingPlan(null);
+                      setIsModalOpen(true);
+                    }}
+                    className="text-[10px] font-black uppercase tracking-widest text-zinc-900 hover:underline"
+                  >
+                    + Add Card
+                  </button>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2">
                   {MOCK_CARDS.map(card => (
@@ -161,6 +194,17 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
           )}
         </main>
       </div>
+
+      <SubscriptionModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        planName={currentPlan}
+        initialView={modalInitialView}
+        initialPendingPlan={modalPendingPlan}
+        onSuccess={(msg) => showToast("success", msg)}
+        onError={(msg) => showToast("error", msg)}
+      />
+
       <Toast toast={toast} />
     </div>
   );
