@@ -101,6 +101,8 @@ export async function GET() {
       resetDate = nextMonth.toISOString();
     }
 
+    console.log("📊 Usage API: Final resetDate being sent to UI:", resetDate);
+
     return NextResponse.json({
       keys: processedKeys,
       totalUsage,
