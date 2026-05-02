@@ -53,10 +53,17 @@ export default function BillingClient({
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("success") === "true" && !hasRefreshed.current) {
       hasRefreshed.current = true;
-      update();
-      // Clean up URL to prevent loops on re-render/refresh
+      
+      // Clean up URL IMMEDIATELY to prevent loops on re-render/refresh
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
+
+      // Small delay to allow session provider to stabilize
+      const timer = setTimeout(() => {
+        update();
+      }, 500);
+
+      return () => clearTimeout(timer);
     }
   }, [update]);
 
