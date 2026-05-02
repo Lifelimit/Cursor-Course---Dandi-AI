@@ -203,7 +203,7 @@ export function ApiKeyTable({
                       onClick={(e) => { e.stopPropagation(); onUpgradePrompt(); }}
                       className={`shrink-0 rounded-full px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-white transition ${isHobby ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
                     >
-                      {isHobby ? "Upgrade Plan" : "Manage Plan"}
+                      {isHobby ? "Upgrade Plan" : "Manage Status"}
                     </button>
                   </div>
                 </td>

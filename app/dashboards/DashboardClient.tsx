@@ -185,7 +185,7 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
                 onDelete={handleDelete}
                 onCopySuccess={() => showToast("success", "API key copied to clipboard.")}
                 onCopyError={(msg) => showToast("error", msg)}
-                onUpgradePrompt={() => router.push("/billing")}
+                onUpgradePrompt={() => router.push("/usage")}
                 currentPlan={currentPlan}
               />
 
