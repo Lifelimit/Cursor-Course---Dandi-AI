@@ -99,14 +99,18 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                 <div className="flex items-center gap-3">
                   {!isExhausted && (
                     <button 
-                    onClick={() => handleToggleStatus(key.id, true)}
-                    className="group/kill rounded-full bg-zinc-100/50 p-2.5 text-zinc-400 hover:bg-rose-50 hover:text-rose-600 transition-all shadow-sm border border-transparent hover:border-rose-100"
-                    title="Deactivate Key"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                      <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to KILL "${key.name}"? This will immediately deactivate all services using this key.`)) {
+                          handleToggleStatus(key.id, true);
+                        }
+                      }}
+                      className="group/kill rounded-full bg-rose-50 p-2.5 text-rose-400 hover:bg-rose-600 hover:text-white transition-all shadow-sm border border-rose-100 hover:border-rose-600 active:scale-95"
+                      title="Kill API Key"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                        <path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
                   )}
                   <div className="relative h-12 w-12 shrink-0">
                     <svg className="h-full w-full" viewBox="0 0 36 36">
@@ -159,10 +163,14 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                       Increase Limit
                     </Link>
                     <button 
-                      onClick={() => handleToggleStatus(key.id, true)}
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to KILL "${key.name}"? It will be moved to the dead archive.`)) {
+                          handleToggleStatus(key.id, true);
+                        }
+                      }}
                       className="flex items-center justify-center rounded-xl border border-red-200 bg-white px-3 py-2 text-[8px] font-black uppercase tracking-widest text-red-600 hover:bg-red-50"
                     >
-                      Move to Dead
+                      Kill Switch
                     </button>
                   </div>
                   <button 
