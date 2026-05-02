@@ -221,7 +221,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
         } else {
           throw new Error("Failed to create setup session");
         }
-      } catch (err) {
+      } catch (_err) {
         onError?.("Failed to initiate payment setup.");
         setIsLoading(false);
       }

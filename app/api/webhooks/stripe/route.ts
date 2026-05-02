@@ -28,14 +28,14 @@ export async function POST(req: Request) {
   }
 
   if (event.type === "checkout.session.completed" || event.type === "customer.subscription.updated") {
-    const sessionOrSub = event.data.object as Record<string, unknown>;
+    const sessionOrSub = event.data.object as unknown as Record<string, unknown>;
     const isSubscriptionEvent = event.type === "customer.subscription.updated";
     const isSetupSession = !isSubscriptionEvent && sessionOrSub.mode === "setup";
     
     const customerId = sessionOrSub.customer as string;
-    const metadata = sessionOrSub.metadata;
-    const userId = metadata?.userId;
-    const userEmail = metadata?.userEmail;
+    const metadata = (sessionOrSub.metadata || {}) as Record<string, string>;
+    const userId = metadata.userId;
+    const userEmail = metadata.userEmail;
 
     console.log(`🔔 Webhook: ${event.type} received`, {
       userId,
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       }
     } else {
       // Handle subscription events (checkout or update)
-      const subscriptionId = isSubscriptionEvent ? sessionOrSub.id : sessionOrSub.subscription as string;
+      const subscriptionId = (isSubscriptionEvent ? sessionOrSub.id : sessionOrSub.subscription) as string;
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       
       try {
@@ -99,10 +99,10 @@ export async function POST(req: Request) {
         console.warn("⚠️ Webhook warning: Could not retrieve payment method details:", err);
       }
 
-      const planId = metadata?.planId;
+      const planId = metadata.planId;
       let renewalDate: string | null = null;
       const subAsRecord = subscription as unknown as Record<string, unknown>;
-      const periodEnd = subAsRecord.current_period_end as number || 
+      const periodEnd = (subAsRecord.current_period_end as number) || 
                        (subscription.items?.data?.[0] as unknown as Record<string, unknown>)?.current_period_end as number;
       if (periodEnd) {
         renewalDate = new Date(periodEnd * 1000).toISOString();

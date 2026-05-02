@@ -16,6 +16,7 @@ import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 type BillingData = {
   totalUsage: number;
   resetDate: string | null;
+  nextInvoiceDate: string | null;
   keys: {
     id: string;
     name: string;
@@ -187,7 +188,7 @@ export default function BillingClient({
                         const res = await fetch("/api/stripe/setup-session", { method: "POST" });
                         const { url } = await res.json();
                         if (url) window.location.href = url;
-                      } catch (err) {
+                      } catch (_err) {
                         showToast("error", "Failed to initiate payment setup.");
                       } finally {
                         setIsLoading(false);

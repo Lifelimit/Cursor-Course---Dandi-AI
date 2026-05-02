@@ -118,7 +118,7 @@ export async function GET() {
               resetDate = profile.billing_next_date;
             }
           }
-        } catch (dateErr) {
+        } catch (_err) {
           // Date calculation failed, fallback handled by null resetDate
         }
       }
