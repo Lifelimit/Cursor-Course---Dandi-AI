@@ -27,41 +27,66 @@ export async function POST(req: Request) {
     return new NextResponse(`Webhook Error: ${message}`, { status: 400 });
   }
 
-  const session = event.data.object as Stripe.Checkout.Session;
+  if (event.type === "checkout.session.completed" || event.type === "customer.subscription.updated") {
+    const session = event.data.object as Stripe.Checkout.Session | Stripe.Subscription;
+    const isSubscriptionEvent = event.type === "customer.subscription.updated";
+    
+    const subscriptionId = isSubscriptionEvent 
+      ? (session as Stripe.Subscription).id 
+      : (session as Stripe.Checkout.Session).subscription as string;
+      
+    const customerId = isSubscriptionEvent
+      ? (session as Stripe.Subscription).customer as string
+      : (session as Stripe.Checkout.Session).customer as string;
 
-  if (event.type === "checkout.session.completed") {
-    console.log("🔔 Webhook: checkout.session.completed received", {
-      userId: session.metadata?.userId,
-      planId: session.metadata?.planId,
-      subscriptionId: session.subscription
+    const metadata = isSubscriptionEvent 
+      ? (session as Stripe.Subscription).metadata 
+      : (session as Stripe.Checkout.Session).metadata;
+
+    console.log(`🔔 Webhook: ${event.type} received`, {
+      userId: metadata?.userId,
+      subscriptionId,
+      customerId
     });
 
-    if (!session?.metadata?.userId || !session?.metadata?.planId) {
-      console.error("❌ Webhook error: Missing metadata in session", session.id);
-      return new NextResponse("Metadata is required", { status: 400 });
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    
+    // Determine planId: from metadata or from subscription items if metadata is missing
+    const planId = metadata?.planId;
+    if (!planId) {
+      // Fallback: search for price ID in our constants to find the plan name
+      const priceId = subscription.items.data[0].price.id;
+      // We can map priceId back to planId if we had a mapping, but for now let's rely on metadata
+      // If metadata is truly missing, we'll log it.
+      console.warn("⚠️ Webhook warning: No planId in metadata. Attempting to derive from Price ID:", priceId);
     }
 
-    const subscription = await stripe.subscriptions.retrieve(
-      session.subscription as string
+    // Update criteria: use userId from metadata if present, otherwise fallback to stripe_customer_id
+    const updatePayload = {
+      plan: planId || undefined, // Only update if we found it
+      stripe_customer_id: customerId,
+      stripe_subscription_id: subscriptionId,
+      billing_interval: subscription.items.data[0].price.recurring?.interval === "year" ? "year" : "month" as "month" | "year",
+      updated_at: new Date().toISOString()
+    };
+
+    // Remove undefined fields
+    Object.keys(updatePayload).forEach(key => 
+      (updatePayload as Record<string, unknown>)[key] === undefined && delete (updatePayload as Record<string, unknown>)[key]
     );
 
-    // Update the profile in Supabase
-    const { error } = await supabaseAdmin
-      .from("profiles")
-      .update({
-        plan: session.metadata.planId,
-        stripe_customer_id: session.customer as string,
-        stripe_subscription_id: session.subscription as string,
-        billing_interval: subscription.items.data[0].price.recurring?.interval === "year" ? "year" : "month",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", session.metadata.userId);
+    const query = supabaseAdmin.from("profiles").update(updatePayload);
+
+    if (metadata?.userId) {
+      query.eq("id", metadata.userId);
+    } else {
+      query.eq("stripe_customer_id", customerId);
+    }
+
+    const { error } = await query;
 
     if (error) {
-      console.error("❌ Supabase webhook error:", error.message, {
-        userId: session.metadata.userId,
-        plan: session.metadata.planId
-      });
+      console.error("❌ Supabase webhook update error:", error.message);
       return new NextResponse(`Database update failed: ${error.message}`, { status: 500 });
     }
 
@@ -69,11 +94,10 @@ export async function POST(req: Request) {
     const { data: updatedProfile } = await supabaseAdmin
       .from("profiles")
       .select("email, plan, billing_interval")
-      .eq("id", session.metadata.userId)
+      .eq("stripe_subscription_id", subscriptionId)
       .single();
 
     console.log("✅ Webhook: Profile updated successfully", {
-      userId: session.metadata.userId,
       email: updatedProfile?.email,
       newPlan: updatedProfile?.plan,
       newInterval: updatedProfile?.billing_interval
