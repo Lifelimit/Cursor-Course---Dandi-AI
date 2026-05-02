@@ -88,6 +88,7 @@ export async function POST(req: Request) {
       payment_method_last4: paymentMethodDetails?.last4,
       payment_method_brand: paymentMethodDetails?.brand,
       payment_method_expiry: paymentMethodDetails?.expiry,
+      billing_next_date: new Date(subscription.current_period_end * 1000).toISOString(),
       updated_at: new Date().toISOString()
     };
 
