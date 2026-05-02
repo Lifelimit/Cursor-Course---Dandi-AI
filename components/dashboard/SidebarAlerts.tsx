@@ -115,10 +115,12 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                 </div>
               </div>
 
-              {/* Horizontal Flyout Increase Form - Seamless Extension */}
+              {/* Horizontal Flyout Increase Form - Seamless Extension with Elastic Growth */}
               <div 
-                className={`absolute left-full top-1/2 z-[110] -translate-y-1/2 flex items-center transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-                  isFlying ? 'translate-x-3 opacity-100' : '-translate-x-4 opacity-0 pointer-events-none'
+                className={`absolute left-full top-1/2 z-[110] -translate-y-1/2 flex items-center transition-all duration-500 origin-left ${
+                  isFlying 
+                    ? 'translate-x-3 opacity-100 scale-100 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]' 
+                    : '-translate-x-4 opacity-0 scale-0 pointer-events-none ease-[cubic-bezier(0.6,-0.28,0.735,0.045)]'
                 }`}
               >
                 {/* iMessage-Style Tail Connector */}
