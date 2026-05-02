@@ -1,56 +1,5 @@
-"use client";
-
 import React from "react";
-
-type Plan = {
-  name: string;
-  price: string;
-  credits: string;
-  features: string[];
-  cta: string;
-  isCurrent?: boolean;
-  isPremium?: boolean;
-};
-
-const PLANS_CONFIG = [
-  {
-    id: "Hobby",
-    name: "Hobby",
-    price: "$0",
-    credits: "1,000 credits / mo",
-    features: ["Standard Summaries", "Basic Analytics", "3 Active Keys", "Community Support"],
-    cta: "Downgrade",
-    className: "border-zinc-200 bg-white",
-    textColor: "text-zinc-600",
-    priceColor: "text-zinc-900",
-    labelColor: "text-zinc-400",
-  },
-  {
-    id: "Premium",
-    name: "Premium",
-    price: "$20",
-    credits: "5,000 credits / mo",
-    features: ["Advanced AI Context", "Detailed Analytics", "10 Active Keys", "Priority Email Support", "CSV Data Export"],
-    cta: "Switch to Premium",
-    isPopular: true,
-    className: "border-[#18181b] bg-[#18181b] text-white shadow-2xl shadow-zinc-900/20",
-    textColor: "text-white/70",
-    priceColor: "text-white",
-    labelColor: "text-white/40",
-  },
-  {
-    id: "Researcher",
-    name: "Researcher",
-    price: "$99",
-    credits: "Unlimited credits",
-    features: ["Deep Insight Engine", "Global Top Trends", "Unlimited Keys", "24/7 Phone Support", "Custom Alert Rules"],
-    cta: "Go Researcher",
-    className: "border-zinc-200 bg-white",
-    textColor: "text-zinc-600",
-    priceColor: "text-zinc-900",
-    labelColor: "text-zinc-400",
-  }
-];
+import { PLANS } from "@/lib/constants";
 
 export function PlanComparison({ currentPlan, onUpgrade }: { currentPlan: string, onUpgrade: (plan: string) => void }) {
   return (
@@ -64,7 +13,7 @@ export function PlanComparison({ currentPlan, onUpgrade }: { currentPlan: string
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
-        {PLANS_CONFIG.map((plan) => {
+        {PLANS.map((plan) => {
           const isCurrent = currentPlan.toLowerCase() === plan.id.toLowerCase();
           const isPremium = plan.id === "Premium";
           
@@ -73,14 +22,14 @@ export function PlanComparison({ currentPlan, onUpgrade }: { currentPlan: string
               key={plan.id}
               className={`relative flex flex-col rounded-[40px] border p-10 transition-all hover:scale-[1.02] ${plan.className}`}
             >
-              {plan.isPopular && (
+              {plan.recommended && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-4 py-1 text-[8px] font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-500/20">
                   Most Popular
                 </div>
               )}
 
               <div className="mb-10 space-y-3">
-                <h4 className="font-serif text-2xl font-bold">{plan.name}</h4>
+                <h4 className="font-serif text-2xl font-bold">{plan.id}</h4>
                 <div className="flex items-baseline gap-1">
                   <span className={`font-serif text-5xl font-bold italic ${plan.priceColor}`}>{plan.price}</span>
                   <span className={`text-[10px] font-bold uppercase tracking-widest ${plan.labelColor}`}>/ month</span>

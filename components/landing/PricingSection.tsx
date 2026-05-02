@@ -112,6 +112,9 @@ export function PricingSection({
                     <h4 className={`text-4xl font-bold ${plan.priceColor}`}>
                       {plan.price}<span className="text-sm font-normal text-zinc-400">/mo</span>
                     </h4>
+                    <p className={`text-[10px] font-bold uppercase tracking-widest ${plan.id === 'Premium' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                      {plan.credits}
+                    </p>
                     {plan.id !== "Hobby" && (
                       <p className={`text-[9px] font-medium italic ${plan.labelColor}`}>VAT inclusive</p>
                     )}

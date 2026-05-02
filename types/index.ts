@@ -12,6 +12,8 @@ export interface Plan {
   labelColor?: string;
   recommended?: boolean;
   dark?: boolean;
+  credits?: string;
+  cta?: string;
 }
 
 export interface PlanDetail {
