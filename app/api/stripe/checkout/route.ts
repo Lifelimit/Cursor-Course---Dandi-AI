@@ -40,11 +40,13 @@ export async function POST(req: Request) {
       customer_email: user.stripe_customer_id ? undefined : user.email,
       metadata: {
         userId: user.id,
+        userEmail: user.email,
         planId: planId,
       },
       subscription_data: {
         metadata: {
           userId: user.id,
+          userEmail: user.email,
           planId: planId,
         },
       },

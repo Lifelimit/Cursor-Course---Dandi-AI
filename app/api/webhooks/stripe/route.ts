@@ -76,14 +76,16 @@ export async function POST(req: Request) {
     );
 
     console.log("🕵️ Webhook: Attempting Supabase update...", {
-      matchBy: metadata?.userId ? "userId" : "customerId",
-      searchId: metadata?.userId || customerId,
+      matchBy: metadata?.userEmail ? "userEmail" : (metadata?.userId ? "userId" : "customerId"),
+      searchId: metadata?.userEmail || metadata?.userId || customerId,
       payload: updatePayload
     });
 
     const query = supabaseAdmin.from("profiles").update(updatePayload);
 
-    if (metadata?.userId) {
+    if (metadata?.userEmail) {
+      query.eq("email", metadata.userEmail);
+    } else if (metadata?.userId) {
       query.eq("id", metadata.userId);
     } else {
       query.eq("stripe_customer_id", customerId);
