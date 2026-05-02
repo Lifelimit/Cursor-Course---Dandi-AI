@@ -96,21 +96,34 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                   )}
                 </div>
                 
-                <div className="relative h-12 w-12 shrink-0">
-                  <svg className="h-full w-full" viewBox="0 0 36 36">
-                    <circle cx="18" cy="18" r="16" fill="none" className="stroke-zinc-50" strokeWidth="3" />
-                    <circle
-                      cx="18" cy="18" r="16" fill="none"
-                      stroke={color} strokeWidth="3"
-                      strokeDasharray={`${Math.min(key.pct, 100)}, 100`}
-                      strokeLinecap="round"
-                      className="transition-all duration-1000 ease-out"
-                      transform="rotate(-90 18 18)"
-                    />
-                    <text x="18" y="20" textAnchor="middle" className="font-serif text-[8px] font-bold fill-zinc-900">
-                      {Math.round(key.pct)}%
-                    </text>
-                  </svg>
+                <div className="flex items-center gap-3">
+                  {!isExhausted && (
+                    <button 
+                      onClick={() => handleToggleStatus(key.id, true)}
+                      className="group/kill rounded-full p-2 text-zinc-300 hover:bg-rose-50 hover:text-rose-500 transition-all"
+                      title="Deactivate Key"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                        <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  )}
+                  <div className="relative h-12 w-12 shrink-0">
+                    <svg className="h-full w-full" viewBox="0 0 36 36">
+                      <circle cx="18" cy="18" r="16" fill="none" className="stroke-zinc-50" strokeWidth="3" />
+                      <circle
+                        cx="18" cy="18" r="16" fill="none"
+                        stroke={color} strokeWidth="3"
+                        strokeDasharray={`${Math.min(key.pct, 100)}, 100`}
+                        strokeLinecap="round"
+                        className="transition-all duration-1000 ease-out"
+                        transform="rotate(-90 18 18)"
+                      />
+                      <text x="18" y="20" textAnchor="middle" className="font-serif text-[8px] font-bold fill-zinc-900">
+                        {Math.round(key.pct)}%
+                      </text>
+                    </svg>
+                  </div>
                 </div>
               </div>
 
@@ -165,24 +178,15 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                   </button>
                 </div>
               ) : (
-                <div className="mt-6 flex gap-2">
-                  <div className="flex-1">
-                    <AlertThresholdControl 
-                      keyId={key.id} 
-                      initialThreshold={key.alert_threshold}
-                      initialChannels={key.alert_channels || ['email', 'in-page']}
-                      initialPhone={key.alert_phone || ''}
-                      limit={key.monthly_limit}
-                      onUpdate={onUpdate}
-                    />
-                  </div>
-                  <button 
-                    onClick={() => handleToggleStatus(key.id, true)}
-                    className="rounded-xl border border-zinc-100 px-3 text-[8px] font-black uppercase tracking-widest text-zinc-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                    title="Move to Dead Keys"
-                  >
-                    Kill
-                  </button>
+                <div className="mt-6">
+                  <AlertThresholdControl 
+                    keyId={key.id} 
+                    initialThreshold={key.alert_threshold}
+                    initialChannels={key.alert_channels || ['email', 'in-page']}
+                    initialPhone={key.alert_phone || ''}
+                    limit={key.monthly_limit}
+                    onUpdate={onUpdate}
+                  />
                 </div>
               )}
             </div>
