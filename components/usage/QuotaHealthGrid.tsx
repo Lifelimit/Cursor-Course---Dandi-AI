@@ -152,6 +152,17 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                       Move to Dead
                     </button>
                   </div>
+                  <button 
+                    onClick={async () => {
+                      if (confirm(`Are you sure you want to PERMANENTLY delete "${key.name}"? This cannot be undone.`)) {
+                        await fetch(`/api/keys/${key.id}`, { method: 'DELETE' });
+                        onUpdate();
+                      }
+                    }}
+                    className="w-full text-center text-[8px] font-black uppercase tracking-widest text-zinc-400 hover:text-red-600 transition-colors pt-2"
+                  >
+                    Remove Permanently
+                  </button>
                 </div>
               ) : (
                 <div className="mt-6 flex gap-2">
