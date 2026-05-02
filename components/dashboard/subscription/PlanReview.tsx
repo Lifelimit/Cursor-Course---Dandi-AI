@@ -23,6 +23,8 @@ export function PlanReview({
   if (!plan) return null;
 
   const displayPrice = billingInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
+  const priceValue = parseFloat(displayPrice.replace("$", ""));
+  const fullTermAmount = billingInterval === "year" ? priceValue * 12 : priceValue;
 
   return (
     <div className="flex flex-col gap-8 md:flex-row">
@@ -94,7 +96,7 @@ export function PlanReview({
               <p className="text-lg font-bold tracking-tight">{pendingPlan}</p>
               <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">{billingInterval === 'year' ? 'Billed Annually' : 'Billed Monthly'}</p>
             </div>
-            <p className="text-xl font-bold">{displayPrice}</p>
+            <p className="text-xl font-bold">${priceValue}</p>
           </div>
 
           <div className="h-px bg-white/10" />
@@ -106,11 +108,7 @@ export function PlanReview({
             </div>
             <div className="flex justify-between text-xs font-medium text-white/60">
               <span>Full Term Amount</span>
-              <span>
-                {billingInterval === 'year' 
-                  ? `$${(parseFloat(displayPrice.replace("$", "")) * 12).toFixed(2)}`
-                  : displayPrice}
-              </span>
+              <span>${fullTermAmount.toFixed(2)}</span>
             </div>
             {billingInterval === 'year' && (
               <div className="flex justify-between text-xs font-medium text-emerald-400">
@@ -128,7 +126,7 @@ export function PlanReview({
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Monthly</p>
             </div>
             <span className="text-4xl font-bold text-emerald-400 tracking-tight">
-              {displayPrice}.00
+              ${priceValue.toFixed(2)}
             </span>
           </div>
         </div>
