@@ -89,11 +89,21 @@ export async function GET() {
 
     // 5. Fetch reset date from profile using email from session (most reliable)
     const session = await auth();
-    const { data: profile } = await supabaseAdmin
+    const userEmail = session?.user?.email;
+    
+    console.log("🕵️ Usage API: Searching for profile with email:", userEmail);
+
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("billing_next_date, created_at")
-      .eq("email", session?.user?.email)
+      .ilike("email", userEmail || "")
       .single();
+
+    if (profileError) {
+      console.warn("⚠️ Usage API: Profile fetch error:", profileError.message);
+    }
+
+    console.log("📄 Usage API: Profile found:", profile);
 
     let resetDate = profile?.billing_next_date;
     if (!resetDate && profile?.created_at) {
