@@ -99,7 +99,7 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
           alerts={alerts}
-          onUpdate={refreshData}
+          onUpdate={() => router.refresh()}
         />
         
         <main className="min-w-0 flex-1">
