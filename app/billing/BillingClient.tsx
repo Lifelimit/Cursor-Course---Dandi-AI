@@ -65,7 +65,7 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
   const isUnlimited = currentPlan === "Researcher";
 
   const alerts = (data?.keys || [])
-    .filter(k => k.alert_threshold !== null && k.alert_channels?.includes('in-page'))
+    .filter(k => k.is_active && k.alert_threshold !== null && k.alert_channels?.includes('in-page'))
     .map(k => {
       const pct = k.monthly_limit ? (k.usage_count / k.monthly_limit) * 100 : 0;
       return { 
