@@ -93,19 +93,21 @@ export async function GET() {
     const userEmail = session?.user?.email;
     let resetDate = null;
     let nextInvoiceDate = null;
+    let profileData: { billing_next_date: string | null; stripe_customer_id: string | null } | null = null;
 
     if (userEmail) {
       const { data: profile } = await supabaseAdmin
         .from("profiles")
-        .select("billing_next_date")
-        .ilike("email", userEmail)
+        .select("billing_next_date, stripe_customer_id")
+        .eq("email", userEmail)
         .single();
-
-      if (profile) {
-        nextInvoiceDate = profile.billing_next_date || null;
+      
+      profileData = profile;
+      if (profileData?.billing_next_date) {
+        nextInvoiceDate = profileData.billing_next_date || null;
         try {
-          if (profile.billing_next_date) {
-            const nextBilling = new Date(profile.billing_next_date);
+          if (profileData.billing_next_date) {
+            const nextBilling = new Date(profileData.billing_next_date);
             const now = new Date();
             
             if (nextBilling.getTime() - now.getTime() > 32 * 24 * 60 * 60 * 1000) {
@@ -116,7 +118,7 @@ export async function GET() {
               }
               resetDate = nextReset.toISOString();
             } else {
-              resetDate = profile.billing_next_date;
+              resetDate = profileData.billing_next_date;
             }
           }
         } catch (_err) {
@@ -126,15 +128,15 @@ export async function GET() {
     }
 
     let paymentMethods: { id: string; brand: string; last4: string; expiry: string; isDefault: boolean }[] = [];
-    if (profile?.stripe_customer_id) {
+    if (profileData?.stripe_customer_id) {
       try {
         const methods = await stripe.paymentMethods.list({
-          customer: profile.stripe_customer_id,
+          customer: profileData.stripe_customer_id,
           type: "card",
         });
         
         // Get the customer to find the default payment method
-        const customer = await stripe.customers.retrieve(profile.stripe_customer_id) as unknown as Record<string, unknown>;
+        const customer = await stripe.customers.retrieve(profileData.stripe_customer_id) as unknown as Record<string, unknown>;
         const invoiceSettings = customer.invoice_settings as Record<string, unknown> | undefined;
         const defaultMethodId = invoiceSettings?.default_payment_method as string | undefined;
 
