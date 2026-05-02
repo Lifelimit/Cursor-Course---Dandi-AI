@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
+import { useRouter } from "next/navigation";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useSession } from "next-auth/react";
 import type { Session } from "next-auth";
@@ -12,6 +13,7 @@ import { JsonViewer } from "@/components/playground/JsonViewer";
 import { NetworkLog, type LogEntry } from "@/components/playground/NetworkLog";
 
 export default function PlaygroundClient({ initialSession }: { initialSession: Session | null }) {
+  const router = useRouter();
   const { data: session } = useSession();
   const activeSession = initialSession || session;
   
@@ -131,7 +133,7 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
           alerts={alerts}
-          onUpdate={refreshData}
+          onUpdate={() => router.refresh()}
         />
         
         <main className="min-w-0 flex-1 space-y-8">
