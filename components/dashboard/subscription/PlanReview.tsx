@@ -3,7 +3,6 @@ import { PLANS } from "@/lib/constants";
 
 type PlanReviewProps = {
   pendingPlan: string | null;
-  planName: string;
   isLoading: boolean;
   billingInterval: "month" | "year";
   onConfirm: () => void;

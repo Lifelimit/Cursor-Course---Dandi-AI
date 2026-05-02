@@ -30,26 +30,31 @@ export function PricingSection({
   const [modalPendingPlan, setModalPendingPlan] = useState<string | null>(null);
 
   const handleUpdatePlan = async (planId: string) => {
-    // Downgrading to Hobby -> let modal handle the audit (selector vs confirm)
-    if (planId === "Hobby" && currentPlanId !== "Hobby") {
-      setModalInitialView("overview");
-      setModalPendingPlan("Hobby");
-      setIsModalOpen(true);
-      return;
-    }
+    setLoadingPlanId(planId);
+    try {
+      // Downgrading to Hobby -> let modal handle the audit (selector vs confirm)
+      if (planId === "Hobby" && currentPlanId !== "Hobby") {
+        setModalInitialView("overview");
+        setModalPendingPlan("Hobby");
+        setIsModalOpen(true);
+        return;
+      }
 
-    // Upgrading or Switching between paid plans -> show review screen
-    if (planId !== "Hobby" && planId !== currentPlanId) {
+      // Upgrading or Switching between paid plans -> show review screen
+      if (planId !== "Hobby" && planId !== currentPlanId) {
+        setModalInitialView("plan-change-review");
+        setModalPendingPlan(planId);
+        setIsModalOpen(true);
+        return;
+      }
+
+      // Default: show review screen
       setModalInitialView("plan-change-review");
       setModalPendingPlan(planId);
       setIsModalOpen(true);
-      return;
+    } finally {
+      setLoadingPlanId(null);
     }
-
-    // Default: show review screen
-    setModalInitialView("plan-change-review");
-    setModalPendingPlan(planId);
-    setIsModalOpen(true);
   };
 
   return (
