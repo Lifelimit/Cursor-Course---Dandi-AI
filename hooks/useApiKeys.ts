@@ -78,12 +78,12 @@ export function useApiKeys() {
   }, [hookId]);
 
 
-  const createKey = async (data: { name: string; keyType: string; monthlyLimit: number | null }) => {
+  const createKey = async (data: { name: string; keyType: string; monthlyLimit: number | null; isActive?: boolean }) => {
     try {
       const response = await fetch("/api/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, is_active: data.isActive ?? true }),
       });
       const payload = (await response.json()) as ApiKeyApiResponse | { error?: string };
 
@@ -99,12 +99,12 @@ export function useApiKeys() {
     }
   };
 
-  const updateKey = async (id: string, data: { name: string; keyType: string; monthlyLimit: number | null }) => {
+  const updateKey = async (id: string, data: { name: string; keyType: string; monthlyLimit: number | null; isActive?: boolean }) => {
     try {
       const response = await fetch(`/api/keys/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, is_active: data.isActive }),
       });
       const payload = (await response.json()) as ApiKeyApiResponse | { error?: string };
 

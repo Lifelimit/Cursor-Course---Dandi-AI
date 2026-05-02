@@ -13,6 +13,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
   const [keyType, setKeyType] = useState<"development" | "production">("development");
   const [hasUsageLimit, setHasUsageLimit] = useState(false);
   const [monthlyLimit, setMonthlyLimit] = useState("1000");
+  const [isActive, setIsActive] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,17 +24,19 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
       if (isOpen) {
         await Promise.resolve();
         setIsSubmitting(false);
-      if (initialData) {
-        setKeyName(initialData.name);
-        setKeyType(initialData.type);
-        setHasUsageLimit(initialData.monthly_limit !== null);
-        setMonthlyLimit(initialData.monthly_limit !== null ? String(initialData.monthly_limit) : "1000");
-      } else {
-        setKeyName("");
-        setKeyType("development");
-        setHasUsageLimit(false);
-        setMonthlyLimit("1000");
-      }
+        if (initialData) {
+          setKeyName(initialData.name);
+          setKeyType(initialData.type as "development" | "production");
+          setHasUsageLimit(initialData.monthly_limit !== null);
+          setMonthlyLimit(initialData.monthly_limit !== null ? String(initialData.monthly_limit) : "1000");
+          setIsActive(initialData.is_active);
+        } else {
+          setKeyName("");
+          setKeyType("development");
+          setHasUsageLimit(false);
+          setMonthlyLimit("1000");
+          setIsActive(true);
+        }
         setErrorMessage("");
       }
     };
@@ -64,6 +67,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
       name: trimmedName,
       keyType,
       monthlyLimit: parsedLimit,
+      isActive,
     });
 
     if (!result.success) {
@@ -145,6 +149,31 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
               </label>
             </div>
           </div>
+
+          {isEditing && (
+            <div className={`rounded-xl border p-4 transition ${isActive ? "border-emerald-200 bg-emerald-50/30" : "border-zinc-200 bg-zinc-100"}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-sm font-bold uppercase tracking-widest ${isActive ? "text-emerald-700" : "text-zinc-500"}`}>
+                    Service Status: {isActive ? "Active" : "Disabled"}
+                  </p>
+                  <p className="text-[10px] text-zinc-500 mt-0.5">
+                    {isActive ? "Key is live and monitoring usage." : "Key is deactivated. No requests will be processed."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsActive(!isActive)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 ${isActive ? "bg-emerald-500" : "bg-zinc-300"}`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isActive ? "translate-x-5" : "translate-x-0"}`}
+                  />
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className={`rounded-xl border border-zinc-200 bg-white p-3 ${isSubmitting ? "opacity-50" : ""}`}>
             <label className="flex items-center gap-2 text-sm font-medium text-zinc-700">

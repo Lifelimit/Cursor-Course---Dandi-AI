@@ -61,7 +61,13 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
     setIsModalOpen(true);
   };
 
-  const handleModalSubmit = async (data: { name: string; keyType: string; monthlyLimit: number | null }) => {
+  // 1. Sort Keys: Active first, then disabled
+  const sortedKeys = [...apiKeys].sort((a, b) => {
+    if (a.is_active === b.is_active) return 0;
+    return a.is_active ? -1 : 1;
+  });
+
+  const handleModalSubmit = async (data: { name: string; keyType: string; monthlyLimit: number | null; isActive?: boolean }) => {
     if (editingKey) {
       const result = await updateKey(editingKey.id, data);
       if (result.success) {
@@ -173,7 +179,7 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
               </div>
 
               <ApiKeyTable
-                apiKeys={apiKeys}
+                apiKeys={sortedKeys}
                 isLoading={isLoading}
                 onEdit={handleOpenEditModal}
                 onDelete={handleDelete}
