@@ -99,14 +99,14 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                 <div className="flex items-center gap-3">
                   {!isExhausted && (
                     <button 
-                      onClick={() => handleToggleStatus(key.id, true)}
-                      className="group/kill rounded-full p-2 text-zinc-300 hover:bg-rose-50 hover:text-rose-500 transition-all"
-                      title="Deactivate Key"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                        <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
+                    onClick={() => handleToggleStatus(key.id, true)}
+                    className="group/kill rounded-full bg-zinc-100/50 p-2.5 text-zinc-400 hover:bg-rose-50 hover:text-rose-600 transition-all shadow-sm border border-transparent hover:border-rose-100"
+                    title="Deactivate Key"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                      <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
                   )}
                   <div className="relative h-12 w-12 shrink-0">
                     <svg className="h-full w-full" viewBox="0 0 36 36">
