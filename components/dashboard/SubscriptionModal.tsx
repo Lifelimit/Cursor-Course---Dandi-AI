@@ -32,6 +32,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
   const [showCvc, setShowCvc] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<string | null>(initialPendingPlan || null);
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   
   // State for card details
   const [cardData, setCardData] = useState({
