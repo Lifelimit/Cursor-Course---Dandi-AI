@@ -90,8 +90,11 @@ export default function BillingClient({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalInitialView, setModalInitialView] = useState<"overview" | "cancel-confirm" | "update-payment" | "plan-change-review">("overview");
   const [modalPendingPlan, setModalPendingPlan] = useState<string | null>(null);
+  const [modalBillingInterval, setModalBillingInterval] = useState<"month" | "year">(billingInterval);
 
-  const handleUpgrade = (planId: string) => {
+  const handleUpgrade = (planId: string, interval?: "month" | "year") => {
+    if (interval) setModalBillingInterval(interval);
+    
     // 1. Upgrading from Hobby to a paid plan -> show payment details for that plan
     if (currentPlan === "Hobby" && planId !== "Hobby") {
       setModalInitialView("plan-change-review");
@@ -211,7 +214,7 @@ export default function BillingClient({
         planName={currentPlan}
         initialView={modalInitialView}
         initialPendingPlan={modalPendingPlan}
-        initialBillingInterval={billingInterval}
+        initialBillingInterval={modalBillingInterval}
         onSuccess={(msg) => showToast("success", msg)}
         onError={(msg) => showToast("error", msg)}
       />
