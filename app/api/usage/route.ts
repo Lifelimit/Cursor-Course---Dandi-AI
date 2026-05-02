@@ -87,25 +87,49 @@ export async function GET() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // 5. Fetch reset date from profile using email from session (most reliable)
+    // 5. Calculate the next monthly quota reset date
     const session = await auth();
     const userEmail = session?.user?.email;
-    
-    console.log("🕵️ Usage API: Searching for profile with email:", userEmail);
 
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("billing_next_date")
+      .select("billing_next_date, created_at")
       .ilike("email", userEmail || "")
       .single();
 
-    if (profileError) {
-      console.warn("⚠️ Usage API: Profile fetch error:", profileError.message);
+    const now = new Date();
+    let resetDate = null;
+    
+    // If we have a billing_next_date (from Stripe)
+    if (profile?.billing_next_date) {
+      const nextBilling = new Date(profile.billing_next_date);
+      
+      // If the billing is more than a month away (Annual plan), 
+      // we find the next monthly anniversary of the current date
+      // using the same day of the month as the billing date.
+      if (nextBilling.getTime() - now.getTime() > 32 * 24 * 60 * 60 * 1000) {
+        const resetDay = nextBilling.getDate();
+        let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
+        
+        // If the day has already passed this month, move to next month
+        if (nextReset <= now) {
+          nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
+        }
+        resetDate = nextReset.toISOString();
+      } else {
+        // It's a monthly plan or the annual plan is expiring soon
+        resetDate = profile.billing_next_date;
+      }
+    } else if (profile?.created_at) {
+      // Fallback for users without Stripe data yet
+      const created = new Date(profile.created_at);
+      const resetDay = created.getDate();
+      let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
+      if (nextReset <= now) {
+        nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
+      }
+      resetDate = nextReset.toISOString();
     }
-
-    console.log("📄 Usage API: Profile found:", profile);
-
-    const resetDate = profile?.billing_next_date || null;
 
     console.log("📊 Usage API: Final resetDate being sent to UI:", resetDate);
 
