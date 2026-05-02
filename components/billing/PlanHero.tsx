@@ -8,9 +8,10 @@ type PlanHeroProps = {
   usage: number;
   nextBillingDate: string | null;
   isUnlimited?: boolean;
+  billingInterval?: "month" | "year";
 };
 
-export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited }: PlanHeroProps) {
+export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, billingInterval = "month" }: PlanHeroProps) {
   const pct = isUnlimited ? 0 : Math.min((usage / limit) * 100, 100);
   
   return (
@@ -35,6 +36,16 @@ export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited }: P
               </div>
             </div>
             
+            <div className="rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Billing Cycle</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-zinc-900 capitalize">{billingInterval}ly</span>
+                {billingInterval === "year" && (
+                  <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[8px] font-black text-emerald-600 uppercase tracking-widest">Saved 20%</span>
+                )}
+              </div>
+            </div>
+
             <div className="rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-2">
               <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Next Invoice</p>
               <p className="text-xs font-bold text-zinc-900">

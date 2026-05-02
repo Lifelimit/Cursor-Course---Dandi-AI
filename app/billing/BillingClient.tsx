@@ -61,6 +61,8 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
   }, [fetchBillingData]);
 
   const currentPlan = activeSession?.user?.plan || "Hobby";
+  const billingInterval = (activeSession?.user as { billing_interval?: "month" | "year" })?.billing_interval || "month";
+  
   const PLAN_LIMITS = { Hobby: 1000, Premium: 5000, Researcher: 1000000 };
   const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
   const isUnlimited = currentPlan === "Researcher";
@@ -84,10 +86,10 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
   const [modalInitialView, setModalInitialView] = useState<"overview" | "cancel-confirm" | "update-payment" | "plan-change-review">("overview");
   const [modalPendingPlan, setModalPendingPlan] = useState<string | null>(null);
 
-  const handleUpgrade = (planId: string) => {
+  const handleUpgrade = (planId: string, interval?: "month" | "year") => {
     // 1. Upgrading from Hobby to a paid plan -> show payment details for that plan
     if (currentPlan === "Hobby" && planId !== "Hobby") {
-      setModalInitialView("update-payment");
+      setModalInitialView("plan-change-review");
       setModalPendingPlan(planId);
       setIsModalOpen(true);
       return;
@@ -145,6 +147,7 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
                 usage={data?.totalUsage || 0}
                 nextBillingDate={data?.resetDate ?? null}
                 isUnlimited={isUnlimited}
+                billingInterval={billingInterval}
               />
 
               {/* Payment Methods */}
@@ -179,6 +182,7 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
                 <PlanComparison 
                   currentPlan={currentPlan} 
                   onUpgrade={handleUpgrade} 
+                  billingInterval={billingInterval}
                 />
               </section>
 
@@ -202,6 +206,7 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
         planName={currentPlan}
         initialView={modalInitialView}
         initialPendingPlan={modalPendingPlan}
+        initialBillingInterval={billingInterval}
         onSuccess={(msg) => showToast("success", msg)}
         onError={(msg) => showToast("error", msg)}
       />

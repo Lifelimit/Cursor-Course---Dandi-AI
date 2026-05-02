@@ -103,12 +103,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           const { data, error } = await supabaseAdmin
             .from("profiles")
-            .select("plan, billing_street, billing_city, billing_state, billing_zip, billing_country, full_name, payment_method_last4, payment_method_brand, payment_method_expiry")
+            .select("plan, billing_interval, billing_street, billing_city, billing_state, billing_zip, billing_country, full_name, payment_method_last4, payment_method_brand, payment_method_expiry")
             .eq("email", session.user.email)
             .single();
             
           if (data && !error) {
             session.user.plan = data.plan || "Hobby";
+            session.user.billing_interval = data.billing_interval || "month";
             session.user.full_name = data.full_name;
             session.user.billing_street = data.billing_street;
             session.user.billing_city = data.billing_city;
@@ -120,6 +121,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             session.user.payment_method_expiry = data.payment_method_expiry;
           } else {
             session.user.plan = "Hobby";
+            session.user.billing_interval = "month";
           }
         } catch (err) {
           console.error("NextAuth session callback: Error fetching plan:", err);

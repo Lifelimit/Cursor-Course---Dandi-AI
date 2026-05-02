@@ -1,14 +1,34 @@
-import React from "react";
+import React, { useState } from "react";
 import { PLANS } from "@/lib/constants";
 
-export function PlanComparison({ currentPlan, onUpgrade }: { currentPlan: string, onUpgrade: (plan: string) => void }) {
+export function PlanComparison({ 
+  currentPlan, 
+  onUpgrade,
+  billingInterval: initialInterval = "month"
+}: { 
+  currentPlan: string, 
+  onUpgrade: (plan: string, interval: "month" | "year") => void,
+  billingInterval?: "month" | "year"
+}) {
+  const [selectedInterval, setSelectedInterval] = useState<"month" | "year">(initialInterval);
+
   return (
     <div className="space-y-12">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-2">
         <h3 className="font-serif text-3xl font-bold tracking-tight">Choose your path</h3>
         <div className="flex items-center gap-2 rounded-full bg-zinc-100 p-1">
-          <button className="rounded-full bg-white px-5 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-900 shadow-sm">Monthly</button>
-          <button className="px-5 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">Annual (Save 20%)</button>
+          <button 
+            onClick={() => setSelectedInterval("month")}
+            className={`rounded-full px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${selectedInterval === "month" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400"}`}
+          >
+            Monthly
+          </button>
+          <button 
+            onClick={() => setSelectedInterval("year")}
+            className={`rounded-full px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${selectedInterval === "year" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400"}`}
+          >
+            Annual (-20%)
+          </button>
         </div>
       </div>
 
@@ -31,8 +51,12 @@ export function PlanComparison({ currentPlan, onUpgrade }: { currentPlan: string
               <div className="mb-10 space-y-3">
                 <h4 className="font-serif text-2xl font-bold">{plan.id}</h4>
                 <div className="flex items-baseline gap-1">
-                  <span className={`font-serif text-5xl font-bold italic ${plan.priceColor}`}>{plan.price}</span>
-                  <span className={`text-[10px] font-bold uppercase tracking-widest ${plan.labelColor}`}>/ month</span>
+                  <span className={`font-serif text-5xl font-bold italic ${plan.priceColor}`}>
+                    {selectedInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price}
+                  </span>
+                  <span className={`text-[10px] font-bold uppercase tracking-widest ${plan.labelColor}`}>
+                    / month {selectedInterval === "year" && plan.id !== "Hobby" && "(billed yearly)"}
+                  </span>
                 </div>
                 <p className={`text-[10px] font-bold uppercase tracking-widest ${isPremium ? 'text-emerald-400' : 'text-emerald-600'}`}>
                   {plan.credits}
@@ -51,7 +75,7 @@ export function PlanComparison({ currentPlan, onUpgrade }: { currentPlan: string
               </div>
 
               <button
-                onClick={() => !isCurrent && onUpgrade(plan.id)}
+                onClick={() => !isCurrent && onUpgrade(plan.id, selectedInterval)}
                 disabled={isCurrent}
                 className={`w-full rounded-full py-4 text-[10px] font-black uppercase tracking-widest transition-all ${
                   isCurrent

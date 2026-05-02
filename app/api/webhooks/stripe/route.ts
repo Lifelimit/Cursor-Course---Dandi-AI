@@ -30,13 +30,20 @@ export async function POST(req: Request) {
   const session = event.data.object as Stripe.Checkout.Session;
 
   if (event.type === "checkout.session.completed") {
+    console.log("🔔 Webhook: checkout.session.completed received", {
+      userId: session.metadata?.userId,
+      planId: session.metadata?.planId,
+      subscriptionId: session.subscription
+    });
+
+    if (!session?.metadata?.userId || !session?.metadata?.planId) {
+      console.error("❌ Webhook error: Missing metadata in session", session.id);
+      return new NextResponse("Metadata is required", { status: 400 });
+    }
+
     const subscription = await stripe.subscriptions.retrieve(
       session.subscription as string
     );
-
-    if (!session?.metadata?.userId) {
-      return new NextResponse("User id is required", { status: 400 });
-    }
 
     // Update the profile in Supabase
     const { error } = await supabaseAdmin
@@ -51,9 +58,14 @@ export async function POST(req: Request) {
       .eq("id", session.metadata.userId);
 
     if (error) {
-      console.error("Supabase webhook error:", error);
-      return new NextResponse("Database update failed", { status: 500 });
+      console.error("❌ Supabase webhook error:", error.message, {
+        userId: session.metadata.userId,
+        plan: session.metadata.planId
+      });
+      return new NextResponse(`Database update failed: ${error.message}`, { status: 500 });
     }
+
+    console.log("✅ Webhook: Profile updated successfully for user", session.metadata.userId);
   }
 
   if (event.type === "customer.subscription.deleted") {
