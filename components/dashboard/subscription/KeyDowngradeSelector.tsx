@@ -96,8 +96,8 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
         </span>
       </div>
 
-      {/* Key List */}
-      <div className="flex flex-col gap-3">
+      {/* Key List with Scroll Logic */}
+      <div className="flex flex-col gap-3 max-h-[320px] overflow-y-auto pr-2 -mr-2 scrollbar-thin scrollbar-thumb-zinc-200 scrollbar-track-transparent">
         {keys.map((key) => {
           const isSelected = selectedIds.has(key.id);
           const isDisabled = !isSelected && selectedCount >= HOBBY_KEY_LIMIT;
@@ -108,7 +108,7 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
               type="button"
               onClick={() => toggleKey(key.id)}
               disabled={isDisabled}
-              className={`group flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition-all ${
+              className={`group flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition-all shrink-0 ${
                 isSelected
                   ? "border-zinc-900 bg-zinc-50 shadow-sm"
                   : isDisabled
