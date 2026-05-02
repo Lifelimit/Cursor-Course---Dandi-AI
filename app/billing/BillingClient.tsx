@@ -180,14 +180,22 @@ export default function BillingClient({
                 <div className="flex items-center justify-between px-2">
                   <h3 className="font-serif text-2xl font-bold">Wallet</h3>
                   <button 
-                    onClick={() => {
-                      setModalInitialView("update-payment");
-                      setModalPendingPlan(null);
-                      setIsModalOpen(true);
+                    disabled={isLoading}
+                    onClick={async () => {
+                      setIsLoading(true);
+                      try {
+                        const res = await fetch("/api/stripe/setup-session", { method: "POST" });
+                        const { url } = await res.json();
+                        if (url) window.location.href = url;
+                      } catch (err) {
+                        showToast("error", "Failed to initiate payment setup.");
+                      } finally {
+                        setIsLoading(false);
+                      }
                     }}
-                    className="text-[10px] font-black uppercase tracking-widest text-zinc-900 hover:underline"
+                    className="text-[10px] font-black uppercase tracking-widest text-zinc-900 hover:underline disabled:opacity-50"
                   >
-                    + Add Card
+                    {isLoading ? "Redirecting..." : "+ Add Card"}
                   </button>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2">

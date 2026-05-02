@@ -28,99 +28,111 @@ export async function POST(req: Request) {
   }
 
   if (event.type === "checkout.session.completed" || event.type === "customer.subscription.updated") {
-    const session = event.data.object as Stripe.Checkout.Session | Stripe.Subscription;
+    const sessionOrSub = event.data.object as Record<string, unknown>;
     const isSubscriptionEvent = event.type === "customer.subscription.updated";
+    const isSetupSession = !isSubscriptionEvent && sessionOrSub.mode === "setup";
     
-    const subscriptionId = isSubscriptionEvent 
-      ? (session as Stripe.Subscription).id 
-      : (session as Stripe.Checkout.Session).subscription as string;
-      
-    const customerId = isSubscriptionEvent
-      ? (session as Stripe.Subscription).customer as string
-      : (session as Stripe.Checkout.Session).customer as string;
-
-    const metadata = isSubscriptionEvent 
-      ? (session as Stripe.Subscription).metadata 
-      : (session as Stripe.Checkout.Session).metadata;
+    const customerId = sessionOrSub.customer as string;
+    const metadata = sessionOrSub.metadata;
+    const userId = metadata?.userId;
+    const userEmail = metadata?.userEmail;
 
     console.log(`🔔 Webhook: ${event.type} received`, {
-      userId: metadata?.userId,
-      subscriptionId,
-      customerId
+      userId,
+      customerId,
+      mode: isSetupSession ? "setup" : "subscription"
     });
 
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    
-    // Retrieve payment method details for the wallet
-    let paymentMethodDetails = null;
-    try {
-      const pmId = subscription.default_payment_method as string;
-      if (pmId) {
-        const pm = await stripe.paymentMethods.retrieve(pmId);
-        if (pm.card) {
-          paymentMethodDetails = {
-            brand: pm.card.brand,
-            last4: pm.card.last4,
-            expiry: `${pm.card.exp_month}/${pm.card.exp_year}`
-          };
-        }
-      }
-    } catch (err) {
-      console.warn("⚠️ Webhook warning: Could not retrieve payment method details:", err);
-    }
-
-    // Determine planId: from metadata or from subscription items if metadata is missing
-    const planId = metadata?.planId;
-    if (!planId) {
-      // Fallback: search for price ID in our constants to find the plan name
-      const priceId = subscription.items.data[0].price.id;
-      // We can map priceId back to planId if we had a mapping, but for now let's rely on metadata
-      // If metadata is truly missing, we'll log it.
-      console.warn("⚠️ Webhook warning: No planId in metadata. Attempting to derive from Price ID:", priceId);
-    }
-
-    // Update criteria: use userId from metadata if present, otherwise fallback to stripe_customer_id
-    // Extract renewal date safely
-    let renewalDate: string | null = null;
-    const periodEnd = (subscription as unknown as Record<string, unknown>).current_period_end as number || 
-                     ((subscription.items?.data?.[0] as unknown) as Record<string, unknown>)?.current_period_end as number;
-    
-    if (periodEnd) {
-      renewalDate = new Date(periodEnd * 1000).toISOString();
-    }
-
-    const updatePayload = {
-      plan: planId || undefined,
+    let paymentMethodDetails: Record<string, string> | null = null;
+    let updatePayload: Record<string, unknown> = {
       stripe_customer_id: customerId,
-      stripe_subscription_id: subscriptionId,
-      billing_interval: subscription.items.data[0].price.recurring?.interval === "year" ? "year" : "month" as "month" | "year",
-      payment_method_last4: paymentMethodDetails?.last4,
-      payment_method_brand: paymentMethodDetails?.brand,
-      payment_method_expiry: paymentMethodDetails?.expiry,
-      billing_next_date: renewalDate,
       updated_at: new Date().toISOString()
     };
 
+    if (isSetupSession) {
+      // Handle "Add Card" flow
+      try {
+        const setupIntent = await stripe.setupIntents.retrieve(sessionOrSub.setup_intent as string);
+        const pmId = setupIntent.payment_method as string;
+        
+        if (pmId) {
+          const pm = await stripe.paymentMethods.retrieve(pmId);
+          
+          // 1. Set as default payment method for the customer
+          await stripe.customers.update(customerId, {
+            invoice_settings: { default_payment_method: pmId }
+          });
+
+          if (pm.card) {
+            paymentMethodDetails = {
+              brand: pm.card.brand,
+              last4: pm.card.last4,
+              expiry: `${pm.card.exp_month}/${pm.card.exp_year}`
+            };
+            
+            updatePayload.payment_method_brand = paymentMethodDetails.brand;
+            updatePayload.payment_method_last4 = paymentMethodDetails.last4;
+            updatePayload.payment_method_expiry = paymentMethodDetails.expiry;
+          }
+        }
+      } catch (err) {
+        console.error("❌ Webhook setup error:", err);
+      }
+    } else {
+      // Handle subscription events (checkout or update)
+      const subscriptionId = isSubscriptionEvent ? sessionOrSub.id : sessionOrSub.subscription as string;
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      
+      try {
+        const pmId = subscription.default_payment_method as string;
+        if (pmId) {
+          const pm = await stripe.paymentMethods.retrieve(pmId);
+          if (pm.card) {
+            paymentMethodDetails = {
+              brand: pm.card.brand,
+              last4: pm.card.last4,
+              expiry: `${pm.card.exp_month}/${pm.card.exp_year}`
+            };
+          }
+        }
+      } catch (err) {
+        console.warn("⚠️ Webhook warning: Could not retrieve payment method details:", err);
+      }
+
+      const planId = metadata?.planId;
+      let renewalDate: string | null = null;
+      const subAsRecord = subscription as unknown as Record<string, unknown>;
+      const periodEnd = subAsRecord.current_period_end as number || 
+                       (subscription.items?.data?.[0] as unknown as Record<string, unknown>)?.current_period_end as number;
+      if (periodEnd) {
+        renewalDate = new Date(periodEnd * 1000).toISOString();
+      }
+
+      updatePayload = {
+        ...updatePayload,
+        plan: planId || undefined,
+        stripe_subscription_id: subscriptionId,
+        billing_interval: subscription.items.data[0].price.recurring?.interval === "year" ? "year" : "month",
+        payment_method_last4: paymentMethodDetails?.last4,
+        payment_method_brand: paymentMethodDetails?.brand,
+        payment_method_expiry: paymentMethodDetails?.expiry,
+        billing_next_date: renewalDate
+      };
+    }
+
     // Remove undefined fields
-    Object.keys(updatePayload).forEach(key => 
-      (updatePayload as Record<string, unknown>)[key] === undefined && delete (updatePayload as Record<string, unknown>)[key]
-    );
+    Object.keys(updatePayload).forEach(key => updatePayload[key] === undefined && delete updatePayload[key]);
 
     console.log("🕵️ Webhook: Attempting Supabase update...", {
-      matchBy: metadata?.userEmail ? "userEmail" : (metadata?.userId ? "userId" : "customerId"),
-      searchId: metadata?.userEmail || metadata?.userId || customerId,
+      matchBy: userEmail ? "email" : (userId ? "id" : "customerId"),
+      searchId: userEmail || userId || customerId,
       payload: updatePayload
     });
 
     const query = supabaseAdmin.from("profiles").update(updatePayload);
-
-    if (metadata?.userEmail) {
-      query.eq("email", metadata.userEmail);
-    } else if (metadata?.userId) {
-      query.eq("id", metadata.userId);
-    } else {
-      query.eq("stripe_customer_id", customerId);
-    }
+    if (userEmail) query.eq("email", userEmail);
+    else if (userId) query.eq("id", userId);
+    else query.eq("stripe_customer_id", customerId);
 
     const { error, data } = await query.select();
 
@@ -129,24 +141,9 @@ export async function POST(req: Request) {
       return new NextResponse(`Database update failed: ${error.message}`, { status: 500 });
     }
 
-    if (!data || data.length === 0) {
-      console.warn("⚠️ Webhook warning: No matching profile found to update", {
-        userId: metadata?.userId,
-        customerId
-      });
-    }
-
-    // Verify the update
-    const { data: updatedProfile } = await supabaseAdmin
-      .from("profiles")
-      .select("email, plan, billing_interval")
-      .eq("stripe_subscription_id", subscriptionId)
-      .single();
-
     console.log("✅ Webhook: Profile updated successfully", {
-      email: updatedProfile?.email,
-      newPlan: updatedProfile?.plan,
-      newInterval: updatedProfile?.billing_interval
+      email: userEmail || data?.[0]?.email,
+      mode: isSetupSession ? "setup" : "subscription"
     });
   }
 

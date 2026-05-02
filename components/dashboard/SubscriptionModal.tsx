@@ -211,10 +211,27 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     }
 
     setIsLoading(true);
-    // Detect Brand
+    if (!pendingPlan) {
+      // Real Stripe Setup flow for "Just adding a card"
+      try {
+        const res = await fetch("/api/stripe/setup-session", { method: "POST" });
+        const { url } = await res.json();
+        if (url) {
+          window.location.href = url;
+        } else {
+          throw new Error("Failed to create setup session");
+        }
+      } catch (err) {
+        onError?.("Failed to initiate payment setup.");
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Detect Brand for simulated preview (optional, still used for immediate UI feedback before redirect/webhook)
     const brand = cleanNumber.startsWith("4") ? "Visa" : cleanNumber.startsWith("5") ? "Mastercard" : "Card";
     
-    // Simulate API call for card validation
+    // Simulate API call for card validation (only for upgrades, Checkout will replace this eventually too)
     setTimeout(async () => {
       const paymentMetadata = {
         last4: cleanNumber.slice(-4),
