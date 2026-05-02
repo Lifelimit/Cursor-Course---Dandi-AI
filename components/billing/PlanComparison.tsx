@@ -77,12 +77,12 @@ export function PlanComparison({
               <button
                 onClick={() => !isCurrent && onUpgrade(plan.id, selectedInterval)}
                 disabled={isCurrent}
-                className={`w-full rounded-full py-4 text-[10px] font-black uppercase tracking-widest transition-all ${
+                className={`w-full rounded-full py-4 text-[10px] font-black uppercase tracking-widest transition-all border ${
                   isCurrent
                     ? 'cursor-default bg-zinc-100 text-zinc-400 border-transparent'
                     : isPremium
-                      ? 'bg-white text-zinc-900 hover:bg-zinc-200 shadow-xl shadow-white/10'
-                      : 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-xl shadow-zinc-900/10'
+                      ? 'bg-white text-zinc-900 hover:bg-zinc-50 border-zinc-200 shadow-sm'
+                      : 'bg-zinc-900 text-white hover:bg-zinc-800 border-transparent shadow-xl shadow-zinc-900/10'
                 }`}
               >
                 {isCurrent ? 'Active Plan' : plan.cta}
