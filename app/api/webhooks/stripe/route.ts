@@ -83,11 +83,18 @@ export async function POST(req: Request) {
       query.eq("stripe_customer_id", customerId);
     }
 
-    const { error } = await query;
+    const { error, count } = await query.select("*", { count: 'exact' });
 
     if (error) {
       console.error("❌ Supabase webhook update error:", error.message);
       return new NextResponse(`Database update failed: ${error.message}`, { status: 500 });
+    }
+
+    if (count === 0) {
+      console.warn("⚠️ Webhook warning: No matching profile found to update", {
+        userId: metadata?.userId,
+        customerId
+      });
     }
 
     // Verify the update
