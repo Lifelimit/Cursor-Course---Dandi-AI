@@ -75,6 +75,12 @@ export async function POST(req: Request) {
       (updatePayload as Record<string, unknown>)[key] === undefined && delete (updatePayload as Record<string, unknown>)[key]
     );
 
+    console.log("🕵️ Webhook: Attempting Supabase update...", {
+      matchBy: metadata?.userId ? "userId" : "customerId",
+      searchId: metadata?.userId || customerId,
+      payload: updatePayload
+    });
+
     const query = supabaseAdmin.from("profiles").update(updatePayload);
 
     if (metadata?.userId) {
