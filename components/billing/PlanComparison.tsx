@@ -22,7 +22,7 @@ const PLANS: Plan[] = [
   },
   {
     name: "Premium",
-    price: "$19",
+    price: "$20",
     credits: "5,000 credits / mo",
     features: ["Advanced AI Context", "Detailed Analytics", "10 Active Keys", "Priority Email Support", "CSV Data Export"],
     cta: "Switch to Premium",
@@ -30,7 +30,7 @@ const PLANS: Plan[] = [
   },
   {
     name: "Researcher",
-    price: "$49",
+    price: "$99",
     credits: "Unlimited credits",
     features: ["Deep Insight Engine", "Global Top Trends", "Unlimited Keys", "24/7 Phone Support", "Custom Alert Rules"],
     cta: "Go Researcher",
