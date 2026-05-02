@@ -88,6 +88,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
 
         setView(targetView);
         setPendingPlan(finalPendingPlan);
+        setBillingInterval(initialBillingInterval || "month");
         
         const s = session?.user;
         if (s) {
@@ -133,7 +134,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
       }
     };
     initializeState();
-  }, [isOpen, session, initialView, initialPendingPlan]);
+  }, [isOpen, session, initialView, initialPendingPlan, initialBillingInterval]);
 
   // Remove the old state scrub to allow key-based mounting to handle it
 
