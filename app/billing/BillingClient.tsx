@@ -170,7 +170,7 @@ export default function BillingClient({
                 plan={currentPlan}
                 limit={currentLimit}
                 usage={data?.totalUsage || 0}
-                nextBillingDate={data?.resetDate ?? null}
+                nextBillingDate={data?.nextInvoiceDate ?? null}
                 isUnlimited={isUnlimited}
                 billingInterval={billingInterval}
               />

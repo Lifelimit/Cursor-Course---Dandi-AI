@@ -125,13 +125,16 @@ export async function GET() {
       console.error("⚠️ Usage API: Reset date calculation failed:", dateErr);
     }
 
-    console.log("📊 Usage API: Final resetDate being sent to UI:", resetDate);
+    const nextInvoiceDate = profile?.billing_next_date || null;
+
+    console.log("📊 Usage API: Sending to UI:", { resetDate, nextInvoiceDate });
 
     return NextResponse.json({
       keys: processedKeys,
       totalUsage,
       globalTopRepos,
-      resetDate
+      resetDate,
+      nextInvoiceDate
     });
   } catch (err) {
     console.error("❌ Usage API: Critical failure:", err);

@@ -28,6 +28,7 @@ type UsageData = {
   }[];
   globalTopRepos: { repo_url: string; count: number }[];
   resetDate: string | null;
+  nextInvoiceDate: string | null;
 };
 
 export default function UsageClient({ initialSession }: { initialSession: Session | null }) {
