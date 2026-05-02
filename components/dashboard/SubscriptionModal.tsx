@@ -459,44 +459,46 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
         onClick={onClose}
       />
 
-      <div className={`relative z-10 w-full overflow-hidden rounded-[40px] border border-zinc-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300 transition-all duration-500 ${(view === 'update-payment' || view === 'success' || view === 'plan-change-review') ? 'max-w-4xl' : view === 'key-downgrade-selector' ? 'max-w-xl' : 'max-w-lg'}`}>
+      <div className={`relative z-10 w-full overflow-hidden rounded-[40px] border border-zinc-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300 transition-all duration-500 ${isInitializing ? 'max-w-sm' : (view === 'update-payment' || view === 'success' || view === 'plan-change-review') ? 'max-w-4xl' : view === 'key-downgrade-selector' ? 'max-w-xl' : 'max-w-lg'}`}>
         
-        {/* Header Section */}
-        <div className={`relative p-8 transition-colors duration-500 ${(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector') ? 'bg-rose-600 text-white' : 'bg-[#18181b] text-white'}`}>
-          <button 
-            onClick={onClose}
-            className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors"
-          >
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
-              <path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-          
-          <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 italic">
-              {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : view === "remove-card-confirm" ? "Confirm Removal" : view === "key-downgrade-selector" ? "Hobby Plan Limit" : "Confirm Cancellation"}
-            </p>
-            <h3 className="font-serif text-4xl font-bold italic">
-              {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Thank You!" : view === "plan-change-review" ? "Confirm Switch" : view === "remove-card-confirm" ? "Remove Card?" : view === "key-downgrade-selector" ? "Select Keys to Keep" : "Wait! Are you sure?"}
-            </h3>
+        {isInitializing ? (
+          <div className="flex flex-col items-center justify-center gap-6 p-12">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-100 border-t-zinc-900" />
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 text-center">Verifying Operational Status...</p>
           </div>
+        ) : (
+          <>
+            {/* Header Section */}
+            <div className={`relative p-8 transition-colors duration-500 ${(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector') ? 'bg-rose-600 text-white' : 'bg-[#18181b] text-white'}`}>
+              <button 
+                onClick={onClose}
+                className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors"
+              >
+                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
+                  <path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 italic">
+                  {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : view === "remove-card-confirm" ? "Confirm Removal" : view === "key-downgrade-selector" ? "Hobby Plan Limit" : "Confirm Cancellation"}
+                </p>
+                <h3 className="font-serif text-4xl font-bold italic">
+                  {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Thank You!" : view === "plan-change-review" ? "Confirm Switch" : view === "remove-card-confirm" ? "Remove Card?" : view === "key-downgrade-selector" ? "Select Keys to Keep" : "Wait! Are you sure?"}
+                </h3>
+              </div>
 
-          {view === "overview" && (
-            <div className="mt-8 flex items-end gap-2">
-              <span className="text-5xl font-bold">{currentPlan.price}</span>
-              <span className="mb-1 text-sm font-medium text-white/50">/ per month</span>
+              {view === "overview" && (
+                <div className="mt-8 flex items-end gap-2">
+                  <span className="text-5xl font-bold">{currentPlan.price}</span>
+                  <span className="mb-1 text-sm font-medium text-white/50">/ per month</span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Body Section */}
-        <div className="p-8">
-          {isInitializing ? (
-            <div className="flex flex-col items-center justify-center gap-4 py-24">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-100 border-t-zinc-900" />
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400">Verifying Operational Status...</p>
-            </div>
-          ) : view === "change-plan" ? (
+            {/* Body Section */}
+            <div className="p-8">
+              {view === "change-plan" ? (
             <PlanSelection 
               planName={planName}
               isLoading={isLoading}
@@ -576,6 +578,8 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
             />
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );
