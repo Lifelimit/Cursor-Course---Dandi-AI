@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { UsageSparkline } from "./UsageSparkline";
 import { AlertThresholdControl } from "./AlertThresholdControl";
@@ -20,6 +20,7 @@ type KeyData = {
 };
 
 export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate: () => void }) {
+  const [confirmingKillId, setConfirmingKillId] = useState<string | null>(null);
   const activeKeys = keys.filter(k => k.is_active);
   const deadKeys = keys.filter(k => !k.is_active);
 
@@ -41,7 +42,10 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ keyId, isActive: !currentStatus })
       });
-      if (res.ok) onUpdate();
+      if (res.ok) {
+        setConfirmingKillId(null);
+        onUpdate();
+      }
     } catch (err) {
       console.error(err);
     }
@@ -74,8 +78,37 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
           return (
             <div 
               key={key.id} 
-              className={`flex flex-col rounded-[32px] border bg-white p-8 transition-all shadow-sm ${alertStyles}`}
+              className={`relative flex flex-col rounded-[32px] border bg-white p-8 transition-all shadow-sm ${alertStyles}`}
             >
+              {confirmingKillId === key.id && (
+                <div className="absolute inset-0 z-[20] flex flex-col items-center justify-center rounded-[32px] bg-red-600/95 p-8 text-white backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
+                  <div className="mb-4 rounded-full bg-white/20 p-4">
+                    <svg viewBox="0 0 24 24" className="h-8 w-8 text-white" fill="none" stroke="currentColor">
+                      <path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <h3 className="mb-2 font-serif text-2xl font-bold italic tracking-tight">INITIATE KILL?</h3>
+                  <p className="mb-8 text-center text-[10px] font-black uppercase tracking-[0.2em] text-white/70">
+                    This will immediately deactivate <br/> 
+                    <span className="text-white">&quot;{key.name}&quot;</span>
+                  </p>
+                  <div className="flex w-full gap-3">
+                    <button 
+                      onClick={() => setConfirmingKillId(null)}
+                      className="flex-1 rounded-2xl bg-white/10 px-4 py-4 text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all active:scale-95"
+                    >
+                      Abort
+                    </button>
+                    <button 
+                      onClick={() => handleToggleStatus(key.id, true)}
+                      className="flex-1 rounded-2xl bg-white px-4 py-4 text-[10px] font-black uppercase tracking-widest text-red-600 hover:bg-zinc-100 transition-all active:scale-95 shadow-xl"
+                    >
+                      Confirm Kill
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-start justify-between mb-6">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -99,11 +132,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                 <div className="flex items-center gap-3">
                   {!isExhausted && (
                     <button 
-                      onClick={() => {
-                        if (confirm(`Are you sure you want to KILL "${key.name}"? This will immediately deactivate all services using this key.`)) {
-                          handleToggleStatus(key.id, true);
-                        }
-                      }}
+                      onClick={() => setConfirmingKillId(key.id)}
                       className="group/kill rounded-full bg-rose-50 p-2.5 text-rose-400 hover:bg-rose-600 hover:text-white transition-all shadow-sm border border-rose-100 hover:border-rose-600 active:scale-95"
                       title="Kill API Key"
                     >
@@ -163,11 +192,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                       Increase Limit
                     </Link>
                     <button 
-                      onClick={() => {
-                        if (confirm(`Are you sure you want to KILL "${key.name}"? It will be moved to the dead archive.`)) {
-                          handleToggleStatus(key.id, true);
-                        }
-                      }}
+                      onClick={() => setConfirmingKillId(key.id)}
                       className="flex items-center justify-center rounded-xl border border-red-200 bg-white px-3 py-2 text-[8px] font-black uppercase tracking-widest text-red-600 hover:bg-red-50"
                     >
                       Kill Switch
