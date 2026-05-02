@@ -10,6 +10,7 @@ type ApiKeyTableProps = {
   onCopySuccess: () => void;
   onCopyError: (msg: string) => void;
   onUpgradePrompt: () => void;
+  currentPlan: string;
 };
 
 export function ApiKeyTable({
@@ -20,11 +21,14 @@ export function ApiKeyTable({
   onCopySuccess,
   onCopyError,
   onUpgradePrompt,
+  currentPlan,
 }: ApiKeyTableProps) {
   const [visibleKeyIds, setVisibleKeyIds] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [promptedKeyId, setPromptedKeyId] = useState<string | null>(null);
   const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isHobby = currentPlan === "Hobby";
 
   // Clear timeout on unmount
   useEffect(() => {
@@ -185,22 +189,21 @@ export function ApiKeyTable({
                 <td colSpan={5} className="px-5 py-3">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2.5">
-                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                      <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${isHobby ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"}`}>
                         <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor">
                           <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </div>
-                      <p className="text-xs font-medium text-amber-800">
-                        <span className="font-bold">{key.name}</span> is disabled — it was deactivated when you downgraded to Hobby.
-                        Upgrade your plan to re-enable it.
+                      <p className={`text-xs font-medium ${isHobby ? "text-amber-800" : "text-emerald-800"}`}>
+                        <span className="font-bold">{key.name}</span> is disabled — {isHobby ? "it was deactivated when you downgraded to Hobby. Upgrade your plan to re-enable it." : "you can manually re-enable it or increase your limit to resume service."}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onUpgradePrompt(); }}
-                      className="shrink-0 rounded-full bg-amber-600 px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-white transition hover:bg-amber-700"
+                      className={`shrink-0 rounded-full px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-white transition ${isHobby ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
                     >
-                      Upgrade Plan
+                      {isHobby ? "Upgrade Plan" : "Manage Plan"}
                     </button>
                   </div>
                 </td>

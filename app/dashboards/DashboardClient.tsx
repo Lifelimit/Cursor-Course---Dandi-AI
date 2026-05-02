@@ -186,6 +186,7 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
                 onCopySuccess={() => showToast("success", "API key copied to clipboard.")}
                 onCopyError={(msg) => showToast("error", msg)}
                 onUpgradePrompt={() => router.push("/billing")}
+                currentPlan={currentPlan}
               />
 
               {!isLoading && apiKeys.length === 0 ? (

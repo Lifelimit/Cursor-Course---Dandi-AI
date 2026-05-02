@@ -79,7 +79,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/35 px-4">
       <div className="w-full max-w-md rounded-2xl bg-[#f4f2ed] p-6 shadow-2xl">
         <h3 className="text-center text-3xl font-semibold tracking-tight">
           {isEditing ? "Edit API key" : "Create a new API key"}
