@@ -27,6 +27,7 @@ type BillingData = {
     alert_channels: string[] | null;
     dailyTrend?: { date: string; count: number }[];
   }[];
+  paymentMethods: { id: string; brand: string; last4: string; expiry: string; isDefault: boolean }[] | null;
 };
 
 
@@ -199,23 +200,53 @@ export default function BillingClient({
                     {isLoading ? "Redirecting..." : "+ Add Card"}
                   </button>
                 </div>
-                <div className="grid gap-6 sm:grid-cols-2">
-                  {activeSession?.user?.payment_method_last4 ? (
-                    <PaymentMethodCard 
-                      brand={activeSession.user.payment_method_brand || "Card"}
-                      last4={activeSession.user.payment_method_last4}
-                      expiryMonth={parseInt(activeSession.user.payment_method_expiry?.split('/')[0] || "12")}
-                      expiryYear={parseInt(activeSession.user.payment_method_expiry?.split('/')[1] || "2026")}
-                      isDefault={true}
-                      onDelete={() => {}} 
-                      onSetDefault={() => {}} 
-                    />
-                  ) : (
-                    <div className="col-span-full rounded-[32px] border border-dashed border-zinc-200 bg-zinc-50/50 p-12 text-center">
-                      <p className="text-sm font-medium text-zinc-500">No payment methods on file.</p>
-                      <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Add a card to get started</p>
+                <div className="grid gap-6 lg:grid-cols-3">
+                  {/* Primary Card - Takes more space or visual weight */}
+                  <div className="lg:col-span-2">
+                    {data?.paymentMethods?.find(pm => pm.isDefault) ? (
+                      <div className="space-y-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Primary Method</p>
+                        <PaymentMethodCard 
+                          brand={data.paymentMethods.find(pm => pm.isDefault)!.brand}
+                          last4={data.paymentMethods.find(pm => pm.isDefault)!.last4}
+                          expiryMonth={parseInt(data.paymentMethods.find(pm => pm.isDefault)!.expiry.split('/')[0])}
+                          expiryYear={parseInt(data.paymentMethods.find(pm => pm.isDefault)!.expiry.split('/')[1])}
+                          isDefault={true}
+                          onDelete={() => {}} 
+                          onSetDefault={() => {}} 
+                        />
+                      </div>
+                    ) : (
+                      <div className="rounded-[32px] border border-dashed border-zinc-200 bg-zinc-50/50 p-12 text-center">
+                        <p className="text-sm font-medium text-zinc-500">No primary payment method.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Secondary Cards - Smaller/List layout */}
+                  <div className="space-y-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Secondary Methods</p>
+                    <div className="grid gap-4">
+                      {data?.paymentMethods?.filter(pm => !pm.isDefault).map((pm) => (
+                        <div key={pm.id} className="opacity-80 hover:opacity-100 transition-opacity transform scale-90 origin-top-left">
+                          <PaymentMethodCard 
+                            brand={pm.brand}
+                            last4={pm.last4}
+                            expiryMonth={parseInt(pm.expiry.split('/')[0])}
+                            expiryYear={parseInt(pm.expiry.split('/')[1])}
+                            isDefault={false}
+                            onDelete={() => {}} 
+                            onSetDefault={() => {}} 
+                          />
+                        </div>
+                      ))}
+                      {(!data?.paymentMethods || data.paymentMethods.filter(pm => !pm.isDefault).length === 0) && (
+                        <div className="rounded-[24px] border border-dashed border-zinc-200 p-6 text-center">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 italic">No secondary cards</p>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               </section>
 

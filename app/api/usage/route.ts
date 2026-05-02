@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { stripe } from "@/lib/stripe";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 
 export async function GET() {
@@ -124,12 +125,38 @@ export async function GET() {
       }
     }
 
+    let paymentMethods: { id: string; brand: string; last4: string; expiry: string; isDefault: boolean }[] = [];
+    if (profile?.stripe_customer_id) {
+      try {
+        const methods = await stripe.paymentMethods.list({
+          customer: profile.stripe_customer_id,
+          type: "card",
+        });
+        
+        // Get the customer to find the default payment method
+        const customer = await stripe.customers.retrieve(profile.stripe_customer_id) as unknown as Record<string, unknown>;
+        const invoiceSettings = customer.invoice_settings as Record<string, unknown> | undefined;
+        const defaultMethodId = invoiceSettings?.default_payment_method as string | undefined;
+
+        paymentMethods = methods.data.map(pm => ({
+          id: pm.id,
+          brand: pm.card?.brand || "Card",
+          last4: pm.card?.last4 || "****",
+          expiry: pm.card ? `${pm.card.exp_month}/${pm.card.exp_year}` : "N/A",
+          isDefault: pm.id === defaultMethodId
+        }));
+      } catch (_err) {
+        // Silent error, return empty paymentMethods
+      }
+    }
+
     return NextResponse.json({
       keys: processedKeys,
       totalUsage,
       globalTopRepos,
       resetDate,
-      nextInvoiceDate
+      nextInvoiceDate,
+      paymentMethods
     });
   } catch (err) {
     console.error("❌ Usage API: Critical failure:", err);
