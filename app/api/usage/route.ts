@@ -87,27 +87,27 @@ export async function GET() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // 5. Calculate the next monthly quota reset date safely
+    // 5. Fetch profile and calculate dates
+    const session = await auth();
+    const userEmail = session?.user?.email;
     let resetDate = null;
-    try {
-      const session = await auth();
-      const userEmail = session?.user?.email;
+    let nextInvoiceDate = null;
 
-      if (userEmail) {
-        const { data: profile } = await supabaseAdmin
-          .from("profiles")
-          .select("billing_next_date")
-          .ilike("email", userEmail)
-          .single();
+    if (userEmail) {
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("billing_next_date")
+        .ilike("email", userEmail)
+        .single();
 
-        if (profile) {
-          // If we have a billing_next_date (from Stripe)
+      if (profile) {
+        nextInvoiceDate = profile.billing_next_date || null;
+
+        try {
           if (profile.billing_next_date) {
             const nextBilling = new Date(profile.billing_next_date);
             const now = new Date();
             
-            // If the billing is more than a month away (Annual plan), 
-            // find the next monthly anniversary.
             if (nextBilling.getTime() - now.getTime() > 32 * 24 * 60 * 60 * 1000) {
               const resetDay = nextBilling.getDate();
               let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
@@ -119,13 +119,11 @@ export async function GET() {
               resetDate = profile.billing_next_date;
             }
           }
+        } catch (dateErr) {
+          console.error("⚠️ Usage API: Reset date calculation failed:", dateErr);
         }
       }
-    } catch (dateErr) {
-      console.error("⚠️ Usage API: Reset date calculation failed:", dateErr);
     }
-
-    const nextInvoiceDate = profile?.billing_next_date || null;
 
     console.log("📊 Usage API: Sending to UI:", { resetDate, nextInvoiceDate });
 
