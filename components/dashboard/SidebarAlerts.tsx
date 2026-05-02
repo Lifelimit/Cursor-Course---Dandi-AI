@@ -121,8 +121,20 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                   isFlying ? 'translate-x-3 opacity-100' : '-translate-x-4 opacity-0 pointer-events-none'
                 }`}
               >
-                {/* Stylized Organic Connector */}
-                <div className="h-10 w-4 bg-white border-y border-r border-zinc-200 -mr-[1px] relative z-20 rounded-r-2xl shadow-[4px_0_15px_rgba(0,0,0,0.03)]" />
+                {/* iMessage-Style Tail Connector */}
+                <div className="relative -mr-[1px] z-20 flex items-center h-full">
+                  <svg width="12" height="24" viewBox="0 0 12 24" fill="none" className="drop-shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
+                    <path 
+                      d="M12 0C12 0 12 6 8 10C4 14 0 14 0 14C0 14 4 14 8 18C12 22 12 24 12 24V0Z" 
+                      fill="white" 
+                    />
+                    <path 
+                      d="M12 0C12 0 12 6 8 10C4 14 0 14 0 14M0 14C0 14 4 14 8 18C12 22 12 24 12 24" 
+                      stroke="#e4e4e7" 
+                      strokeWidth="1"
+                    />
+                  </svg>
+                </div>
                 
                 <div className="flex flex-col gap-5 rounded-[24px] border border-zinc-200 bg-white p-6 shadow-[0_20px_50px_rgba(0,0,0,0.15)] min-w-[240px] relative z-10">
                   <div className="flex items-center justify-between">
