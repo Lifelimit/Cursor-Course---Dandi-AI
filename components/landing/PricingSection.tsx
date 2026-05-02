@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { Session } from "next-auth";
-import { useSession } from "next-auth/react";
+import { PLANS } from "@/lib/constants";
 import Link from "next/link";
-import { updatePlanAction } from "@/lib/auth-actions";
-import { useRouter } from "next/navigation";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 
-import { PLANS } from "@/lib/constants";
+import type { Session } from "next-auth";
+import { useSession } from "next-auth/react";
+
 export function PricingSection({ 
   session, 
   onSuccess, 
@@ -18,25 +17,16 @@ export function PricingSection({
   onSuccess?: (msg: string) => void,
   onError?: (msg: string) => void
 }) {
-  const router = useRouter();
-  const { data: clientSession, update } = useSession();
+  const { data: clientSession } = useSession();
   const activeSession = clientSession || session;
+  const currentPlanId = (activeSession?.user as { plan?: string })?.plan || "Hobby";
 
   const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
-  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
-
-  // Use the real plan from the session (populated in auth.ts)
-  const currentPlanId = (activeSession?.user as { plan?: string })?.plan || null;
-  const currentPlan = PLANS.find(p => p.id === currentPlanId);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalInitialView, setModalInitialView] = useState<"overview" | "cancel-confirm" | "update-payment" | "plan-change-review">("overview");
   const [modalPendingPlan, setModalPendingPlan] = useState<string | null>(null);
 
   const handleUpdatePlan = async (planId: string) => {
-    // Determine the correct price ID based on toggle
-    const plan = PLANS.find(p => p.id === planId);
-    
     // Downgrading to Hobby -> let modal handle the audit (selector vs confirm)
     if (planId === "Hobby" && currentPlanId !== "Hobby") {
       setModalInitialView("overview");
