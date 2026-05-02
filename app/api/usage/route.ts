@@ -97,7 +97,6 @@ export async function GET() {
       .ilike("email", userEmail || "")
       .single();
 
-    const now = new Date();
     let resetDate = null;
     
     // If we have a billing_next_date (from Stripe)
