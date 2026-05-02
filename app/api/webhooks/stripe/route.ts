@@ -51,6 +51,24 @@ export async function POST(req: Request) {
 
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
     
+    // Retrieve payment method details for the wallet
+    let paymentMethodDetails = null;
+    try {
+      const pmId = subscription.default_payment_method as string;
+      if (pmId) {
+        const pm = await stripe.paymentMethods.retrieve(pmId);
+        if (pm.card) {
+          paymentMethodDetails = {
+            brand: pm.card.brand,
+            last4: pm.card.last4,
+            expiry: `${pm.card.exp_month}/${pm.card.exp_year}`
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("⚠️ Webhook warning: Could not retrieve payment method details:", err);
+    }
+
     // Determine planId: from metadata or from subscription items if metadata is missing
     const planId = metadata?.planId;
     if (!planId) {
@@ -67,6 +85,9 @@ export async function POST(req: Request) {
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
       billing_interval: subscription.items.data[0].price.recurring?.interval === "year" ? "year" : "month" as "month" | "year",
+      payment_method_last4: paymentMethodDetails?.last4,
+      payment_method_brand: paymentMethodDetails?.brand,
+      payment_method_expiry: paymentMethodDetails?.expiry,
       updated_at: new Date().toISOString()
     };
 

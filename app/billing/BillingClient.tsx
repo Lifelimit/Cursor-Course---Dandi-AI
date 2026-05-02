@@ -28,9 +28,6 @@ type BillingData = {
   }[];
 };
 
-const MOCK_CARDS = [
-  { brand: "Visa", last4: "4242", expiryMonth: 12, expiryYear: 2026, isDefault: true }
-];
 
 export default function BillingClient({ 
   initialSession, 
@@ -194,14 +191,22 @@ export default function BillingClient({
                   </button>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2">
-                  {MOCK_CARDS.map(card => (
+                  {activeSession?.user?.payment_method_last4 ? (
                     <PaymentMethodCard 
-                      key={card.last4} 
-                      {...card} 
+                      brand={activeSession.user.payment_method_brand || "Card"}
+                      last4={activeSession.user.payment_method_last4}
+                      expiryMonth={parseInt(activeSession.user.payment_method_expiry?.split('/')[0] || "12")}
+                      expiryYear={parseInt(activeSession.user.payment_method_expiry?.split('/')[1] || "2026")}
+                      isDefault={true}
                       onDelete={() => {}} 
                       onSetDefault={() => {}} 
                     />
-                  ))}
+                  ) : (
+                    <div className="col-span-full rounded-[32px] border border-dashed border-zinc-200 bg-zinc-50/50 p-12 text-center">
+                      <p className="text-sm font-medium text-zinc-500">No payment methods on file.</p>
+                      <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Add a card to get started</p>
+                    </div>
+                  )}
                 </div>
               </section>
 
