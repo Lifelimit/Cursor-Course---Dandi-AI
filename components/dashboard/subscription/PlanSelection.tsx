@@ -19,53 +19,57 @@ export function PlanSelection({
   onGoBack 
 }: PlanSelectionProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       {/* Billing Toggle */}
-      <div className="flex items-center justify-center gap-4 py-2 bg-zinc-50 rounded-2xl border border-zinc-100">
-        <span className={`text-[10px] font-bold uppercase tracking-widest ${billingInterval === "month" ? "text-zinc-900" : "text-zinc-400"}`}>Monthly</span>
+      <div className="flex items-center justify-center gap-6 py-4">
+        <span className={`font-mono text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${billingInterval === "month" ? "text-zinc-900" : "text-zinc-300"}`}>Monthly</span>
         <button 
           onClick={() => setBillingInterval(billingInterval === "month" ? "year" : "month")}
-          className="relative h-5 w-10 rounded-full bg-zinc-200 p-1 transition-colors hover:bg-zinc-300"
+          className="relative h-6 w-12 rounded-full bg-zinc-100 p-1 transition-all hover:bg-zinc-200"
         >
-          <div className={`h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${billingInterval === "year" ? "translate-x-5" : "translate-x-0"}`} />
+          <div className={`h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ${billingInterval === "year" ? "translate-x-6" : "translate-x-0"}`} />
         </button>
-        <div className="flex items-center gap-2">
-          <span className={`text-[10px] font-bold uppercase tracking-widest ${billingInterval === "year" ? "text-zinc-900" : "text-zinc-400"}`}>Annual</span>
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[8px] font-black text-emerald-600 uppercase tracking-widest">20% OFF</span>
+        <div className="flex items-center gap-3">
+          <span className={`font-mono text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${billingInterval === "year" ? "text-zinc-900" : "text-zinc-300"}`}>Annual</span>
+          <span className="rounded-full bg-emerald-100 px-3 py-1 text-[9px] font-black text-emerald-600 uppercase tracking-widest animate-pulse">20% OFF</span>
         </div>
       </div>
 
       <div className="space-y-4">
         {PLANS.map((plan) => {
+          const isCurrent = plan.id === planName;
           const displayPrice = billingInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
           
           return (
             <button
               key={plan.id}
               onClick={() => onSelectPlan(plan.id)}
-              disabled={isLoading || plan.id === planName}
-              className={`flex w-full items-center justify-between rounded-2xl border p-4 transition-all ${
-                plan.id === planName 
-                  ? "border-emerald-200 bg-emerald-50 cursor-default" 
-                  : "border-zinc-100 bg-zinc-50 hover:border-zinc-200 hover:bg-zinc-100"
+              disabled={isLoading || isCurrent}
+              className={`group flex w-full items-center justify-between rounded-[32px] border p-8 transition-all duration-300 ${
+                isCurrent 
+                  ? "border-emerald-400 bg-white shadow-xl shadow-emerald-500/10 ring-1 ring-emerald-400" 
+                  : "border-zinc-100 bg-white hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-lg hover:shadow-zinc-200/50"
               }`}
             >
               <div className="text-left">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-zinc-900">{plan.id}</p>
-                  {plan.recommended && (
-                    <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-100">Best Value</span>
+                <div className="flex items-center gap-3">
+                  <p className="text-xl font-bold tracking-tight text-zinc-900">{plan.id}</p>
+                  {plan.recommended && !isCurrent && (
+                    <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-100/50 px-2.5 py-1 rounded-full">Best Value</span>
                   )}
                 </div>
-                <p className="text-[10px] text-zinc-500">
+                <p className="text-xs font-medium text-zinc-400 mt-1">
                   {displayPrice} / month 
-                  {billingInterval === "year" && plan.id !== "Hobby" && " (billed annually)"}
                 </p>
               </div>
-              {plan.id === planName ? (
-                <span className="text-[10px] font-black uppercase text-emerald-600">Current</span>
+              
+              {isCurrent ? (
+                <div className="flex items-center gap-2 rounded-full bg-emerald-100/50 px-4 py-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Current</span>
+                </div>
               ) : (
-                <span className="text-[10px] font-black uppercase text-zinc-400">Select</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 group-hover:text-zinc-900 transition-colors">Select</span>
               )}
             </button>
           );
@@ -74,7 +78,7 @@ export function PlanSelection({
       
       <button 
         onClick={onGoBack}
-        className="w-full text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-900 mt-2"
+        className="w-full font-mono text-[9px] font-bold uppercase tracking-[0.3em] text-zinc-300 hover:text-zinc-900 transition-colors py-4"
       >
         Go Back
       </button>

@@ -1,15 +1,22 @@
-import { useState, useEffect, useCallback, useId } from "react";
+import { useState, useEffect, useCallback, useId, useRef } from "react";
 import { ApiKey, ApiKeyApiResponse, mapApiKey } from "@/types/api";
 import { supabase } from "@/lib/supabase-client";
 
-export function useApiKeys() {
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export function useApiKeys(initialData: ApiKey[] = []) {
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>(initialData);
+  const [isLoading, setIsLoading] = useState(initialData.length === 0);
   const [errorMessage, setErrorMessage] = useState("");
+  const isHydrated = useRef(initialData.length > 0);
 
   const loadKeys = useCallback(async () => {
     // Avoid synchronous state updates in useEffect to prevent cascading renders
     await Promise.resolve();
+    if (isHydrated.current) {
+      setIsLoading(false);
+      isHydrated.current = false; // Next calls will refresh
+      return;
+    }
+    
     setIsLoading(true);
     setErrorMessage("");
     try {

@@ -27,7 +27,6 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
         if (Array.isArray(data)) {
           const mapped = data.map(mapApiKey);
           setKeys(mapped);
-          // Pre-select the 3 most recently created keys to keep
           const preSelected = mapped.slice(0, HOBBY_KEY_LIMIT).map((k) => k.id);
           setSelectedIds(new Set(preSelected));
         }
@@ -44,7 +43,7 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
       if (next.has(id)) {
         next.delete(id);
       } else {
-        if (next.size >= HOBBY_KEY_LIMIT) return prev; // Enforce max
+        if (next.size >= HOBBY_KEY_LIMIT) return prev;
         next.add(id);
       }
       return next;
@@ -57,50 +56,58 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
   };
 
   const selectedCount = selectedIds.size;
+  const slotsRemaining = HOBBY_KEY_LIMIT - selectedCount;
   const canConfirm = selectedCount > 0 && selectedCount <= HOBBY_KEY_LIMIT && !isLoading;
 
   if (isFetching) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 py-12">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-900" />
-        <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">Loading keys…</p>
+      <div className="flex flex-1 flex-col items-center justify-center gap-6 py-24">
+        <div className="h-12 w-12 animate-spin rounded-full border-[6px] border-zinc-100 border-t-zinc-900" />
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-400">Auditing Asset Quota...</p>
       </div>
     );
   }
 
+  const HOBBY_REQUEST_LIMIT = 1000;
+
   return (
-    <div className="flex flex-1 flex-col gap-6">
-      {/* Instructions */}
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-        <p className="text-sm font-medium text-amber-800">
-          The <span className="font-bold">Hobby plan</span> allows a maximum of{" "}
-          <span className="font-bold">{HOBBY_KEY_LIMIT} active API keys</span>. You currently have{" "}
-          <span className="font-bold">{keys.length}</span>. Please select which{" "}
-          <span className="font-bold">{HOBBY_KEY_LIMIT}</span> to keep — the rest will be permanently deleted.
-        </p>
+    <div className="flex flex-1 flex-col gap-12">
+      {/* Quota Header */}
+      <div className="flex items-center justify-between px-2">
+        <div className="space-y-1">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Quota Allocation</p>
+          <h4 className="text-xl font-bold tracking-tight text-zinc-900">Select 3 keys to retain</h4>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex gap-1.5">
+            {[...Array(HOBBY_KEY_LIMIT)].map((_, i) => (
+              <div 
+                key={i} 
+                className={`h-2 w-6 rounded-full transition-all duration-500 ${i < selectedCount ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-zinc-100'}`} 
+              />
+            ))}
+          </div>
+          <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+            {slotsRemaining} Slots Remaining
+          </p>
+        </div>
       </div>
 
-      {/* Counter */}
-      <div className="flex items-center justify-between px-1">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Keys to Keep</p>
-        <span
-          className={`text-xs font-bold tabular-nums transition-colors ${
-            selectedCount > HOBBY_KEY_LIMIT
-              ? "text-red-500"
-              : selectedCount === HOBBY_KEY_LIMIT
-              ? "text-emerald-500"
-              : "text-zinc-400"
-          }`}
-        >
-          {selectedCount} / {HOBBY_KEY_LIMIT} selected
-        </span>
-      </div>
-
-      {/* Key List with Scroll Logic */}
-      <div className="flex flex-col gap-3 max-h-[320px] overflow-y-auto pr-2 -mr-2 scrollbar-thin scrollbar-thumb-zinc-200 scrollbar-track-transparent">
+      {/* Key Grid/List */}
+      <div className="space-y-3 max-h-[440px] overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-zinc-200 scrollbar-track-transparent pb-4">
         {keys.map((key) => {
           const isSelected = selectedIds.has(key.id);
           const isDisabled = !isSelected && selectedCount >= HOBBY_KEY_LIMIT;
+          
+          const currentLimit = key.monthly_limit || HOBBY_REQUEST_LIMIT;
+          const usagePercent = Math.min((key.usage_count / currentLimit) * 100, 100);
+          
+          // Color Logic: Emerald (Safe), Amber (Warning), Rose-Red (Critical)
+          const intensityColor = usagePercent > 90 
+            ? 'bg-rose-500' 
+            : usagePercent > 70 
+              ? 'bg-amber-500' 
+              : 'bg-emerald-500';
 
           return (
             <button
@@ -108,50 +115,45 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
               type="button"
               onClick={() => toggleKey(key.id)}
               disabled={isDisabled}
-              className={`group flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition-all shrink-0 ${
+              className={`group relative w-full rounded-2xl border p-6 text-left transition-all duration-300 ${
                 isSelected
-                  ? "border-zinc-900 bg-zinc-50 shadow-sm"
+                  ? "border-zinc-900 bg-zinc-50/50 shadow-sm"
                   : isDisabled
-                  ? "cursor-not-allowed border-zinc-100 bg-zinc-50 opacity-40"
-                  : "border-zinc-200 bg-white hover:border-zinc-300"
+                  ? "cursor-not-allowed border-zinc-50 bg-zinc-50/20 opacity-40"
+                  : "border-zinc-100 bg-white hover:border-zinc-300 hover:bg-zinc-50/30"
               }`}
             >
-              {/* Checkbox */}
-              <div
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
-                  isSelected ? "border-zinc-900 bg-zinc-900" : "border-zinc-300 bg-white"
-                }`}
-              >
-                {isSelected && (
-                  <svg viewBox="0 0 24 24" className="h-3 w-3 text-white" fill="none" stroke="currentColor">
-                    <path d="M20 6L9 17l-5-5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </div>
-
-              {/* Key Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-bold text-zinc-900">{key.name}</p>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest ${
-                      key.type === "production"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-zinc-100 text-zinc-500"
-                    }`}
-                  >
-                    {key.type}
-                  </span>
+              <div className="flex items-center justify-between gap-6">
+                {/* Left: Key Identity */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2.5 mb-1.5">
+                    <p className="text-lg font-bold tracking-tight text-zinc-900 truncate">{key.name}</p>
+                    {isSelected && (
+                      <span className="flex-shrink-0 rounded-full bg-emerald-100/50 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-emerald-600">Retaining</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className={`h-1.5 w-1.5 rounded-full ${key.type === 'production' ? 'bg-zinc-900' : 'bg-zinc-200'}`} />
+                    <p className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400 truncate">
+                      {key.key_value.slice(0, 8)}••••
+                    </p>
+                  </div>
                 </div>
-                <p className="mt-0.5 font-mono text-[10px] text-zinc-400">
-                  {key.key_value.slice(0, 16)}••••
-                </p>
-              </div>
 
-              {/* Usage */}
-              <div className="shrink-0 text-right">
-                <p className="text-xs font-bold text-zinc-900">{key.usage_count.toLocaleString()}</p>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">requests</p>
+                {/* Right: Usage Ledger */}
+                <div className="w-40 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-zinc-400">Usage</span>
+                    <span className="text-[10px] font-bold text-zinc-900">{key.usage_count.toLocaleString()} <span className="text-zinc-400 font-medium">/ {currentLimit.toLocaleString()}</span></span>
+                  </div>
+                  
+                  <div className="h-1 w-full bg-zinc-100 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-1000 ${isSelected ? intensityColor : 'bg-zinc-200'}`} 
+                      style={{ width: `${usagePercent}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             </button>
           );
@@ -160,46 +162,24 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
 
       {/* Card Retention Toggle */}
       {hasCard && (
-        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-3">Payment Method</p>
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => setKeepCard(true)}
-              className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${keepCard ? "border-zinc-900 bg-white shadow-sm" : "border-zinc-200 bg-white hover:border-zinc-300"}`}
-            >
-              <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${keepCard ? "border-zinc-900" : "border-zinc-300"}`}>
-                {keepCard && <div className="h-2 w-2 rounded-full bg-zinc-900" />}
-              </div>
-              <div>
-                <p className="text-xs font-bold text-zinc-900">Keep card on file</p>
-                <p className="text-[10px] text-zinc-400">Reuse it instantly when you upgrade again</p>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setKeepCard(false)}
-              className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${!keepCard ? "border-rose-500 bg-rose-50" : "border-zinc-200 bg-white hover:border-zinc-300"}`}
-            >
-              <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${!keepCard ? "border-rose-500" : "border-zinc-300"}`}>
-                {!keepCard && <div className="h-2 w-2 rounded-full bg-rose-500" />}
-              </div>
-              <div>
-                <p className="text-xs font-bold text-zinc-900">Remove card</p>
-                <p className="text-[10px] text-zinc-400">You&apos;ll need to re-enter it when upgrading</p>
-              </div>
-            </button>
+        <div className="px-6 py-4 rounded-[24px] bg-zinc-50/50 border border-zinc-100 flex items-center justify-between group cursor-pointer hover:bg-zinc-50 transition-colors" onClick={() => setKeepCard(!keepCard)}>
+          <div className="space-y-1">
+            <p className="text-xs font-bold text-zinc-900">Retain payment method</p>
+            <p className="text-[10px] text-zinc-400">Reuse card details for future upgrades</p>
+          </div>
+          <div className={`h-6 w-12 rounded-full p-1 transition-all duration-300 ${keepCard ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-zinc-200'}`}>
+            <div className={`h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ${keepCard ? 'translate-x-6' : 'translate-x-0'}`} />
           </div>
         </div>
       )}
 
       {/* Actions */}
-      <div className="mt-auto flex gap-3 pt-2">
+      <div className="flex flex-col gap-3 sm:flex-row pt-4 border-t border-zinc-100">
         <button
           type="button"
           onClick={onBack}
           disabled={isLoading}
-          className="flex-1 rounded-full border border-zinc-200 py-3.5 text-xs font-bold uppercase tracking-widest text-zinc-400 transition-all hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-50"
+          className="flex-1 rounded-full border border-zinc-200 bg-white py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-900"
         >
           Go Back
         </button>
@@ -207,16 +187,9 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
           type="button"
           onClick={handleConfirm}
           disabled={!canConfirm}
-          className="flex-1 rounded-full bg-rose-600 py-3.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg transition-all hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex-1 rounded-full bg-[#18181b] py-5 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-black shadow-xl shadow-zinc-900/10 disabled:opacity-50"
         >
-          {isLoading ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              Deleting…
-            </span>
-          ) : (
-            `Keep ${selectedCount} & Downgrade`
-          )}
+          {isLoading ? "Executing..." : "Confirm Downgrade"}
         </button>
       </div>
     </div>

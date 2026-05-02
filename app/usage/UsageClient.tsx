@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import type { Session } from "next-auth";
@@ -9,7 +9,6 @@ import { Toast } from "@/components/ui/Toast";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { QuotaHealthGrid } from "@/components/usage/QuotaHealthGrid";
 import { TopReposTable } from "@/components/usage/TopReposTable";
-import { useCallback } from "react";
 
 type UsageData = {
   totalUsage: number;
@@ -31,20 +30,32 @@ type UsageData = {
   nextInvoiceDate: string | null;
 };
 
-export default function UsageClient({ initialSession }: { initialSession: Session | null }) {
+export default function UsageClient({ 
+  initialSession, 
+  initialData = null 
+}: { 
+  initialSession: Session | null, 
+  initialData?: UsageData | null 
+}) {
   const { data: session } = useSession();
   const activeSession = initialSession || session;
   
-  const [data, setData] = useState<UsageData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [data, setData] = useState<UsageData | null>(initialData);
+  const [isLoading, setIsLoading] = useState(initialData === null);
+  const isHydrated = useRef(initialData !== null);
   const { toast, showToast } = useToast();
 
   const fetchUsageData = useCallback(async () => {
     try {
+      // Don't set isLoading if we already have initialData to prevent flicker
+      if (!isHydrated.current) {
+        setIsLoading(true);
+      }
+      
       const res = await fetch("/api/usage");
       const json = await res.json();
-      console.log("Usage Data Loaded:", json); // Debug log
       setData(json);
+      isHydrated.current = false;
     } catch (err) {
       console.error("Usage Fetch Error:", err);
       showToast("error", "Failed to load usage analytics.");
@@ -54,16 +65,24 @@ export default function UsageClient({ initialSession }: { initialSession: Sessio
   }, [showToast]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchUsageData();
-  }, [fetchUsageData]);
+    // If we have initialData, delay the refresh to allow instant initial paint
+    if (initialData) {
+      const timer = setTimeout(() => {
+        fetchUsageData();
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else {
+      fetchUsageData();
+    }
+  }, [fetchUsageData, initialData]);
 
+  const currentData = data || initialData;
   const currentPlan = activeSession?.user?.plan || "Hobby";
   const PLAN_LIMITS = { Hobby: 1000, Premium: 5000, Researcher: 1000000 };
   const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
   const isUnlimited = currentPlan === "Researcher";
 
-  const alerts = (data?.keys || [])
+  const alerts = (currentData?.keys || [])
     .filter(k => k.is_active && k.alert_threshold !== null && k.alert_channels?.includes('in-page'))
     .map(k => {
       const pct = k.monthly_limit ? (k.usage_count / k.monthly_limit) * 100 : 0;
@@ -83,11 +102,14 @@ export default function UsageClient({ initialSession }: { initialSession: Sessio
     showToast("success", "Usage report export started.");
   };
 
+  // If we have initialData, we NEVER show the skeleton on first load
+  const showSkeleton = isLoading && !initialData;
+
   return (
     <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-start gap-8 p-6 md:flex-row md:py-12">
         <Sidebar 
-          totalUsage={data?.totalUsage || 0} 
+          totalUsage={currentData?.totalUsage || 0} 
           plan={currentPlan} 
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
@@ -115,7 +137,7 @@ export default function UsageClient({ initialSession }: { initialSession: Sessio
             </div>
           </div>
 
-          {isLoading ? (
+          {showSkeleton ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map(i => (
                 <div key={i} className="h-64 animate-pulse rounded-[32px] bg-white border border-zinc-200" />
@@ -124,7 +146,7 @@ export default function UsageClient({ initialSession }: { initialSession: Sessio
           ) : (
             <>
               {/* Reset Info */}
-              {data?.resetDate && (
+              {currentData?.resetDate && (
                 <div className="flex items-center gap-3 rounded-2xl bg-zinc-900 px-6 py-4 text-white shadow-xl">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
@@ -134,15 +156,15 @@ export default function UsageClient({ initialSession }: { initialSession: Sessio
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Next Quota Reset</p>
                     <p className="text-xs font-medium">
-                      {new Date(data.resetDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      {new Date(currentData.resetDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                     </p>
                   </div>
                 </div>
               )}
 
               {/* Quota Health Grid */}
-              {data?.keys && data.keys.length > 0 ? (
-                <QuotaHealthGrid keys={data.keys} onUpdate={fetchUsageData} />
+              {currentData?.keys && currentData.keys.length > 0 ? (
+                <QuotaHealthGrid keys={currentData.keys} onUpdate={fetchUsageData} />
               ) : (
                 <div className="rounded-[32px] border border-zinc-200 border-dashed p-12 text-center bg-white/30">
                   <p className="text-sm font-medium text-zinc-400">No active API keys found for tracking.</p>
@@ -154,7 +176,7 @@ export default function UsageClient({ initialSession }: { initialSession: Sessio
 
               {/* Bottom Section */}
               <div className="grid gap-8 lg:grid-cols-2">
-                <TopReposTable data={data?.globalTopRepos || []} />
+                <TopReposTable data={currentData?.globalTopRepos || []} />
                 
                 <div className="flex flex-col gap-8">
                   <div className="rounded-[32px] border border-zinc-200 bg-white p-8 shadow-sm">

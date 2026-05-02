@@ -27,109 +27,100 @@ export function PlanReview({
   const fullTermAmount = billingInterval === "year" ? priceValue * 12 : priceValue;
 
   return (
-    <div className="flex flex-col gap-8 md:flex-row">
-      <div className="flex-1 space-y-6">
-        <div className="rounded-[24px] border border-zinc-100 bg-white p-8 shadow-sm space-y-8">
-          <div className="grid gap-8 sm:grid-cols-2">
+    <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-8 lg:flex-row items-start">
+        {/* Left Column: Security & Info */}
+        <div className="flex-1 rounded-[32px] border border-zinc-100 bg-white p-10 shadow-sm space-y-10">
+          <div className="space-y-6">
             <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-1.5">
-                  <svg viewBox="0 0 24 24" className="h-3 w-3 text-zinc-400" fill="none" stroke="currentColor">
-                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Target Plan</span>
-                </div>
-                <p className="text-sm font-bold text-zinc-900">{pendingPlan} Tier</p>
+              <div className="flex items-center gap-2">
+                <svg viewBox="0 0 24 24" className="h-3 w-3 text-zinc-400" fill="none" stroke="currentColor">
+                  <path d="M9 12l2 2 4-4" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Target Plan</span>
               </div>
-              <div className="h-px bg-zinc-200" />
-              <div className="space-y-2">
-                <div className="flex items-center gap-1.5">
-                  <svg viewBox="0 0 24 24" className="h-3 w-3 text-zinc-400" fill="none" stroke="currentColor">
-                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Billing Cycle</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-zinc-900 capitalize">{billingInterval}ly</p>
-                  {billingInterval === "year" && (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[8px] font-black text-emerald-600 uppercase tracking-widest">20% Savings</span>
-                  )}
-                </div>
+              <p className="text-base font-bold text-zinc-900">{pendingPlan} Tier</p>
+            </div>
+
+            <div className="h-px bg-zinc-100" />
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <svg viewBox="0 0 24 24" className="h-3 w-3 text-zinc-400" fill="none" stroke="currentColor">
+                  <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Billing Cycle</span>
               </div>
-              <div className="h-px bg-zinc-200" />
-              <div className="space-y-3">
-                 <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Checkout Security</p>
-                 <p className="text-xs text-zinc-500 leading-relaxed">
-                   You will be redirected to Stripe&apos;s secure hosted payment page to finalize your subscription. Dandi AI does not store your card details.
-                 </p>
-              </div>
+              <p className="text-base font-bold text-zinc-900 capitalize">{billingInterval}</p>
+            </div>
+
+            <div className="h-px bg-zinc-100" />
+
+            <div className="space-y-4">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Checkout Security</span>
+              <p className="text-xs text-zinc-500 leading-relaxed max-w-xs">
+                You will be redirected to Stripe&apos;s secure hosted payment page to finalize your subscription. Dandi AI does not store your card details.
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-3">
-          <button 
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="w-full rounded-full bg-zinc-900 py-5 text-[10px] font-black uppercase tracking-widest text-white transition shadow-xl hover:bg-zinc-800 disabled:opacity-50"
-          >
-            {isLoading ? (
-              <div className="mx-auto h-3 w-3 animate-spin rounded-full border-2 border-zinc-400 border-t-white" />
-            ) : `Proceed to Secure Checkout`}
-          </button>
-          <button 
-            onClick={onBack}
-            className="w-full rounded-full border border-zinc-200 bg-white py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-900"
-          >
-            Change Selection
-          </button>
+        {/* Right Column: Order Summary */}
+        <div className="w-full lg:w-96 rounded-[32px] bg-[#18181b] p-10 text-white shadow-2xl space-y-10">
+          <h4 className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">Checkout Summary</h4>
+          
+          <div className="space-y-8">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <p className="text-2xl font-bold tracking-tight">{pendingPlan}</p>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-white/40">{billingInterval === 'year' ? 'Billed Annually' : 'Billed Monthly'}</p>
+              </div>
+              <p className="text-2xl font-bold">${priceValue}</p>
+            </div>
+
+            <div className="h-px bg-white/10" />
+
+            <div className="space-y-4">
+              <div className="flex justify-between text-xs font-medium text-white/50">
+                <span>Billing Basis</span>
+                <span className="capitalize">{billingInterval}</span>
+              </div>
+              <div className="flex justify-between text-xs font-medium text-white/50">
+                <span>Full Term Amount</span>
+                <span>${fullTermAmount.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="h-px bg-white/10" />
+
+            <div className="flex justify-between items-center pt-4">
+              <div className="space-y-1">
+                <span className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-white/40 block">Effective</span>
+                <span className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-white/40 block">Monthly</span>
+              </div>
+              <span className="text-5xl font-bold text-emerald-400 tracking-tighter">
+                ${priceValue.toFixed(2)}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Right Column: Order Summary */}
-      <div className="w-full md:w-80 rounded-2xl bg-[#18181b] p-6 text-white h-fit space-y-6 shadow-2xl">
-        <h4 className="text-[10px] font-bold uppercase tracking-widest text-white/40">Checkout Summary</h4>
-        
-        <div className="space-y-4">
-          <div className="flex items-start justify-between pb-2">
-            <div className="space-y-1.5">
-              <p className="text-lg font-bold tracking-tight">{pendingPlan}</p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">{billingInterval === 'year' ? 'Billed Annually' : 'Billed Monthly'}</p>
-            </div>
-            <p className="text-xl font-bold">${priceValue}</p>
-          </div>
-
-          <div className="h-px bg-white/10" />
-
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs font-medium text-white/60">
-              <span>Billing Basis</span>
-              <span className="capitalize">{billingInterval}ly</span>
-            </div>
-            <div className="flex justify-between text-xs font-medium text-white/60">
-              <span>Full Term Amount</span>
-              <span>${fullTermAmount.toFixed(2)}</span>
-            </div>
-            {billingInterval === 'year' && (
-              <div className="flex justify-between text-xs font-medium text-emerald-400">
-                <span>Annual Discount</span>
-                <span>- 20%</span>
-              </div>
-            )}
-          </div>
-
-          <div className="h-px bg-white/10" />
-
-          <div className="flex justify-between items-center pt-6 border-t border-white/10 mt-2">
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Effective</span>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Monthly</p>
-            </div>
-            <span className="text-4xl font-bold text-emerald-400 tracking-tight">
-              ${priceValue.toFixed(2)}
-            </span>
-          </div>
-        </div>
+      {/* Action Buttons */}
+      <div className="space-y-4">
+        <button 
+          onClick={onConfirm}
+          disabled={isLoading}
+          className="w-full rounded-full bg-[#18181b] py-5 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-black shadow-xl shadow-zinc-900/10 disabled:opacity-50"
+        >
+          {isLoading ? "Redirecting..." : "Proceed to Secure Checkout"}
+        </button>
+        <button 
+          onClick={onBack}
+          className="w-full rounded-full border border-zinc-200 bg-white py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-900"
+        >
+          Change Selection
+        </button>
       </div>
     </div>
   );

@@ -3,75 +3,53 @@ import React, { useState } from "react";
 type CancelConfirmationProps = {
   isLoading: boolean;
   hasCard: boolean;
+  nextBillingDate?: string | null;
   onConfirm: (keepCard: boolean) => void;
   onCancel: () => void;
 };
 
-export function CancelConfirmation({ isLoading, hasCard, onConfirm, onCancel }: CancelConfirmationProps) {
+export function CancelConfirmation({ isLoading, hasCard, nextBillingDate, onConfirm, onCancel }: CancelConfirmationProps) {
   const [keepCard, setKeepCard] = useState(true);
 
+  const formattedDate = nextBillingDate 
+    ? new Date(nextBillingDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : 'the end of your current term';
+
   return (
-    <div className="flex flex-col flex-1 justify-between py-4">
-      <div className="space-y-6 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-50 text-rose-500">
-          <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor">
-            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-        <div className="space-y-2">
-          <p className="text-lg font-bold text-zinc-900">Downgrading to Hobby</p>
-          <p className="text-sm text-zinc-500 max-w-xs mx-auto">
-            You&apos;ll lose access to premium features like priority support and higher request limits.
-          </p>
-        </div>
+    <div className="flex flex-col gap-10">
+      <div className="space-y-4">
+        <p className="text-sm text-zinc-500 leading-relaxed">
+          Your <span className="font-serif font-bold italic text-zinc-900">Researcher</span> plan will remain active until <span className="font-serif font-bold italic text-zinc-900">{formattedDate}</span>. After that, you&apos;ll be downgraded to the Hobby plan.
+        </p>
       </div>
 
       {/* Card Retention Toggle */}
       {hasCard && (
-        <div className="mt-8 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-3">Payment Method</p>
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => setKeepCard(true)}
-              className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${keepCard ? "border-zinc-900 bg-white shadow-sm" : "border-zinc-200 bg-white hover:border-zinc-300"}`}
-            >
-              <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${keepCard ? "border-zinc-900" : "border-zinc-300"}`}>
-                {keepCard && <div className="h-2 w-2 rounded-full bg-zinc-900" />}
-              </div>
-              <div>
-                <p className="text-xs font-bold text-zinc-900">Keep card on file</p>
-                <p className="text-[10px] text-zinc-400">Reuse it instantly when you upgrade again</p>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setKeepCard(false)}
-              className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${!keepCard ? "border-rose-500 bg-rose-50" : "border-zinc-200 bg-white hover:border-zinc-300"}`}
-            >
-              <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${!keepCard ? "border-rose-500" : "border-zinc-300"}`}>
-                {!keepCard && <div className="h-2 w-2 rounded-full bg-rose-500" />}
-              </div>
-              <div>
-                <p className="text-xs font-bold text-zinc-900">Remove card</p>
-                <p className="text-[10px] text-zinc-400">You&apos;ll need to re-enter it when upgrading</p>
-              </div>
-            </button>
+        <div 
+          className="px-6 py-4 rounded-[24px] bg-zinc-50/50 border border-zinc-100 flex items-center justify-between group cursor-pointer hover:bg-zinc-50 transition-colors" 
+          onClick={() => setKeepCard(!keepCard)}
+        >
+          <div className="space-y-1">
+            <p className="text-xs font-bold text-zinc-900">Retain payment method</p>
+            <p className="text-[10px] text-zinc-400">Reuse card details for future upgrades</p>
+          </div>
+          <div className={`h-6 w-12 rounded-full p-1 transition-all duration-300 ${keepCard ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-zinc-200'}`}>
+            <div className={`h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ${keepCard ? 'translate-x-6' : 'translate-x-0'}`} />
           </div>
         </div>
       )}
 
-      <div className="flex flex-col gap-3 mt-6">
+      <div className="flex flex-col gap-3 pt-6 border-t border-zinc-100">
         <button 
           onClick={() => onConfirm(keepCard)}
           disabled={isLoading}
-          className="w-full rounded-full bg-rose-600 py-4 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-rose-700 shadow-xl shadow-rose-900/10"
+          className="w-full rounded-full bg-[#18181b] py-5 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-black shadow-xl shadow-zinc-900/10 disabled:opacity-50"
         >
-          {isLoading ? "Processing..." : "Confirm Downgrade"}
+          {isLoading ? "Executing..." : "Confirm Downgrade"}
         </button>
         <button 
           onClick={onCancel}
-          className="w-full rounded-full border border-zinc-200 bg-white py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-900"
+          className="w-full rounded-full border border-zinc-200 bg-white py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-900"
         >
           Keep My Plan
         </button>

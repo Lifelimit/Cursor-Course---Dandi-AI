@@ -1,7 +1,9 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { stripe } from "@/lib/stripe";
-import BillingClient from "./BillingClient";
+import BillingClient from "@/app/billing/BillingClient";
+import { getServerUsageData } from "@/lib/services/server-data.service";
+import type { Invoice } from "@/components/billing/InvoiceTable";
 
 export default async function BillingPage() {
   const session = await auth();
@@ -10,7 +12,9 @@ export default async function BillingPage() {
     redirect("/login");
   }
 
-  let invoices = [];
+  const usageData = await getServerUsageData();
+
+  let invoices: Invoice[] = [];
   const customerId = (session.user as { stripe_customer_id?: string })?.stripe_customer_id;
 
   if (customerId) {
@@ -32,5 +36,5 @@ export default async function BillingPage() {
     }
   }
 
-  return <BillingClient initialSession={session} initialInvoices={invoices} />;
+  return <BillingClient initialSession={session} initialInvoices={invoices} initialData={usageData} />;
 }

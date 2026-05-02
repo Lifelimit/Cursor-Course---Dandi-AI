@@ -33,18 +33,21 @@ type BillingData = {
 
 export default function BillingClient({ 
   initialSession, 
-  initialInvoices = [] 
+  initialInvoices = [],
+  initialData = null
 }: { 
   initialSession: Session | null, 
-  initialInvoices?: Invoice[] 
+  initialInvoices?: Invoice[],
+  initialData?: BillingData | null
 }) {
   const { data: session, update } = useSession();
   const activeSession = initialSession || session;
   const hasRefreshed = useRef(false);
   
-  const [data, setData] = useState<BillingData | null>(null);
+  const [data, setData] = useState<BillingData | null>(initialData);
   const [invoices] = useState(initialInvoices);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(initialData === null);
+  const isHydrated = useRef(initialData !== null);
   const [secondaryIndex, setSecondaryIndex] = useState(0);
   const [cardToDelete, setCardToDelete] = useState<{ id: string; brand: string; last4: string } | null>(null);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -72,9 +75,13 @@ export default function BillingClient({
 
   const fetchBillingData = useCallback(async () => {
     try {
+      if (!isHydrated.current) {
+        setIsLoading(true);
+      }
       const res = await fetch("/api/usage"); // Reusing this for totalUsage/plan limits
       const json = await res.json();
       setData(json);
+      isHydrated.current = false;
     } catch (err) {
       console.error(err);
       showToast("error", "Failed to load billing information.");
@@ -82,11 +89,6 @@ export default function BillingClient({
       setIsLoading(false);
     }
   }, [showToast]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchBillingData();
-  }, [fetchBillingData]);
 
   const handleSetDefault = async (pmId: string) => {
     try {
@@ -126,6 +128,18 @@ export default function BillingClient({
     }
   };
 
+  useEffect(() => {
+    if (initialData) {
+      const timer = setTimeout(() => {
+        fetchBillingData();
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else {
+      fetchBillingData();
+    }
+  }, [fetchBillingData, initialData]);
+
+  const currentData = data || initialData;
   const currentPlan = activeSession?.user?.plan || "Hobby";
   const billingInterval = (activeSession?.user as { billing_interval?: "month" | "year" })?.billing_interval || "month";
   
@@ -133,7 +147,7 @@ export default function BillingClient({
   const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
   const isUnlimited = currentPlan === "Researcher";
 
-  const alerts = (data?.keys || [])
+  const alerts = (currentData?.keys || [])
     .filter(k => k.is_active && k.alert_threshold !== null && k.alert_channels?.includes('in-page'))
     .map(k => {
       const pct = k.monthly_limit ? (k.usage_count / k.monthly_limit) * 100 : 0;
@@ -158,8 +172,9 @@ export default function BillingClient({
     
     // Unified Downgrade Flow: Intercept any move to Hobby and show the premium Key Selection Modal
     if (planId === "Hobby" && currentPlan !== "Hobby") {
-      setIsModalOpen(false); // Close the plan selection modal if it's open
-      setIsCancelModalOpen(true);
+      setModalPendingPlan("Hobby");
+      setModalInitialView("overview"); // The modal's useEffect will handle the redirection to the audit view
+      setIsModalOpen(true);
       return;
     }
 
@@ -180,11 +195,13 @@ export default function BillingClient({
     }
   };
 
+  const showSkeleton = isLoading && !initialData;
+
   return (
     <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-start gap-8 p-6 md:flex-row md:py-12">
         <Sidebar 
-          totalUsage={data?.totalUsage || 0} 
+          totalUsage={currentData?.totalUsage || 0} 
           plan={currentPlan} 
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
@@ -201,7 +218,7 @@ export default function BillingClient({
             </div>
           </div>
 
-          {isLoading ? (
+          {showSkeleton ? (
             <div className="space-y-8 animate-pulse">
               <div className="h-64 rounded-[32px] bg-white border border-zinc-200" />
               <div className="h-96 rounded-[32px] bg-white border border-zinc-200" />
@@ -212,8 +229,8 @@ export default function BillingClient({
               <PlanHero 
                 plan={currentPlan}
                 limit={currentLimit}
-                usage={data?.totalUsage || 0}
-                nextBillingDate={data?.nextInvoiceDate ?? null}
+                usage={currentData?.totalUsage || 0}
+                nextBillingDate={currentData?.nextInvoiceDate ?? null}
                 isUnlimited={isUnlimited}
                 billingInterval={billingInterval}
               />
@@ -238,23 +255,23 @@ export default function BillingClient({
                     }}
                     className="text-[10px] font-black uppercase tracking-widest text-zinc-900 hover:underline disabled:opacity-50"
                   >
-                    {isLoading ? "Redirecting..." : "+ Add Card"}
+                    {isLoading && !currentData ? "Redirecting..." : "+ Add Card"}
                   </button>
                 </div>
                 <div className="grid gap-6 lg:grid-cols-3">
                   {/* Primary Card - Takes more space or visual weight */}
                   <div className="lg:col-span-2">
-                    {data?.paymentMethods?.find(pm => pm.isDefault) ? (
+                    {currentData?.paymentMethods?.find(pm => pm.isDefault) ? (
                       <div className="space-y-4">
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Primary Method</p>
                         <PaymentMethodCard 
-                          brand={data.paymentMethods.find(pm => pm.isDefault)!.brand}
-                          last4={data.paymentMethods.find(pm => pm.isDefault)!.last4}
-                          expiryMonth={parseInt(data.paymentMethods.find(pm => pm.isDefault)!.expiry.split('/')[0])}
-                          expiryYear={parseInt(data.paymentMethods.find(pm => pm.isDefault)!.expiry.split('/')[1])}
+                          brand={currentData.paymentMethods.find(pm => pm.isDefault)!.brand}
+                          last4={currentData.paymentMethods.find(pm => pm.isDefault)!.last4}
+                          expiryMonth={parseInt(currentData.paymentMethods.find(pm => pm.isDefault)!.expiry.split('/')[0])}
+                          expiryYear={parseInt(currentData.paymentMethods.find(pm => pm.isDefault)!.expiry.split('/')[1])}
                           isDefault={true}
                           onDelete={() => {
-                            const pm = data!.paymentMethods!.find(p => p.isDefault)!;
+                            const pm = currentData!.paymentMethods!.find(p => p.isDefault)!;
                             setCardToDelete({ id: pm.id, brand: pm.brand, last4: pm.last4 });
                           }} 
                           onSetDefault={() => {}} 
@@ -271,11 +288,11 @@ export default function BillingClient({
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Secondary Methods</p>
-                      {data?.paymentMethods && data.paymentMethods.filter(pm => !pm.isDefault).length > 1 && (
+                      {currentData?.paymentMethods && currentData.paymentMethods.filter(pm => !pm.isDefault).length > 1 && (
                         <div className="flex gap-2">
                           <button 
                             onClick={() => {
-                              const secondaryMethods = data.paymentMethods!.filter(pm => !pm.isDefault);
+                              const secondaryMethods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
                               setSecondaryIndex(prev => (prev - 1 + secondaryMethods.length) % secondaryMethods.length);
                             }}
                             className="rounded-full border border-zinc-200 p-1 text-zinc-400 hover:border-zinc-900 hover:text-zinc-900 transition-all"
@@ -286,7 +303,7 @@ export default function BillingClient({
                           </button>
                           <button 
                             onClick={() => {
-                              const secondaryMethods = data.paymentMethods!.filter(pm => !pm.isDefault);
+                              const secondaryMethods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
                               setSecondaryIndex(prev => (prev + 1) % secondaryMethods.length);
                             }}
                             className="rounded-full border border-zinc-200 p-1 text-zinc-400 hover:border-zinc-900 hover:text-zinc-900 transition-all"
@@ -300,9 +317,9 @@ export default function BillingClient({
                     </div>
                     
                     <div className="relative h-[180px] w-full" style={{ perspective: '1000px' }}>
-                      {data?.paymentMethods?.filter(pm => !pm.isDefault).length ? (
-                        data.paymentMethods.filter(pm => !pm.isDefault).map((pm, idx) => {
-                          const methods = data.paymentMethods!.filter(pm => !pm.isDefault);
+                      {currentData?.paymentMethods?.filter(pm => !pm.isDefault).length ? (
+                        currentData.paymentMethods.filter(pm => !pm.isDefault).map((pm, idx) => {
+                          const methods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
                           const length = methods.length;
                           
                           // Calculate relative index for circular behavior
@@ -378,7 +395,10 @@ export default function BillingClient({
                       <p className="mt-1 text-xs text-red-600/60">Cancel your premium subscription and downgrade to the Hobby plan at the end of your term.</p>
                     </div>
                     <button 
-                      onClick={() => setIsCancelModalOpen(true)}
+                      onClick={() => {
+                        setModalPendingPlan("Hobby");
+                        setIsModalOpen(true);
+                      }}
                       className="rounded-2xl border border-red-200 bg-white px-8 py-4 text-[10px] font-black uppercase tracking-widest text-red-500 transition-all hover:bg-red-500 hover:text-white"
                     >
                       Cancel Subscription
@@ -391,156 +411,21 @@ export default function BillingClient({
         </main>
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {cardToDelete && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <div 
-            className="absolute inset-0 bg-zinc-900/40 backdrop-blur-md transition-opacity"
-            onClick={() => setCardToDelete(null)}
-          />
-          <div className="relative w-full max-w-md scale-up-center overflow-hidden rounded-[32px] border border-zinc-200 bg-white p-8 shadow-2xl">
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
-                <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor">
-                  <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              
-              <h3 className="mb-2 text-xl font-black tracking-tight text-zinc-900">Remove Card?</h3>
-              <p className="mb-8 text-sm leading-relaxed text-zinc-500">
-                Are you sure you want to remove your <span className="font-bold text-zinc-900">{cardToDelete.brand}</span> ending in <span className="font-mono font-bold text-zinc-900">{cardToDelete.last4}</span>? This action cannot be undone.
-              </p>
-              
-              <div className="flex w-full gap-3">
-                <button 
-                  onClick={() => setCardToDelete(null)}
-                  className="flex-1 rounded-2xl border border-zinc-200 py-4 text-xs font-black uppercase tracking-widest text-zinc-400 transition-all hover:bg-zinc-50 hover:text-zinc-900"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={() => handleDeletePayment(cardToDelete.id)}
-                  className="flex-1 rounded-2xl bg-red-500 py-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-red-500/20 transition-all hover:bg-red-600 hover:shadow-red-600/30"
-                >
-                  Remove Card
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Cancel Subscription Modal */}
-      {isCancelModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <div 
-            className="absolute inset-0 bg-zinc-900/40 backdrop-blur-md transition-opacity"
-            onClick={() => setIsCancelModalOpen(false)}
-          />
-          <div className="relative w-full max-w-lg scale-up-center overflow-hidden rounded-[32px] border border-zinc-200 bg-white p-10 shadow-2xl">
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
-                <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor">
-                  <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              
-              <h3 className="mb-2 text-2xl font-black tracking-tight text-zinc-900">Cancel Subscription?</h3>
-              <p className="mb-8 text-sm leading-relaxed text-zinc-500">
-                Your <span className="font-bold text-zinc-900">{currentPlan}</span> plan will remain active until <span className="font-bold text-zinc-900">{new Date(data?.nextInvoiceDate || "").toLocaleDateString()}</span>. After that, you'll be downgraded to the Hobby plan.
-              </p>
-
-              <div className="mb-8 w-full space-y-4 rounded-3xl border border-zinc-100 bg-zinc-50/50 p-6 text-left">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Step 1: Choose 3 Keys to Keep</p>
-                  <p className="mt-1 text-[11px] text-zinc-500">The Hobby plan only supports 3 active API keys. Please select your favorites.</p>
-                </div>
-                
-                <div className="grid gap-2">
-                  {(data?.keys || []).map(key => {
-                    const isSelected = keysToKeep.includes(key.id);
-                    return (
-                      <button
-                        key={key.id}
-                        onClick={() => {
-                          if (isSelected) {
-                            setKeysToKeep(prev => prev.filter(id => id !== key.id));
-                          } else if (keysToKeep.length < 3) {
-                            setKeysToKeep(prev => [...prev, key.id]);
-                          }
-                        }}
-                        className={`flex items-center justify-between rounded-xl border p-4 transition-all ${
-                          isSelected 
-                            ? 'border-zinc-900 bg-zinc-900 text-white shadow-md' 
-                            : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400'
-                        }`}
-                      >
-                        <div className="text-left">
-                          <p className="text-xs font-bold">{key.name}</p>
-                          <p className={`text-[9px] ${isSelected ? 'text-zinc-400' : 'text-zinc-400'}`}>{key.usage_count} requests this month</p>
-                        </div>
-                        {isSelected && (
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                            <path d="M5 13l4 4L19 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              
-              <div className="flex w-full gap-3">
-                <button 
-                  onClick={() => setIsCancelModalOpen(false)}
-                  className="flex-1 rounded-2xl border border-zinc-200 py-4 text-xs font-black uppercase tracking-widest text-zinc-400 transition-all hover:bg-zinc-50 hover:text-zinc-900"
-                >
-                  Go Back
-                </button>
-                <button 
-                  disabled={keysToKeep.length !== 3 && (data?.keys?.length || 0) >= 3}
-                  onClick={async () => {
-                    try {
-                      setIsLoading(true);
-                      const res = await fetch("/api/stripe/cancel-subscription", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ keysToKeep }),
-                      });
-                      if (res.ok) {
-                        setIsCancelModalOpen(false);
-                        await fetchBillingData();
-                        showToast("success", "Subscription scheduled for cancellation.");
-                      } else {
-                        throw new Error("Failed to cancel subscription.");
-                      }
-                    } catch (_err) {
-                      showToast("error", "Failed to cancel subscription.");
-                    } finally {
-                      setIsLoading(false);
-                    }
-                  }}
-                  className="flex-1 rounded-2xl bg-zinc-900 py-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-zinc-900/20 transition-all hover:bg-black disabled:opacity-50"
-                >
-                  Confirm Downgrade
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <SubscriptionModal 
         key={isModalOpen ? "open" : "closed"}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         planName={currentPlan}
+        nextBillingDate={data?.nextInvoiceDate}
         initialView={modalInitialView}
         initialPendingPlan={modalPendingPlan}
         initialBillingInterval={modalBillingInterval}
-        onSuccess={(msg) => showToast("success", msg)}
+        onSuccess={(msg) => {
+          showToast("success", msg);
+          fetchBillingData(); // Refresh data after any subscription change
+        }}
         onError={(msg) => showToast("error", msg)}
-        onDowngrade={() => { setIsModalOpen(false); setIsCancelModalOpen(true); }}
       />
 
       <Toast toast={toast} />

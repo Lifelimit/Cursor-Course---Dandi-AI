@@ -91,8 +91,30 @@ export function ApiKeyTable({
     k.key_value.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const UsageSparkline = ({ trend }: { trend?: { count: number }[] }) => {
-    if (!trend || trend.length === 0) return <div className="h-4 w-12 bg-zinc-50 rounded" />;
+  const UsageSparkline = ({ trend, usageCount, intensityColor }: { trend?: { count: number }[], usageCount: number, intensityColor: string }) => {
+    if (!trend || trend.length === 0) {
+      if (usageCount > 0) {
+        // Single Day "Blip" - Shows activity even with 1 data point
+        return (
+          <svg width="48" height="16" className="overflow-visible">
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              points="0,14 12,14 24,4 36,14 48,14"
+              className={intensityColor.split(' ')[0] + " opacity-50"}
+            />
+          </svg>
+        );
+      }
+      return (
+        <svg width="48" height="16" className="opacity-20">
+          <line x1="0" y1="8" x2="48" y2="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 4" strokeLinecap="round" className="text-zinc-400" />
+        </svg>
+      );
+    }
     const max = Math.max(...trend.map(d => d.count), 1);
     const points = trend.map((d, i) => `${(i / (trend.length - 1)) * 48},${16 - (d.count / max) * 16}`).join(" ");
     
@@ -105,7 +127,7 @@ export function ApiKeyTable({
           strokeLinecap="round"
           strokeLinejoin="round"
           points={points}
-          className="text-emerald-500/50"
+          className={intensityColor.split(' ')[0]}
         />
       </svg>
     );
@@ -157,55 +179,70 @@ export function ApiKeyTable({
                 </td>
               </tr>
             ) : null}
-            {filteredKeys.map((key) => (
-              <React.Fragment key={key.id}>
-              <tr
-                className={`group transition-all ${!key.is_active ? "bg-zinc-50/50 opacity-60 cursor-pointer" : "hover:bg-zinc-50/30"}`}
-                onClick={!key.is_active ? () => setPromptedKeyId(promptedKeyId === key.id ? null : key.id) : undefined}
-              >
-                <td className="px-8 py-5">
-                  <div className="flex items-center gap-3">
-                    <div className="relative flex h-2 w-2 shrink-0">
-                      {key.is_active ? (
-                        <>
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                        </>
-                      ) : (
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
-                      )}
-                    </div>
-                    <span className={`font-medium tracking-tight ${!key.is_active ? "text-zinc-400" : "text-zinc-900"}`}>{key.name}</span>
-                  </div>
-                </td>
-                
-                <td className="px-4 py-5">
-                  {key.type === "production" ? (
-                    <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-indigo-600 border border-indigo-100">Prod</span>
-                  ) : (
-                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-amber-600 border border-amber-100">Dev</span>
-                  )}
-                </td>
+            {filteredKeys.map((key) => {
+              const currentLimit = key.monthly_limit;
+              const usagePercent = currentLimit ? Math.min((key.usage_count / currentLimit) * 100, 100) : 0;
+              const intensityColor = !key.is_active 
+                ? 'bg-zinc-200 text-zinc-200'
+                : usagePercent > 90 
+                  ? 'bg-rose-500 text-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.3)]' 
+                  : usagePercent > 70 
+                    ? 'bg-amber-500 text-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.25)]' 
+                    : 'bg-emerald-500 text-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.2)]';
 
-                <td className="px-4 py-5">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 space-y-1.5">
-                      <div className="flex items-center justify-between text-[10px] font-bold tabular-nums">
-                        <span className={!key.is_active ? "text-zinc-300" : "text-zinc-900"}>{key.usage_count.toLocaleString()}</span>
-                        <span className="text-zinc-300">/ {key.monthly_limit ?? "∞"}</span>
+              return (
+                <React.Fragment key={key.id}>
+                <tr
+                  className={`group transition-all ${!key.is_active ? "bg-zinc-50/50 opacity-60 cursor-pointer" : "hover:bg-zinc-50/30"}`}
+                  onClick={!key.is_active ? () => setPromptedKeyId(promptedKeyId === key.id ? null : key.id) : undefined}
+                >
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-3">
+                      <div className="relative flex h-2 w-2 shrink-0">
+                        {key.is_active ? (
+                          <>
+                            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${intensityColor.split(' ')[0].replace('bg-', 'bg-')} opacity-75`}></span>
+                            <span className={`relative inline-flex rounded-full h-2 w-2 ${intensityColor.split(' ')[0]}`}></span>
+                          </>
+                        ) : (
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
+                        )}
                       </div>
-                      <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-100">
-                        <div 
-                          className={`h-full transition-all duration-500 ${!key.is_active ? "bg-zinc-200" : "bg-emerald-500"}`}
-                          style={{ width: `${key.monthly_limit ? Math.min((key.usage_count / key.monthly_limit) * 100, 100) : 0}%` }}
+                      <span className={`font-medium tracking-tight ${!key.is_active ? "text-zinc-400" : "text-zinc-900"}`}>{key.name}</span>
+                    </div>
+                  </td>
+                  
+                  <td className="px-4 py-5">
+                    {key.type === "production" ? (
+                      <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-indigo-600 border border-indigo-100">Prod</span>
+                    ) : (
+                      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-amber-600 border border-amber-100">Dev</span>
+                    )}
+                  </td>
+
+                  <td className="px-4 py-5">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1 space-y-1.5">
+                        <div className="flex items-center justify-between text-[10px] font-bold tabular-nums">
+                          <span className={!key.is_active ? "text-zinc-300" : "text-zinc-900"}>{key.usage_count.toLocaleString()}</span>
+                          <span className="text-zinc-300">/ {key.monthly_limit ?? "∞"}</span>
+                        </div>
+                        <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-100">
+                          <div 
+                            className={`h-full transition-all duration-500 ${intensityColor}`}
+                            style={{ width: `${usagePercent}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="shrink-0">
+                        <UsageSparkline 
+                          trend={key.dailyTrend} 
+                          usageCount={key.usage_count} 
+                          intensityColor={intensityColor} 
                         />
                       </div>
                     </div>
-                    <div className="shrink-0">
-                      <UsageSparkline trend={key.dailyTrend} />
-                    </div>
-                  </div>
-                </td>
+                  </td>
 
                 <td className="px-4 py-5">
                   <div className="flex items-center gap-2 group/key">
@@ -277,10 +314,11 @@ export function ApiKeyTable({
                 </td>
               </tr>
             )}
-            </React.Fragment>
-          ))}
-        </tbody>
-      </table>
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );

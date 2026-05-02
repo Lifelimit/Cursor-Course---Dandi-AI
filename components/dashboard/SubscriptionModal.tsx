@@ -7,11 +7,12 @@ type SubscriptionModalProps = {
   isOpen: boolean;
   onClose: () => void;
   planName: string;
-  onSuccess?: (message: string) => void;
-  onError?: (message: string) => void;
+  nextBillingDate?: string | null;
   initialView?: "overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review" | "remove-card-confirm" | "key-downgrade-selector";
   initialPendingPlan?: string | null;
   initialBillingInterval?: "month" | "year";
+  onSuccess?: (message: string) => void;
+  onError?: (message: string) => void;
   onDowngrade?: () => void;
 };
 
@@ -25,7 +26,7 @@ import { PlanReview } from "./subscription/PlanReview";
 import { Overview } from "./subscription/Overview";
 import { KeyDowngradeSelector } from "./subscription/KeyDowngradeSelector";
 
-export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onError, initialView, initialPendingPlan, initialBillingInterval, onDowngrade }: SubscriptionModalProps) {
+export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, onSuccess, onError, initialView, initialPendingPlan, initialBillingInterval, onDowngrade }: SubscriptionModalProps) {
   const router = useRouter();
   const { data: session, update } = useSession();
   const [transactionId] = useState(() => Math.random().toString(36).substring(2, 9).toUpperCase());
@@ -157,16 +158,26 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
   const handleCancelAction = async (keepCard: boolean) => {
     setIsLoading(true);
     try {
+      // Before cancelling, check if we need to show the key selection selector
+      const res = await fetch("/api/keys");
+      const keys = await res.json();
+      if (Array.isArray(keys) && keys.length > 3) {
+        // Switch to the key selector instead of finishing the cancellation
+        setView("key-downgrade-selector");
+        setIsLoading(false);
+        return;
+      }
+
       if (!keepCard) {
         await removePaymentMethodAction();
       }
       await updatePlanAction("Hobby");
       await update();
       router.refresh();
-      onSuccess?.("Subscription cancelled successfully.");
+      onSuccess?.("Subscription scheduled for cancellation.");
       onClose();
     } catch {
-      onError?.("Failed to cancel subscription.");
+      onError?.("Failed to process cancellation. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -365,7 +376,8 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     if (newPlan === planName) return;
     
     if (newPlan === "Hobby") {
-      onDowngrade?.();
+      setPendingPlan("Hobby");
+      handleInitiateDowngrade();
       return;
     }
     // If already on a paid plan, show review screen
@@ -492,7 +504,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
         onClick={onClose}
       />
 
-      <div className={`relative z-10 w-full overflow-hidden rounded-[40px] border border-zinc-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300 transition-all duration-500 ${isInitializing ? 'max-w-sm' : (view === 'update-payment' || view === 'success' || view === 'plan-change-review') ? 'max-w-4xl' : view === 'key-downgrade-selector' ? 'max-w-xl' : 'max-w-lg'}`}>
+      <div className={`relative z-10 w-full overflow-hidden rounded-[40px] border border-zinc-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300 ${isInitializing ? 'max-w-sm' : (view === 'update-payment' || view === 'success' || view === 'plan-change-review') ? 'max-w-4xl' : (view === 'key-downgrade-selector' || view === 'cancel-confirm') ? 'max-w-xl' : 'max-w-lg'}`}>
         
         {isInitializing ? (
           <div className="flex flex-col items-center justify-center gap-6 p-12">
@@ -500,31 +512,39 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
             <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 text-center">Verifying Operational Status...</p>
           </div>
         ) : (
-          <>
-            {/* Header Section */}
-            <div className={`relative p-8 transition-colors duration-500 ${(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector') ? 'bg-rose-600 text-white' : 'bg-[#18181b] text-white'}`}>
+          <div key={view} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Adaptive Header: Softened Rose-Red for destructive actions, Zinc-900 for others */}
+            <div className={`relative p-10 transition-all duration-500 overflow-hidden ${(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector') 
+              ? 'bg-gradient-to-br from-[#d40035] to-[#f4003d] text-white' 
+              : 'bg-[#18181b] text-white'}`}>
+              
+              {/* Subtle Grain Overlay for Destructive Views */}
+              {(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector') && (
+                <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")' }} />
+              )}
+              
               <button 
                 onClick={onClose}
-                className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors"
+                className="absolute top-8 right-8 text-white/30 hover:text-white transition-colors z-10"
               >
                 <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
                   <path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
               
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 italic">
+              <div className="relative z-10 space-y-2">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">
                   {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : view === "remove-card-confirm" ? "Confirm Removal" : view === "key-downgrade-selector" ? "Hobby Plan Limit" : "Confirm Cancellation"}
                 </p>
-                <h3 className="font-serif text-4xl font-bold italic">
-                  {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Thank You!" : view === "plan-change-review" ? "Confirm Switch" : view === "remove-card-confirm" ? "Remove Card?" : view === "key-downgrade-selector" ? "Select Keys to Keep" : "Wait! Are you sure?"}
+                <h3 className="font-serif text-6xl font-bold italic tracking-tight">
+                  {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Thank You!" : view === "plan-change-review" ? "Confirm Switch" : view === "remove-card-confirm" ? "Remove Card?" : view === "key-downgrade-selector" ? "Select Keys" : "Cancel Plan?"}
                 </h3>
               </div>
 
-              {view === "overview" && (
-                <div className="mt-8 flex items-end gap-2">
-                  <span className="text-5xl font-bold">{currentPlan.price}</span>
-                  <span className="mb-1 text-sm font-medium text-white/50">/ per month</span>
+              {view === "overview" && planName !== "Hobby" && (
+                <div className="relative z-10 mt-10 flex items-baseline gap-2">
+                  <span className="text-7xl font-bold tracking-tighter">{currentPlan.price}</span>
+                  <span className="text-sm font-medium text-white/40">/ per month</span>
                 </div>
               )}
             </div>
@@ -588,6 +608,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
             <CancelConfirmation 
               isLoading={isLoading}
               hasCard={!!cardData.number}
+              nextBillingDate={nextBillingDate}
               onConfirm={handleCancelAction}
               onCancel={onClose}
             />
@@ -610,7 +631,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
             />
           )}
         </div>
-        </>
+          </div>
         )}
       </div>
     </div>

@@ -6,18 +6,25 @@ import { useRouter } from "next/navigation";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useSession } from "next-auth/react";
 import type { Session } from "next-auth";
+import type { ApiKey } from "@/types/api";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { CodeSnippet } from "@/components/playground/CodeSnippet";
 import { JsonViewer } from "@/components/playground/JsonViewer";
 import { NetworkLog, type LogEntry } from "@/components/playground/NetworkLog";
 
-export default function PlaygroundClient({ initialSession }: { initialSession: Session | null }) {
+export default function PlaygroundClient({ 
+  initialSession,
+  initialKeys = []
+}: { 
+  initialSession: Session | null;
+  initialKeys?: ApiKey[];
+}) {
   const router = useRouter();
   const { data: session } = useSession();
   const activeSession = initialSession || session;
   
-  const { apiKeys } = useApiKeys();
+  const { apiKeys } = useApiKeys(initialKeys);
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
   // Dynamic Tier Logic

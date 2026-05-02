@@ -13,12 +13,18 @@ import { ApiKeyModal } from "@/components/dashboard/ApiKeyModal";
 import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
 import { useRouter } from "next/navigation";
 
-export default function DashboardClient({ initialSession }: { initialSession: Session | null }) {
+export default function DashboardClient({ 
+  initialSession, 
+  initialKeys = [] 
+}: { 
+  initialSession: Session | null;
+  initialKeys?: ApiKey[];
+}) {
   const router = useRouter();
   const { data: session } = useSession();
   const activeSession = initialSession || session; 
   
-  const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey } = useApiKeys();
+  const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey } = useApiKeys(initialKeys);
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
   // Dynamic Tier Logic - Using the most recent session data available

@@ -60,14 +60,17 @@ export function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
                   </div>
                 </td>
                 <td className="px-8 py-6 text-right">
-                  <button 
-                    disabled={!invoice.receiptUrl}
-                    className="rounded-full border border-zinc-200 bg-white p-2 text-zinc-400 transition-all hover:border-zinc-900 hover:text-zinc-900 disabled:opacity-30 shadow-sm"
+                  <a
+                    href={invoice.receiptUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="View Stripe Invoice"
+                    className={`inline-flex items-center justify-center rounded-full border border-zinc-200 bg-white p-2 text-zinc-400 transition-all hover:border-zinc-900 hover:text-zinc-900 shadow-sm ${!invoice.receiptUrl || invoice.receiptUrl === '#' ? 'pointer-events-none opacity-30' : ''}`}
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
                       <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
-                  </button>
+                  </a>
                 </td>
               </tr>
             ))}
