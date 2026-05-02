@@ -66,8 +66,27 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
       if (isOpen) {
         // Prevent synchronous setState warning
         await Promise.resolve();
-        setView(initialView || "overview");
-        setPendingPlan(initialPendingPlan || null);
+        
+        let targetView = initialView || "overview";
+        const finalPendingPlan = initialPendingPlan || null;
+
+        // Unified Downgrade Audit
+        if (finalPendingPlan === "Hobby") {
+          try {
+            const res = await fetch("/api/keys");
+            const keys = await res.json();
+            if (Array.isArray(keys) && keys.length > 3) {
+              targetView = "key-downgrade-selector";
+            } else {
+              targetView = "cancel-confirm";
+            }
+          } catch {
+            targetView = "cancel-confirm";
+          }
+        }
+
+        setView(targetView);
+        setPendingPlan(finalPendingPlan);
         
         const s = session?.user;
       if (s) {
@@ -514,14 +533,14 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
               isLoading={isLoading}
               hasCard={!!cardData.number}
               onConfirm={handleKeyDowngradeConfirm}
-              onBack={() => setView("change-plan")}
+              onBack={onClose}
             />
           ) : view === "cancel-confirm" ? (
             <CancelConfirmation 
               isLoading={isLoading}
               hasCard={!!cardData.number}
               onConfirm={handleCancelAction}
-              onCancel={() => setView("overview")}
+              onCancel={onClose}
             />
           ) : view === "remove-card-confirm" ? (
             <RemoveCardConfirmation 

@@ -34,10 +34,10 @@ export function PricingSection({
 
   const handleUpdatePlan = async (planId: string) => {
     
-    // Downgrading to Hobby -> show cancel confirm warning
+    // Downgrading to Hobby -> let modal handle the audit (selector vs confirm)
     if (planId === "Hobby" && currentPlanId !== "Hobby") {
-      setModalInitialView("cancel-confirm");
-      setModalPendingPlan(null);
+      setModalInitialView("overview");
+      setModalPendingPlan("Hobby");
       setIsModalOpen(true);
       return;
     }
