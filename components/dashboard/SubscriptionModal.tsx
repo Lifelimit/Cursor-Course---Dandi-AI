@@ -64,6 +64,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
   useEffect(() => {
     const initializeState = async () => {
       if (isOpen) {
+        setIsInitializing(true);
         let targetView = initialView || "overview";
         const finalPendingPlan = initialPendingPlan || null;
 
@@ -86,57 +87,58 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
         setPendingPlan(finalPendingPlan);
         
         const s = session?.user;
-      if (s) {
-        setCardData(prev => ({
-          ...prev,
-          name: s.full_name || prev.name,
-          number: s.payment_method_last4 ? `•••• •••• •••• ${s.payment_method_last4}` : "",
-          brand: s.payment_method_brand || "",
-          expiry: s.payment_method_expiry || "",
-          street: s.billing_street || prev.street,
-          city: s.billing_city || prev.city,
-          state: s.billing_state || prev.state,
-          zip: s.billing_zip || prev.zip,
-          country: s.billing_country || prev.country
-        }));
-        setShowAddressForm(!s.billing_street);
-        
-        setFormValues({
-          name: s.full_name || "",
-          number: "",
-          expiry: s.payment_method_expiry || "",
-          cvc: "",
-          street: s.billing_street || "",
-          city: s.billing_city || "",
-          state: s.billing_state || "",
-          zip: s.billing_zip || "",
-          country: s.billing_country || ""
-        });
-      } else {
-        setFormValues({
-          name: "",
-          number: "",
-          expiry: "",
-          cvc: "",
-          street: "",
-          city: "",
-          state: "",
-          zip: "",
-          country: ""
-        });
-      }
+        if (s) {
+          setCardData(prev => ({
+            ...prev,
+            name: s.full_name || prev.name,
+            number: s.payment_method_last4 ? `•••• •••• •••• ${s.payment_method_last4}` : "",
+            brand: s.payment_method_brand || "",
+            expiry: s.payment_method_expiry || "",
+            street: s.billing_street || prev.street,
+            city: s.billing_city || prev.city,
+            state: s.billing_state || prev.state,
+            zip: s.billing_zip || prev.zip,
+            country: s.billing_country || prev.country
+          }));
+          setShowAddressForm(!s.billing_street);
+          
+          setFormValues({
+            name: s.full_name || "",
+            number: "",
+            expiry: s.payment_method_expiry || "",
+            cvc: "",
+            street: s.billing_street || "",
+            city: s.billing_city || "",
+            state: s.billing_state || "",
+            zip: s.billing_zip || "",
+            country: s.billing_country || ""
+          });
+        } else {
+          setFormValues({
+            name: "",
+            number: "",
+            expiry: "",
+            cvc: "",
+            street: "",
+            city: "",
+            state: "",
+            zip: "",
+            country: ""
+          });
+        }
+        setIsInitializing(false);
       }
     };
     initializeState();
   }, [isOpen, session, initialView, initialPendingPlan]);
 
-  // Mandatory state scrub when closed to prevent "flash" of previous data
+  // Mandatory state scrub when closed
   useEffect(() => {
     if (!isOpen) {
       const timer = setTimeout(() => {
         setView("overview");
         setPendingPlan(null);
-      }, 500); // Decisive delay to clear memory after exit animation
+      }, 0);
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
@@ -495,9 +497,14 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
           )}
         </div>
 
-        {/* Content Section */}
-        <div className="p-8 space-y-8 min-h-[350px] flex flex-col">
-          {view === "change-plan" ? (
+        {/* Body Section */}
+        <div className="p-8">
+          {isInitializing ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-24">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-100 border-t-zinc-900" />
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400">Verifying Operational Status...</p>
+            </div>
+          ) : view === "change-plan" ? (
             <PlanSelection 
               planName={planName}
               isLoading={isLoading}
