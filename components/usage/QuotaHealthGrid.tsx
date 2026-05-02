@@ -21,6 +21,7 @@ type KeyData = {
 
 export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate: () => void }) {
   const [confirmingKillId, setConfirmingKillId] = useState<string | null>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const activeKeys = keys.filter(k => k.is_active);
   const deadKeys = keys.filter(k => !k.is_active);
 
@@ -80,6 +81,39 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
               key={key.id} 
               className={`relative flex flex-col rounded-[32px] border bg-white p-8 transition-all shadow-sm ${alertStyles}`}
             >
+              {confirmingDeleteId === key.id && (
+                <div className="absolute inset-0 z-[20] flex flex-col items-center justify-center rounded-[32px] bg-zinc-900/95 p-8 text-white backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
+                  <div className="mb-4 rounded-full bg-white/10 p-4">
+                    <svg viewBox="0 0 24 24" className="h-8 w-8 text-white" fill="none" stroke="currentColor">
+                      <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <h3 className="mb-2 font-serif text-xl font-bold italic tracking-tight">PERMANENT PURGE?</h3>
+                  <p className="mb-8 text-center text-[10px] font-black uppercase tracking-[0.2em] text-white/50">
+                    This will erase <br/> 
+                    <span className="text-white">&quot;{key.name}&quot;</span> <br/>
+                    forever.
+                  </p>
+                  <div className="flex w-full gap-3">
+                    <button 
+                      onClick={() => setConfirmingDeleteId(null)}
+                      className="flex-1 rounded-2xl bg-white/10 px-4 py-4 text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all active:scale-95"
+                    >
+                      Abort
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        await fetch(`/api/keys/${key.id}`, { method: 'DELETE' });
+                        setConfirmingDeleteId(null);
+                        onUpdate();
+                      }}
+                      className="flex-1 rounded-2xl bg-red-600 px-4 py-4 text-[10px] font-black uppercase tracking-widest text-white hover:bg-red-700 transition-all active:scale-95 shadow-xl"
+                    >
+                      Confirm Purge
+                    </button>
+                  </div>
+                </div>
+              )}
               {confirmingKillId === key.id && (
                 <div className="absolute inset-0 z-[20] flex flex-col items-center justify-center rounded-[32px] bg-red-600/95 p-8 text-white backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
                   <div className="mb-4 rounded-full bg-white/20 p-4">
@@ -199,12 +233,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                     </button>
                   </div>
                   <button 
-                    onClick={async () => {
-                      if (confirm(`Are you sure you want to PERMANENTLY delete "${key.name}"? This cannot be undone.`)) {
-                        await fetch(`/api/keys/${key.id}`, { method: 'DELETE' });
-                        onUpdate();
-                      }
-                    }}
+                    onClick={() => setConfirmingDeleteId(key.id)}
                     className="w-full text-center text-[8px] font-black uppercase tracking-widest text-zinc-400 hover:text-red-600 transition-colors pt-2"
                   >
                     Remove Permanently
@@ -240,6 +269,39 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {deadKeys.map((key) => (
               <div key={key.id} className="group relative rounded-[32px] border border-zinc-100 bg-zinc-50/50 p-8 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all">
+                {confirmingDeleteId === key.id && (
+                  <div className="absolute inset-0 z-[20] flex flex-col items-center justify-center rounded-[32px] bg-zinc-900/95 p-8 text-white backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
+                    <div className="mb-4 rounded-full bg-white/10 p-4">
+                      <svg viewBox="0 0 24 24" className="h-8 w-8 text-white" fill="none" stroke="currentColor">
+                        <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <h3 className="mb-2 font-serif text-xl font-bold italic tracking-tight">PERMANENT PURGE?</h3>
+                    <p className="mb-8 text-center text-[10px] font-black uppercase tracking-[0.2em] text-white/50">
+                      This will erase <br/> 
+                      <span className="text-white">&quot;{key.name}&quot;</span> <br/>
+                      forever.
+                    </p>
+                    <div className="flex w-full gap-3">
+                      <button 
+                        onClick={() => setConfirmingDeleteId(null)}
+                        className="flex-1 rounded-2xl bg-white/10 px-4 py-4 text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all active:scale-95"
+                      >
+                        Abort
+                      </button>
+                      <button 
+                        onClick={async () => {
+                          await fetch(`/api/keys/${key.id}`, { method: 'DELETE' });
+                          setConfirmingDeleteId(null);
+                          onUpdate();
+                        }}
+                        className="flex-1 rounded-2xl bg-red-600 px-4 py-4 text-[10px] font-black uppercase tracking-widest text-white hover:bg-red-700 transition-all active:scale-95 shadow-xl"
+                      >
+                        Confirm Purge
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start justify-between mb-4">
                   <div className="space-y-1">
                     <h3 className="font-serif text-lg font-bold text-zinc-400 group-hover:text-zinc-900">{key.name}</h3>
@@ -261,12 +323,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                     Re-enable Key
                   </button>
                   <button 
-                    onClick={async () => {
-                      if (confirm(`Are you sure you want to PERMANENTLY delete "${key.name}"? This cannot be undone.`)) {
-                        await fetch(`/api/keys/${key.id}`, { method: 'DELETE' });
-                        onUpdate();
-                      }
-                    }}
+                    onClick={() => setConfirmingDeleteId(key.id)}
                     className="flex items-center justify-center rounded-xl border border-zinc-200 bg-white px-3 py-3 text-[8px] font-black uppercase tracking-widest text-zinc-400 hover:text-red-600 transition-colors"
                   >
                     Delete
