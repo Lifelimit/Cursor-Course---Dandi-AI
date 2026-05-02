@@ -15,6 +15,14 @@ export async function POST(req: Request) {
       return new NextResponse("Price ID is required", { status: 400 });
     }
 
+    // Log the metadata we're about to send
+    console.log("💳 Creating Stripe Checkout Session", {
+      userId: session.user.id,
+      email: session.user.email,
+      planId,
+      priceId
+    });
+
     // Create a Checkout Session
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -29,8 +37,14 @@ export async function POST(req: Request) {
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?canceled=true`,
       customer_email: session.user.email,
       metadata: {
-        userId: session.user.id || "",
+        userId: session.user.id as string,
         planId: planId,
+      },
+      subscription_data: {
+        metadata: {
+          userId: session.user.id as string,
+          planId: planId,
+        },
       },
     });
 
