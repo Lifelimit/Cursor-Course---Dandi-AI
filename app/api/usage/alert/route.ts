@@ -5,7 +5,7 @@ import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 export async function PATCH(request: Request) {
   try {
     const userId = await getAuthenticatedUserId();
-    const { keyId, threshold, channels, phone, monthlyLimit } = await request.json();
+    const { keyId, threshold, channels, phone, monthlyLimit, isActive } = await request.json();
 
     if (!keyId) {
       return NextResponse.json({ error: "keyId is required" }, { status: 400 });
@@ -17,6 +17,7 @@ export async function PATCH(request: Request) {
     if (channels !== undefined) updateData.alert_channels = channels;
     if (phone !== undefined) updateData.alert_phone = phone;
     if (monthlyLimit !== undefined) updateData.monthly_limit = monthlyLimit;
+    if (isActive !== undefined) updateData.is_active = isActive;
 
     // Verify ownership and update
     const { error } = await supabaseAdmin
