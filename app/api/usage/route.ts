@@ -87,47 +87,51 @@ export async function GET() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // 5. Calculate the next monthly quota reset date
-    const session = await auth();
-    const userEmail = session?.user?.email;
-
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("billing_next_date, created_at")
-      .ilike("email", userEmail || "")
-      .single();
-
+    // 5. Calculate the next monthly quota reset date safely
     let resetDate = null;
-    
-    // If we have a billing_next_date (from Stripe)
-    if (profile?.billing_next_date) {
-      const nextBilling = new Date(profile.billing_next_date);
-      
-      // If the billing is more than a month away (Annual plan), 
-      // we find the next monthly anniversary of the current date
-      // using the same day of the month as the billing date.
-      if (nextBilling.getTime() - now.getTime() > 32 * 24 * 60 * 60 * 1000) {
-        const resetDay = nextBilling.getDate();
-        let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
-        
-        // If the day has already passed this month, move to next month
-        if (nextReset <= now) {
-          nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
+    try {
+      const session = await auth();
+      const userEmail = session?.user?.email;
+
+      if (userEmail) {
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("billing_next_date, created_at")
+          .ilike("email", userEmail)
+          .single();
+
+        if (profile) {
+          // If we have a billing_next_date (from Stripe)
+          if (profile.billing_next_date) {
+            const nextBilling = new Date(profile.billing_next_date);
+            const now = new Date();
+            
+            // If the billing is more than a month away (Annual plan), 
+            // find the next monthly anniversary.
+            if (nextBilling.getTime() - now.getTime() > 32 * 24 * 60 * 60 * 1000) {
+              const resetDay = nextBilling.getDate();
+              let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
+              if (nextReset <= now) {
+                nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
+              }
+              resetDate = nextReset.toISOString();
+            } else {
+              resetDate = profile.billing_next_date;
+            }
+          } else if (profile.created_at) {
+            const created = new Date(profile.created_at);
+            const now = new Date();
+            const resetDay = created.getDate();
+            let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
+            if (nextReset <= now) {
+              nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
+            }
+            resetDate = nextReset.toISOString();
+          }
         }
-        resetDate = nextReset.toISOString();
-      } else {
-        // It's a monthly plan or the annual plan is expiring soon
-        resetDate = profile.billing_next_date;
       }
-    } else if (profile?.created_at) {
-      // Fallback for users without Stripe data yet
-      const created = new Date(profile.created_at);
-      const resetDay = created.getDate();
-      let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
-      if (nextReset <= now) {
-        nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
-      }
-      resetDate = nextReset.toISOString();
+    } catch (dateErr) {
+      console.error("⚠️ Usage API: Reset date calculation failed:", dateErr);
     }
 
     console.log("📊 Usage API: Final resetDate being sent to UI:", resetDate);
@@ -139,6 +143,7 @@ export async function GET() {
       resetDate
     });
   } catch (err) {
+    console.error("❌ Usage API: Critical failure:", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
