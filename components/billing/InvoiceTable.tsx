@@ -2,11 +2,11 @@
 
 import React from "react";
 
-type Invoice = {
+export type Invoice = {
   id: string;
   date: string;
   amount: number;
-  status: 'paid' | 'pending' | 'failed';
+  status: 'paid' | 'pending' | 'failed' | 'unpaid';
   receiptUrl?: string;
 };
 
@@ -48,11 +48,13 @@ export function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
                 <td className="px-8 py-6">
                   <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[8px] font-black uppercase tracking-widest ${
                     invoice.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 
-                    invoice.status === 'failed' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
+                    invoice.status === 'failed' ? 'bg-red-50 text-red-600' : 
+                    (invoice.status === 'pending' || invoice.status === 'unpaid') ? 'bg-amber-50 text-amber-600' : 'bg-zinc-50 text-zinc-600'
                   }`}>
                     <div className={`h-1 w-1 rounded-full ${
                       invoice.status === 'paid' ? 'bg-emerald-500' : 
-                      invoice.status === 'failed' ? 'bg-red-500' : 'bg-amber-500'
+                      invoice.status === 'failed' ? 'bg-red-500' : 
+                      (invoice.status === 'pending' || invoice.status === 'unpaid') ? 'bg-amber-500' : 'bg-zinc-500'
                     }`} />
                     {invoice.status}
                   </div>

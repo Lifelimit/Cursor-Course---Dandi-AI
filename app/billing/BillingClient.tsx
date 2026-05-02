@@ -9,7 +9,7 @@ import { Toast } from "@/components/ui/Toast";
 import { PlanHero } from "@/components/billing/PlanHero";
 import { PlanComparison } from "@/components/billing/PlanComparison";
 import { PaymentMethodCard } from "@/components/billing/PaymentMethodCard";
-import { InvoiceTable } from "@/components/billing/InvoiceTable";
+import { InvoiceTable, type Invoice } from "@/components/billing/InvoiceTable";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 
 
@@ -17,25 +17,20 @@ type BillingData = {
   totalUsage: number;
   resetDate: string | null;
   keys: {
+    id: string;
     name: string;
+    is_active: boolean;
     usage_count: number;
     monthly_limit: number | null;
     alert_threshold: number | null;
     alert_channels: string[] | null;
+    dailyTrend?: number[];
   }[];
 };
 
 const MOCK_CARDS = [
   { brand: "Visa", last4: "4242", expiryMonth: 12, expiryYear: 2026, isDefault: true }
 ];
-
-type Invoice = {
-  id: string;
-  date: string;
-  amount: number;
-  status: 'paid' | 'pending' | 'failed' | 'unpaid';
-  receiptUrl?: string;
-};
 
 export default function BillingClient({ 
   initialSession, 

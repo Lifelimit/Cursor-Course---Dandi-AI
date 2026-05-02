@@ -11,6 +11,8 @@ declare module "next-auth" {
       billing_state?: string | null;
       billing_zip?: string | null;
       billing_country?: string | null;
+      billing_interval?: "month" | "year";
+      stripe_customer_id?: string | null;
       payment_method_last4?: string | null;
       payment_method_brand?: string | null;
       payment_method_expiry?: string | null;
