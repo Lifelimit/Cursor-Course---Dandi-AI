@@ -12,12 +12,16 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
     price: "$20",
     features: ["5,000 requests / mo", "Unlimited Active Keys", "Priority Support"],
     nextBilling: "May 24, 2026",
+    monthlyPriceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID,
+    yearlyPriceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY_PRICE_ID,
   },
   Researcher: {
     id: "Researcher",
     price: "$99",
     features: ["Unlimited requests / mo", "Unlimited Active Keys", "Custom Branding", "Priority Support"],
     nextBilling: "May 24, 2026",
+    monthlyPriceId: process.env.NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID,
+    yearlyPriceId: process.env.NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID,
   }
 };
 
@@ -100,6 +104,7 @@ export const PLANS: Plan[] = [
     id: "Premium",
     name: "The Premium",
     price: "$20",
+    yearlyPrice: "$16",
     credits: "5,000 credits / mo",
     features: [
       "Advanced AI Context",
@@ -115,11 +120,14 @@ export const PLANS: Plan[] = [
     textColor: "text-zinc-600",
     priceColor: "text-zinc-900",
     labelColor: "text-zinc-400",
+    monthlyPriceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID,
+    yearlyPriceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY_PRICE_ID,
   },
   {
     id: "Researcher",
     name: "The Researcher",
     price: "$99",
+    yearlyPrice: "$79",
     credits: "Unlimited credits",
     features: [
       "Deep Insight Engine",
@@ -135,5 +143,7 @@ export const PLANS: Plan[] = [
     textColor: "text-zinc-400",
     priceColor: "text-white",
     labelColor: "text-zinc-500",
+    monthlyPriceId: process.env.NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID,
+    yearlyPriceId: process.env.NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID,
   }
 ];

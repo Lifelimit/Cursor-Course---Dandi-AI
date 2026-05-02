@@ -11,6 +11,7 @@ type SubscriptionModalProps = {
   onError?: (message: string) => void;
   initialView?: "overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review" | "remove-card-confirm" | "key-downgrade-selector";
   initialPendingPlan?: string | null;
+  initialBillingInterval?: "month" | "year";
 };
 
 import { PLAN_DETAILS, PLAN_RANKS } from "@/lib/constants";
@@ -23,7 +24,7 @@ import { PlanReview } from "./subscription/PlanReview";
 import { Overview } from "./subscription/Overview";
 import { KeyDowngradeSelector } from "./subscription/KeyDowngradeSelector";
 
-export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onError, initialView, initialPendingPlan }: SubscriptionModalProps) {
+export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onError, initialView, initialPendingPlan, initialBillingInterval }: SubscriptionModalProps) {
   const router = useRouter();
   const { data: session, update } = useSession();
   const [transactionId] = useState(() => Math.random().toString(36).substring(2, 9).toUpperCase());
@@ -33,6 +34,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
   const [pendingPlan, setPendingPlan] = useState<string | null>(initialPendingPlan || null);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [isInitializing, setIsInitializing] = useState(initialPendingPlan === "Hobby");
+  const [billingInterval, setBillingInterval] = useState<"month" | "year">(initialBillingInterval || "month");
   
   // State for card details
   const [cardData, setCardData] = useState({
@@ -400,30 +402,51 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
 
   const handleExecutePlanChange = async () => {
     if (!pendingPlan) return;
+    
     setIsLoading(true);
     try {
-      // If upgrading FROM Hobby, re-enable any keys that were disabled during a previous downgrade
-      if (planName === "Hobby" || PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS]) {
+      // 1. If upgrading, re-enable any keys that were disabled during a previous downgrade
+      if (planName === "Hobby" || (pendingPlan !== "Hobby" && PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS])) {
         await reEnableDisabledKeys();
       }
-      await updatePlanAction(pendingPlan, {
-        street: formValues.street || cardData.street,
-        city: formValues.city || cardData.city,
-        state: formValues.state || cardData.state,
-        zip: formValues.zip || cardData.zip,
-        country: formValues.country || cardData.country
-      }, cardData.number ? {
-        last4: cardData.number.slice(-4),
-        brand: cardData.brand,
-        expiry: cardData.expiry
-      } : undefined);
-      await update();
-      router.refresh();
-      const actionText = PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "upgraded" : "downgraded";
-      onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
-      onClose();
-    } catch {
-      onError?.(`Failed to change plan.`);
+
+      // 2. Get the correct price ID for Stripe
+      const plan = PLANS.find(p => p.id === pendingPlan);
+      const priceId = billingInterval === "year" ? plan?.yearlyPriceId : plan?.monthlyPriceId;
+
+      if (!priceId && pendingPlan !== "Hobby") {
+        throw new Error("Missing Price ID for this plan");
+      }
+
+      // 3. If it's a downgrade to Hobby, handle it via server action
+      if (pendingPlan === "Hobby") {
+        await updatePlanAction("Hobby");
+        await update();
+        onSuccess?.("Successfully downgraded to Hobby plan.");
+        onClose();
+        router.refresh();
+        return;
+      }
+
+      // 4. For paid plans, trigger Stripe Checkout
+      const response = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          priceId,
+          planId: pendingPlan
+        }),
+      });
+
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("Failed to create checkout session");
+      }
+    } catch (error) {
+      console.error("Plan change error:", error);
+      onError?.("An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -502,6 +525,8 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
             <PlanSelection 
               planName={planName}
               isLoading={isLoading}
+              billingInterval={billingInterval}
+              setBillingInterval={setBillingInterval}
               onSelectPlan={handlePlanSelection}
               onGoBack={() => setView("overview")}
             />
@@ -539,8 +564,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
               pendingPlan={pendingPlan}
               planName={planName}
               isLoading={isLoading}
-              formValues={formValues}
-              cardData={cardData}
+              billingInterval={billingInterval}
               setView={setView}
               onConfirm={handleExecutePlanChange}
               onBack={() => { setView("change-plan"); setPendingPlan(null); }}

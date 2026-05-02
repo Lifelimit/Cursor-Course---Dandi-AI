@@ -22,6 +22,7 @@ export function PricingSection({
   const { data: clientSession, update } = useSession();
   const activeSession = clientSession || session;
 
+  const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
 
   // Use the real plan from the session (populated in auth.ts)
@@ -33,6 +34,8 @@ export function PricingSection({
   const [modalPendingPlan, setModalPendingPlan] = useState<string | null>(null);
 
   const handleUpdatePlan = async (planId: string) => {
+    // Determine the correct price ID based on toggle
+    const plan = PLANS.find(p => p.id === planId);
     
     // Downgrading to Hobby -> let modal handle the audit (selector vs confirm)
     if (planId === "Hobby" && currentPlanId !== "Hobby") {
@@ -42,43 +45,43 @@ export function PricingSection({
       return;
     }
 
-    // Upgrading from Hobby to a paid plan -> show payment details for that plan
-    if (currentPlanId === "Hobby" && planId !== "Hobby") {
-      setModalInitialView("update-payment");
-      setModalPendingPlan(planId);
-      setIsModalOpen(true);
-      return;
-    }
-
-    // Switching between paid plans (e.g., Premium <-> Researcher) -> show review screen
-    if (currentPlanId !== "Hobby" && planId !== "Hobby" && planId !== currentPlanId) {
+    // Upgrading or Switching between paid plans -> show review screen
+    if (planId !== "Hobby" && planId !== currentPlanId) {
       setModalInitialView("plan-change-review");
       setModalPendingPlan(planId);
       setIsModalOpen(true);
       return;
     }
 
-    // Only allow instant update for cases not requiring specific views (rare if all paths are covered above)
-    setLoadingPlanId(planId);
-    try {
-      await updatePlanAction(planId);
-      await update();
-      onSuccess?.(`Successfully updated to ${planId} plan.`);
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to update plan:", error);
-      onError?.("Failed to change plan. Please try again.");
-    } finally {
-      setLoadingPlanId(null);
-    }
+    // Default: show review screen
+    setModalInitialView("plan-change-review");
+    setModalPendingPlan(planId);
+    setIsModalOpen(true);
   };
 
   return (
     <section id="pricing" className="bg-white/50 py-24 md:py-40 backdrop-blur-sm border-y border-zinc-200">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="mb-20 text-center space-y-4">
-          <h2 className="font-serif text-4xl font-bold md:text-5xl">Simple, transparent <br /> pricing for builders.</h2>
-          <p className="text-zinc-500">Start for free, scale as you grow.</p>
+        <div className="mb-20 text-center space-y-8">
+          <div className="space-y-4">
+            <h2 className="font-serif text-4xl font-bold md:text-5xl">Simple, transparent <br /> pricing for builders.</h2>
+            <p className="text-zinc-500">Start for free, scale as you grow.</p>
+          </div>
+
+          {/* Billing Toggle */}
+          <div className="flex items-center justify-center gap-4">
+            <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "month" ? "text-zinc-900" : "text-zinc-400"}`}>Monthly</span>
+            <button 
+              onClick={() => setBillingInterval(billingInterval === "month" ? "year" : "month")}
+              className="relative h-6 w-12 rounded-full bg-zinc-200 p-1 transition-colors hover:bg-zinc-300"
+            >
+              <div className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${billingInterval === "year" ? "translate-x-6" : "translate-x-0"}`} />
+            </button>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "year" ? "text-zinc-900" : "text-zinc-400"}`}>Annual</span>
+              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-600 uppercase tracking-widest">20% OFF</span>
+            </div>
+          </div>
         </div>
 
         <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-3">
@@ -86,6 +89,7 @@ export function PricingSection({
             const isCurrent = currentPlanId === plan.id;
             const isUpgrade = currentPlan && plan.level > currentPlan.level;
             const isLoading = loadingPlanId === plan.id;
+            const displayPrice = billingInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
 
             return (
               <div 
@@ -97,78 +101,60 @@ export function PricingSection({
                     Most Recommended
                   </div>
                 )}
-                
-                {isCurrent && (
-                  <div className={`absolute top-6 left-8 rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-widest ${plan.dark ? 'bg-emerald-500 text-[#18181b]' : 'bg-emerald-100 text-emerald-700'}`}>
-                    Active Plan
+                <div className="mb-8 space-y-2">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">{plan.name}</h3>
+                  <div className="flex items-baseline gap-1">
+                    <span className={`text-5xl font-bold tracking-tighter ${plan.priceColor}`}>{displayPrice}</span>
+                    <span className={`text-xs font-medium uppercase tracking-widest ${plan.labelColor}`}>/ mo</span>
                   </div>
-                )}
-
-                <div className="mb-10 space-y-2 mt-4">
-                  <p className={`text-[10px] font-bold uppercase tracking-[0.2em] ${plan.labelColor}`}>
-                    {plan.name}
-                  </p>
-                  <div className="space-y-1">
-                    <h4 className={`text-4xl font-bold ${plan.priceColor}`}>
-                      {plan.price}<span className="text-sm font-normal text-zinc-400">/mo</span>
-                    </h4>
-                    <p className={`text-[10px] font-bold uppercase tracking-widest ${plan.id === 'Premium' ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                      {plan.credits}
-                    </p>
-                    {plan.id !== "Hobby" && (
-                      <p className={`text-[9px] font-medium italic ${plan.labelColor}`}>VAT inclusive</p>
-                    )}
-                  </div>
+                  {billingInterval === "year" && plan.id !== "Hobby" && (
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-500 italic">Billed annually</p>
+                  )}
+                  <p className={`text-sm font-medium ${plan.textColor}`}>{plan.credits}</p>
                 </div>
 
-                <ul className={`mb-12 space-y-4 text-sm ${plan.textColor}`}>
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-3">
-                      <svg viewBox="0 0 24 24" className="h-4 w-4 text-emerald-500" fill="none" stroke="currentColor">
-                        <path d="M5 13l4 4L19 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
+                <div className="mb-10 flex-1 border-t border-zinc-100 pt-8 space-y-4">
+                  <ul className="space-y-4">
+                    {plan.features.map((feature, i) => (
+                      <li key={i} className="flex items-center gap-3 text-sm font-medium">
+                        <div className={`flex h-5 w-5 items-center justify-center rounded-full ${plan.dark ? "bg-white/10 text-white" : "bg-zinc-50 text-zinc-900"}`}>
+                          <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
+                            <path d="M5 13l4 4L19 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                        <span className={plan.dark ? "text-zinc-300" : "text-zinc-600"}>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
 
-                {!session ? (
-                  <Link 
-                    href="/signup"
-                    className={`mt-auto w-full rounded-full border py-4 text-center text-sm font-bold uppercase tracking-widest transition-all ${
-                      plan.dark 
-                        ? 'border-zinc-700 hover:bg-zinc-800' 
-                        : plan.recommended 
-                          ? 'bg-zinc-900 text-white hover:bg-zinc-800' 
-                          : 'border-zinc-200 hover:bg-zinc-50'
+                {activeSession ? (
+                  <button
+                    onClick={() => handleUpdatePlan(plan.id)}
+                    disabled={isCurrent || isLoading}
+                    className={`w-full rounded-full py-4 text-[10px] font-black uppercase tracking-widest transition-all ${
+                      isCurrent 
+                        ? "bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                        : plan.dark
+                        ? "bg-white text-zinc-900 hover:bg-zinc-100 shadow-xl shadow-white/5"
+                        : "bg-zinc-900 text-white hover:bg-zinc-800 shadow-xl shadow-zinc-900/10"
+                    }`}
+                  >
+                    {isLoading ? (
+                      <div className="mx-auto h-3 w-3 animate-spin rounded-full border-2 border-zinc-400 border-t-white" />
+                    ) : isCurrent ? "Current Plan" : isUpgrade ? "Upgrade Now" : "Downgrade"}
+                  </button>
+                ) : (
+                  <Link
+                    href="/auth/signup"
+                    className={`w-full rounded-full py-4 text-center text-[10px] font-black uppercase tracking-widest transition-all ${
+                      plan.dark
+                      ? "bg-white text-zinc-900 hover:bg-zinc-100 shadow-xl shadow-white/5"
+                      : "bg-zinc-900 text-white hover:bg-zinc-800 shadow-xl shadow-zinc-900/10"
                     }`}
                   >
                     Get Started
                   </Link>
-                ) : (
-                  <button 
-                    disabled={isCurrent || !!loadingPlanId}
-                    onClick={() => handleUpdatePlan(plan.id)}
-                    className={`mt-auto w-full rounded-full border py-4 text-center text-sm font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                      isCurrent 
-                        ? 'bg-zinc-100 text-zinc-400 border-transparent cursor-default'
-                        : plan.dark 
-                          ? 'border-zinc-700 hover:bg-zinc-800 text-white' 
-                          : plan.recommended 
-                            ? 'bg-zinc-900 text-white hover:bg-zinc-800' 
-                            : 'border-zinc-200 hover:bg-zinc-50 text-zinc-900'
-                    } ${isLoading ? 'opacity-70' : ''}`}
-                  >
-                    {isLoading ? (
-                      <>
-                        <svg className="animate-spin h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Processing...
-                      </>
-                    ) : isCurrent ? "Current Plan" : isUpgrade ? "Upgrade" : "Downgrade"}
-                  </button>
                 )}
               </div>
             );
@@ -185,6 +171,7 @@ export function PricingSection({
         onError={onError}
         initialView={modalInitialView}
         initialPendingPlan={modalPendingPlan}
+        initialBillingInterval={billingInterval}
       />
     </section>
   );

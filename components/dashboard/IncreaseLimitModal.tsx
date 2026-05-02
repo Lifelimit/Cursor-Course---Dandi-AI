@@ -38,8 +38,8 @@ export function IncreaseLimitModal({
       showToast("success", `Quota for ${keyName} increased to ${newLimit.toLocaleString()}!`);
       onUpdate();
       onClose();
-    } catch (err) {
-      showToast("error", "Failed to update quota. Please try again.");
+    } catch {
+      showToast("error", "Failed to update keys. Please try again.");
     } finally {
       setIsUpdating(false);
     }
