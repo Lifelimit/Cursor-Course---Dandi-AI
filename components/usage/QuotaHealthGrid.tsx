@@ -97,7 +97,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                   <div className="flex w-full gap-3">
                     <button 
                       onClick={() => setConfirmingDeleteId(null)}
-                      className="flex-1 rounded-2xl bg-white/10 px-4 py-4 text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all active:scale-95"
+                      className="flex-1 rounded-2xl bg-white/10 border border-white/30 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-white/20 transition-all active:scale-95"
                     >
                       Abort
                     </button>
@@ -129,7 +129,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                   <div className="flex w-full gap-3">
                     <button 
                       onClick={() => setConfirmingKillId(null)}
-                      className="flex-1 rounded-2xl bg-white/10 px-4 py-4 text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all active:scale-95"
+                      className="flex-1 rounded-2xl bg-white/10 border border-white/30 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-white/20 transition-all active:scale-95"
                     >
                       Abort
                     </button>
@@ -285,7 +285,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                     <div className="flex w-full gap-3">
                       <button 
                         onClick={() => setConfirmingDeleteId(null)}
-                        className="flex-1 rounded-2xl bg-white/10 px-4 py-4 text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all active:scale-95"
+                        className="flex-1 rounded-2xl bg-white/10 border border-white/30 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-white/20 transition-all active:scale-95"
                       >
                         Abort
                       </button>
