@@ -10,6 +10,7 @@ export type ApiKey = {
   alert_threshold: number | null;
   alert_channels: string[] | null;
   alert_phone: string | null;
+  dailyTrend?: { date: string; count: number }[];
 };
 
 export type ApiKeyApiResponse = {

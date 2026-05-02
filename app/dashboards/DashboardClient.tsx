@@ -67,7 +67,14 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
     return a.is_active ? -1 : 1;
   });
 
-  const handleModalSubmit = async (data: { name: string; keyType: string; monthlyLimit: number | null; isActive?: boolean }) => {
+  const handleModalSubmit = async (data: { 
+    name: string; 
+    keyType: "development" | "production"; 
+    monthlyLimit: number | null;
+    alertThreshold: number;
+    alertChannels: string[];
+    isActive: boolean;
+  }) => {
     if (editingKey) {
       const result = await updateKey(editingKey.id, data);
       if (result.success) {
@@ -132,31 +139,95 @@ export default function DashboardClient({ initialSession }: { initialSession: Se
               )}
             </div>
 
+            {/* Metric Tiles Row */}
+            <div className="grid gap-6 md:grid-cols-3">
+              {[
+                { label: "Avg. Latency", value: "242ms", icon: "M13 10V3L4 14h7v7l9-11h-7z", color: "text-amber-500", bg: "bg-amber-50" },
+                { label: "Success Rate", value: "99.9%", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", color: "text-emerald-500", bg: "bg-emerald-50" },
+                { label: "Active Keys", value: apiKeys.length.toString(), icon: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z", color: "text-blue-500", bg: "bg-blue-50" }
+              ].map((m, i) => (
+                <div key={i} className="rounded-[32px] border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-md">
+                  <div className="flex items-center gap-4">
+                    <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${m.bg} ${m.color}`}>
+                      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
+                        <path d={m.icon} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">{m.label}</p>
+                      <p className="text-2xl font-black tabular-nums">{m.value}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             {/* Plan Status Card */}
-            <div className="rounded-[32px] border border-zinc-200 bg-white p-8">
-              <div className="flex items-center justify-between mb-8">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Current Active Plan</p>
-                  <h2 className="font-serif text-4xl font-bold italic">{currentPlan}</h2>
-                </div>
-                <button 
-                  onClick={() => router.push("/billing")}
-                  className="rounded-full bg-[#18181b] px-6 py-2 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800"
-                >
-                  Manage
-                </button>
-              </div>
+            <div className="relative overflow-hidden rounded-[40px] border border-zinc-200 bg-white p-10 shadow-sm group">
+              {/* Background Glow Decoration */}
+              <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-emerald-50/50 blur-3xl transition-all group-hover:bg-emerald-100/50" />
               
-              <div className="space-y-4">
-                <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
-                  <div 
-                    className="h-full bg-emerald-500 transition-all duration-1000 ease-out" 
-                    style={{ width: `${isUnlimited ? 100 : Math.min((totalUsage / currentLimit) * 100, 100)}%` }}
-                  ></div>
+              <div className="relative flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
+                <div className="flex-1 space-y-8">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Current Strategic Tier</p>
+                      <div className="flex items-center gap-4">
+                        <h2 className="font-serif text-5xl font-bold italic tracking-tight">{currentPlan}</h2>
+                        {isUnlimited && (
+                          <span className="rounded-full bg-zinc-900 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-white shadow-lg shadow-zinc-900/10">Unlimited</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <button 
+                      onClick={() => router.push("/billing")}
+                      className="rounded-full border border-zinc-200 bg-white px-8 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-all hover:border-zinc-900 hover:text-zinc-900"
+                    >
+                      Management
+                    </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between px-1">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                        Consumption <span className="mx-2 opacity-20">/</span> <span className="text-zinc-900">{totalUsage.toLocaleString()} Units Used</span>
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 italic">Next Reset: May 24</span>
+                      </div>
+                    </div>
+                    
+                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-zinc-50">
+                      <div 
+                        className="h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all duration-1000 ease-out" 
+                        style={{ width: `${isUnlimited ? 100 : Math.min((totalUsage / currentLimit) * 100, 100)}%` }}
+                      ></div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                      <span>0 Units</span>
+                      <span>Target Limit: {isUnlimited ? "∞" : currentLimit.toLocaleString()} Units</span>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-                  {totalUsage.toLocaleString()} / {isUnlimited ? "∞" : currentLimit.toLocaleString()} <span className="text-zinc-900">{isUnlimited ? "Unlimited Requests Enabled" : "Total Requests Consumed"}</span>
-                </p>
+
+                {/* Simulated Usage Pulse Visual */}
+                <div className="hidden h-32 w-48 shrink-0 items-center justify-center rounded-3xl bg-zinc-50 p-6 md:flex border border-zinc-100/50">
+                  <div className="flex items-end gap-1 h-full w-full">
+                    {[35, 65, 45, 85, 55, 75, 40, 90, 60, 80].map((h, i) => (
+                      <div 
+                        key={i} 
+                        className="flex-1 rounded-t-sm bg-emerald-500/20 transition-all hover:bg-emerald-500"
+                        style={{ height: `${h}%` }}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 

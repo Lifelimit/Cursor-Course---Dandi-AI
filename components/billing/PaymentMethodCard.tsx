@@ -23,8 +23,8 @@ export function PaymentMethodCard({ brand, last4, expiryMonth, expiryYear, isDef
   };
 
   return (
-    <div className={`group relative overflow-hidden rounded-[24px] border p-6 transition-all hover:shadow-md ${
-      isDefault ? 'border-zinc-900 bg-white ring-1 ring-zinc-900 shadow-lg shadow-zinc-900/5' : 'border-zinc-200 bg-zinc-50/50'
+    <div className={`group relative overflow-hidden rounded-[24px] border p-6 transition-all hover:shadow-md backdrop-blur-xl ${
+      isDefault ? 'border-zinc-900 bg-white ring-1 ring-zinc-900 shadow-lg shadow-zinc-900/5' : 'border-zinc-200 bg-white/95 shadow-sm'
     }`}>
       <div className="flex items-start justify-between">
         <div className="space-y-4">

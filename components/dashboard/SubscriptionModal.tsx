@@ -12,6 +12,7 @@ type SubscriptionModalProps = {
   initialView?: "overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review" | "remove-card-confirm" | "key-downgrade-selector";
   initialPendingPlan?: string | null;
   initialBillingInterval?: "month" | "year";
+  onDowngrade?: () => void;
 };
 
 import { PLAN_DETAILS, PLAN_RANKS, PLANS } from "@/lib/constants";
@@ -24,7 +25,7 @@ import { PlanReview } from "./subscription/PlanReview";
 import { Overview } from "./subscription/Overview";
 import { KeyDowngradeSelector } from "./subscription/KeyDowngradeSelector";
 
-export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onError, initialView, initialPendingPlan, initialBillingInterval }: SubscriptionModalProps) {
+export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onError, initialView, initialPendingPlan, initialBillingInterval, onDowngrade }: SubscriptionModalProps) {
   const router = useRouter();
   const { data: session, update } = useSession();
   const [transactionId] = useState(() => Math.random().toString(36).substring(2, 9).toUpperCase());
@@ -364,16 +365,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     if (newPlan === planName) return;
     
     if (newPlan === "Hobby") {
-      // Check if the user has more than 3 keys — if so, show the key selector step
-      try {
-        const res = await fetch("/api/keys");
-        const keys = await res.json();
-        if (Array.isArray(keys) && keys.length > 3) {
-          setView("key-downgrade-selector");
-          return;
-        }
-      } catch { /* Fallback to normal cancel flow if fetch fails */ }
-      setView("cancel-confirm");
+      onDowngrade?.();
       return;
     }
     // If already on a paid plan, show review screen

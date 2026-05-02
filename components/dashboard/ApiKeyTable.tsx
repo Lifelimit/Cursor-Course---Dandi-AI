@@ -28,6 +28,7 @@ export function ApiKeyTable({
   const [promptedKeyId, setPromptedKeyId] = useState<string | null>(null);
   const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [searchTerm, setSearchTerm] = useState("");
   const isHobby = currentPlan === "Hobby";
 
   // Clear timeout on unmount
@@ -60,14 +61,10 @@ export function ApiKeyTable({
         tempInput.select();
         const didCopy = document.execCommand("copy");
         document.body.removeChild(tempInput);
-
-        if (!didCopy) {
-          throw new Error("Copy command failed");
-        }
+        if (!didCopy) throw new Error("Copy command failed");
       }
       setCopiedId(id);
       onCopySuccess();
-
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
       copyTimeoutRef.current = setTimeout(() => {
         setCopiedId((current) => (current === id ? null : current));
@@ -89,101 +86,172 @@ export function ApiKeyTable({
     }
   };
 
-  return (
-    <div className="overflow-x-auto rounded-xl border border-zinc-300 bg-white shadow-sm">
-      <table className="w-full min-w-[700px] border-collapse text-left text-sm table-fixed">
-        <thead className="bg-zinc-50 text-xs font-bold uppercase tracking-widest text-zinc-400">
-          <tr className="border-b border-zinc-200">
-            <th className="px-5 py-4 w-[18%]">Name</th>
-            <th className="px-4 py-4 w-[10%]">Type</th>
-            <th className="px-4 py-4 w-[12%]">Usage</th>
-            <th className="px-4 py-4 w-[45%]">Key</th>
-            <th className="px-4 py-4 text-center w-[15%]">Options</th>
-          </tr>
-        </thead>
-        <tbody>
-          {isLoading ? (
-            <tr>
-              <td className="px-4 py-6 text-sm text-zinc-500" colSpan={5}>
-                Loading API keys...
-              </td>
-            </tr>
-          ) : null}
-          {apiKeys.map((key) => (
-            <React.Fragment key={key.id}>
-            <tr
-              className={`border-b border-zinc-100 transition-colors ${!key.is_active ? "bg-zinc-50 opacity-60 cursor-pointer" : "hover:bg-zinc-50/40"}`}
-              onClick={!key.is_active ? () => setPromptedKeyId(promptedKeyId === key.id ? null : key.id) : undefined}
-            >
-              <td className="px-5 py-4 font-medium truncate">
-                <div className="flex items-center gap-2">
-                  <span className={!key.is_active ? "text-zinc-400" : ""}>{key.name}</span>
-                  {!key.is_active && (
-                    <span className="shrink-0 rounded-full bg-zinc-200 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500">
-                      Disabled
-                    </span>
-                  )}
-                </div>
-              </td>
-              <td className={`px-4 py-3 truncate ${!key.is_active ? "text-zinc-400" : "text-zinc-600"}`}>
-                {key.type === "production" ? "prod" : "dev"}
-              </td>
-              <td className={`px-4 py-3 ${!key.is_active ? "text-zinc-400" : "text-zinc-600"}`}>
-                {key.usage_count} / {key.monthly_limit ?? "∞"}
-              </td>
+  const filteredKeys = apiKeys.filter(k => 
+    k.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    k.key_value.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <span
-                    className={`block font-mono text-xs whitespace-nowrap ${
-                      visibleKeyIds[key.id] ? "overflow-x-auto" : "truncate"
-                    } flex-1 ${!key.is_active ? "text-zinc-400" : ""}`}
-                  >
-                    {visibleKeyIds[key.id] ? key.key_value : maskApiKey(key.key_value)}
-                  </span>
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <div className={`flex flex-nowrap items-center justify-center gap-2 ${!key.is_active ? "text-zinc-300" : "text-zinc-600"}`}>
-                  <button
-                    type="button"
-                    onClick={() => toggleKeyVisibility(key.id)}
-                    className="rounded-md p-1.5 transition hover:bg-zinc-100 hover:text-zinc-900"
-                    aria-label={visibleKeyIds[key.id] ? "Hide API key" : "Show API key"}
-                    title={visibleKeyIds[key.id] ? "Hide key" : "Show key"}
-                  >
-                    {visibleKeyIds[key.id] ? <EyeOffIcon /> : <EyeIcon />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => copyKeyValue(key.id, key.key_value)}
-                    className="rounded-md p-1.5 transition hover:bg-zinc-100 hover:text-zinc-900"
-                    aria-label="Copy API key"
-                    title={copiedId === key.id ? "Copied" : "Copy key"}
-                  >
-                    {copiedId === key.id ? <CopyCheckIcon /> : <CopyIcon />}
-                  </button>
-                  <button
-                    onClick={() => onEdit(key)}
-                    type="button"
-                    className="rounded-md p-1.5 transition hover:bg-zinc-100 hover:text-zinc-900"
-                    aria-label="Edit API key"
-                    title="Edit"
-                  >
-                    <EditIcon />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(key.id)}
-                    type="button"
-                    className={`rounded-md p-1.5 transition ${!key.is_active ? "text-zinc-300" : "text-red-500 hover:bg-red-50 hover:text-red-700"}`}
-                    aria-label="Delete API key"
-                    title="Delete"
-                  >
-                    <TrashIcon />
-                  </button>
-                </div>
-              </td>
+  const UsageSparkline = ({ trend }: { trend?: { count: number }[] }) => {
+    if (!trend || trend.length === 0) return <div className="h-4 w-12 bg-zinc-50 rounded" />;
+    const max = Math.max(...trend.map(d => d.count), 1);
+    const points = trend.map((d, i) => `${(i / (trend.length - 1)) * 48},${16 - (d.count / max) * 16}`).join(" ");
+    
+    return (
+      <svg width="48" height="16" className="overflow-visible">
+        <polyline
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          points={points}
+          className="text-emerald-500/50"
+        />
+      </svg>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Search & Control Bar */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1 max-w-md">
+          <svg viewBox="0 0 24 24" className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" fill="none" stroke="currentColor">
+            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <input 
+            type="text" 
+            placeholder="Search keys by name or signature..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full rounded-2xl border border-zinc-200 bg-white/50 px-11 py-3 text-xs outline-none transition-all focus:border-zinc-900 focus:ring-4 focus:ring-zinc-900/5 placeholder:text-zinc-400"
+          />
+        </div>
+        <div className="flex items-center gap-3 px-2">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{filteredKeys.length} matches</span>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-[32px] border border-zinc-200 bg-white shadow-sm">
+        <table className="w-full min-w-[800px] border-collapse text-left text-sm table-fixed">
+          <thead className="bg-zinc-50/50 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+            <tr className="border-b border-zinc-100">
+              <th className="px-8 py-5 w-[22%]">Credential Name</th>
+              <th className="px-4 py-5 w-[12%]">Security Tier</th>
+              <th className="px-4 py-5 w-[18%]">Usage Activity</th>
+              <th className="px-4 py-5 w-[33%]">Key Signature</th>
+              <th className="px-4 py-5 text-center w-[15%]">Actions</th>
             </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-50">
+            {isLoading ? (
+              <tr>
+                <td className="px-8 py-12 text-sm text-zinc-400 italic" colSpan={5}>
+                  Querying secure registry...
+                </td>
+              </tr>
+            ) : filteredKeys.length === 0 ? (
+              <tr>
+                <td className="px-8 py-12 text-sm text-zinc-400 italic" colSpan={5}>
+                  No credentials found matching your search.
+                </td>
+              </tr>
+            ) : null}
+            {filteredKeys.map((key) => (
+              <React.Fragment key={key.id}>
+              <tr
+                className={`group transition-all ${!key.is_active ? "bg-zinc-50/50 opacity-60 cursor-pointer" : "hover:bg-zinc-50/30"}`}
+                onClick={!key.is_active ? () => setPromptedKeyId(promptedKeyId === key.id ? null : key.id) : undefined}
+              >
+                <td className="px-8 py-5">
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex h-2 w-2 shrink-0">
+                      {key.is_active ? (
+                        <>
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </>
+                      ) : (
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
+                      )}
+                    </div>
+                    <span className={`font-medium tracking-tight ${!key.is_active ? "text-zinc-400" : "text-zinc-900"}`}>{key.name}</span>
+                  </div>
+                </td>
+                
+                <td className="px-4 py-5">
+                  {key.type === "production" ? (
+                    <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-indigo-600 border border-indigo-100">Prod</span>
+                  ) : (
+                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-amber-600 border border-amber-100">Dev</span>
+                  )}
+                </td>
+
+                <td className="px-4 py-5">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-bold tabular-nums">
+                        <span className={!key.is_active ? "text-zinc-300" : "text-zinc-900"}>{key.usage_count.toLocaleString()}</span>
+                        <span className="text-zinc-300">/ {key.monthly_limit ?? "∞"}</span>
+                      </div>
+                      <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-100">
+                        <div 
+                          className={`h-full transition-all duration-500 ${!key.is_active ? "bg-zinc-200" : "bg-emerald-500"}`}
+                          style={{ width: `${key.monthly_limit ? Math.min((key.usage_count / key.monthly_limit) * 100, 100) : 0}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                      <UsageSparkline trend={key.dailyTrend} />
+                    </div>
+                  </div>
+                </td>
+
+                <td className="px-4 py-5">
+                  <div className="flex items-center gap-2 group/key">
+                    <code className={`font-mono text-[11px] tracking-tight ${!key.is_active ? "text-zinc-300" : "text-zinc-500"}`}>
+                      {visibleKeyIds[key.id] ? key.key_value : maskApiKey(key.key_value)}
+                    </code>
+                  </div>
+                </td>
+
+                <td className="px-4 py-5">
+                  <div className={`flex items-center justify-center gap-1 transition-opacity ${!key.is_active ? "opacity-40" : "group-hover:opacity-100"}`}>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); toggleKeyVisibility(key.id); }}
+                      className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
+                      title={visibleKeyIds[key.id] ? "Hide key" : "Show key"}
+                    >
+                      {visibleKeyIds[key.id] ? <EyeOffIcon /> : <EyeIcon />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); copyKeyValue(key.id, key.key_value); }}
+                      className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
+                      title={copiedId === key.id ? "Copied" : "Copy key"}
+                    >
+                      {copiedId === key.id ? <CopyCheckIcon /> : <CopyIcon />}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onEdit(key); }}
+                      type="button"
+                      className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
+                      title="Edit Configuration"
+                    >
+                      <EditIcon />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(key.id); }}
+                      type="button"
+                      className="rounded-xl p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500"
+                      title="Revoke Credential"
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                </td>
+              </tr>
             {!key.is_active && promptedKeyId === key.id && (
               <tr className="border-b border-amber-100 bg-amber-50">
                 <td colSpan={5} className="px-5 py-3">
@@ -213,6 +281,7 @@ export function ApiKeyTable({
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

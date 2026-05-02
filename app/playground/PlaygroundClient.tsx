@@ -76,6 +76,8 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
       setRequestLogs(prev => [...prev, { label, duration, status, timestamp: Date.now() }]);
     };
 
+    const startTime = performance.now();
+
     try {
       const response = await fetch("/api/github-summarizer", {
         method: "POST",
@@ -86,27 +88,33 @@ export default function PlaygroundClient({ initialSession }: { initialSession: S
         body: JSON.stringify({ githubUrl }),
       });
 
-      // Step 1: Auth Validation Simulation
-      addLog("Authentication", 120, response.status === 401 ? "error" : "success");
+      const fetchEndTime = performance.now();
+      const totalFetchDuration = Math.round(fetchEndTime - startTime);
+
+      // Step 1: Auth Validation Simulation (Real-time weighted portion)
+      addLog("Authentication", Math.round(totalFetchDuration * 0.15), response.status === 401 ? "error" : "success");
       if (response.status === 401) throw new Error("Invalid API key");
       
-      // Step 2: Fetch Simulation
-      addLog("Repository Fetch", 450, response.status === 422 ? "error" : "success");
+      // Step 2: Fetch Simulation (Real-time weighted portion)
+      addLog("Repository Fetch", Math.round(totalFetchDuration * 0.85), response.status === 422 ? "error" : "success");
       if (response.status === 422) {
         const data = await response.json();
         throw new Error(data.error || "Failed to fetch repository");
       }
 
+      const dataStart = performance.now();
       const data = await response.json();
+      const dataEnd = performance.now();
+      const processingDuration = Math.round(dataEnd - dataStart + (Math.random() * 100)); // Real parse time + simulated backend effort
 
       if (!response.ok) {
         // Step 3: Processing Simulation (Failed)
-        addLog("AI Processing", 890, "error");
+        addLog("AI Processing", processingDuration, "error");
         throw new Error(data.error || "Failed to generate summary");
       }
 
       // Step 3: Processing Simulation (Success)
-      addLog("AI Processing", 890, "success");
+      addLog("AI Processing", processingDuration, "success");
 
       setSummaryResult(data.data);
     } catch (err) {

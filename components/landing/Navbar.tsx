@@ -23,8 +23,8 @@ export function Navbar({ session }: { session: Session | null }) {
         
         <div className="hidden items-center gap-10 text-xs font-bold uppercase tracking-widest text-zinc-500 md:flex">
           <Link href="/#features" className="transition hover:text-[#18181b]">Features</Link>
-          <Link href="/docs" className="transition hover:text-[#18181b]">Documentation</Link>
           <Link href="/#pricing" className="transition hover:text-[#18181b]">Pricing</Link>
+          <Link href="/docs" className="transition hover:text-[#18181b]">Documentation</Link>
         </div>
 
         <div className="flex items-center gap-4">
@@ -86,8 +86,8 @@ export function Navbar({ session }: { session: Session | null }) {
         <div className="border-t border-zinc-200 bg-[#f4f2ed] p-6 md:hidden animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex flex-col gap-6 text-sm font-bold uppercase tracking-[0.2em] text-zinc-500">
             <Link href="/#features" className="hover:text-zinc-900">Features</Link>
-            <Link href="/docs" className="hover:text-zinc-900">Documentation</Link>
             <Link href="/#pricing" className="hover:text-zinc-900">Pricing</Link>
+            <Link href="/docs" className="hover:text-zinc-900">Documentation</Link>
             <hr className="border-zinc-200" />
             {session ? (
               <>

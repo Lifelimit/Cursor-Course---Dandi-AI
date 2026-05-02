@@ -57,8 +57,27 @@ export async function POST(req: Request) {
         
         if (pmId) {
           const pm = await stripe.paymentMethods.retrieve(pmId);
+          const newFingerprint = pm.card?.fingerprint;
+
+          // 1. Check for duplicate fingerprint
+          const existingMethods = await stripe.paymentMethods.list({
+            customer: customerId,
+            type: 'card',
+          });
+
+          const isDuplicate = existingMethods.data.some(
+            (existingPm) => 
+              existingPm.id !== pmId && 
+              existingPm.card?.fingerprint === newFingerprint
+          );
+
+          if (isDuplicate) {
+            console.warn(`⚠️ Webhook: Duplicate card detected (fingerprint: ${newFingerprint}). Detaching PM: ${pmId}`);
+            await stripe.paymentMethods.detach(pmId);
+            return NextResponse.json({ received: true, duplicate: true });
+          }
           
-          // 1. Set as default payment method for the customer
+          // 2. Set as default payment method for the customer
           await stripe.customers.update(customerId, {
             invoice_settings: { default_payment_method: pmId }
           });
@@ -149,22 +168,67 @@ export async function POST(req: Request) {
 
   if (event.type === "customer.subscription.deleted") {
     const subscription = event.data.object as Stripe.Subscription;
+    const customerId = subscription.customer as string;
+    const metadata = subscription.metadata || {};
+    const keysToKeepString = metadata.keys_to_keep;
     
-    // Downgrade user to Hobby plan if subscription is cancelled
-    const { error } = await supabaseAdmin
+    let keysToKeep: string[] = [];
+    try {
+      if (keysToKeepString) keysToKeep = JSON.parse(keysToKeepString);
+    } catch (err) {
+      console.warn("⚠️ Webhook: Failed to parse keys_to_keep metadata", err);
+    }
+
+    console.log(`📉 Webhook: Handling subscription deletion for customer ${customerId}`);
+
+    // 1. Downgrade profile to Hobby
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .update({
+      .update({ 
         plan: "Hobby",
-        billing_interval: "month",
         updated_at: new Date().toISOString()
       })
-      .eq("stripe_subscription_id", subscription.id);
+      .eq("stripe_customer_id", customerId)
+      .select("id")
+      .single();
 
-    if (error) {
-      console.error("Supabase webhook cancellation error:", error);
-      return new NextResponse("Database update failed", { status: 500 });
+    if (profileError || !profile) {
+      console.error("❌ Webhook: Failed to downgrade profile:", profileError);
+      return new NextResponse(`Profile update failed`, { status: 500 });
     }
-  }
 
+    // 2. Deactivate excess keys
+    // If no keys were selected, we'll keep the 3 most recently used or oldest? 
+    // Let's keep the ones they selected, or if none, deactivate all but the top 3 oldest.
+    const userId = profile.id;
+    
+    if (keysToKeep.length > 0) {
+      // Deactivate all EXCEPT the selected ones
+      await supabaseAdmin
+        .from("api_keys")
+        .update({ is_active: false })
+        .eq("user_id", userId)
+        .not("id", "in", `(${keysToKeep.join(",")})`);
+    } else {
+      // Safety fall-back: Keep only the 3 oldest keys if no selection was made
+      const { data: allKeys } = await supabaseAdmin
+        .from("api_keys")
+        .select("id")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true });
+
+      if (allKeys && allKeys.length > 3) {
+        const keysToDeactivate = allKeys.slice(3).map(k => k.id);
+        await supabaseAdmin
+          .from("api_keys")
+          .update({ is_active: false })
+          .eq("user_id", userId)
+          .in("id", keysToDeactivate);
+      }
+    }
+
+    console.log(`✅ Webhook: Downgrade complete for user ${userId}`);
+    return NextResponse.json({ received: true });
+  }
   return new NextResponse(null, { status: 200 });
 }

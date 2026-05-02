@@ -78,12 +78,24 @@ export function useApiKeys() {
   }, [hookId]);
 
 
-  const createKey = async (data: { name: string; keyType: string; monthlyLimit: number | null; isActive?: boolean }) => {
+  const createKey = async (data: { 
+    name: string; 
+    keyType: string; 
+    monthlyLimit: number | null; 
+    alertThreshold?: number;
+    alertChannels?: string[];
+    isActive?: boolean 
+  }) => {
     try {
       const response = await fetch("/api/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, is_active: data.isActive ?? true }),
+        body: JSON.stringify({ 
+          ...data, 
+          is_active: data.isActive ?? true,
+          alert_threshold: data.alertThreshold,
+          alert_channels: data.alertChannels
+        }),
       });
       const payload = (await response.json()) as ApiKeyApiResponse | { error?: string };
 
@@ -99,12 +111,24 @@ export function useApiKeys() {
     }
   };
 
-  const updateKey = async (id: string, data: { name: string; keyType: string; monthlyLimit: number | null; isActive?: boolean }) => {
+  const updateKey = async (id: string, data: { 
+    name: string; 
+    keyType: string; 
+    monthlyLimit: number | null; 
+    alertThreshold?: number;
+    alertChannels?: string[];
+    isActive?: boolean 
+  }) => {
     try {
       const response = await fetch(`/api/keys/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, is_active: data.isActive }),
+        body: JSON.stringify({ 
+          ...data, 
+          is_active: data.isActive,
+          alert_threshold: data.alertThreshold,
+          alert_channels: data.alertChannels
+        }),
       });
       const payload = (await response.json()) as ApiKeyApiResponse | { error?: string };
 

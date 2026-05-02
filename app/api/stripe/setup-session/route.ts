@@ -7,7 +7,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-04-22.dahlia" as const,
 });
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const session = await auth();
     const email = session?.user?.email;
@@ -35,13 +35,15 @@ export async function POST() {
         .eq("email", email);
     }
 
+    const origin = req.headers.get("origin") || "http://localhost:3000";
+
     // 2. Create Setup Session
     const checkoutSession = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "setup",
       customer: customerId,
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?canceled=true`,
+      success_url: `${origin}/billing?success=true`,
+      cancel_url: `${origin}/billing?canceled=true`,
       metadata: {
         userId: session.user.id,
         type: "setup"
