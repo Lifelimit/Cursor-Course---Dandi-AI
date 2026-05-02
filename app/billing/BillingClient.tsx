@@ -24,7 +24,7 @@ type BillingData = {
     monthly_limit: number | null;
     alert_threshold: number | null;
     alert_channels: string[] | null;
-    dailyTrend?: number[];
+    dailyTrend?: { date: string; count: number }[];
   }[];
 };
 
