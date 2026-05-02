@@ -121,8 +121,8 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                   isFlying ? 'translate-x-3 opacity-100' : '-translate-x-4 opacity-0 pointer-events-none'
                 }`}
               >
-                {/* Connector Bridge */}
-                <div className="h-6 w-3 bg-white border-y border-zinc-200 -mr-[1px] relative z-20" />
+                {/* Stylized Organic Connector */}
+                <div className="h-10 w-4 bg-white border-y border-r border-zinc-200 -mr-[1px] relative z-20 rounded-r-2xl shadow-[4px_0_15px_rgba(0,0,0,0.03)]" />
                 
                 <div className="flex flex-col gap-5 rounded-[24px] border border-zinc-200 bg-white p-6 shadow-[0_20px_50px_rgba(0,0,0,0.15)] min-w-[240px] relative z-10">
                   <div className="flex items-center justify-between">
