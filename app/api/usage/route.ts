@@ -95,7 +95,7 @@ export async function GET() {
 
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("billing_next_date, created_at")
+      .select("billing_next_date")
       .ilike("email", userEmail || "")
       .single();
 
@@ -105,13 +105,7 @@ export async function GET() {
 
     console.log("📄 Usage API: Profile found:", profile);
 
-    let resetDate = profile?.billing_next_date;
-    if (!resetDate && profile?.created_at) {
-      const created = new Date(profile.created_at);
-      const nextMonth = new Date(created);
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      resetDate = nextMonth.toISOString();
-    }
+    const resetDate = profile?.billing_next_date || null;
 
     console.log("📊 Usage API: Final resetDate being sent to UI:", resetDate);
 
