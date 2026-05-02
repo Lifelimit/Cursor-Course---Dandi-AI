@@ -448,8 +448,16 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className={`w-full overflow-hidden rounded-[32px] border border-zinc-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300 transition-all duration-500 ${(view === 'update-payment' || view === 'success' || view === 'plan-change-review') ? 'max-w-4xl' : view === 'key-downgrade-selector' ? 'max-w-xl' : 'max-w-lg'}`}>
+    <div 
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6"
+    >
+      {/* Decisive Backdrop - Blocks all background interaction */}
+      <div 
+        className="fixed inset-0 bg-zinc-900/60 backdrop-blur-md transition-opacity animate-in fade-in duration-300"
+        onClick={onClose}
+      />
+
+      <div className={`relative z-10 w-full overflow-hidden rounded-[40px] border border-zinc-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300 transition-all duration-500 ${(view === 'update-payment' || view === 'success' || view === 'plan-change-review') ? 'max-w-4xl' : view === 'key-downgrade-selector' ? 'max-w-xl' : 'max-w-lg'}`}>
         
         {/* Header Section */}
         <div className={`relative p-8 transition-colors duration-500 ${(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector') ? 'bg-rose-600 text-white' : 'bg-[#18181b] text-white'}`}>
