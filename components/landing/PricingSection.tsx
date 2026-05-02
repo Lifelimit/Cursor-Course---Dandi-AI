@@ -22,6 +22,9 @@ export function PricingSection({
   const currentPlanId = (activeSession?.user as { plan?: string })?.plan || "Hobby";
 
   const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
+  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
+  const currentPlan = PLANS.find(p => p.id === currentPlanId);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalInitialView, setModalInitialView] = useState<"overview" | "cancel-confirm" | "update-payment" | "plan-change-review">("overview");
   const [modalPendingPlan, setModalPendingPlan] = useState<string | null>(null);

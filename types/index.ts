@@ -4,6 +4,7 @@ export interface Plan {
   id: string;
   name: string;
   price: string;
+  yearlyPrice?: string;
   features: string[];
   level: PlanLevel;
   className?: string;
@@ -14,13 +15,18 @@ export interface Plan {
   dark?: boolean;
   credits?: string;
   cta?: string;
+  monthlyPriceId?: string;
+  yearlyPriceId?: string;
 }
 
 export interface PlanDetail {
   id: string;
   price: string;
+  yearlyPrice?: string;
   features: string[];
   nextBilling: string;
+  monthlyPriceId?: string;
+  yearlyPriceId?: string;
 }
 
 export interface CountryData {

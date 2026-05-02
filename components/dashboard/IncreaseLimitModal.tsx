@@ -96,7 +96,7 @@ export function IncreaseLimitModal({
           </div>
         </div>
       </div>
-      {toast && <Toast type={toast.type} message={toast.message} onClose={() => {}} />}
+      {toast && <Toast toast={toast} />}
     </div>
   );
 }

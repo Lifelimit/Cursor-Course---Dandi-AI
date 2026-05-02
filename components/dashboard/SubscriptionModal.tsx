@@ -14,7 +14,7 @@ type SubscriptionModalProps = {
   initialBillingInterval?: "month" | "year";
 };
 
-import { PLAN_DETAILS, PLAN_RANKS } from "@/lib/constants";
+import { PLAN_DETAILS, PLAN_RANKS, PLANS } from "@/lib/constants";
 import { PlanSelection } from "./subscription/PlanSelection";
 import { OrderSummary } from "./subscription/OrderSummary";
 import { SuccessView } from "./subscription/SuccessView";
@@ -562,10 +562,8 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
           ) : view === "plan-change-review" ? (
             <PlanReview 
               pendingPlan={pendingPlan}
-              planName={planName}
               isLoading={isLoading}
               billingInterval={billingInterval}
-              setView={setView}
               onConfirm={handleExecutePlanChange}
               onBack={() => { setView("change-plan"); setPendingPlan(null); }}
             />
