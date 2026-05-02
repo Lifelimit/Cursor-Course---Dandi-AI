@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { stripe } from "@/lib/stripe";
 import BillingClient from "./BillingClient";
 
 export default async function BillingPage() {
@@ -9,5 +10,27 @@ export default async function BillingPage() {
     redirect("/login");
   }
 
-  return <BillingClient initialSession={session} />;
+  let invoices = [];
+  const customerId = (session.user as { stripe_customer_id?: string })?.stripe_customer_id;
+
+  if (customerId) {
+    try {
+      const stripeInvoices = await stripe.invoices.list({
+        customer: customerId,
+        limit: 12,
+      });
+
+      invoices = stripeInvoices.data.map((inv) => ({
+        id: inv.id,
+        date: new Date(inv.created * 1000).toISOString(),
+        amount: inv.total,
+        status: inv.status === "paid" ? "paid" : "unpaid",
+        receiptUrl: inv.hosted_invoice_url || "#",
+      }));
+    } catch (error) {
+      console.error("Error fetching Stripe invoices:", error);
+    }
+  }
+
+  return <BillingClient initialSession={session} initialInvoices={invoices} />;
 }

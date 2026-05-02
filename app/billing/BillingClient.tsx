@@ -29,16 +29,26 @@ const MOCK_CARDS = [
   { brand: "Visa", last4: "4242", expiryMonth: 12, expiryYear: 2026, isDefault: true }
 ];
 
-const MOCK_INVOICES = [
-  { id: "inv_12345", date: new Date().toISOString(), amount: 1900, status: "paid" as const, receiptUrl: "#" },
-  { id: "inv_12344", date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), amount: 1900, status: "paid" as const, receiptUrl: "#" }
-];
+type Invoice = {
+  id: string;
+  date: string;
+  amount: number;
+  status: 'paid' | 'pending' | 'failed' | 'unpaid';
+  receiptUrl?: string;
+};
 
-export default function BillingClient({ initialSession }: { initialSession: Session | null }) {
+export default function BillingClient({ 
+  initialSession, 
+  initialInvoices = [] 
+}: { 
+  initialSession: Session | null, 
+  initialInvoices?: Invoice[] 
+}) {
   const { data: session } = useSession();
   const activeSession = initialSession || session;
   
   const [data, setData] = useState<BillingData | null>(null);
+  const [invoices] = useState(initialInvoices);
   const [isLoading, setIsLoading] = useState(true);
   const { toast, showToast } = useToast();
 
@@ -86,7 +96,7 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
   const [modalInitialView, setModalInitialView] = useState<"overview" | "cancel-confirm" | "update-payment" | "plan-change-review">("overview");
   const [modalPendingPlan, setModalPendingPlan] = useState<string | null>(null);
 
-  const handleUpgrade = (planId: string, interval?: "month" | "year") => {
+  const handleUpgrade = (planId: string) => {
     // 1. Upgrading from Hobby to a paid plan -> show payment details for that plan
     if (currentPlan === "Hobby" && planId !== "Hobby") {
       setModalInitialView("plan-change-review");
@@ -192,7 +202,7 @@ export default function BillingClient({ initialSession }: { initialSession: Sess
                   <h3 className="font-serif text-2xl font-bold">Transaction History</h3>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Past 12 Months</p>
                 </div>
-                <InvoiceTable invoices={MOCK_INVOICES} />
+                <InvoiceTable invoices={invoices} />
               </section>
             </>
           )}
