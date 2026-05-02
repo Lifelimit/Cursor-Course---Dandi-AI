@@ -64,9 +64,6 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
   useEffect(() => {
     const initializeState = async () => {
       if (isOpen) {
-        // Prevent synchronous setState warning
-        await Promise.resolve();
-        
         let targetView = initialView || "overview";
         const finalPendingPlan = initialPendingPlan || null;
 
@@ -132,6 +129,17 @@ export function SubscriptionModal({ isOpen, onClose, planName, onSuccess, onErro
     };
     initializeState();
   }, [isOpen, session, initialView, initialPendingPlan]);
+
+  // Mandatory state scrub when closed to prevent "flash" of previous data
+  useEffect(() => {
+    if (!isOpen) {
+      const timer = setTimeout(() => {
+        setView("overview");
+        setPendingPlan(null);
+      }, 500); // Decisive delay to clear memory after exit animation
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (view === "success" && isOpen) {
