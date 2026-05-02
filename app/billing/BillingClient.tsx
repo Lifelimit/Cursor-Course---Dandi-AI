@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import type { Session } from "next-auth";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -41,6 +41,7 @@ export default function BillingClient({
 }) {
   const { data: session, update } = useSession();
   const activeSession = initialSession || session;
+  const hasRefreshed = useRef(false);
   
   const [data, setData] = useState<BillingData | null>(null);
   const [invoices] = useState(initialInvoices);
@@ -48,10 +49,14 @@ export default function BillingClient({
   const { toast, showToast } = useToast();
 
   useEffect(() => {
-    // Check for success param to refresh session
+    // Check for success param to refresh session (only once)
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("success") === "true") {
+    if (urlParams.get("success") === "true" && !hasRefreshed.current) {
+      hasRefreshed.current = true;
       update();
+      // Clean up URL to prevent loops on re-render/refresh
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
     }
   }, [update]);
 
