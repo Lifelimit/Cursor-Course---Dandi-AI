@@ -121,7 +121,7 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                   isFlying ? 'translate-x-[calc(100%+12px)] opacity-100' : 'translate-x-0 opacity-0 pointer-events-none'
                 }`}
               >
-                <div className="flex flex-col gap-4 rounded-[24px] border border-zinc-200 bg-white/95 p-5 shadow-2xl backdrop-blur-xl min-w-[200px]">
+                <div className="flex flex-col gap-4 rounded-[24px] border border-zinc-200 bg-white p-5 shadow-2xl min-w-[200px]">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Update Quota</span>
                     <button 
