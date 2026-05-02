@@ -102,7 +102,6 @@ export async function GET() {
 
       if (profile) {
         nextInvoiceDate = profile.billing_next_date || null;
-
         try {
           if (profile.billing_next_date) {
             const nextBilling = new Date(profile.billing_next_date);
@@ -120,12 +119,10 @@ export async function GET() {
             }
           }
         } catch (dateErr) {
-          console.error("⚠️ Usage API: Reset date calculation failed:", dateErr);
+          // Date calculation failed, fallback handled by null resetDate
         }
       }
     }
-
-    console.log("📊 Usage API: Sending to UI:", { resetDate, nextInvoiceDate });
 
     return NextResponse.json({
       keys: processedKeys,
