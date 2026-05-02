@@ -96,7 +96,7 @@ export async function GET() {
       if (userEmail) {
         const { data: profile } = await supabaseAdmin
           .from("profiles")
-          .select("billing_next_date, created_at")
+          .select("billing_next_date")
           .ilike("email", userEmail)
           .single();
 
@@ -118,15 +118,6 @@ export async function GET() {
             } else {
               resetDate = profile.billing_next_date;
             }
-          } else if (profile.created_at) {
-            const created = new Date(profile.created_at);
-            const now = new Date();
-            const resetDay = created.getDate();
-            let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
-            if (nextReset <= now) {
-              nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
-            }
-            resetDate = nextReset.toISOString();
           }
         }
       }
