@@ -82,7 +82,7 @@ export async function POST(req: Request) {
     // Update criteria: use userId from metadata if present, otherwise fallback to stripe_customer_id
     // Extract renewal date safely
     let renewalDate: string | null = null;
-    const periodEnd = (subscription as Record<string, unknown>).current_period_end as number || 
+    const periodEnd = (subscription as unknown as Record<string, unknown>).current_period_end as number || 
                      ((subscription.items?.data?.[0] as unknown) as Record<string, unknown>)?.current_period_end as number;
     
     if (periodEnd) {
