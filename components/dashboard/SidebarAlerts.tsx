@@ -1,17 +1,6 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
-
-import { IncreaseLimitModal } from "./IncreaseLimitModal";
-
-type Alert = {
-  id: string;
-  keyName: string;
-  pct: number;
-  threshold: number;
-  currentLimit: number;
-};
 
 import { UsageSparkline } from "../usage/UsageSparkline";
 
@@ -61,7 +50,7 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
       </div>
       
       <div className="space-y-3">
-        {alerts.map((alert, i) => {
+        {alerts.map((alert) => {
           const isMaxed = alert.pct >= 100;
           const isCritical = alert.pct >= 95;
           const isWarning = alert.pct >= 80 && alert.pct < 95;
@@ -128,34 +117,42 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
 
               {/* Horizontal Flyout Increase Form */}
               <div 
-                className={`absolute inset-y-0 right-0 z-0 flex items-center transition-all duration-500 ease-out ${
-                  isFlying ? 'translate-x-[calc(100%+8px)] opacity-100' : 'translate-x-0 opacity-0 pointer-events-none'
+                className={`absolute inset-y-0 right-0 z-[110] flex items-center transition-all duration-500 ease-out ${
+                  isFlying ? 'translate-x-[calc(100%+12px)] opacity-100' : 'translate-x-0 opacity-0 pointer-events-none'
                 }`}
               >
-                <div className="flex items-center gap-2 rounded-2xl bg-zinc-900 p-2 shadow-2xl">
-                  <div className="flex flex-col gap-1 px-2">
-                    <span className="text-[7px] font-black uppercase tracking-widest text-zinc-500">New Quota</span>
+                <div className="flex flex-col gap-4 rounded-[24px] border border-zinc-200 bg-white/95 p-5 shadow-2xl backdrop-blur-xl min-w-[200px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Update Quota</span>
+                    <button 
+                      onClick={() => setFlyoutKey(null)}
+                      className="rounded-full p-1 text-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 transition-all"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                        <path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[8px] font-bold text-zinc-500 uppercase">New Limit</span>
+                      <span className="text-[8px] font-black text-zinc-300 uppercase">Credits</span>
+                    </div>
                     <input 
                       type="number" 
                       value={newLimit}
                       onChange={(e) => setNewLimit(Number(e.target.value))}
-                      className="w-20 bg-transparent text-[10px] font-black text-white focus:outline-none"
+                      className="w-full rounded-xl border border-zinc-100 bg-zinc-50/50 px-3 py-2.5 font-serif text-lg font-bold text-zinc-900 focus:border-zinc-900 focus:bg-white focus:outline-none transition-all"
                     />
                   </div>
+
                   <button 
                     onClick={() => handleIncrease(alert)}
                     disabled={isUpdating}
-                    className="rounded-xl bg-emerald-500 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-white hover:bg-emerald-400 transition-colors"
+                    className="w-full rounded-xl bg-[#18181b] py-3 text-[9px] font-black uppercase tracking-widest text-white shadow-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                   >
-                    {isUpdating ? '...' : 'Save'}
-                  </button>
-                  <button 
-                    onClick={() => setFlyoutKey(null)}
-                    className="p-2 text-zinc-500 hover:text-white"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
-                      <path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                    {isUpdating ? 'Updating...' : 'Save New Quota'}
                   </button>
                 </div>
               </div>
