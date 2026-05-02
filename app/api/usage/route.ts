@@ -1,3 +1,4 @@
+import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
@@ -86,11 +87,12 @@ export async function GET() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // 5. Fetch reset date from profile (fallback to 30 days from creation)
+    // 5. Fetch reset date from profile using email from session (most reliable)
+    const session = await auth();
     const { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("billing_next_date, created_at")
-      .eq("id", userId)
+      .eq("email", session?.user?.email)
       .single();
 
     let resetDate = profile?.billing_next_date;

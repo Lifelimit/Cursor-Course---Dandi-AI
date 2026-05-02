@@ -80,15 +80,24 @@ export async function POST(req: Request) {
     }
 
     // Update criteria: use userId from metadata if present, otherwise fallback to stripe_customer_id
+    // Extract renewal date safely
+    let renewalDate: string | null = null;
+    const periodEnd = (subscription as Record<string, unknown>).current_period_end as number || 
+                     ((subscription.items?.data?.[0] as unknown) as Record<string, unknown>)?.current_period_end as number;
+    
+    if (periodEnd) {
+      renewalDate = new Date(periodEnd * 1000).toISOString();
+    }
+
     const updatePayload = {
-      plan: planId || undefined, // Only update if we found it
+      plan: planId || undefined,
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
       billing_interval: subscription.items.data[0].price.recurring?.interval === "year" ? "year" : "month" as "month" | "year",
       payment_method_last4: paymentMethodDetails?.last4,
       payment_method_brand: paymentMethodDetails?.brand,
       payment_method_expiry: paymentMethodDetails?.expiry,
-      billing_next_date: new Date((subscription.current_period_end || subscription.items.data[0].current_period_end) * 1000).toISOString(),
+      billing_next_date: renewalDate,
       updated_at: new Date().toISOString()
     };
 
