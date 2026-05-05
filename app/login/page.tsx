@@ -4,12 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getURL } from "@/lib/utils/url-helper";
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { error?: string };
+  searchParams: Promise<{ error?: string }>;
 }) {
-  const error = searchParams.error === "auth-failed";
+  const params = await searchParams;
+  const error = params.error === "auth-failed";
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#f4f2ed] p-6 selection:bg-zinc-200">
