@@ -1,10 +1,16 @@
 import Link from "next/link";
-import { LoginForm } from "@/components/auth/LoginForm";
+import { AuthForm } from "@/components/auth/AuthForm";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getURL } from "@/lib/utils/url-helper";
 
-export default function LoginPage() {
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: { error?: string };
+}) {
+  const error = searchParams.error === "auth-failed";
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#f4f2ed] p-6 selection:bg-zinc-200">
       <div className="w-full max-w-sm space-y-12">
@@ -26,10 +32,11 @@ export default function LoginPage() {
         {/* Login Card */}
         <div className="rounded-[32px] border border-zinc-200 bg-white p-10 shadow-2xl shadow-zinc-200/50">
           <div className="space-y-6">
-            <div className="space-y-2">
-              <h2 className="font-serif text-2xl font-bold">Welcome back.</h2>
-              <p className="text-sm text-zinc-500">Sign in to manage your secure API credentials and monitor orchestration nodes.</p>
-            </div>
+            {error && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs font-bold uppercase tracking-widest text-rose-600 animate-in fade-in slide-in-from-top-2 duration-500">
+                Authentication Failed. Please try again.
+              </div>
+            )}
 
             <form
               action={async () => {
@@ -66,14 +73,7 @@ export default function LoginPage() {
               <div className="flex-grow border-t border-zinc-200"></div>
             </div>
 
-            <LoginForm />
-
-            <div className="mt-6 text-center text-sm text-zinc-500">
-              Don&apos;t have an account?{" "}
-              <Link href="/signup" className="font-bold text-zinc-900 hover:underline">
-                Sign up
-              </Link>
-            </div>
+            <AuthForm defaultMode="login" />
           </div>
         </div>
 

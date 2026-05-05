@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SignupForm } from "@/components/auth/SignupForm";
+import { AuthForm } from "@/components/auth/AuthForm";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getURL } from "@/lib/utils/url-helper";
@@ -26,10 +26,6 @@ export default function SignupPage() {
         {/* Signup Card */}
         <div className="rounded-[32px] border border-zinc-200 bg-white p-10 shadow-2xl shadow-zinc-200/50">
           <div className="space-y-6">
-            <div className="space-y-2">
-              <h2 className="font-serif text-2xl font-bold">Create your account.</h2>
-              <p className="text-sm text-zinc-500">Sign up to manage your secure API credentials and monitor orchestration nodes.</p>
-            </div>
 
             <form
               action={async () => {
@@ -66,14 +62,7 @@ export default function SignupPage() {
               <div className="flex-grow border-t border-zinc-200"></div>
             </div>
 
-            <SignupForm />
-
-            <div className="mt-6 text-center text-sm text-zinc-500">
-              Already have an account?{" "}
-              <Link href="/login" className="font-bold text-zinc-900 hover:underline">
-                Sign in
-              </Link>
-            </div>
+            <AuthForm defaultMode="signup" />
           </div>
         </div>
 
