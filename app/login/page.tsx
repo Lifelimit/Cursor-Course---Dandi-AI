@@ -39,41 +39,6 @@ export default async function LoginPage({
               </div>
             )}
 
-            <form
-              action={async () => {
-                "use server";
-                const supabase = await createClient();
-                const { data, error } = await supabase.auth.signInWithOAuth({
-                  provider: "google",
-                  options: {
-                    redirectTo: `${getURL()}/auth/callback`,
-                  },
-                });
-                if (data.url) {
-                  redirect(data.url);
-                }
-              }}
-            >
-              <button
-                type="submit"
-                className="group flex w-full items-center justify-center gap-4 rounded-full border border-zinc-200 bg-white px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-900 transition-all hover:bg-zinc-50 hover:shadow-lg active:scale-95"
-              >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                  <path d="M12 23c3.11 0 5.72-1.03 7.63-2.79l-3.57-2.77c-.99.66-2.23 1.06-3.79 1.06-2.91 0-5.38-1.97-6.26-4.62H2.18v2.87A11.992 11.992 0 0 0 12 23z" fill="#34A853" />
-                  <path d="M5.74 13.88c-.23-.66-.36-1.37-.36-2.12s.13-1.46.36-2.12V6.77H2.18C1.4 8.35 1 10.12 1 12s.4 3.65 1.18 5.23l3.56-2.77z" fill="#FBBC05" />
-                  <path d="M12 4.64c1.69 0 3.21.58 4.41 1.72l3.31-3.31C17.71 1.06 15.1 0 12 0 7.37 0 3.4 2.65 1.18 6.77l3.56 2.77c.88-2.65 3.35-4.62 6.26-4.62z" fill="#EA4335" />
-                </svg>
-                Continue with Google
-              </button>
-            </form>
-
-            <div className="relative flex items-center py-2">
-              <div className="flex-grow border-t border-zinc-200"></div>
-              <span className="flex-shrink-0 px-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Or continue with email</span>
-              <div className="flex-grow border-t border-zinc-200"></div>
-            </div>
-
             <AuthForm defaultMode="login" />
           </div>
         </div>

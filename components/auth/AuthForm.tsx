@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { getURL } from "@/lib/utils/url-helper";
 
 interface AuthFormProps {
@@ -10,7 +10,14 @@ interface AuthFormProps {
 }
 
 export function AuthForm({ defaultMode }: AuthFormProps) {
-  const [isSignUp, setIsSignUp] = useState(defaultMode === "signup");
+  const pathname = usePathname();
+  const router = useRouter();
+  const supabase = createClient();
+
+  // Initialize based on pathname if available, otherwise fallback to defaultMode
+  const [isSignUp, setIsSignUp] = useState(
+    pathname === "/signup" ? true : pathname === "/login" ? false : defaultMode === "signup"
+  );
   const [usePassword, setUsePassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,8 +27,21 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isMagicLinkSent, setIsMagicLinkSent] = useState(false);
 
-  const router = useRouter();
-  const supabase = createClient();
+  // Sync state to URL
+  useEffect(() => {
+    if (isSignUp && pathname === "/login") {
+      router.replace("/signup", { scroll: false });
+    } else if (!isSignUp && pathname === "/signup") {
+      router.replace("/login", { scroll: false });
+    }
+  }, [isSignUp, pathname, router]);
+
+  // Sync URL to state (handles manual navigation / browser back/forward)
+  useEffect(() => {
+    if (pathname === "/signup" || pathname === "/login") {
+      setIsSignUp(pathname === "/signup");
+    }
+  }, [pathname]);
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
@@ -89,6 +109,22 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");
     } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function signInWithGoogle() {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      setError(err.message || "Failed to sign in with Google");
       setIsLoading(false);
     }
   }
@@ -216,6 +252,26 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
           </button>
         </div>
       </form>
+
+      <div className="relative flex items-center py-2">
+        <div className="flex-grow border-t border-zinc-100"></div>
+        <span className="flex-shrink-0 px-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Or continue with social</span>
+        <div className="flex-grow border-t border-zinc-100"></div>
+      </div>
+
+      <button
+        onClick={signInWithGoogle}
+        disabled={isLoading}
+        className="group flex w-full items-center justify-center gap-4 rounded-full border border-zinc-200 bg-white px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-900 transition-all hover:bg-zinc-50 hover:shadow-lg active:scale-[0.98] disabled:opacity-50"
+      >
+        <svg viewBox="0 0 24 24" className="h-4 w-4" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+          <path d="M12 23c3.11 0 5.72-1.03 7.63-2.79l-3.57-2.77c-.99.66-2.23 1.06-3.79 1.06-2.91 0-5.38-1.97-6.26-4.62H2.18v2.87A11.992 11.992 0 0 0 12 23z" fill="#34A853" />
+          <path d="M5.74 13.88c-.23-.66-.36-1.37-.36-2.12s.13-1.46.36-2.12V6.77H2.18C1.4 8.35 1 10.12 1 12s.4 3.65 1.18 5.23l3.56-2.77z" fill="#FBBC05" />
+          <path d="M12 4.64c1.69 0 3.21.58 4.41 1.72l3.31-3.31C17.71 1.06 15.1 0 12 0 7.37 0 3.4 2.65 1.18 6.77l3.56 2.77c.88-2.65 3.35-4.62 6.26-4.62z" fill="#EA4335" />
+        </svg>
+        Continue with Google
+      </button>
 
       <div className="pt-4 text-center text-sm text-zinc-500 border-t border-zinc-100">
         {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
