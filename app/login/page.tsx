@@ -1,6 +1,7 @@
-import { signIn } from "@/auth";
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/LoginForm";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
 export default function LoginPage() {
   return (
@@ -32,7 +33,16 @@ export default function LoginPage() {
             <form
               action={async () => {
                 "use server";
-                await signIn("google", { redirectTo: "/" });
+                const supabase = await createClient();
+                const { data, error } = await supabase.auth.signInWithOAuth({
+                  provider: "google",
+                  options: {
+                    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/callback`,
+                  },
+                });
+                if (data.url) {
+                  redirect(data.url);
+                }
               }}
             >
               <button

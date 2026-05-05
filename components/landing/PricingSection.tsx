@@ -5,8 +5,7 @@ import { PLANS } from "@/lib/constants";
 import Link from "next/link";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 
-import type { Session } from "next-auth";
-import { useSession } from "next-auth/react";
+import { Session } from "@supabase/supabase-js";
 
 export function PricingSection({ 
   session, 
@@ -17,9 +16,8 @@ export function PricingSection({
   onSuccess?: (msg: string) => void,
   onError?: (msg: string) => void
 }) {
-  const { data: clientSession } = useSession();
-  const activeSession = clientSession || session;
-  const currentPlanId = (activeSession?.user as { plan?: string })?.plan || "Hobby";
+  const activeSession = session;
+  const currentPlanId = (activeSession?.user?.user_metadata as { plan?: string })?.plan || "Hobby";
 
   const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);

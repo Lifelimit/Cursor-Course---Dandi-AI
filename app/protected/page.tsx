@@ -1,9 +1,10 @@
-import { auth } from "@/auth";
+import { createClient } from "@/lib/supabase/server";
 import ProtectedClient from "./ProtectedClient";
 import { redirect } from "next/navigation";
 
 export default async function ProtectedPage() {
-  const session = await auth();
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
     redirect("/login");

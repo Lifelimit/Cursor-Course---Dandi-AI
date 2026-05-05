@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 /**
@@ -8,7 +8,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
  * @throws {Error} 401 Unauthorized if no session or user found
  */
 export async function getAuthenticatedUserId(): Promise<string> {
-  const session = await auth();
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
   const email = session?.user?.email;
 
   if (!email) {

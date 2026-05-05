@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
-import type { Session } from "next-auth";
+import type { Session } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -37,8 +36,7 @@ export default function UsageClient({
   initialSession: Session | null, 
   initialData?: UsageData | null 
 }) {
-  const { data: session } = useSession();
-  const activeSession = initialSession || session;
+  const activeSession = initialSession;
   
   const [data, setData] = useState<UsageData | null>(initialData);
   const [isLoading, setIsLoading] = useState(initialData === null);
@@ -77,7 +75,7 @@ export default function UsageClient({
   }, [fetchUsageData, initialData]);
 
   const currentData = data || initialData;
-  const currentPlan = activeSession?.user?.plan || "Hobby";
+  const currentPlan = activeSession?.user?.user_metadata?.plan || "Hobby";
   const PLAN_LIMITS = { Hobby: 1000, Premium: 5000, Researcher: 1000000 };
   const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
   const isUnlimited = currentPlan === "Researcher";

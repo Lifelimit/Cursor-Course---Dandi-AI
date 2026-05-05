@@ -4,8 +4,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useRouter } from "next/navigation";
 import { useApiKeys } from "@/hooks/useApiKeys";
-import { useSession } from "next-auth/react";
-import type { Session } from "next-auth";
+import type { Session } from "@supabase/supabase-js";
 import type { ApiKey } from "@/types/api";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
@@ -21,14 +20,13 @@ export default function PlaygroundClient({
   initialKeys?: ApiKey[];
 }) {
   const router = useRouter();
-  const { data: session } = useSession();
-  const activeSession = initialSession || session;
+  const activeSession = initialSession;
   
   const { apiKeys } = useApiKeys(initialKeys);
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
   // Dynamic Tier Logic
-  const currentPlan = activeSession?.user?.plan || "Hobby"; 
+  const currentPlan = activeSession?.user?.user_metadata?.plan || "Hobby"; 
   const PLAN_LIMITS = {
     Hobby: 1000,
     Premium: 5000,

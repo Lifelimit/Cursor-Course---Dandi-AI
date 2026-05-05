@@ -1,11 +1,12 @@
-import { auth } from "@/auth";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(req: Request) {
   try {
-    const session = await auth();
+    const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
     const email = session?.user?.email;
 
     if (!email) {

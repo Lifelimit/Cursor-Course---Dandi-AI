@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { stripe } from "@/lib/stripe";
 import BillingClient from "@/app/billing/BillingClient";
@@ -6,7 +6,8 @@ import { getServerUsageData } from "@/lib/services/server-data.service";
 import type { Invoice } from "@/components/billing/InvoiceTable";
 
 export default async function BillingPage() {
-  const session = await auth();
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
   
   if (!session) {
     redirect("/login");
@@ -15,7 +16,7 @@ export default async function BillingPage() {
   const usageData = await getServerUsageData();
 
   let invoices: Invoice[] = [];
-  const customerId = (session.user as { stripe_customer_id?: string })?.stripe_customer_id;
+  const customerId = (session.user.user_metadata as { stripe_customer_id?: string })?.stripe_customer_id;
 
   if (customerId) {
     try {
@@ -36,5 +37,5 @@ export default async function BillingPage() {
     }
   }
 
-  return <BillingClient initialSession={session} initialInvoices={invoices} initialData={usageData} />;
+  return <BillingClient initialSession={session as any} initialInvoices={invoices} initialData={usageData} />;
 }

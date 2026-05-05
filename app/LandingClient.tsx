@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { Session } from "next-auth";
+import { Session } from "@supabase/supabase-js";
 import { Navbar } from "@/components/landing/Navbar";
 import { HeroSection } from "@/components/landing/HeroSection";
 import dynamic from "next/dynamic";

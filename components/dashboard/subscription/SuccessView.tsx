@@ -1,5 +1,5 @@
 import React from "react";
-import { Session } from "next-auth";
+import { Session } from "@supabase/supabase-js";
 
 type SuccessViewProps = {
   pendingPlan: string | null;
@@ -19,7 +19,7 @@ export function SuccessView({ pendingPlan, transactionId, session, onClose }: Su
             </svg>
           </div>
           <div className="space-y-2">
-            <h2 className="font-serif text-3xl font-bold">Thank you for your purchase, {session?.user?.name || session?.user?.email}!</h2>
+            <h2 className="font-serif text-3xl font-bold">Thank you for your purchase, {session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || session?.user?.email}!</h2>
             <p className="text-sm font-medium text-zinc-500 italic">Your {pendingPlan} subscription is now active and ready for orchestration.</p>
           </div>
         </div>

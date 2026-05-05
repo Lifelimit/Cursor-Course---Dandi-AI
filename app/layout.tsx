@@ -15,9 +15,23 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Dandi AI — Repository Intelligence API",
   description: "The high-performance API layer for summarizing codebases, tracking metadata, and distilling repository insights in seconds.",
+  openGraph: {
+    title: "Dandi AI",
+    description: "The high-performance API layer for summarizing codebases.",
+    url: "https://dandi.ai",
+    siteName: "Dandi AI",
+    images: [
+      {
+        url: "https://dandi.ai/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Dandi AI Preview",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
 };
-
-import { SessionProvider } from "next-auth/react";
 
 export default function RootLayout({
   children,
@@ -31,9 +45,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased scroll-smooth`}
     >
       <body className="min-h-full flex flex-col">
-        <SessionProvider>
-          {children}
-        </SessionProvider>
+        {children}
       </body>
     </html>
   );

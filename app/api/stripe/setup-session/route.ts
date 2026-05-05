@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -9,7 +9,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(req: Request) {
   try {
-    const session = await auth();
+    const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
     const email = session?.user?.email;
 
     if (!email) {

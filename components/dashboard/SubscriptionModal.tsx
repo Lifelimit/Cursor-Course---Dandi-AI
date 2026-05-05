@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { updatePlanAction, removePaymentMethodAction } from "@/lib/auth-actions";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+
+import type { Session } from "@supabase/supabase-js";
 
 type SubscriptionModalProps = {
   isOpen: boolean;
@@ -14,6 +15,7 @@ type SubscriptionModalProps = {
   onSuccess?: (message: string) => void;
   onError?: (message: string) => void;
   onDowngrade?: () => void;
+  session?: Session | null;
 };
 
 import { PLAN_DETAILS, PLAN_RANKS, PLANS } from "@/lib/constants";
@@ -26,9 +28,8 @@ import { PlanReview } from "./subscription/PlanReview";
 import { Overview } from "./subscription/Overview";
 import { KeyDowngradeSelector } from "./subscription/KeyDowngradeSelector";
 
-export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, onSuccess, onError, initialView, initialPendingPlan, initialBillingInterval, onDowngrade }: SubscriptionModalProps) {
+export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, onSuccess, onError, initialView, initialPendingPlan, initialBillingInterval, onDowngrade, session }: SubscriptionModalProps) {
   const router = useRouter();
-  const { data: session, update } = useSession();
   const [transactionId] = useState(() => Math.random().toString(36).substring(2, 9).toUpperCase());
   const [view, setView] = useState<"overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review" | "remove-card-confirm" | "key-downgrade-selector">(initialView || "overview");
   const [isLoading, setIsLoading] = useState(false);
@@ -94,30 +95,31 @@ export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, 
         
         const s = session?.user;
         if (s) {
+          const meta = s.user_metadata || {};
           setCardData(prev => ({
             ...prev,
-            name: s.full_name || prev.name,
-            number: s.payment_method_last4 ? `•••• •••• •••• ${s.payment_method_last4}` : "",
-            brand: s.payment_method_brand || "",
-            expiry: s.payment_method_expiry || "",
-            street: s.billing_street || prev.street,
-            city: s.billing_city || prev.city,
-            state: s.billing_state || prev.state,
-            zip: s.billing_zip || prev.zip,
-            country: s.billing_country || prev.country
+            name: meta.full_name || prev.name,
+            number: meta.payment_method_last4 ? `•••• •••• •••• ${meta.payment_method_last4}` : "",
+            brand: meta.payment_method_brand || "",
+            expiry: meta.payment_method_expiry || "",
+            street: meta.billing_street || prev.street,
+            city: meta.billing_city || prev.city,
+            state: meta.billing_state || prev.state,
+            zip: meta.billing_zip || prev.zip,
+            country: meta.billing_country || prev.country
           }));
-          setShowAddressForm(!s.billing_street);
+          setShowAddressForm(!meta.billing_street);
           
           setFormValues({
-            name: s.full_name || "",
+            name: meta.full_name || "",
             number: "",
-            expiry: s.payment_method_expiry || "",
+            expiry: meta.payment_method_expiry || "",
             cvc: "",
-            street: s.billing_street || "",
-            city: s.billing_city || "",
-            state: s.billing_state || "",
-            zip: s.billing_zip || "",
-            country: s.billing_country || ""
+            street: meta.billing_street || "",
+            city: meta.billing_city || "",
+            state: meta.billing_state || "",
+            zip: meta.billing_zip || "",
+            country: meta.billing_country || ""
           });
         } else {
           setFormValues({
@@ -172,7 +174,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, 
         await removePaymentMethodAction();
       }
       await updatePlanAction("Hobby");
-      await update();
+      await router.refresh();
       router.refresh();
       onSuccess?.("Subscription scheduled for cancellation.");
       onClose();
@@ -277,7 +279,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, 
             zip: formValues.zip,
             country: formValues.country
           }, paymentMetadata);
-          await update();
+          await router.refresh();
           router.refresh();
           const actionText = PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "upgraded" : "downgraded";
           onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
@@ -299,7 +301,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, 
             zip: formValues.zip,
             country: formValues.country
           }, paymentMetadata);
-          await update();
+          await router.refresh();
           router.refresh();
           setIsLoading(false);
           onSuccess?.("Payment method updated and saved.");
@@ -411,7 +413,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, 
         await removePaymentMethodAction();
       }
       await updatePlanAction("Hobby");
-      await update();
+      await router.refresh();
       router.refresh();
       onSuccess?.("Downgraded to Hobby. Excess keys disabled.");
       onClose();
@@ -443,7 +445,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, 
       // 3. If it's a downgrade to Hobby, handle it via server action
       if (pendingPlan === "Hobby") {
         await updatePlanAction("Hobby");
-        await update();
+        await router.refresh();
         onSuccess?.("Successfully downgraded to Hobby plan.");
         onClose();
         router.refresh();
@@ -482,7 +484,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, 
     setIsLoading(true);
     try {
       await removePaymentMethodAction();
-      await update();
+      await router.refresh();
       router.refresh();
       setCardData(prev => ({ ...prev, number: "", brand: "", expiry: "" }));
       onSuccess?.("Payment method removed successfully.");
@@ -586,7 +588,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, 
             <SuccessView 
               pendingPlan={pendingPlan} 
               transactionId={transactionId} 
-              session={session} 
+              session={session || null} 
               onClose={onClose}
             />
           ) : view === "plan-change-review" ? (

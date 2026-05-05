@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useSession } from "next-auth/react";
-import type { Session } from "next-auth";
+import { Session } from "@supabase/supabase-js";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
@@ -40,8 +39,7 @@ export default function BillingClient({
   initialInvoices?: Invoice[],
   initialData?: BillingData | null
 }) {
-  const { data: session, update } = useSession();
-  const activeSession = initialSession || session;
+  const activeSession = initialSession;
   const hasRefreshed = useRef(false);
   
   const [data, setData] = useState<BillingData | null>(initialData);
@@ -66,12 +64,12 @@ export default function BillingClient({
 
       // Small delay to allow session provider to stabilize
       const timer = setTimeout(() => {
-        update();
+        window.location.reload();
       }, 500);
 
       return () => clearTimeout(timer);
     }
-  }, [update]);
+  }, []);
 
   const fetchBillingData = useCallback(async () => {
     try {
@@ -140,8 +138,8 @@ export default function BillingClient({
   }, [fetchBillingData, initialData]);
 
   const currentData = data || initialData;
-  const currentPlan = activeSession?.user?.plan || "Hobby";
-  const billingInterval = (activeSession?.user as { billing_interval?: "month" | "year" })?.billing_interval || "month";
+  const currentPlan = (activeSession?.user?.user_metadata as { plan?: string })?.plan || "Hobby";
+  const billingInterval = (activeSession?.user?.user_metadata as { billing_interval?: "month" | "year" })?.billing_interval || "month";
   
   const PLAN_LIMITS = { Hobby: 1000, Premium: 5000, Researcher: 1000000 };
   const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;

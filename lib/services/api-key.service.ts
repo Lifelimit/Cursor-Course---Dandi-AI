@@ -1,4 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { Redis } from "@upstash/redis";
+import { PLAN_DETAILS } from "@/lib/constants";
+
+const redis = Redis.fromEnv();
 
 export async function validateApiKey(keyValue: string) {
   // Special case for Playground Demo Key
@@ -7,85 +11,86 @@ export async function validateApiKey(keyValue: string) {
       id: "demo-id",
       name: "Playground Demo User",
       usage_count: 0,
-      monthly_limit: null,
+      monthly_limit: 1000,
       user_id: "demo-user-id",
       key_type: "production" as const
     };
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data: keyData, error } = await supabaseAdmin
     .from("api_keys")
-    .select("id, name, usage_count, monthly_limit, user_id, key_type, alert_threshold, alert_channels")
+    .select("id, name, usage_count, user_id, key_type, is_active")
     .eq("key_value", keyValue)
     .eq("is_active", true)
     .single();
 
-  if (error || !data) {
+  if (error || !keyData) {
     throw new Error("Invalid API key");
   }
 
-  const isProduction = data.key_type === "production";
+  // Fetch user profile to check plan and limits
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .select("plan")
+    .eq("id", keyData.user_id)
+    .single();
 
-  // 1. Enforce Monthly Limit (Hard for both by default as it's the plan limit)
-  if (data.monthly_limit !== null && data.usage_count >= data.monthly_limit) {
-    throw new Error(`Usage limit exceeded. You have used ${data.usage_count}/${data.monthly_limit} credits.`);
+  if (profileError || !profile) {
+    throw new Error("User profile not found");
   }
 
-  // 2. Enforce Rate Limits (Requests per Minute)
-  const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
-  const { count: recentUsage } = await supabaseAdmin
-    .from("api_usage_log")
-    .select("*", { count: "exact", head: true })
-    .eq("api_key_id", data.id)
-    .gt("created_at", oneMinuteAgo);
-
-  const rpmLimit = isProduction ? 1000 : 100;
-  if (recentUsage !== null && recentUsage >= rpmLimit) {
-    if (isProduction) {
-      throw new Error(`Rate limit exceeded (Hard). Production keys are limited to ${rpmLimit} requests/minute.`);
-    } else {
-      // For Dev, we allow it but it's a "Soft" limit warning in the logs/response
-      console.warn(`Soft Rate Limit Warning for ${data.name}: ${recentUsage}/${rpmLimit} req/min`);
+  const plan = profile.plan || "Hobby";
+  const planDetail = PLAN_DETAILS[plan];
+  
+  // Extract numeric limit from string like "1,000 requests / mo"
+  let monthlyLimit: number | null = null;
+  if (planDetail.features[0].includes("Unlimited")) {
+    monthlyLimit = null;
+  } else {
+    const match = planDetail.features[0].match(/(\d+,?\d+)/);
+    if (match) {
+      monthlyLimit = parseInt(match[0].replace(",", ""));
     }
   }
 
-  // 3. Smart Sentinel Check (Alert Threshold)
-  if (data.alert_threshold !== null && data.monthly_limit !== null) {
-    const usagePercent = (data.usage_count / data.monthly_limit) * 100;
-    if (usagePercent >= data.alert_threshold) {
-      // Logic for triggering alerts based on alert_channels (email, in-page, etc)
-      // For now we log it, but in production this would trigger the notification service
-      console.log(`[SENTINEL ALERT] Key ${data.name} has reached ${usagePercent.toFixed(1)}% of its limit.`);
-    }
+  // Get current usage from Redis (Hot data)
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const usageKey = `usage:user:${keyData.user_id}:${currentMonth}`;
+  const currentUsage = (await redis.get<number>(usageKey)) || 0;
+
+  // Enforce Monthly Limit
+  if (monthlyLimit !== null && currentUsage >= monthlyLimit) {
+    throw new Error(`Monthly usage limit exceeded for your ${plan} plan. Used ${currentUsage}/${monthlyLimit} credits.`);
   }
 
-  return data;
+  return {
+    ...keyData,
+    monthly_limit: monthlyLimit,
+    usage_count: currentUsage,
+    plan
+  };
 }
 
-export async function incrementKeyUsage(keyId: string, currentCount: number, userId: string, repoUrl?: string) {
+export async function incrementKeyUsage(keyId: string, userId: string, repoUrl?: string) {
   if (keyId === "demo-id") return;
 
-  // 1. Update the aggregate count on the key
-  const { error: updateError } = await supabaseAdmin
-    .from("api_keys")
-    .update({ usage_count: currentCount + 1 })
-    .eq("id", keyId);
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const usageKey = `usage:user:${userId}:${currentMonth}`;
 
-  if (updateError) {
-    console.error("Failed to increment usage count for key:", keyId, updateError);
-  }
+  // 1. Increment usage in Redis (Atomic)
+  await redis.incr(usageKey);
 
-  // 2. Log the individual usage event for analytics
-  const { error: logError } = await supabaseAdmin
-    .from("api_usage_log")
-    .insert({
-      api_key_id: keyId,
-      user_id: userId,
-      repo_url: repoUrl,
-    });
-
-  if (logError) {
-    console.error("Failed to log usage event:", logError);
-  }
+  // 2. Optionally: Periodically sync to Postgres api_keys table 
+  // (Not doing here to save connection cycles as requested)
+  
+  // 3. Log metadata to Redis for analytics instead of Postgres
+  const logKey = `logs:user:${userId}:${currentMonth}`;
+  await redis.lpush(logKey, JSON.stringify({
+    keyId,
+    repoUrl,
+    usedAt: new Date().toISOString()
+  }));
+  
+  // Keep only last 100 logs in Redis per user for "hot" analytics
+  await redis.ltrim(logKey, 0, 99);
 }
-

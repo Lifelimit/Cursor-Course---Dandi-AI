@@ -3,11 +3,23 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { logoutAction } from "@/lib/auth-actions";
-import type { Session } from "next-auth";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { Session } from "@supabase/supabase-js";
 
 export function Navbar({ session }: { session: Session | null }) {
   const [isOpen, setIsOpen] = useState(false);
+  const router = useRouter();
+  const supabase = createClient();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+    router.refresh();
+  };
+
+  // Supabase session user metadata
+  const userImage = session?.user?.user_metadata?.avatar_url;
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-zinc-200/50 bg-[#f4f2ed]/80 backdrop-blur-md">
@@ -50,12 +62,12 @@ export function Navbar({ session }: { session: Session | null }) {
               <div className="flex items-center gap-6">
                 <Link href="/dashboards" className="group flex items-center gap-3">
                   <span className="text-xs font-bold uppercase tracking-widest text-zinc-400 group-hover:text-zinc-900 transition-colors">Dashboard</span>
-                  {session.user?.image && (
-                    <Image src={session.user.image} alt="Avatar" width={34} height={34} className="rounded-full border-2 border-white shadow-sm" />
+                  {userImage && (
+                    <Image src={userImage} alt="Avatar" width={34} height={34} className="rounded-full border-2 border-white shadow-sm" />
                   )}
                 </Link>
                 <button 
-                  onClick={() => logoutAction()}
+                  onClick={handleSignOut}
                   className="text-xs font-bold uppercase tracking-widest text-rose-400 hover:text-rose-600 transition-colors"
                 >
                   Sign Out
@@ -93,7 +105,7 @@ export function Navbar({ session }: { session: Session | null }) {
               <>
                 <Link href="/dashboards" className="text-zinc-900">Go to Dashboard</Link>
                 <button 
-                  onClick={() => logoutAction()}
+                  onClick={handleSignOut}
                   className="text-rose-600 text-left"
                 >
                   Sign Out

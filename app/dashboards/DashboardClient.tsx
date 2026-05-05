@@ -4,8 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useToast } from "@/hooks/useToast";
-import { useSession } from "next-auth/react";
-import type { Session } from "next-auth";
+import { Session } from "@supabase/supabase-js";
 import { ApiKey } from "@/types/api";
 import { Toast } from "@/components/ui/Toast";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -21,14 +20,13 @@ export default function DashboardClient({
   initialKeys?: ApiKey[];
 }) {
   const router = useRouter();
-  const { data: session } = useSession();
-  const activeSession = initialSession || session; 
+  const activeSession = initialSession; 
   
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey } = useApiKeys(initialKeys);
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
   // Dynamic Tier Logic - Using the most recent session data available
-  const currentPlan = activeSession?.user?.plan || "Hobby"; 
+  const currentPlan = (activeSession?.user?.user_metadata as { plan?: string })?.plan || "Hobby"; 
   const PLAN_LIMITS = {
     Hobby: 1000,
     Premium: 5000,

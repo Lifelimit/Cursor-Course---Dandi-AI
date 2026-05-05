@@ -6,8 +6,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { useApiKeys } from "@/hooks/useApiKeys";
-import { useSession } from "next-auth/react";
-import type { Session } from "next-auth";
+import type { Session } from "@supabase/supabase-js";
 
 function ProtectedContent() {
   const searchParams = useSearchParams();
@@ -140,14 +139,13 @@ function ProtectedContent() {
 }
 
 export default function ProtectedClient({ initialSession }: { initialSession: Session | null }) {
-  const { data: session } = useSession();
-  const activeSession = initialSession || session;
+  const activeSession = initialSession;
   const { toast } = useToast();
   const { apiKeys } = useApiKeys();
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
   // Dynamic Tier Logic
-  const currentPlan = activeSession?.user?.plan || "Hobby"; 
+  const currentPlan = activeSession?.user?.user_metadata?.plan || "Hobby"; 
   const PLAN_LIMITS = {
     Hobby: 1000,
     Premium: 5000,

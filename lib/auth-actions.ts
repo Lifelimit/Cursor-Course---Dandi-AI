@@ -1,10 +1,8 @@
 "use server";
 
-import { signIn, signOut, auth } from "@/auth";
-import { AuthError } from "next-auth";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
-import bcrypt from "bcryptjs";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,14 +13,6 @@ const supabaseAdmin = createClient(
     }
   }
 );
-
-export async function loginAction() {
-  await signIn("google", { redirectTo: "/" });
-}
-
-export async function logoutAction() {
-  await signOut({ redirectTo: "/" });
-}
 
 export async function updatePlanAction(
   newPlanId: string, 
@@ -39,8 +29,9 @@ export async function updatePlanAction(
     expiry: string;
   }
 ) {
-  const session = await auth();
-  if (!session?.user?.email) throw new Error("Unauthorized");
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) throw new Error("Unauthorized");
 
   const updateData: Record<string, string | null> = { plan: newPlanId };
   
@@ -61,9 +52,16 @@ export async function updatePlanAction(
   const { error } = await supabaseAdmin
     .from("profiles")
     .update(updateData)
-    .eq("email", session.user.email);
+    .eq("email", user.email);
 
   if (error) throw new Error(error.message);
+  
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+    user.id,
+    { user_metadata: { ...user.user_metadata, ...updateData } }
+  );
+
+  if (authError) console.error("Failed to update user_metadata:", authError);
   
   revalidatePath("/");
   revalidatePath("/dashboards");
@@ -71,92 +69,31 @@ export async function updatePlanAction(
 }
 
 export async function removePaymentMethodAction() {
-  const session = await auth();
-  if (!session?.user?.email) throw new Error("Unauthorized");
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) throw new Error("Unauthorized");
+
+  const clearData = {
+    payment_method_last4: null,
+    payment_method_brand: null,
+    payment_method_expiry: null
+  };
 
   const { error } = await supabaseAdmin
     .from("profiles")
-    .update({
-      payment_method_last4: null,
-      payment_method_brand: null,
-      payment_method_expiry: null
-    })
-    .eq("email", session.user.email);
+    .update(clearData)
+    .eq("email", user.email);
 
   if (error) throw new Error(error.message);
+
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+    user.id,
+    { user_metadata: { ...user.user_metadata, ...clearData } }
+  );
+
+  if (authError) console.error("Failed to update user_metadata:", authError);
 
   revalidatePath("/");
   revalidatePath("/dashboards");
   return { success: true };
-}
-
-export async function credentialsSignupAction(formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  const fullName = formData.get("fullName") as string;
-
-  if (!email || !password || !fullName) {
-    return { error: "Missing required fields" };
-  }
-
-  const { data: existingUser } = await supabaseAdmin
-    .from("profiles")
-    .select("id")
-    .eq("email", email)
-    .single();
-
-  if (existingUser) {
-    return { error: "Account already exists with this email" };
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const id = crypto.randomUUID();
-
-  const { error } = await supabaseAdmin
-    .from("profiles")
-    .insert({
-      id,
-      email,
-      full_name: fullName,
-      hashed_password: hashedPassword,
-      plan: "Hobby",
-      updated_at: new Date().toISOString()
-    });
-
-  if (error) {
-    console.error("Signup error:", error);
-    return { error: "Failed to create account" };
-  }
-
-  try {
-    await signIn("credentials", { email, password, redirectTo: "/" });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return { error: "Invalid credentials" };
-    }
-    throw error; // Rethrow to allow redirect
-  }
-}
-
-export async function credentialsLoginAction(formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-
-  if (!email || !password) {
-    return { error: "Missing required fields" };
-  }
-
-  try {
-    await signIn("credentials", { email, password, redirectTo: "/" });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      switch (error.type) {
-        case "CredentialsSignin":
-          return { error: "Invalid email or password" };
-        default:
-          return { error: "Something went wrong" };
-      }
-    }
-    throw error; // Rethrow to allow redirect
-  }
 }

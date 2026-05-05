@@ -1,26 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { credentialsLoginAction } from "@/lib/auth-actions";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const supabase = createClient();
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
     setError(null);
     setIsLoading(true);
     
     try {
-      const result = await credentialsLoginAction(formData);
-      if (result?.error) {
-        setError(result.error);
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) {
+        setError(authError.message);
+        return;
       }
+
+      // Refresh the current route to sync server components with the new session
+      router.push("/dashboards");
+      router.refresh();
     } catch (err) {
-      const e = err as Error & { digest?: string };
-      if (e.message === "NEXT_REDIRECT" || e.digest?.startsWith("NEXT_REDIRECT")) {
-        throw err;
-      }
       setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
@@ -28,7 +41,7 @@ export function LoginForm() {
   }
 
   return (
-    <form action={handleSubmit} className="space-y-4 w-full mt-6">
+    <form onSubmit={handleSubmit} className="space-y-4 w-full mt-6">
       {error && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
           {error}

@@ -1,13 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { credentialsSignupAction } from "@/lib/auth-actions";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 export function SignupForm() {
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const router = useRouter();
+  const supabase = createClient();
 
   const calculateStrength = (pwd: string) => {
     if (!pwd) return 0;
@@ -23,7 +27,8 @@ export function SignupForm() {
   const passwordsMatch = password === confirmPassword;
   const showMatchError = confirmPassword.length > 0 && !passwordsMatch;
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (!passwordsMatch) {
       setError("Passwords do not match.");
       return;
@@ -34,19 +39,40 @@ export function SignupForm() {
       return;
     }
 
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get("email") as string;
+    const fullName = formData.get("fullName") as string;
+
     setError(null);
+    setSuccessMessage(null);
     setIsLoading(true);
     
     try {
-      const result = await credentialsSignupAction(formData);
-      if (result?.error) {
-        setError(result.error);
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (authError) {
+        setError(authError.message);
+        return;
+      }
+
+      if (data.session) {
+        // Email confirmation is disabled, user is logged in
+        router.push("/dashboards");
+        router.refresh();
+      } else {
+        // Confirmation required
+        setSuccessMessage("Account created! Please check your email to confirm your registration.");
       }
     } catch (err) {
-      const e = err as Error & { digest?: string };
-      if (e.message === "NEXT_REDIRECT" || e.digest?.startsWith("NEXT_REDIRECT")) {
-        throw err;
-      }
       setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
@@ -54,10 +80,16 @@ export function SignupForm() {
   }
 
   return (
-    <form action={handleSubmit} className="space-y-4 w-full mt-6">
+    <form onSubmit={handleSubmit} className="space-y-4 w-full mt-6">
       {error && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
           {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+          {successMessage}
         </div>
       )}
       
@@ -111,7 +143,6 @@ export function SignupForm() {
           </div>
         </div>
 
-        {/* Real-time Feedback UI */}
         {(password.length > 0 || showMatchError) && (
           <div className="flex flex-col gap-2">
             {password.length > 0 && (

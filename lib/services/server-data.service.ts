@@ -1,20 +1,50 @@
-import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getAuthenticatedUserId } from "@/lib/services/auth.service";
-import { ApiKeyApiResponse, mapApiKey } from "@/types/api";
+import { createClient } from "@/lib/supabase/server";
+import { ApiKeyApiResponse } from "@/types/api";
 import { stripe } from "@/lib/stripe";
-import { auth } from "@/auth";
+import { Redis } from "@upstash/redis";
+import { PLAN_DETAILS } from "@/lib/constants";
+
+const redis = Redis.fromEnv();
 
 export async function getServerApiKeys(): Promise<ApiKeyApiResponse[]> {
   try {
-    const userId = await getAuthenticatedUserId();
-    const { data, error } = await supabaseAdmin
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) return [];
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("plan")
+      .eq("id", user.id)
+      .single();
+
+    const plan = profile?.plan || "Hobby";
+    const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] || PLAN_DETAILS["Hobby"];
+    let monthlyLimit: number | null = null;
+    if (planDetail.features[0].includes("Unlimited")) {
+      monthlyLimit = null;
+    } else {
+      const match = planDetail.features[0].match(/(\d+,?\d+)/);
+      if (match) {
+        monthlyLimit = parseInt(match[0].replace(",", ""));
+      }
+    }
+
+    const { data, error } = await supabase
       .from("api_keys")
       .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active,alert_threshold,alert_channels,alert_phone")
-      .eq("user_id", userId)
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) return [];
-    return (data ?? []) as ApiKeyApiResponse[];
+    
+    // We can't easily get per-key usage from Redis as it's tracked per user,
+    // so we return the keys with the global monthly limit applied to them visually
+    return (data ?? []).map(k => ({
+      ...k,
+      monthly_limit: monthlyLimit
+    })) as ApiKeyApiResponse[];
   } catch {
     return [];
   }
@@ -22,30 +52,52 @@ export async function getServerApiKeys(): Promise<ApiKeyApiResponse[]> {
 
 export async function getServerUsageData() {
   try {
-    const userId = await getAuthenticatedUserId();
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // 1. Fetch all API keys for the user
-    const { data: keys, error: keysError } = await supabaseAdmin
+    if (!user) return null;
+
+    const userId = user.id;
+
+    // 1. Fetch user profile to get plan, Stripe details, and calculate limits
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("plan, billing_next_date, stripe_customer_id")
+      .eq("id", userId)
+      .single();
+
+    const plan = profile?.plan || "Hobby";
+    const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] || PLAN_DETAILS["Hobby"];
+    let monthlyLimit: number | null = null;
+    if (planDetail.features[0].includes("Unlimited")) {
+      monthlyLimit = null;
+    } else {
+      const match = planDetail.features[0].match(/(\d+,?\d+)/);
+      if (match) {
+        monthlyLimit = parseInt(match[0].replace(",", ""));
+      }
+    }
+
+    // 2. Fetch current month's usage from Redis
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const usageKey = `usage:user:${userId}:${currentMonth}`;
+    const totalUsage = (await redis.get<number>(usageKey)) || 0;
+
+    // 3. Fetch hot logs from Redis
+    const logKey = `logs:user:${userId}:${currentMonth}`;
+    const redisLogsStr = await redis.lrange(logKey, 0, -1);
+    const logs = redisLogsStr.map(log => typeof log === "string" ? JSON.parse(log) : log);
+
+    // 4. Fetch all API keys for the user
+    const { data: keys, error: keysError } = await supabase
       .from("api_keys")
-      .select("id, name, key_type, usage_count, monthly_limit, is_active, alert_threshold, alert_channels, alert_phone, created_at")
+      .select("id, name, key_type, is_active, alert_threshold, alert_channels, alert_phone, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
     if (keysError) throw new Error(keysError.message);
 
-    // 2. Fetch usage logs for the last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const { data: logs, error: logsError } = await supabaseAdmin
-      .from("api_usage_log")
-      .select("api_key_id, used_at, repo_url")
-      .eq("user_id", userId)
-      .gte("used_at", thirtyDaysAgo.toISOString());
-
-    if (logsError) throw new Error(logsError.message);
-
-    // 3. Process data for trends and top repos
+    // 5. Process data for trends and top repos
     const now = new Date();
     const dates = Array.from({ length: 30 }, (_, i) => {
       const d = new Date(now);
@@ -54,11 +106,11 @@ export async function getServerUsageData() {
     }).reverse();
 
     const processedKeys = (keys || []).map(key => {
-      const keyLogs = (logs || []).filter(l => l.api_key_id === key.id);
+      const keyLogs = (logs || []).filter(l => l.keyId === key.id);
       
-      // Daily trend
+      // Daily trend from Redis logs
       const trendMap = keyLogs.reduce((acc: Record<string, number>, log) => {
-        const date = log.used_at.split("T")[0];
+        const date = log.usedAt.split("T")[0];
         acc[date] = (acc[date] || 0) + 1;
         return acc;
       }, {});
@@ -68,19 +120,22 @@ export async function getServerUsageData() {
         count: trendMap[date] || 0
       }));
 
+      // Approximate usage count per key from hot logs (capped at 100 by redis ltrim)
+      const approxUsageCount = keyLogs.length;
+
       return {
         ...key,
-        pct: key.monthly_limit ? Math.min((key.usage_count / key.monthly_limit) * 100, 100) : 0,
+        usage_count: approxUsageCount,
+        monthly_limit: monthlyLimit,
+        pct: monthlyLimit ? Math.min((totalUsage / monthlyLimit) * 100, 100) : 0,
         dailyTrend
       };
     });
 
-    // 4. Global aggregates
-    const totalUsage = processedKeys.reduce((acc, k) => acc + k.usage_count, 0);
-
+    // 6. Global aggregates
     const globalRepoMap = (logs || []).reduce((acc: Record<string, number>, log) => {
-      if (log.repo_url) {
-        acc[log.repo_url] = (acc[log.repo_url] || 0) + 1;
+      if (log.repoUrl) {
+        acc[log.repoUrl] = (acc[log.repoUrl] || 0) + 1;
       }
       return acc;
     }, {});
@@ -90,48 +145,34 @@ export async function getServerUsageData() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // 5. Fetch profile and calculate dates
-    const session = await auth();
-    const userEmail = session?.user?.email;
+    // 7. Calculate billing dates
     let resetDate = null;
     let nextInvoiceDate = null;
-    let stripeCustomerId = null;
+    let stripeCustomerId = profile?.stripe_customer_id;
 
-    if (userEmail) {
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("billing_next_date, stripe_customer_id")
-        .eq("email", userEmail)
-        .single();
+    if (profile?.billing_next_date) {
+      nextInvoiceDate = profile.billing_next_date;
       
-      if (profile) {
-        stripeCustomerId = profile.stripe_customer_id;
-        if (profile.billing_next_date) {
-          nextInvoiceDate = profile.billing_next_date;
-          
-          try {
-            const nextBilling = new Date(profile.billing_next_date);
-            const now = new Date();
-            
-            // If next billing is > 32 days away, it's likely a yearly plan
-            // Calculate the monthly reset day based on the billing day
-            if (nextBilling.getTime() - now.getTime() > 32 * 24 * 60 * 60 * 1000) {
-              const resetDay = nextBilling.getDate();
-              let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
-              if (nextReset <= now) {
-                nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
-              }
-              resetDate = nextReset.toISOString();
-            } else {
-              resetDate = profile.billing_next_date;
-            }
-          } catch {
-            resetDate = profile.billing_next_date;
+      try {
+        const nextBilling = new Date(profile.billing_next_date);
+        const now = new Date();
+        
+        if (nextBilling.getTime() - now.getTime() > 32 * 24 * 60 * 60 * 1000) {
+          const resetDay = nextBilling.getDate();
+          let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
+          if (nextReset <= now) {
+            nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
           }
+          resetDate = nextReset.toISOString();
+        } else {
+          resetDate = profile.billing_next_date;
         }
+      } catch {
+        resetDate = profile.billing_next_date;
       }
     }
 
+    // 8. Fetch payment methods
     let paymentMethods: any[] = [];
     if (stripeCustomerId) {
       try {
@@ -156,20 +197,7 @@ export async function getServerUsageData() {
     }
 
     return {
-      keys: processedKeys.map(k => ({
-        ...k,
-        id: k.id,
-        name: k.name,
-        is_active: k.is_active,
-        usage_count: k.usage_count,
-        monthly_limit: k.monthly_limit,
-        alert_threshold: k.alert_threshold,
-        alert_channels: k.alert_channels,
-        dailyTrend: k.dailyTrend,
-        key_type: k.key_type,
-        alert_phone: k.alert_phone,
-        pct: k.pct
-      })),
+      keys: processedKeys,
       totalUsage,
       globalTopRepos,
       resetDate,

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Session } from "next-auth";
+import { Session } from "@supabase/supabase-js";
 
 const STATS_DATA = [
   { label: "AI Summarization", val: "94%", color: "bg-emerald-500" },

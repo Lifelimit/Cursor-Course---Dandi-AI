@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { stripe } from "@/lib/stripe";
@@ -89,7 +89,8 @@ export async function GET() {
       .slice(0, 10);
 
     // 5. Fetch profile and calculate dates
-    const session = await auth();
+    const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
     const userEmail = session?.user?.email;
     let resetDate = null;
     let nextInvoiceDate = null;
