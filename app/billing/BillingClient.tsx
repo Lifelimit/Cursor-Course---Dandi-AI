@@ -259,10 +259,12 @@ export default function BillingClient({
                 </div>
                 <div className="grid gap-6 lg:grid-cols-3">
                   {/* Primary Card - Takes more space or visual weight */}
-                  <div className="lg:col-span-2">
-                    {currentData?.paymentMethods?.find(pm => pm.isDefault) ? (
-                      <div className="space-y-4">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Primary Method</p>
+                  <div className={`${currentData?.paymentMethods?.some(pm => !pm.isDefault) ? 'lg:col-span-2' : 'lg:col-span-3 max-w-4xl'} flex flex-col`}>
+                    <div className="flex h-6 items-center px-2">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Primary Method</p>
+                    </div>
+                    <div className="mt-4 flex-1">
+                      {currentData?.paymentMethods?.find(pm => pm.isDefault) ? (
                         <PaymentMethodCard 
                           brand={currentData.paymentMethods.find(pm => pm.isDefault)!.brand}
                           last4={currentData.paymentMethods.find(pm => pm.isDefault)!.last4}
@@ -275,57 +277,52 @@ export default function BillingClient({
                           }} 
                           onSetDefault={() => {}} 
                         />
-                      </div>
-                    ) : (
-                      <div className="rounded-[32px] border border-dashed border-zinc-200 bg-zinc-50/50 p-12 text-center">
-                        <p className="text-sm font-medium text-zinc-500">No primary payment method.</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Secondary Cards - Apple Wallet Stack Layout */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Secondary Methods</p>
-                      {currentData?.paymentMethods && currentData.paymentMethods.filter(pm => !pm.isDefault).length > 1 && (
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => {
-                              const secondaryMethods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
-                              setSecondaryIndex(prev => (prev - 1 + secondaryMethods.length) % secondaryMethods.length);
-                            }}
-                            className="rounded-full border border-zinc-200 p-1 text-zinc-400 hover:border-zinc-900 hover:text-zinc-900 transition-all"
-                          >
-                            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
-                              <path d="M15 19l-7-7 7-7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </button>
-                          <button 
-                            onClick={() => {
-                              const secondaryMethods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
-                              setSecondaryIndex(prev => (prev + 1) % secondaryMethods.length);
-                            }}
-                            className="rounded-full border border-zinc-200 p-1 text-zinc-400 hover:border-zinc-900 hover:text-zinc-900 transition-all"
-                          >
-                            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
-                              <path d="M9 5l7 7-7 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </button>
+                      ) : (
+                        <div className="flex h-[180px] items-center justify-center rounded-[32px] border border-dashed border-zinc-200 bg-zinc-50/50 text-center">
+                          <p className="text-sm font-medium text-zinc-500">No primary payment method.</p>
                         </div>
                       )}
                     </div>
-                    
-                    <div className="relative h-[180px] w-full" style={{ perspective: '1000px' }}>
-                      {currentData?.paymentMethods?.filter(pm => !pm.isDefault).length ? (
-                        currentData.paymentMethods.filter(pm => !pm.isDefault).map((pm, idx) => {
+                  </div>
+
+                  {/* Secondary Cards - Apple Wallet Stack Layout */}
+                  {currentData?.paymentMethods?.some(pm => !pm.isDefault) && (
+                    <div className="flex flex-col">
+                      <div className="flex h-6 items-center justify-between px-2">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Secondary Methods</p>
+                        {currentData?.paymentMethods && currentData.paymentMethods.filter(pm => !pm.isDefault).length > 1 && (
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => {
+                                const secondaryMethods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
+                                setSecondaryIndex(prev => (prev - 1 + secondaryMethods.length) % secondaryMethods.length);
+                              }}
+                              className="rounded-full border border-zinc-200 p-1 text-zinc-400 hover:border-zinc-900 hover:text-zinc-900 transition-all"
+                            >
+                              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
+                                <path d="M15 19l-7-7 7-7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </button>
+                            <button 
+                              onClick={() => {
+                                const secondaryMethods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
+                                setSecondaryIndex(prev => (prev + 1) % secondaryMethods.length);
+                              }}
+                              className="rounded-full border border-zinc-200 p-1 text-zinc-400 hover:border-zinc-900 hover:text-zinc-900 transition-all"
+                            >
+                              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
+                                <path d="M9 5l7 7-7 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="relative mt-4 h-[180px] w-full" style={{ perspective: '1000px' }}>
+                        {currentData.paymentMethods.filter(pm => !pm.isDefault).map((pm, idx) => {
                           const methods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
                           const length = methods.length;
-                          
-                          // Calculate relative index for circular behavior
-                          // This ensures the active card is at 0, next at 1, last at length-1
                           const relativeIdx = (idx - secondaryIndex + length) % length;
-                          
-                          // Only show cards that are "ahead" or just "behind"
                           const isVisible = relativeIdx <= 3 || relativeIdx >= length - 1;
 
                           return (
@@ -355,14 +352,10 @@ export default function BillingClient({
                               </div>
                             </div>
                           );
-                        })
-                      ) : (
-                        <div className="flex h-full items-center justify-center rounded-[24px] border border-dashed border-zinc-200 bg-zinc-50/30">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 italic">No secondary cards</p>
-                        </div>
-                      )}
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </section>
 
