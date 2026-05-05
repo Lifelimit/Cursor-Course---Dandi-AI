@@ -15,5 +15,5 @@ export default async function DashboardsPage() {
   const { keys: initialKeysRaw, plan } = await getServerApiKeys();
   const initialKeys = initialKeysRaw.map(mapApiKey);
 
-  return <DashboardClient initialSession={{ user } as any} initialKeys={initialKeys} initialPlan={plan} />;
+  return <DashboardClient initialUser={user} initialKeys={initialKeys} initialPlan={plan} />;
 }

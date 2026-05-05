@@ -37,5 +37,5 @@ export default async function BillingPage() {
     }
   }
 
-  return <BillingClient initialSession={{ user } as any} initialInvoices={invoices} initialData={usageData} />;
+  return <BillingClient initialUser={user} initialInvoices={invoices} initialData={usageData} />;
 }

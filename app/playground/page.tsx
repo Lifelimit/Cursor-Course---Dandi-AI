@@ -6,14 +6,14 @@ import { mapApiKey } from "@/types/api";
 
 export default async function PlaygroundPage() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     redirect("/login");
   }
 
-  const initialKeysRaw = await getServerApiKeys();
+  const { keys: initialKeysRaw } = await getServerApiKeys();
   const initialKeys = initialKeysRaw.map(mapApiKey);
 
-  return <PlaygroundClient initialSession={session} initialKeys={initialKeys} />;
+  return <PlaygroundClient initialSession={user as any} initialKeys={initialKeys} />;
 }

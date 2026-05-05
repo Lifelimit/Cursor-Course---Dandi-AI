@@ -94,7 +94,7 @@ export async function GET() {
     const userEmail = user?.email;
     let resetDate = null;
     let nextInvoiceDate = null;
-    let profileData: { billing_next_date: string | null; stripe_customer_id: string | null } | null = null;
+    let profileData: { plan: string | null; billing_next_date: string | null; stripe_customer_id: string | null } | null = null;
 
     if (userEmail) {
       const { data: profile } = await supabaseAdmin

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useToast } from "@/hooks/useToast";
@@ -11,18 +11,19 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { ApiKeyModal } from "@/components/dashboard/ApiKeyModal";
 import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
 import { useRouter } from "next/navigation";
+import { User } from "@supabase/supabase-js";
 
 export default function DashboardClient({ 
-  initialSession, 
+  initialUser, 
   initialKeys = [],
   initialPlan = "Hobby"
 }: { 
-  initialSession: Session | null;
+  initialUser: User | null;
   initialKeys?: ApiKey[];
   initialPlan?: string;
 }) {
   const router = useRouter();
-  const activeSession = initialSession; 
+  const activeUser = initialUser; 
   
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey } = useApiKeys(initialKeys);
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
@@ -30,7 +31,7 @@ export default function DashboardClient({
   const [realtimePlan, setRealtimePlan] = useState<string | null>(null);
   
   // Dynamic Tier Logic - Using the most recent session data available
-  const currentPlan = realtimePlan || initialPlan || (activeSession?.user?.user_metadata as { plan?: string })?.plan || "Hobby"; 
+  const currentPlan = realtimePlan || initialPlan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
   const PLAN_LIMITS = {
     Hobby: 1000,
     Premium: 5000,
