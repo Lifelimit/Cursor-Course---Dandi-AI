@@ -1,8 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { User } from "@supabase/supabase-js";
 
 const NAV_ITEMS = [
   { name: "Overview", href: "/dashboards" },
@@ -42,6 +44,13 @@ export function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+  }, [supabase.auth]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -81,6 +90,30 @@ export function Sidebar({
           
           <div className="my-4 h-px bg-zinc-100" />
           
+          {user && (
+            <div className="mb-4 flex items-center gap-3 px-2">
+              {user.user_metadata?.avatar_url ? (
+                <img 
+                  src={user.user_metadata.avatar_url} 
+                  alt="Avatar" 
+                  className="h-8 w-8 rounded-full border border-zinc-200 shadow-sm" 
+                />
+              ) : (
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-black uppercase text-zinc-600 border border-zinc-200 shadow-sm">
+                  {user.email?.[0] || 'U'}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-[10px] font-black uppercase tracking-widest text-zinc-900">
+                  {user.email}
+                </p>
+                <p className="text-[8px] font-bold uppercase tracking-widest text-zinc-400">
+                  Active Account
+                </p>
+              </div>
+            </div>
+          )}
+
           {pathname !== "/dashboards" && (
             <Link
               href="/"

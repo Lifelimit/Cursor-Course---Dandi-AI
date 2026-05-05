@@ -61,14 +61,21 @@ export function Navbar({ session }: { session: Session | null }) {
             {session ? (
               <div className="flex items-center gap-6">
                 <Link href="/dashboards" className="group flex items-center gap-3">
-                  <span className="text-xs font-bold uppercase tracking-widest text-zinc-400 group-hover:text-zinc-900 transition-colors">Dashboard</span>
-                  {userImage && (
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-zinc-900 transition-colors">Dashboard</span>
+                    <span className="text-[9px] font-bold text-zinc-400 truncate max-w-[120px] lowercase">{session.user.email}</span>
+                  </div>
+                  {userImage ? (
                     <Image src={userImage} alt="Avatar" width={34} height={34} className="rounded-full border-2 border-white shadow-sm" />
+                  ) : (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-black uppercase text-zinc-600 border border-zinc-200">
+                      {session.user.email?.[0] || 'U'}
+                    </div>
                   )}
                 </Link>
                 <button 
                   onClick={handleSignOut}
-                  className="text-xs font-bold uppercase tracking-widest text-rose-400 hover:text-rose-600 transition-colors"
+                  className="text-[10px] font-black uppercase tracking-widest text-rose-400 hover:text-rose-600 transition-colors"
                 >
                   Sign Out
                 </button>
@@ -103,6 +110,10 @@ export function Navbar({ session }: { session: Session | null }) {
             <hr className="border-zinc-200" />
             {session ? (
               <>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Account</span>
+                  <span className="text-xs font-bold text-zinc-900 lowercase">{session.user.email}</span>
+                </div>
                 <Link href="/dashboards" className="text-zinc-900">Go to Dashboard</Link>
                 <button 
                   onClick={handleSignOut}
