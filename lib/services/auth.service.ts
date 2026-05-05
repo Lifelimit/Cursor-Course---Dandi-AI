@@ -9,8 +9,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
  */
 export async function getAuthenticatedUserId(): Promise<string> {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  const email = session?.user?.email;
+  const { data: { user } } = await supabase.auth.getUser();
+  const email = user?.email;
 
   if (!email) {
     throw new Error("Unauthorized: No active session found.");
