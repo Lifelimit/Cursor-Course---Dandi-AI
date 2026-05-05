@@ -7,16 +7,16 @@ import type { Invoice } from "@/components/billing/InvoiceTable";
 
 export default async function BillingPage() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
   
-  if (!session) {
+  if (!user) {
     redirect("/login");
   }
 
   const usageData = await getServerUsageData();
 
   let invoices: Invoice[] = [];
-  const customerId = (session.user.user_metadata as { stripe_customer_id?: string })?.stripe_customer_id;
+  const customerId = usageData?.stripeCustomerId;
 
   if (customerId) {
     try {
@@ -37,5 +37,5 @@ export default async function BillingPage() {
     }
   }
 
-  return <BillingClient initialSession={session as any} initialInvoices={invoices} initialData={usageData} />;
+  return <BillingClient initialSession={user as any} initialInvoices={invoices} initialData={usageData} />;
 }

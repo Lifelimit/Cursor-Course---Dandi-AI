@@ -6,12 +6,12 @@ import { PLAN_DETAILS } from "@/lib/constants";
 
 const redis = Redis.fromEnv();
 
-export async function getServerApiKeys(): Promise<ApiKeyApiResponse[]> {
+export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], plan: string }> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
-    if (!user) return [];
+    if (!user) return { keys: [], plan: "Hobby" };
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -37,16 +37,19 @@ export async function getServerApiKeys(): Promise<ApiKeyApiResponse[]> {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (error) return [];
+    if (error) return { keys: [], plan: plan || "Hobby" };
     
     // We can't easily get per-key usage from Redis as it's tracked per user,
     // so we return the keys with the global monthly limit applied to them visually
-    return (data ?? []).map(k => ({
-      ...k,
-      monthly_limit: monthlyLimit
-    })) as ApiKeyApiResponse[];
+    return {
+      keys: (data ?? []).map(k => ({
+        ...k,
+        monthly_limit: monthlyLimit
+      })) as ApiKeyApiResponse[],
+      plan
+    };
   } catch {
-    return [];
+    return { keys: [], plan: "Hobby" };
   }
 }
 
@@ -197,12 +200,14 @@ export async function getServerUsageData() {
     }
 
     return {
+      plan,
       keys: processedKeys,
       totalUsage,
       globalTopRepos,
       resetDate,
       nextInvoiceDate,
-      paymentMethods
+      paymentMethods,
+      stripeCustomerId
     };
   } catch (err) {
     console.error("getServerUsageData error:", err);

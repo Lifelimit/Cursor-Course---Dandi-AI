@@ -14,10 +14,12 @@ import { useRouter } from "next/navigation";
 
 export default function DashboardClient({ 
   initialSession, 
-  initialKeys = [] 
+  initialKeys = [],
+  initialPlan = "Hobby"
 }: { 
   initialSession: Session | null;
   initialKeys?: ApiKey[];
+  initialPlan?: string;
 }) {
   const router = useRouter();
   const activeSession = initialSession; 
@@ -25,8 +27,10 @@ export default function DashboardClient({
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey } = useApiKeys(initialKeys);
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
+  const [realtimePlan, setRealtimePlan] = useState<string | null>(null);
+  
   // Dynamic Tier Logic - Using the most recent session data available
-  const currentPlan = (activeSession?.user?.user_metadata as { plan?: string })?.plan || "Hobby"; 
+  const currentPlan = realtimePlan || initialPlan || (activeSession?.user?.user_metadata as { plan?: string })?.plan || "Hobby"; 
   const PLAN_LIMITS = {
     Hobby: 1000,
     Premium: 5000,
@@ -34,6 +38,16 @@ export default function DashboardClient({
   };
   const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
   const isUnlimited = currentPlan === "Researcher";
+
+  // Fetch real-time plan from usage endpoint
+  useEffect(() => {
+    fetch("/api/usage")
+      .then(res => res.json())
+      .then(data => {
+        if (data.plan) setRealtimePlan(data.plan);
+      })
+      .catch(() => {});
+  }, []);
 
   const alerts = apiKeys
     .filter(k => k.is_active && k.alert_threshold !== null && k.alert_channels?.includes('in-page'))

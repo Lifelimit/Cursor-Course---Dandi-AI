@@ -97,7 +97,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
         const { error: authError } = await supabase.auth.signInWithOtp({
           email,
           options: {
-            emailRedirectTo: `${getURL()}/auth/callback`,
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         });
 
@@ -120,6 +120,10 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
         },
       });
       if (error) throw error;

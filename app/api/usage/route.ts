@@ -90,8 +90,8 @@ export async function GET() {
 
     // 5. Fetch profile and calculate dates
     const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-    const userEmail = session?.user?.email;
+    const { data: { user } } = await supabase.auth.getUser();
+    const userEmail = user?.email;
     let resetDate = null;
     let nextInvoiceDate = null;
     let profileData: { billing_next_date: string | null; stripe_customer_id: string | null } | null = null;
@@ -99,7 +99,7 @@ export async function GET() {
     if (userEmail) {
       const { data: profile } = await supabaseAdmin
         .from("profiles")
-        .select("billing_next_date, stripe_customer_id")
+        .select("plan, billing_next_date, stripe_customer_id")
         .eq("email", userEmail)
         .single();
       
@@ -154,6 +154,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
+      plan: profileData?.plan || "Hobby",
       keys: processedKeys,
       totalUsage,
       globalTopRepos,

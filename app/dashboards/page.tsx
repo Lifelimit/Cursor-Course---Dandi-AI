@@ -6,14 +6,14 @@ import { mapApiKey } from "@/types/api";
 
 export default async function DashboardsPage() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     redirect("/login");
   }
 
-  const initialKeysRaw = await getServerApiKeys();
+  const { keys: initialKeysRaw, plan } = await getServerApiKeys();
   const initialKeys = initialKeysRaw.map(mapApiKey);
 
-  return <DashboardClient initialSession={session as any} initialKeys={initialKeys} />;
+  return <DashboardClient initialSession={user as any} initialKeys={initialKeys} initialPlan={plan} />;
 }

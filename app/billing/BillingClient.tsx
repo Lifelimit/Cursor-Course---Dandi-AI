@@ -13,6 +13,7 @@ import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 
 
 type BillingData = {
+  plan: string;
   totalUsage: number;
   resetDate: string | null;
   nextInvoiceDate: string | null;
@@ -138,7 +139,7 @@ export default function BillingClient({
   }, [fetchBillingData, initialData]);
 
   const currentData = data || initialData;
-  const currentPlan = (activeSession?.user?.user_metadata as { plan?: string })?.plan || "Hobby";
+  const currentPlan = currentData?.plan || (activeSession?.user?.user_metadata as { plan?: string })?.plan || "Hobby";
   const billingInterval = (activeSession?.user?.user_metadata as { billing_interval?: "month" | "year" })?.billing_interval || "month";
   
   const PLAN_LIMITS = { Hobby: 1000, Premium: 5000, Researcher: 1000000 };
