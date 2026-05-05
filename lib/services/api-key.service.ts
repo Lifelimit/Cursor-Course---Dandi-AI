@@ -19,7 +19,7 @@ export async function validateApiKey(keyValue: string) {
 
   const { data: keyData, error } = await supabaseAdmin
     .from("api_keys")
-    .select("id, name, usage_count, user_id, key_type, is_active")
+    .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active")
     .eq("key_value", keyValue)
     .eq("is_active", true)
     .single();
@@ -56,17 +56,27 @@ export async function validateApiKey(keyValue: string) {
   // Get current usage from Redis (Hot data)
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
   const usageKey = `usage:user:${keyData.user_id}:${currentMonth}`;
-  const currentUsage = (await redis.get<number>(usageKey)) || 0;
+  const keyUsageKey = `usage:key:${keyData.id}:${currentMonth}`;
+  
+  const [currentUsage, currentKeyUsage] = await Promise.all([
+    redis.get<number>(usageKey).then(v => v || 0),
+    redis.get<number>(keyUsageKey).then(v => v || 0)
+  ]);
 
-  // Enforce Monthly Limit
+  // Enforce Specific Key Limit if set
+  if (keyData.monthly_limit !== null && currentKeyUsage >= keyData.monthly_limit) {
+    throw new Error(`Usage limit of ${keyData.monthly_limit} reached for this specific API key.`);
+  }
+
+  // Enforce Global Plan Limit
   if (monthlyLimit !== null && currentUsage >= monthlyLimit) {
     throw new Error(`Monthly usage limit exceeded for your ${plan} plan. Used ${currentUsage}/${monthlyLimit} credits.`);
   }
 
   return {
     ...keyData,
-    monthly_limit: monthlyLimit,
-    usage_count: currentUsage,
+    monthly_limit: keyData.monthly_limit ?? monthlyLimit,
+    usage_count: currentKeyUsage,
     plan
   };
 }
@@ -76,9 +86,13 @@ export async function incrementKeyUsage(keyId: string, userId: string, repoUrl?:
 
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
   const usageKey = `usage:user:${userId}:${currentMonth}`;
-
+  const keyUsageKey = `usage:key:${keyId}:${currentMonth}`;
+  
   // 1. Increment usage in Redis (Atomic)
-  await redis.incr(usageKey);
+  await Promise.all([
+    redis.incr(usageKey),
+    redis.incr(keyUsageKey)
+  ]);
 
   // 2. Optionally: Periodically sync to Postgres api_keys table 
   // (Not doing here to save connection cycles as requested)

@@ -39,12 +39,19 @@ export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], p
 
     if (error) return { keys: [], plan: plan || "Hobby" };
     
-    // We can't easily get per-key usage from Redis as it's tracked per user,
-    // so we return the keys with the global monthly limit applied to them visually
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const pipeline = redis.pipeline();
+    (data ?? []).forEach(k => {
+      pipeline.get(`usage:key:${k.id}:${currentMonth}`);
+    });
+    const keyUsageCounts = await pipeline.exec<number[]>();
+
+    // Prioritize the key's individual monthly_limit if set, otherwise fallback to plan limit
     return {
-      keys: (data ?? []).map(k => ({
+      keys: (data ?? []).map((k, index) => ({
         ...k,
-        monthly_limit: monthlyLimit
+        usage_count: keyUsageCounts[index] || 0,
+        monthly_limit: k.monthly_limit ?? monthlyLimit
       })) as ApiKeyApiResponse[],
       plan
     };
@@ -94,13 +101,19 @@ export async function getServerUsageData() {
     // 4. Fetch all API keys for the user
     const { data: keys, error: keysError } = await supabase
       .from("api_keys")
-      .select("id, name, key_type, is_active, alert_threshold, alert_channels, alert_phone, created_at")
+      .select("id, name, key_type, is_active, monthly_limit, alert_threshold, alert_channels, alert_phone, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
     if (keysError) throw new Error(keysError.message);
 
-    // 5. Process data for trends and top repos
+    // 5. Fetch per-key usage from Redis for accurate counts
+    const pipeline = redis.pipeline();
+    (keys || []).forEach(k => {
+      pipeline.get(`usage:key:${k.id}:${currentMonth}`);
+    });
+    const keyUsageCounts = await pipeline.exec<number[]>();
+
     const now = new Date();
     const dates = Array.from({ length: 30 }, (_, i) => {
       const d = new Date(now);
@@ -108,7 +121,7 @@ export async function getServerUsageData() {
       return d.toISOString().split("T")[0];
     }).reverse();
 
-    const processedKeys = (keys || []).map(key => {
+    const processedKeys = (keys || []).map((key, index) => {
       const keyLogs = (logs || []).filter(l => l.keyId === key.id);
       
       // Daily trend from Redis logs
@@ -123,14 +136,14 @@ export async function getServerUsageData() {
         count: trendMap[date] || 0
       }));
 
-      // Approximate usage count per key from hot logs (capped at 100 by redis ltrim)
-      const approxUsageCount = keyLogs.length;
+      const actualKeyUsage = keyUsageCounts[index] || 0;
+      const limit = key.monthly_limit ?? monthlyLimit;
 
       return {
         ...key,
-        usage_count: approxUsageCount,
-        monthly_limit: monthlyLimit,
-        pct: monthlyLimit ? Math.min((totalUsage / monthlyLimit) * 100, 100) : 0,
+        usage_count: actualKeyUsage,
+        monthly_limit: limit,
+        pct: limit ? Math.min((actualKeyUsage / limit) * 100, 100) : 0,
         dailyTrend
       };
     });

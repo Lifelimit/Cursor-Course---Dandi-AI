@@ -4,6 +4,10 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { stripe } from "@/lib/stripe";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 
+import { Redis } from "@upstash/redis";
+
+const redis = Redis.fromEnv();
+
 export async function GET() {
   try {
     const userId = await getAuthenticatedUserId();
@@ -16,6 +20,15 @@ export async function GET() {
       .order("created_at", { ascending: false });
 
     if (keysError) throw new Error(keysError.message);
+
+    // 1b. Fetch real-time usage from Redis
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const pipeline = redis.pipeline();
+    (keys || []).forEach(k => {
+      pipeline.get(`usage:key:${k.id}:${currentMonth}`);
+    });
+    const keyUsageCounts = await pipeline.exec<number[]>();
+    const userUsage = await redis.get<number>(`usage:user:${userId}:${currentMonth}`) || 0;
 
     // 2. Fetch usage logs for the last 30 days
     const thirtyDaysAgo = new Date();
@@ -37,8 +50,9 @@ export async function GET() {
       return d.toISOString().split("T")[0];
     }).reverse();
 
-    const processedKeys = (keys || []).map(key => {
+    const processedKeys = (keys || []).map((key, index) => {
       const keyLogs = (logs || []).filter(l => l.api_key_id === key.id);
+      const actualUsage = keyUsageCounts[index] || 0;
       
       // Daily trend
       const trendMap = keyLogs.reduce((acc: Record<string, number>, log) => {
@@ -67,14 +81,15 @@ export async function GET() {
 
       return {
         ...key,
-        pct: key.monthly_limit ? Math.min((key.usage_count / key.monthly_limit) * 100, 100) : 0,
+        usage_count: actualUsage,
+        pct: key.monthly_limit ? Math.min((actualUsage / key.monthly_limit) * 100, 100) : 0,
         dailyTrend,
         topRepos
       };
     });
 
     // 4. Global aggregates
-    const totalUsage = processedKeys.reduce((acc, k) => acc + k.usage_count, 0);
+    const totalUsage = userUsage;
     
     const globalRepoMap = (logs || []).reduce((acc: Record<string, number>, log) => {
       if (log.repo_url) {
