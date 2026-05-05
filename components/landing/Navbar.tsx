@@ -60,12 +60,16 @@ export function Navbar({ session }: { session: Session | null }) {
           <div className="hidden items-center gap-6 md:flex">
             {session ? (
               <div className="flex items-center gap-6">
-                <Link href="/dashboards" className="group flex items-center gap-3">
+                <Link href="/dashboards" className="group flex items-center gap-3 text-right">
                   <div className="flex flex-col items-end">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900 group-hover:text-zinc-600 transition-colors">
-                      {session.user.user_metadata?.full_name || session.user.email?.split('@')[0]}
-                    </span>
-                    <span className="text-[8px] font-bold text-zinc-400 truncate max-w-[150px] lowercase">{session.user.email}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-zinc-900 transition-colors">Dashboard</span>
+                    <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                      <span className="text-[9px] font-bold text-zinc-900 lowercase">
+                        {session.user.user_metadata?.full_name || session.user.email?.split('@')[0]}
+                      </span>
+                      <span className="text-[9px] text-zinc-300">•</span>
+                      <span className="text-[8px] font-medium text-zinc-400 lowercase">{session.user.email}</span>
+                    </div>
                   </div>
                   {userImage ? (
                     <Image src={userImage} alt="Avatar" width={34} height={34} className="rounded-full border-2 border-white shadow-sm" />
@@ -112,13 +116,13 @@ export function Navbar({ session }: { session: Session | null }) {
             <hr className="border-zinc-200" />
             {session ? (
               <>
-                <div className="flex flex-col gap-0.5">
+                <Link href="/dashboards" className="text-zinc-900 font-bold">Go to Dashboard</Link>
+                <div className="flex flex-col gap-0.5 px-1 py-2 border-l-2 border-zinc-100">
                   <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">
                     {session.user.user_metadata?.full_name || session.user.email?.split('@')[0]}
                   </span>
                   <span className="text-[9px] font-bold text-zinc-400 lowercase">{session.user.email}</span>
                 </div>
-                <Link href="/dashboards" className="text-zinc-900">Go to Dashboard</Link>
                 <button 
                   onClick={handleSignOut}
                   className="text-rose-600 text-left"
