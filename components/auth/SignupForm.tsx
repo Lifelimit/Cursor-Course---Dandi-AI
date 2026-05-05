@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { getURL } from "@/lib/utils/url-helper";
 
 export function SignupForm() {
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +56,7 @@ export function SignupForm() {
           data: {
             full_name: fullName,
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${getURL()}/auth/callback`,
         },
       });
 

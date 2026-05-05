@@ -155,7 +155,7 @@ export function PricingSection({
                   </button>
                 ) : (
                   <Link
-                    href="/auth/signup"
+                    href="/signup"
                     className={`w-full rounded-full py-4 text-center text-[10px] font-black uppercase tracking-widest transition-all ${
                       plan.dark
                       ? "bg-white text-zinc-900 hover:bg-zinc-100 shadow-xl shadow-white/5"

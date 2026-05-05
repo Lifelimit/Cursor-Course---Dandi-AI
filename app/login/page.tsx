@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { getURL } from "@/lib/utils/url-helper";
 
 export default function LoginPage() {
   return (
@@ -37,7 +38,7 @@ export default function LoginPage() {
                 const { data, error } = await supabase.auth.signInWithOAuth({
                   provider: "google",
                   options: {
-                    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/callback`,
+                    redirectTo: `${getURL()}/auth/callback`,
                   },
                 });
                 if (data.url) {
