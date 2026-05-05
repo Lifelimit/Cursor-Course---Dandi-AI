@@ -62,8 +62,10 @@ export function Navbar({ session }: { session: Session | null }) {
               <div className="flex items-center gap-6">
                 <Link href="/dashboards" className="group flex items-center gap-3">
                   <div className="flex flex-col items-end">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-zinc-900 transition-colors">Dashboard</span>
-                    <span className="text-[9px] font-bold text-zinc-400 truncate max-w-[120px] lowercase">{session.user.email}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900 group-hover:text-zinc-600 transition-colors">
+                      {session.user.user_metadata?.full_name || session.user.email?.split('@')[0]}
+                    </span>
+                    <span className="text-[8px] font-bold text-zinc-400 truncate max-w-[150px] lowercase">{session.user.email}</span>
                   </div>
                   {userImage ? (
                     <Image src={userImage} alt="Avatar" width={34} height={34} className="rounded-full border-2 border-white shadow-sm" />
@@ -110,9 +112,11 @@ export function Navbar({ session }: { session: Session | null }) {
             <hr className="border-zinc-200" />
             {session ? (
               <>
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Account</span>
-                  <span className="text-xs font-bold text-zinc-900 lowercase">{session.user.email}</span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">
+                    {session.user.user_metadata?.full_name || session.user.email?.split('@')[0]}
+                  </span>
+                  <span className="text-[9px] font-bold text-zinc-400 lowercase">{session.user.email}</span>
                 </div>
                 <Link href="/dashboards" className="text-zinc-900">Go to Dashboard</Link>
                 <button 

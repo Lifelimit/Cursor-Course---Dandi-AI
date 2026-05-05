@@ -105,10 +105,10 @@ export function Sidebar({
               )}
               <div className="min-w-0">
                 <p className="truncate text-[10px] font-black uppercase tracking-widest text-zinc-900">
-                  {user.email}
+                  {user.user_metadata?.full_name || user.email?.split('@')[0]}
                 </p>
-                <p className="text-[8px] font-bold uppercase tracking-widest text-zinc-400">
-                  Active Account
+                <p className="truncate text-[8px] font-bold text-zinc-400 lowercase">
+                  {user.email}
                 </p>
               </div>
             </div>
