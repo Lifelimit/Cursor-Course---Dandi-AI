@@ -29,6 +29,8 @@ export default function DashboardClient({
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
   const [realtimePlan, setRealtimePlan] = useState<string | null>(null);
+  const [avgLatency, setAvgLatency] = useState<number>(0);
+  const [successRate, setSuccessRate] = useState<number>(100);
   
   // Dynamic Tier Logic - Using the most recent session data available
   const currentPlan = realtimePlan || initialPlan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
@@ -46,6 +48,8 @@ export default function DashboardClient({
       .then(res => res.json())
       .then(data => {
         if (data.plan) setRealtimePlan(data.plan);
+        if (typeof data.avgLatency === 'number') setAvgLatency(data.avgLatency);
+        if (typeof data.successRate === 'number') setSuccessRate(data.successRate);
       })
       .catch(() => {});
   }, []);
@@ -161,8 +165,8 @@ export default function DashboardClient({
             {/* Metric Tiles Row */}
             <div className="grid gap-6 md:grid-cols-3">
               {[
-                { label: "Avg. Latency", value: "242ms", icon: "M13 10V3L4 14h7v7l9-11h-7z", color: "text-amber-500", bg: "bg-amber-50" },
-                { label: "Success Rate", value: "99.9%", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", color: "text-emerald-500", bg: "bg-emerald-50" },
+                { label: "Avg. Latency", value: avgLatency > 0 ? `${avgLatency}ms` : "--", icon: "M13 10V3L4 14h7v7l9-11h-7z", color: "text-amber-500", bg: "bg-amber-50" },
+                { label: "Success Rate", value: `${successRate.toFixed(1)}%`, icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", color: "text-emerald-500", bg: "bg-emerald-50" },
                 { label: "Active Keys", value: apiKeys.length.toString(), icon: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z", color: "text-blue-500", bg: "bg-blue-50" }
               ].map((m, i) => (
                 <div key={i} className="rounded-[32px] border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-md">

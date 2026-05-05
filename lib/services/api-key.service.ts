@@ -81,7 +81,13 @@ export async function validateApiKey(keyValue: string) {
   };
 }
 
-export async function incrementKeyUsage(keyId: string, userId: string, repoUrl?: string) {
+export async function incrementKeyUsage(
+  keyId: string, 
+  userId: string, 
+  repoUrl?: string, 
+  latencyMs: number = 0, 
+  status: "success" | "error" = "success"
+) {
   if (keyId === "demo-id") return;
 
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -89,20 +95,22 @@ export async function incrementKeyUsage(keyId: string, userId: string, repoUrl?:
   const keyUsageKey = `usage:key:${keyId}:${currentMonth}`;
   
   // 1. Increment usage in Redis (Atomic)
-  await Promise.all([
-    redis.incr(usageKey),
-    redis.incr(keyUsageKey)
-  ]);
+  // We only increment usage count for successful requests to be fair to users
+  if (status === "success") {
+    await Promise.all([
+      redis.incr(usageKey),
+      redis.incr(keyUsageKey)
+    ]);
+  }
 
-  // 2. Optionally: Periodically sync to Postgres api_keys table 
-  // (Not doing here to save connection cycles as requested)
-  
-  // 3. Log metadata to Redis for analytics instead of Postgres
+  // 2. Log metadata to Redis for analytics
   const logKey = `logs:user:${userId}:${currentMonth}`;
   await redis.lpush(logKey, JSON.stringify({
     keyId,
     repoUrl,
-    usedAt: new Date().toISOString()
+    usedAt: new Date().toISOString(),
+    latencyMs,
+    status
   }));
   
   // Keep only last 100 logs in Redis per user for "hot" analytics

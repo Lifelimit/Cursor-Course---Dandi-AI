@@ -30,17 +30,18 @@ export async function GET() {
     const keyUsageCounts = await pipeline.exec<number[]>();
     const userUsage = await redis.get<number>(`usage:user:${userId}:${currentMonth}`) || 0;
 
-    // 2. Fetch usage logs for the last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // 2. Fetch usage logs from Redis (Hot Analytics)
+    const logKey = `logs:user:${userId}:${currentMonth}`;
+    const rawLogs = await redis.lrange(logKey, 0, 99);
+    const logs = rawLogs.map((l: any) => typeof l === 'string' ? JSON.parse(l) : l);
 
-    const { data: logs, error: logsError } = await supabaseAdmin
-      .from("api_usage_log")
-      .select("api_key_id, used_at, repo_url")
-      .eq("user_id", userId)
-      .gte("used_at", thirtyDaysAgo.toISOString());
-
-    if (logsError) throw new Error(logsError.message);
+    // Calculate Global Performance Metrics
+    const totalLogs = logs.length;
+    const successfulLogs = logs.filter((l: any) => l.status === "success").length;
+    const totalLatency = logs.reduce((acc: number, l: any) => acc + (l.latencyMs || 0), 0);
+    
+    const avgLatency = totalLogs > 0 ? Math.round(totalLatency / totalLogs) : 0;
+    const successRate = totalLogs > 0 ? (successfulLogs / totalLogs) * 100 : 0;
 
     // 3. Process data for trends and top repos
     const now = new Date();
@@ -51,12 +52,12 @@ export async function GET() {
     }).reverse();
 
     const processedKeys = (keys || []).map((key, index) => {
-      const keyLogs = (logs || []).filter(l => l.api_key_id === key.id);
+      const keyLogs = (logs || []).filter((l: any) => l.keyId === key.id);
       const actualUsage = keyUsageCounts[index] || 0;
       
       // Daily trend
-      const trendMap = keyLogs.reduce((acc: Record<string, number>, log) => {
-        const date = log.used_at.split("T")[0];
+      const trendMap = keyLogs.reduce((acc: Record<string, number>, log: any) => {
+        const date = log.usedAt.split("T")[0];
         acc[date] = (acc[date] || 0) + 1;
         return acc;
       }, {});
@@ -67,9 +68,9 @@ export async function GET() {
       }));
 
       // Top repos for this key
-      const repoMap = keyLogs.reduce((acc: Record<string, number>, log) => {
-        if (log.repo_url) {
-          acc[log.repo_url] = (acc[log.repo_url] || 0) + 1;
+      const repoMap = keyLogs.reduce((acc: Record<string, number>, log: any) => {
+        if (log.repoUrl) {
+          acc[log.repoUrl] = (acc[log.repoUrl] || 0) + 1;
         }
         return acc;
       }, {});
@@ -173,6 +174,8 @@ export async function GET() {
       keys: processedKeys,
       totalUsage,
       globalTopRepos,
+      avgLatency,
+      successRate,
       resetDate,
       nextInvoiceDate,
       paymentMethods

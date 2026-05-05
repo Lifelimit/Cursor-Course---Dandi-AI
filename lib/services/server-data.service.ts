@@ -148,7 +148,14 @@ export async function getServerUsageData() {
       };
     });
 
-    // 6. Global aggregates
+    // 6. Global aggregates and performance metrics
+    const totalLogs = (logs || []).length;
+    const successfulLogs = (logs || []).filter(l => (l as any).status === "success").length;
+    const totalLatency = (logs || []).reduce((acc, l) => acc + ((l as any).latencyMs || 0), 0);
+    
+    const avgLatency = totalLogs > 0 ? Math.round(totalLatency / totalLogs) : 0;
+    const successRate = totalLogs > 0 ? (successfulLogs / totalLogs) * 100 : 0;
+
     const globalRepoMap = (logs || []).reduce((acc: Record<string, number>, log) => {
       if (log.repoUrl) {
         acc[log.repoUrl] = (acc[log.repoUrl] || 0) + 1;
@@ -217,6 +224,8 @@ export async function getServerUsageData() {
       keys: processedKeys,
       totalUsage,
       globalTopRepos,
+      avgLatency,
+      successRate,
       resetDate,
       nextInvoiceDate,
       paymentMethods,

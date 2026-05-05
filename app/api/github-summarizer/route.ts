@@ -63,6 +63,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "githubUrl is required in body" }, { status: 400 });
     }
 
+    const startTime = Date.now();
+
     // 4. Fetch README and Metadata
     let readmeContent = "";
     let metadata = null;
@@ -72,6 +74,9 @@ export async function POST(request: Request) {
         fetchGitHubMetadata(githubUrl)
       ]);
     } catch (fetchErr) {
+      const latencyMs = Date.now() - startTime;
+      await incrementKeyUsage(keyData.id, keyData.user_id, githubUrl, latencyMs, "error");
+      
       return NextResponse.json(
         { error: fetchErr instanceof Error ? fetchErr.message : "Failed to fetch repository data" },
         { status: 422 }
@@ -81,10 +86,10 @@ export async function POST(request: Request) {
     // 5. Generate AI Summary
     try {
       const aiResult = await generateGithubSummary(readmeContent);
+      const latencyMs = Date.now() - startTime;
 
       // 6. Track Usage (Successful requests only)
-      // Moved to after AI call to ensure we only charge for successful generations
-      await incrementKeyUsage(keyData.id, keyData.user_id, githubUrl);
+      await incrementKeyUsage(keyData.id, keyData.user_id, githubUrl, latencyMs, "success");
 
       return NextResponse.json({
         success: true,
@@ -98,6 +103,9 @@ export async function POST(request: Request) {
       });
     } catch (aiErr) {
       console.error("AI Error:", aiErr);
+      const latencyMs = Date.now() - startTime;
+      await incrementKeyUsage(keyData.id, keyData.user_id, githubUrl, latencyMs, "error");
+
       return NextResponse.json(
         { 
           error: "Failed to generate AI summary.", 
