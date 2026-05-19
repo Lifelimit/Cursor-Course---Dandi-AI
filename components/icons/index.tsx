@@ -113,3 +113,33 @@ export function TrashIcon({ className = "h-5 w-5" }: { className?: string }) {
     </svg>
   );
 }
+
+export function ShieldIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor">
+      <path
+        d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function CopyLockedIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor">
+      <rect x="9" y="9" width="11" height="11" rx="2" strokeWidth="1.8" strokeDasharray="2 2" />
+      <path
+        d="M5 15V6a2 2 0 0 1 2-2h9"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeDasharray="2 2"
+      />
+      <rect x="3" y="13" width="7" height="7" rx="1.5" strokeWidth="1.5" className="fill-white" />
+      <path d="M5 13v-2a2 2 0 0 1 4 0v2" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}

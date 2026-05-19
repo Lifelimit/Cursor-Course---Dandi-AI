@@ -1,21 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ApiKey } from "@/types/api";
-import { EyeIcon, EyeOffIcon, CopyIcon, CopyCheckIcon, EditIcon, TrashIcon } from "../icons";
-
-const ShieldIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const CopyLockedIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor">
-    <rect x="9" y="9" width="11" height="11" rx="2" strokeWidth="1.8" strokeDasharray="2 2" />
-    <path d="M5 15V6a2 2 0 0 1 2-2h9" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="2 2" />
-    <rect x="3" y="13" width="7" height="7" rx="1.5" strokeWidth="1.5" className="fill-white" />
-    <path d="M5 13v-2a2 2 0 0 1 4 0v2" strokeWidth="1.2" strokeLinecap="round" />
-  </svg>
-);
+import { EyeIcon, EyeOffIcon, CopyIcon, CopyCheckIcon, EditIcon, TrashIcon, ShieldIcon, CopyLockedIcon } from "../icons";
 
 type ApiKeyTableProps = {
   apiKeys: ApiKey[];
@@ -267,7 +252,7 @@ export function ApiKeyTable({
                     <code className={`font-mono text-[11px] tracking-tight ${!key.is_active ? "text-zinc-300" : "text-zinc-500"}`}>
                       {visibleKeyIds[key.id] ? (sessionPlainKeys[key.id] || key.key_value) : maskApiKey(key.key_value)}
                     </code>
-                    {!sessionPlainKeys[key.id] && key.is_active && (
+                    {key.is_active && (
                       <span 
                         className="inline-flex items-center gap-1 rounded bg-zinc-50 border border-zinc-200/60 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-400 group-hover:bg-zinc-100/50 group-hover:text-zinc-500 transition-colors"
                         title="Securely Hashed (HMAC-SHA256) - Recoverable only via rotation"
@@ -288,10 +273,14 @@ export function ApiKeyTable({
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); toggleKeyVisibility(key.id); }}
-                        className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
-                        title={visibleKeyIds[key.id] ? "Hide key" : "Show key"}
+                        className={`rounded-xl p-2 transition ${
+                          visibleKeyIds[key.id]
+                            ? "bg-zinc-100 text-zinc-900"
+                            : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
+                        }`}
+                        title={visibleKeyIds[key.id] ? "Hide key" : "Reveal secure session key"}
                       >
-                        {visibleKeyIds[key.id] ? <EyeOffIcon /> : <EyeIcon />}
+                        {visibleKeyIds[key.id] ? <EyeOffIcon /> : <ShieldIcon className="h-5 w-5" />}
                       </button>
                     ) : (
                       <button
@@ -316,9 +305,9 @@ export function ApiKeyTable({
                         type="button"
                         onClick={(e) => { e.stopPropagation(); copyKeyValue(key.id, sessionPlainKeys[key.id]); }}
                         className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
-                        title={copiedId === key.id ? "Copied" : "Copy key"}
+                        title={copiedId === key.id ? "Copied" : "Copy secure session key"}
                       >
-                        {copiedId === key.id ? <CopyCheckIcon /> : <CopyIcon />}
+                        {copiedId === key.id ? <CopyCheckIcon /> : <CopyLockedIcon className="h-5 w-5" />}
                       </button>
                     ) : (
                       <button

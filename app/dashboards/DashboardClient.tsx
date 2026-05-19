@@ -11,7 +11,7 @@ import { ApiKeyModal } from "@/components/dashboard/ApiKeyModal";
 import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
-import { EyeIcon, EyeOffIcon } from "@/components/icons";
+import { EyeIcon, EyeOffIcon, ShieldIcon, CopyLockedIcon, CopyCheckIcon } from "@/components/icons";
 
 export default function DashboardClient({ 
   initialUser, 
@@ -376,7 +376,7 @@ export default function DashboardClient({
                           {isPlainKeyVisible ? (
                             <EyeOffIcon className="h-5 w-5" />
                           ) : (
-                            <EyeIcon className="h-5 w-5" />
+                            <ShieldIcon className="h-5 w-5" />
                           )}
                         </button>
                         <button
@@ -384,18 +384,15 @@ export default function DashboardClient({
                           onClick={() => handleCopyKey(createdPlainKey || "")}
                           className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all ${
                             copiedKey 
-                              ? "bg-emerald-500 text-white" 
+                              ? "bg-emerald-500 text-white animate-pulse" 
                               : "bg-zinc-900 text-white hover:bg-zinc-800"
                           }`}
+                          title={copiedKey ? "Copied" : "Copy secure session key"}
                         >
                           {copiedKey ? (
-                            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="3">
-                              <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
+                            <CopyCheckIcon className="h-5 w-5" />
                           ) : (
-                            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m-2 4h10m-5-5l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
+                            <CopyLockedIcon className="h-5 w-5" />
                           )}
                         </button>
                       </div>
