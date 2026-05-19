@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PLANS } from "@/lib/constants";
 import Link from "next/link";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
+import { updatePlanAction } from "@/lib/auth-actions";
 
 import { Session } from "@supabase/supabase-js";
 
@@ -17,7 +18,11 @@ export function PricingSection({
   onError?: (msg: string) => void
 }) {
   const activeSession = session;
-  const currentPlanId = (activeSession?.user?.user_metadata as { plan?: string })?.plan || "Hobby";
+  
+  // Stateful plan status
+  const [currentPlanId, setCurrentPlanId] = useState<string>(
+    (activeSession?.user?.user_metadata as { plan?: string })?.plan || "Hobby"
+  );
 
   const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
@@ -29,6 +34,31 @@ export function PricingSection({
   const [modalInitialView, setModalInitialView] = useState<"overview" | "cancel-confirm" | "update-payment" | "plan-change-review">("overview");
   const [modalPendingPlan, setModalPendingPlan] = useState<string | null>(null);
   const [userKeys, setUserKeys] = useState<{id: string, name: string, usage_count: number}[]>([]);
+
+  // Function to load the absolute source of truth directly from database
+  const fetchFreshPlan = async () => {
+    if (!activeSession) return;
+    try {
+      const res = await fetch("/api/profile");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.plan) {
+          setCurrentPlanId(json.plan);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load fresh plan:", err);
+    }
+  };
+
+  // Synchronize on load and when session changes
+  useEffect(() => {
+    if (activeSession) {
+      const metaPlan = (activeSession.user?.user_metadata as { plan?: string })?.plan || "Hobby";
+      setCurrentPlanId(metaPlan);
+      fetchFreshPlan();
+    }
+  }, [activeSession]);
   
   const fetchKeys = async () => {
     try {
@@ -176,12 +206,16 @@ export function PricingSection({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         planName={currentPlanId || "Hobby"}
-        onSuccess={onSuccess}
+        onSuccess={(msg) => {
+          onSuccess?.(msg);
+          fetchFreshPlan();
+        }}
         onError={onError}
         initialView={modalInitialView}
         initialPendingPlan={modalPendingPlan}
         initialBillingInterval={billingInterval}
         onDowngrade={() => { setIsModalOpen(false); setIsCancelModalOpen(true); }}
+        session={activeSession}
       />
 
       {/* Unified Cancel Subscription Modal */}
@@ -265,9 +299,10 @@ export function PricingSection({
                         body: JSON.stringify({ keysToKeep }),
                       });
                       if (res.ok) {
+                        await updatePlanAction("Hobby");
                         setIsCancelModalOpen(false);
                         onSuccess?.("Subscription scheduled for cancellation.");
-                        window.location.reload();
+                        fetchFreshPlan();
                       } else {
                         throw new Error("Failed to cancel subscription.");
                       }
