@@ -133,8 +133,8 @@ export async function GET() {
     const totalUsage = userUsage;
     
     const globalRepoMap = (logs || []).reduce((acc: Record<string, number>, log) => {
-      if (log.repo_url) {
-        acc[log.repo_url] = (acc[log.repo_url] || 0) + 1;
+      if (log.repoUrl) {
+        acc[log.repoUrl] = (acc[log.repoUrl] || 0) + 1;
       }
       return acc;
     }, {});
