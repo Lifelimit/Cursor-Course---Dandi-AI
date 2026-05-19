@@ -75,7 +75,6 @@ export default function DashboardClient({
   const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
   const [createdPlainKey, setCreatedPlainKey] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
-  const [sessionPlainKeys, setSessionPlainKeys] = useState<Record<string, string>>({});
   const [isPlainKeyVisible, setIsPlainKeyVisible] = useState(true);
 
   const handleOpenCreateModal = () => {
@@ -127,12 +126,6 @@ export default function DashboardClient({
         if (createdResult.plainKey) {
           setCreatedPlainKey(createdResult.plainKey);
           setIsPlainKeyVisible(true);
-          if (createdResult.key?.id) {
-            setSessionPlainKeys(prev => ({
-              ...prev,
-              [createdResult.key!.id]: createdResult.plainKey!
-            }));
-          }
         }
       }
       return result;
@@ -307,7 +300,6 @@ export default function DashboardClient({
                 onCopyError={(msg) => showToast("error", msg)}
                 onUpgradePrompt={() => router.push("/usage")}
                 currentPlan={currentPlan}
-                sessionPlainKeys={sessionPlainKeys}
               />
 
               {!isLoading && apiKeys.length === 0 ? (

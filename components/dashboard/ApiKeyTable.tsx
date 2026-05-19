@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import { ApiKey } from "@/types/api";
-import { EyeIcon, EyeOffIcon, CopyIcon, CopyCheckIcon, EditIcon, TrashIcon, ShieldIcon, CopyLockedIcon } from "../icons";
+import { EditIcon, TrashIcon } from "../icons";
 
 type ApiKeyTableProps = {
   apiKeys: ApiKey[];
@@ -11,7 +11,6 @@ type ApiKeyTableProps = {
   onCopyError: (msg: string) => void;
   onUpgradePrompt: () => void;
   currentPlan: string;
-  sessionPlainKeys?: Record<string, string>;
 };
 
 export function ApiKeyTable({
@@ -23,70 +22,20 @@ export function ApiKeyTable({
   onCopyError,
   onUpgradePrompt,
   currentPlan,
-  sessionPlainKeys = {},
 }: ApiKeyTableProps) {
-  const [visibleKeyIds, setVisibleKeyIds] = useState<Record<string, boolean>>({});
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [promptedKeyId, setPromptedKeyId] = useState<string | null>(null);
   const [securityPromptKeyId, setSecurityPromptKeyId] = useState<string | null>(null);
-  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const isHobby = currentPlan === "Hobby";
-
-  // Clear timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    };
-  }, []);
-
-  const toggleKeyVisibility = (id: string) => {
-    setVisibleKeyIds((current) => ({
-      ...current,
-      [id]: !current[id],
-    }));
-  };
 
   const maskApiKey = (key: string) => {
     if (key.length <= 11) return key;
     return `${key.slice(0, 8)} ... ${key.slice(-4)}`;
   };
 
-  const copyKeyValue = async (id: string, value: string) => {
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(value);
-      } else {
-        const tempInput = document.createElement("input");
-        tempInput.value = value;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        const didCopy = document.execCommand("copy");
-        document.body.removeChild(tempInput);
-        if (!didCopy) throw new Error("Copy command failed");
-      }
-      setCopiedId(id);
-      onCopySuccess();
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-      copyTimeoutRef.current = setTimeout(() => {
-        setCopiedId((current) => (current === id ? null : current));
-        copyTimeoutRef.current = null;
-      }, 1200);
-    } catch {
-      onCopyError("Could not copy API key. Please copy it manually.");
-    }
-  };
-
   const handleDelete = async (id: string) => {
-    const result = await onDelete(id);
-    if (result.success) {
-      setVisibleKeyIds((current) => {
-        const next = { ...current };
-        delete next[id];
-        return next;
-      });
-    }
+    await onDelete(id);
   };
 
   const filteredKeys = apiKeys.filter(k => 
@@ -250,94 +199,45 @@ export function ApiKeyTable({
                 <td className="px-4 py-5">
                   <div className="flex items-center gap-2.5">
                     <code className={`font-mono text-[11px] tracking-tight ${!key.is_active ? "text-zinc-300" : "text-zinc-500"}`}>
-                      {visibleKeyIds[key.id] ? (sessionPlainKeys[key.id] || key.key_value) : maskApiKey(key.key_value)}
+                      {maskApiKey(key.key_value)}
                     </code>
                     {key.is_active && (
-                      <span 
-                        className="inline-flex items-center gap-1 rounded bg-zinc-50 border border-zinc-200/60 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-400 group-hover:bg-zinc-100/50 group-hover:text-zinc-500 transition-colors"
-                        title="Securely Hashed (HMAC-SHA256) - Recoverable only via rotation"
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSecurityPromptKeyId(securityPromptKeyId === key.id ? null : key.id);
+                        }}
+                        className="inline-flex items-center gap-1 rounded bg-zinc-50 border border-zinc-200/60 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-400 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 active:scale-95 transition-all cursor-pointer"
+                        title="Securely Hashed (HMAC-SHA256) - Click to view cryptographic security explanation"
                       >
                         <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3">
                           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                           <path d="M7 11V7a5 5 0 0110 0v4" />
                         </svg>
                         Secured
-                      </span>
+                      </button>
                     )}
                   </div>
                 </td>
 
-                <td className="px-4 py-5">
-                  <div className={`flex items-center justify-center gap-1 transition-opacity ${!key.is_active ? "opacity-40" : "group-hover:opacity-100"}`}>
-                    {sessionPlainKeys[key.id] ? (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); toggleKeyVisibility(key.id); }}
-                        className={`rounded-xl p-2 transition ${
-                          visibleKeyIds[key.id]
-                            ? "bg-zinc-100 text-zinc-900"
-                            : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
-                        }`}
-                        title={visibleKeyIds[key.id] ? "Hide key" : "Reveal secure session key"}
-                      >
-                        {visibleKeyIds[key.id] ? <EyeOffIcon /> : <ShieldIcon className="h-5 w-5" />}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSecurityPromptKeyId(securityPromptKeyId === key.id ? null : key.id);
-                        }}
-                        className={`rounded-xl p-2 transition ${
-                          securityPromptKeyId === key.id
-                            ? "bg-indigo-50 text-indigo-600"
-                            : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
-                        }`}
-                        title={securityPromptKeyId === key.id ? "Hide key security details" : "View key security options"}
-                      >
-                        <ShieldIcon className="h-5 w-5" />
-                      </button>
-                    )}
-
-                    {sessionPlainKeys[key.id] ? (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); copyKeyValue(key.id, sessionPlainKeys[key.id]); }}
-                        className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
-                        title={copiedId === key.id ? "Copied" : "Copy secure session key"}
-                      >
-                        {copiedId === key.id ? <CopyCheckIcon /> : <CopyLockedIcon className="h-5 w-5" />}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onCopyError("For security, existing keys cannot be copied. Revoke and replace this key to generate a new one.");
-                        }}
-                        className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
-                        title="Copy secured key (Rotation required)"
-                      >
-                        <CopyLockedIcon className="h-5 w-5 opacity-60" />
-                      </button>
-                    )}
-
+                <td className="px-4 py-5 text-center">
+                  <div className={`flex items-center justify-center gap-2 transition-opacity ${!key.is_active ? "opacity-40" : "group-hover:opacity-100"}`}>
                     <button
                       onClick={(e) => { e.stopPropagation(); onEdit(key); }}
                       type="button"
-                      className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
+                      className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900 active:scale-95"
                       title="Edit Configuration"
                     >
-                      <EditIcon />
+                      <EditIcon className="h-4.5 w-4.5" />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(key.id); }}
                       type="button"
-                      className="rounded-xl p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500"
+                      className="rounded-xl p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500 active:scale-95"
                       title="Revoke Credential"
                     >
-                      <TrashIcon />
+                      <TrashIcon className="h-4.5 w-4.5" />
                     </button>
                   </div>
                 </td>
