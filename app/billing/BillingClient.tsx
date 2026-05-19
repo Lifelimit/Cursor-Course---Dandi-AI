@@ -44,12 +44,28 @@ export default function BillingClient({
   const hasRefreshed = useRef(false);
   
   const [data, setData] = useState<BillingData | null>(initialData);
-  const [invoices] = useState(initialInvoices);
+  const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
   const [isLoading, setIsLoading] = useState(initialData === null);
+  const [isInvoicesLoading, setIsInvoicesLoading] = useState(false);
   const isHydrated = useRef(initialData !== null);
   const [secondaryIndex, setSecondaryIndex] = useState(0);
   const [cardToDelete, setCardToDelete] = useState<{ id: string; brand: string; last4: string } | null>(null);
   const { toast, showToast } = useToast();
+
+  const fetchInvoices = useCallback(async () => {
+    try {
+      setIsInvoicesLoading(true);
+      const res = await fetch("/api/stripe/invoices");
+      if (res.ok) {
+        const json = await res.json();
+        setInvoices(json.invoices);
+      }
+    } catch (err) {
+      console.error("Error fetching invoices:", err);
+    } finally {
+      setIsInvoicesLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     // Check for success param to refresh session (only once)
@@ -79,13 +95,14 @@ export default function BillingClient({
       const json = await res.json();
       setData(json);
       isHydrated.current = false;
+      fetchInvoices();
     } catch (err) {
       console.error(err);
       showToast("error", "Failed to load billing information.");
     } finally {
       setIsLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, fetchInvoices]);
 
   const handleSetDefault = async (pmId: string) => {
     try {
@@ -363,7 +380,7 @@ export default function BillingClient({
                   <h3 className="font-serif text-2xl font-bold">Transaction History</h3>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Past 12 Months</p>
                 </div>
-                <InvoiceTable invoices={invoices} />
+                <InvoiceTable invoices={invoices} isLoading={isInvoicesLoading} />
               </section>
 
               {/* Danger Zone */}
