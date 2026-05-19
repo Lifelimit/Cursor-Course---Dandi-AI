@@ -5,9 +5,10 @@ import { useState } from "react";
 type CodeSnippetProps = {
   apiKey: string;
   githubUrl: string;
+  onCopy?: (tabName: string) => void;
 };
 
-export function CodeSnippet({ apiKey, githubUrl }: CodeSnippetProps) {
+export function CodeSnippet({ apiKey, githubUrl, onCopy }: CodeSnippetProps) {
   const [activeTab, setActiveTab] = useState<"curl" | "fetch" | "python">("curl");
   const [copied, setCopied] = useState(false);
 
@@ -51,6 +52,9 @@ print(response.json())`
   const handleCopy = () => {
     navigator.clipboard.writeText(snippets[activeTab]);
     setCopied(true);
+    if (onCopy) {
+      onCopy(activeTab);
+    }
     setTimeout(() => setCopied(false), 2000);
   };
 

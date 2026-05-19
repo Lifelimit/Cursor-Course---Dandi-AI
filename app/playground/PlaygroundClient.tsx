@@ -87,14 +87,58 @@ export default function PlaygroundClient({
     setSummaryResult(null);
     setRequestLogs([]);
 
-    const addLog = (label: string, duration: number, status: "success" | "pending" | "error") => {
-      setRequestLogs(prev => [...prev, { label, duration, status, timestamp: Date.now() }]);
+    const setLogState = (id: string, updates: Partial<LogEntry>) => {
+      setRequestLogs(prev => {
+        const index = prev.findIndex(l => l.id === id);
+        if (index === -1) {
+          return [...prev, {
+            id,
+            label: updates.label || "",
+            duration: updates.duration || 0,
+            status: updates.status || "pending",
+            timestamp: Date.now(),
+            ...updates
+          } as LogEntry];
+        }
+        const updated = [...prev];
+        updated[index] = { ...updated[index], ...updates };
+        return updated;
+      });
     };
+
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    const getRepoPath = (url: string) => {
+      try {
+        const match = url.match(/github\.com\/([^\/]+\/[^\/]+)/);
+        return match ? match[1] : "unknown/repository";
+      } catch {
+        return "unknown/repository";
+      }
+    };
+
+    const repoPath = getRepoPath(githubUrl);
+    const selectedKeyName = apiKeys.find(k => k.key_value === apiKey)?.name || "Custom Key";
+    const maskedKey = apiKey ? (apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`) : "sk_live_••••••••";
 
     const startTime = performance.now();
 
+    // --- STEP 1: AUTHENTICATION (START) ---
+    setLogState("auth", {
+      label: "Authentication",
+      status: "pending",
+      method: "POST",
+      url: "/api/keys/validate",
+      requestHeaders: {
+        "Content-Type": "application/json",
+        "x-api-key": maskedKey
+      },
+      requestBody: { apiKey: maskedKey }
+    });
+
     try {
-      const response = await fetch("/api/github-summarizer", {
+      // Start the real API call
+      const responsePromise = fetch("/api/github-summarizer", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -103,33 +147,164 @@ export default function PlaygroundClient({
         body: JSON.stringify({ githubUrl }),
       });
 
-      const fetchEndTime = performance.now();
-      const totalFetchDuration = Math.round(fetchEndTime - startTime);
+      // Wait a realistic duration for Auth step visualization
+      await sleep(350);
 
-      // Step 1: Auth Validation Simulation (Real-time weighted portion)
-      addLog("Authentication", Math.round(totalFetchDuration * 0.15), response.status === 401 ? "error" : "success");
-      if (response.status === 401) throw new Error("Invalid API key");
-      
-      // Step 2: Fetch Simulation (Real-time weighted portion)
-      addLog("Repository Fetch", Math.round(totalFetchDuration * 0.85), response.status === 422 ? "error" : "success");
+      // We resolve the response
+      const response = await responsePromise;
+      const totalFetchDuration = Math.round(performance.now() - startTime);
+
+      if (response.status === 401) {
+        // Auth failed!
+        setLogState("auth", {
+          status: "error",
+          duration: totalFetchDuration,
+          statusCode: 401,
+          statusText: "Unauthorized",
+          responseHeaders: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store"
+          },
+          responseBody: {
+            valid: false,
+            error: "Unauthorized",
+            message: "Invalid API key"
+          }
+        });
+        throw new Error("Invalid API key");
+      }
+
+      // Auth succeeded!
+      setLogState("auth", {
+        status: "success",
+        duration: Math.round(totalFetchDuration * 0.15),
+        statusCode: 200,
+        statusText: "OK",
+        responseHeaders: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+          "X-Dandi-Engine": "v1.0.4"
+        },
+        responseBody: {
+          valid: true,
+          key_name: selectedKeyName,
+          permissions: ["summarize:write"]
+        }
+      });
+
+      // --- STEP 2: REPOSITORY FETCH (START) ---
+      setLogState("repo_fetch", {
+        label: "Repository Fetch",
+        status: "pending",
+        method: "GET",
+        url: `https://api.github.com/repos/${repoPath}`,
+        requestHeaders: {
+          "Accept": "application/vnd.github.v3+json",
+          "User-Agent": "Dandi-AI-Engine/1.0"
+        },
+        requestBody: null
+      });
+
+      await sleep(450);
+
       if (response.status === 422) {
+        // Fetch failed!
         const data = await response.json();
+        setLogState("repo_fetch", {
+          status: "error",
+          duration: Math.round(totalFetchDuration * 0.85),
+          statusCode: 422,
+          statusText: "Unprocessable Entity",
+          responseHeaders: {
+            "Content-Type": "application/json"
+          },
+          responseBody: {
+            error: data.error || "Failed to fetch repository",
+            message: "GitHub repository not found or private."
+          }
+        });
         throw new Error(data.error || "Failed to fetch repository");
       }
+
+      // Succeeded fetch!
+      setLogState("repo_fetch", {
+        status: "success",
+        duration: Math.round(totalFetchDuration * 0.85),
+        statusCode: 200,
+        statusText: "OK",
+        responseHeaders: {
+          "Content-Type": "application/json; charset=utf-8",
+          "X-RateLimit-Limit": "5000",
+          "X-RateLimit-Remaining": "4982"
+        },
+        responseBody: {
+          id: Math.floor(Math.random() * 10000000) + 10000000,
+          name: repoPath.split("/")[1] || "repository",
+          full_name: repoPath,
+          description: "Retrieved via Dandi AI playground",
+          stargazers_count: Math.floor(Math.random() * 5000) + 1200,
+          forks_count: Math.floor(Math.random() * 1000) + 200,
+          license: { key: "mit", name: "MIT License" }
+        }
+      });
+
+      // --- STEP 3: AI PROCESSING (START) ---
+      setLogState("ai_processing", {
+        label: "AI Processing",
+        status: "pending",
+        method: "POST",
+        url: "/api/ai/summarize",
+        requestHeaders: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer dandi_ai_internal_••••••••"
+        },
+        requestBody: {
+          files: ["package.json", "src/index.js", "README.md"],
+          analysis_depth: "deep",
+          temperature: 0.2
+        }
+      });
 
       const dataStart = performance.now();
       const data = await response.json();
       const dataEnd = performance.now();
-      const processingDuration = Math.round(dataEnd - dataStart + (Math.random() * 100)); // Real parse time + simulated backend effort
+      const processingDuration = Math.round(dataEnd - dataStart + (Math.random() * 100) + 300);
+
+      await sleep(500); // Simulate processing time
 
       if (!response.ok) {
-        // Step 3: Processing Simulation (Failed)
-        addLog("AI Processing", processingDuration, "error");
+        setLogState("ai_processing", {
+          status: "error",
+          duration: processingDuration,
+          statusCode: 500,
+          statusText: "Internal Server Error",
+          responseHeaders: {
+            "Content-Type": "application/json"
+          },
+          responseBody: {
+            error: data.error || "Failed to generate summary",
+            message: "AI inference node timed out."
+          }
+        });
         throw new Error(data.error || "Failed to generate summary");
       }
 
-      // Step 3: Processing Simulation (Success)
-      addLog("AI Processing", processingDuration, "success");
+      setLogState("ai_processing", {
+        status: "success",
+        duration: processingDuration,
+        statusCode: 200,
+        statusText: "OK",
+        responseHeaders: {
+          "Content-Type": "application/json",
+          "X-AI-Tokens-Prompt": "1420",
+          "X-AI-Tokens-Completion": "380"
+        },
+        responseBody: {
+          summary: data.data?.summary || "Successfully analyzed repository structures.",
+          cool_facts: data.data?.cool_facts || ["Analyzed code design patterns", "Identified primary tech stacks"],
+          processing_time_ms: processingDuration
+        }
+      });
 
       setSummaryResult(data.data);
       refreshKeys();
@@ -304,13 +479,13 @@ export default function PlaygroundClient({
                   </div>
                 )}
 
-                <NetworkLog logs={requestLogs} />
+                <NetworkLog logs={requestLogs} onShowToast={showToast} />
               </div>
 
               <div className="w-full md:w-80 md:shrink-0 space-y-6">
                 <div className="space-y-2">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Integration Snippets</p>
-                  <CodeSnippet apiKey={apiKey} githubUrl={githubUrl} />
+                  <CodeSnippet apiKey={apiKey} githubUrl={githubUrl} onCopy={(method) => showToast("success", `${method.toUpperCase()} code snippet copied!`)} />
                 </div>
                 
                 <div className="rounded-2xl bg-zinc-900 p-6 text-white space-y-4 shadow-xl">

@@ -9,6 +9,7 @@ import { Toast } from "@/components/ui/Toast";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { ApiKeyModal } from "@/components/dashboard/ApiKeyModal";
 import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
+import { RevocationModal } from "@/components/dashboard/RevocationModal";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 import { EyeIcon, EyeOffIcon, ShieldIcon, CopyLockedIcon, CopyCheckIcon } from "@/components/icons";
@@ -132,17 +133,39 @@ export default function DashboardClient({
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const result = await deleteKey(id);
+  const [keyToRevoke, setKeyToRevoke] = useState<ApiKey | null>(null);
+  const [isRevokeAndReplace, setIsRevokeAndReplace] = useState(false);
+
+  const handleDelete = (key: ApiKey, options?: { replace?: boolean }) => {
+    setKeyToRevoke(key);
+    setIsRevokeAndReplace(!!options?.replace);
+  };
+
+  const confirmRevocation = async () => {
+    if (!keyToRevoke) return;
+    const result = await deleteKey(keyToRevoke.id);
     if (result.success) {
-      showToast("success", "API key deleted successfully.");
-      if (editingKey?.id === id) {
+      showToast("success", "API key revoked successfully.");
+      if (editingKey?.id === keyToRevoke.id) {
         setIsModalOpen(false);
       }
+      if (isRevokeAndReplace) {
+        setEditingKey({
+          id: "",
+          name: `${keyToRevoke.name} (Replacement)`,
+          key_value: "",
+          type: keyToRevoke.type,
+          monthly_limit: keyToRevoke.monthly_limit,
+          alert_threshold: keyToRevoke.alert_threshold,
+          alert_channels: keyToRevoke.alert_channels,
+          is_active: true,
+          usage_count: 0,
+        } as any);
+        setIsModalOpen(true);
+      }
     } else {
-      showToast("error", result.error || "Delete failed.");
+      showToast("error", result.error || "Revocation failed.");
     }
-    return result;
   };
 
   return (
@@ -300,14 +323,8 @@ export default function DashboardClient({
                 onCopyError={(msg) => showToast("error", msg)}
                 onUpgradePrompt={() => router.push("/usage")}
                 currentPlan={currentPlan}
+                onOpenCreateModal={handleOpenCreateModal}
               />
-
-              {!isLoading && apiKeys.length === 0 ? (
-                <div className="mt-8 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-100 py-12 text-center">
-                  <p className="text-sm font-medium text-zinc-400">No encrypted keys found in this workspace.</p>
-                  <button onClick={handleOpenCreateModal} className="mt-4 text-xs font-bold uppercase tracking-widest text-zinc-900 hover:underline">Create first key</button>
-                </div>
-              ) : null}
             </section>
 
             <ApiKeyModal
@@ -315,6 +332,17 @@ export default function DashboardClient({
               onClose={() => setIsModalOpen(false)}
               initialData={editingKey}
               onSubmit={handleModalSubmit}
+            />
+            <RevocationModal
+              isOpen={keyToRevoke !== null}
+              onClose={() => {
+                setKeyToRevoke(null);
+                setIsRevokeAndReplace(false);
+              }}
+              onConfirm={confirmRevocation}
+              keyName={keyToRevoke?.name || ""}
+              keyType={keyToRevoke?.type || "development"}
+              keyUsage={keyToRevoke?.usage_count || 0}
             />
             {createdPlainKey && (
               <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm px-4 animate-in fade-in duration-300">

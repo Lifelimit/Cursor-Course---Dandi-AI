@@ -1,17 +1,114 @@
+import { useEffect, useState } from "react";
 import { ToastState } from "../../hooks/useToast";
 
 export function Toast({ toast }: { toast: ToastState }) {
-  if (!toast) return null;
+  const [visible, setVisible] = useState(false);
+  const [activeToast, setActiveToast] = useState<ToastState>(null);
+
+  useEffect(() => {
+    if (toast) {
+      setActiveToast(toast);
+      setVisible(true);
+    } else {
+      const timer = setTimeout(() => {
+        setVisible(false);
+        setActiveToast(null);
+      }, 300); // Allow fade out/slide down animation to finish
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  if (!activeToast && !visible) return null;
+
+  const isSuccess = activeToast?.type === "success";
 
   return (
-    <div className="pointer-events-none fixed bottom-5 right-5 z-[9999]">
-      <div
-        className={`rounded-full px-4 py-2 text-sm shadow-lg ${
-          toast.type === "success" ? "bg-zinc-900 text-white" : "bg-red-600 text-white"
-        }`}
-      >
-        {toast.message}
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes toast-slide-in {
+          0% {
+            transform: translateY(24px) scale(0.95);
+            opacity: 0;
+          }
+          60% {
+            transform: translateY(-4px) scale(1.02);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+          }
+        }
+        @keyframes toast-slide-out {
+          0% {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(16px) scale(0.95);
+            opacity: 0;
+          }
+        }
+        @keyframes stroke-draw {
+          to {
+            stroke-dashoffset: 0;
+          }
+        }
+        @keyframes scale-up {
+          0% { transform: scale(0.8); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-toast-in {
+          animation: toast-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .animate-toast-out {
+          animation: toast-slide-out 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .animate-stroke {
+          stroke-dasharray: 20;
+          stroke-dashoffset: 20;
+          animation: stroke-draw 0.35s cubic-bezier(0.4, 0, 0.2, 1) 0.15s forwards;
+        }
+        .animate-icon-scale {
+          animation: scale-up 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+      `}} />
+
+      <div className="pointer-events-none fixed bottom-6 right-6 z-[9999] flex flex-col items-end">
+        <div
+          className={`pointer-events-auto flex items-center gap-3.5 rounded-2xl border px-5 py-4 shadow-[0_20px_40px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-all duration-300 ${
+            toast ? "animate-toast-in" : "animate-toast-out"
+          } ${
+            isSuccess
+              ? "border-emerald-500/20 bg-zinc-900/90 text-white shadow-emerald-950/5"
+              : "border-red-500/20 bg-zinc-900/90 text-white shadow-red-950/5"
+          }`}
+        >
+          {/* Animated Status Icon */}
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-xl bg-white/5 animate-icon-scale">
+            {isSuccess ? (
+              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="3">
+                <polyline points="20 6 9 17 4 12" className="animate-stroke" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-red-400 animate-pulse" fill="none" stroke="currentColor" strokeWidth="3">
+                <circle cx="12" cy="12" r="10" strokeLinecap="round" strokeLinejoin="round" />
+                <line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" strokeLinejoin="round" />
+                <line x1="12" y1="16" x2="12.01" y2="16" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">
+              {isSuccess ? "Notification" : "Alert System"}
+            </span>
+            <span className="text-xs font-semibold text-zinc-100 leading-snug">
+              {activeToast?.message}
+            </span>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -6,12 +6,124 @@ type ApiKeyTableProps = {
   apiKeys: ApiKey[];
   isLoading: boolean;
   onEdit: (key: ApiKey) => void;
-  onDelete: (id: string) => Promise<{ success: boolean; error?: string }>;
+  onDelete: (key: ApiKey, options?: { replace?: boolean }) => void;
   onCopySuccess: () => void;
   onCopyError: (msg: string) => void;
   onUpgradePrompt: () => void;
   currentPlan: string;
+  onOpenCreateModal: () => void;
 };
+
+const ApiKeyTableSkeleton = () => (
+  <>
+    {[1, 2, 3].map((i) => (
+      <tr key={i} className="border-b border-zinc-100/50">
+        <td className="px-8 py-5">
+          <div className="flex items-center gap-3">
+            <div className="h-2 w-2 rounded-full shimmer-cell shrink-0" />
+            <div className="h-4 w-32 rounded-lg shimmer-cell" />
+          </div>
+        </td>
+        <td className="px-4 py-5">
+          <div className="h-5 w-12 rounded-full shimmer-cell" />
+        </td>
+        <td className="px-4 py-5">
+          <div className="flex items-center gap-4">
+            <div className="flex-1 space-y-1.5">
+              <div className="h-3 w-12 rounded shimmer-cell" />
+              <div className="h-1 w-full rounded shimmer-cell" />
+            </div>
+            <div className="h-4 w-12 rounded shimmer-cell" />
+          </div>
+        </td>
+        <td className="px-4 py-5">
+          <div className="h-4 w-44 rounded-lg shimmer-cell" />
+        </td>
+        <td className="px-4 py-5">
+          <div className="flex justify-center gap-2">
+            <div className="h-8.5 w-8.5 rounded-xl shimmer-cell" />
+            <div className="h-8.5 w-8.5 rounded-xl shimmer-cell" />
+          </div>
+        </td>
+      </tr>
+    ))}
+  </>
+);
+
+const QuickStartEmptyState = ({ onOpenCreateModal }: { onOpenCreateModal: () => void }) => (
+  <div className="rounded-[40px] border border-zinc-200 bg-white/40 p-10 md:p-12 text-center backdrop-blur-sm shadow-sm space-y-10 animate-in fade-in duration-500">
+    <div className="space-y-4 max-w-xl mx-auto">
+      <div className="inline-flex h-16 w-16 items-center justify-center rounded-[24px] bg-zinc-900 text-white shadow-xl shadow-zinc-950/20">
+        <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0110 0v4" />
+        </svg>
+      </div>
+      <h3 className="font-serif text-3xl font-bold tracking-tight italic text-zinc-905">
+        No active credentials.
+      </h3>
+      <p className="text-xs font-semibold text-zinc-500 leading-relaxed">
+        To start using our secure API endpoints, model registry, and developer playground, you'll need to generate a secure access token.
+      </p>
+    </div>
+
+    {/* Quick-Start Grid */}
+    <div className="grid gap-6 md:grid-cols-3 max-w-4xl mx-auto">
+      {[
+        {
+          step: "Step 01",
+          title: "Generate Key",
+          desc: "Create a dev or prod token. Plaintext keys are never stored, only their cryptographically secure hashes.",
+          icon: "M15 7a2 2 0 012 2m4 0a6 6 0 11-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+        },
+        {
+          step: "Step 02",
+          title: "Integrate SDK",
+          desc: "Initialize our lightweight client with one line of code to query fine-tuned models from your terminal.",
+          icon: "M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+        },
+        {
+          step: "Step 03",
+          title: "Run Sandbox",
+          desc: "Test requests inside our live API playground with visual response logging and telemetry analysis.",
+          icon: "M13 10V3L4 14h7v7l9-11h-7z"
+        }
+      ].map((card, idx) => (
+        <div 
+          key={idx} 
+          className="group relative rounded-3xl border border-zinc-200 bg-white p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-md hover:border-zinc-300"
+        >
+          {/* Subtle gradient border highlight on hover */}
+          <div className="absolute inset-0 -z-10 rounded-3xl bg-gradient-to-br from-indigo-500/5 via-transparent to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{card.step}</span>
+            <div className="text-zinc-400 group-hover:text-zinc-900 transition-colors">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d={card.icon} strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+          <h4 className="text-xs font-black text-zinc-800 tracking-tight uppercase mb-1">{card.title}</h4>
+          <p className="text-[11px] font-medium text-zinc-500 leading-relaxed">{card.desc}</p>
+        </div>
+      ))}
+    </div>
+
+    {/* Primary Action */}
+    <div className="pt-2">
+      <button
+        onClick={onOpenCreateModal}
+        className="group inline-flex items-center gap-3 rounded-full bg-zinc-900 px-8 py-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-zinc-950/10 transition-all hover:bg-zinc-800 hover:scale-105 active:scale-95"
+      >
+        Create API Key
+        <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
+          <path d="M12 4v16m8-8H4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    </div>
+  </div>
+);
 
 export function ApiKeyTable({
   apiKeys,
@@ -22,6 +134,7 @@ export function ApiKeyTable({
   onCopyError,
   onUpgradePrompt,
   currentPlan,
+  onOpenCreateModal,
 }: ApiKeyTableProps) {
   const [promptedKeyId, setPromptedKeyId] = useState<string | null>(null);
   const [securityPromptKeyId, setSecurityPromptKeyId] = useState<string | null>(null);
@@ -34,10 +147,6 @@ export function ApiKeyTable({
     return `${key.slice(0, 8)} ... ${key.slice(-4)}`;
   };
 
-  const handleDelete = async (id: string) => {
-    await onDelete(id);
-  };
-
   const filteredKeys = apiKeys.filter(k => 
     k.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     k.key_value.toLowerCase().includes(searchTerm.toLowerCase())
@@ -46,7 +155,6 @@ export function ApiKeyTable({
   const UsageSparkline = ({ trend, usageCount, intensityColor }: { trend?: { count: number }[], usageCount: number, intensityColor: string }) => {
     if (!trend || trend.length === 0) {
       if (usageCount > 0) {
-        // Single Day "Blip" - Shows activity even with 1 data point
         return (
           <svg width="48" height="16" className="overflow-visible">
             <polyline
@@ -85,8 +193,40 @@ export function ApiKeyTable({
     );
   };
 
+  // If there are literally zero keys at all, render QuickStartEmptyState
+  if (!isLoading && apiKeys.length === 0) {
+    return (
+      <>
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes shimmer-loader {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }
+          .shimmer-cell {
+            background: linear-gradient(90deg, #f4f4f5 25%, #e4e4e7 50%, #f4f4f5 75%);
+            background-size: 200% 100%;
+            animation: shimmer-loader 1.6s infinite linear;
+          }
+        `}} />
+        <QuickStartEmptyState onOpenCreateModal={onOpenCreateModal} />
+      </>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes shimmer-loader {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .shimmer-cell {
+          background: linear-gradient(90deg, #f4f4f5 25%, #e4e4e7 50%, #f4f4f5 75%);
+          background-size: 200% 100%;
+          animation: shimmer-loader 1.6s infinite linear;
+        }
+      `}} />
+
       {/* Search & Control Bar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
@@ -106,7 +246,7 @@ export function ApiKeyTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-[32px] border border-zinc-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-[32px] border border-zinc-200 bg-white shadow-sm animate-in fade-in duration-300">
         <table className="w-full min-w-[800px] border-collapse text-left text-sm table-fixed">
           <thead className="bg-zinc-50/50 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
             <tr className="border-b border-zinc-100">
@@ -119,19 +259,15 @@ export function ApiKeyTable({
           </thead>
           <tbody className="divide-y divide-zinc-50">
             {isLoading ? (
-              <tr>
-                <td className="px-8 py-12 text-sm text-zinc-400 italic" colSpan={5}>
-                  Querying secure registry...
-                </td>
-              </tr>
+              <ApiKeyTableSkeleton />
             ) : filteredKeys.length === 0 ? (
               <tr>
-                <td className="px-8 py-12 text-sm text-zinc-400 italic" colSpan={5}>
+                <td className="px-8 py-12 text-sm text-zinc-400 italic text-center" colSpan={5}>
                   No credentials found matching your search.
                 </td>
               </tr>
             ) : null}
-            {filteredKeys.map((key) => {
+            {!isLoading && filteredKeys.map((key) => {
               const currentLimit = key.monthly_limit;
               const usagePercent = currentLimit ? Math.min((key.usage_count / currentLimit) * 100, 100) : 0;
               const intensityColor = !key.is_active 
@@ -232,7 +368,7 @@ export function ApiKeyTable({
                       <EditIcon className="h-4.5 w-4.5" />
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(key.id); }}
+                      onClick={(e) => { e.stopPropagation(); onDelete(key); }}
                       type="button"
                       className="rounded-xl p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500 active:scale-95"
                       title="Revoke Credential"
@@ -273,19 +409,9 @@ export function ApiKeyTable({
                       </button>
                       <button
                         type="button"
-                        onClick={async () => {
-                          const confirmed = window.confirm(`Are you sure you want to revoke "${key.name}"? This action will immediately deactivate this credential, and we will open the modal to create its replacement.`);
-                          if (!confirmed) return;
-                          
-                          const result = await onDelete(key.id);
-                          if (result.success) {
-                            setSecurityPromptKeyId(null);
-                            onEdit({
-                              ...key,
-                              id: "", // Blank ID means it's a new key
-                              name: `${key.name} (Replacement)`,
-                            });
-                          }
+                        onClick={() => {
+                          setSecurityPromptKeyId(null);
+                          onDelete(key, { replace: true });
                         }}
                         className="rounded-full bg-indigo-600 px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-white transition hover:bg-indigo-700"
                       >
