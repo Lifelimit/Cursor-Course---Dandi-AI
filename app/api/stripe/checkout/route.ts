@@ -1,4 +1,5 @@
 import { stripe } from "@/lib/stripe";
+import { publicEnv } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -44,8 +45,8 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?canceled=true`,
+      success_url: `${publicEnv.NEXT_PUBLIC_APP_URL}/billing?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${publicEnv.NEXT_PUBLIC_APP_URL}/billing?canceled=true`,
       customer: stripeCustomerId || undefined,
       customer_email: stripeCustomerId ? undefined : user.email,
       metadata: {

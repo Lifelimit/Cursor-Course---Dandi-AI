@@ -1,10 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { ApiKeyApiResponse } from "@/types/api";
 import { stripe } from "@/lib/stripe";
-import { Redis } from "@upstash/redis";
+import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
-
-const redis = Redis.fromEnv();
 
 export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], plan: string }> {
   try {

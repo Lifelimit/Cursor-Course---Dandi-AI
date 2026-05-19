@@ -1,4 +1,5 @@
 import { stripe } from "@/lib/stripe";
+import { publicEnv } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -25,7 +26,7 @@ export async function POST() {
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing`,
+      return_url: `${publicEnv.NEXT_PUBLIC_APP_URL}/billing`,
     });
 
     return NextResponse.json({ url: portalSession.url });

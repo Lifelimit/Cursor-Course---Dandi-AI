@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { updatePlanAction, removePaymentMethodAction } from "@/lib/auth-actions";
+import { publicEnv } from "@/lib/env";
 import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, useStripe, useElements, CardNumberElement } from "@stripe/react-stripe-js";
 
 import type { Session } from "@supabase/supabase-js";
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
+const stripePromise = loadStripe(publicEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
 type SubscriptionModalProps = {
   isOpen: boolean;

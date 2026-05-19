@@ -1,12 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
+import { serverEnv } from "@/lib/env";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
 
 const supabaseAdmin = createSupabaseClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  serverEnv.NEXT_PUBLIC_SUPABASE_URL,
+  serverEnv.SUPABASE_SERVICE_ROLE_KEY,
   {
     global: {
       fetch: (url, options) => fetch(url, { ...options, cache: "no-store" })

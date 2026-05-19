@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
-import { Redis } from "@upstash/redis";
+import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
-
 const TABLE_NAME = "api_keys";
-const redis = Redis.fromEnv();
 
 type ApiKeyRow = {
   id: string;
@@ -115,6 +113,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: (err as Error).message }, { status: 401 });
   }
 }
-
 
 

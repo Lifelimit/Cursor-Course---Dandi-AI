@@ -4,9 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { stripe } from "@/lib/stripe";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 import { PLAN_DETAILS } from "@/lib/constants";
-import { Redis } from "@upstash/redis";
-
-const redis = Redis.fromEnv();
+import { redis } from "@/lib/redis";
 
 export async function GET() {
   try {

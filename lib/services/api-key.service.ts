@@ -1,8 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { Redis } from "@upstash/redis";
+import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
-
-const redis = Redis.fromEnv();
 
 export async function validateApiKey(keyValue: string) {
   // Special case for Playground Demo Key

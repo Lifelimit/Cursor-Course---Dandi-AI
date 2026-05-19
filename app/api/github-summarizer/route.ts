@@ -3,10 +3,9 @@ import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.servic
 import { fetchGitHubReadme, fetchGitHubMetadata } from "@/lib/services/github.service";
 import { generateGithubSummary } from "@/lib/services/ai.service";
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import { redis } from "@/lib/redis";
 
 // Initialize Upstash Redis and Ratelimit
-const redis = Redis.fromEnv();
 const ratelimit = new Ratelimit({
   redis: redis,
   limiter: Ratelimit.slidingWindow(5, "60 s"),

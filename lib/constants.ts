@@ -1,4 +1,5 @@
 import { Plan, PlanDetail, CountryData } from "@/types";
+import { publicEnv } from "@/lib/env";
 
 export const PLAN_DETAILS: Record<string, PlanDetail> = {
   Hobby: {
@@ -12,16 +13,16 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
     price: "$20",
     features: ["5,000 requests / mo", "10 Active API Keys", "Advanced AI Context", "Priority Support"],
     nextBilling: "May 24, 2026",
-    monthlyPriceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID,
-    yearlyPriceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY_PRICE_ID,
+    monthlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID,
+    yearlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY_PRICE_ID,
   },
   Researcher: {
     id: "Researcher",
     price: "$99",
     features: ["Unlimited requests / mo", "Unlimited API Keys", "Custom Branding", "Priority Support"],
     nextBilling: "May 24, 2026",
-    monthlyPriceId: process.env.NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID,
-    yearlyPriceId: process.env.NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID,
+    monthlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID,
+    yearlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID,
   }
 };
 
@@ -120,8 +121,8 @@ export const PLANS: Plan[] = [
     textColor: "text-zinc-600",
     priceColor: "text-zinc-900",
     labelColor: "text-zinc-400",
-    monthlyPriceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID,
-    yearlyPriceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY_PRICE_ID,
+    monthlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID,
+    yearlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY_PRICE_ID,
   },
   {
     id: "Researcher",
@@ -143,7 +144,7 @@ export const PLANS: Plan[] = [
     textColor: "text-zinc-400",
     priceColor: "text-white",
     labelColor: "text-zinc-500",
-    monthlyPriceId: process.env.NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID,
-    yearlyPriceId: process.env.NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID,
+    monthlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID,
+    yearlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID,
   }
 ];
