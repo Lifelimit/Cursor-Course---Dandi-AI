@@ -43,6 +43,33 @@ export async function POST(req: Request) {
 
     // 2. Retrieve PaymentMethod from Stripe to get brand, last4, expiry
     const pm = await stripe.paymentMethods.retrieve(paymentMethodId);
+    const newFingerprint = pm.card?.fingerprint;
+
+    // Check for duplicate fingerprint to prevent linking multiple identical cards
+    if (newFingerprint) {
+      const existingMethods = await stripe.paymentMethods.list({
+        customer: customerId,
+        type: "card",
+      });
+
+      const isDuplicate = existingMethods.data.some(
+        (existingPm) =>
+          existingPm.id !== paymentMethodId &&
+          existingPm.card?.fingerprint === newFingerprint
+      );
+
+      if (isDuplicate) {
+        console.warn(`⚠️ Save Payment Method: Duplicate card detected (fingerprint: ${newFingerprint}). PM: ${paymentMethodId}`);
+        // If already attached, detach it
+        if (pm.customer === customerId) {
+          await stripe.paymentMethods.detach(paymentMethodId);
+        }
+        return NextResponse.json(
+          { error: "This card is already linked to your account." },
+          { status: 400 }
+        );
+      }
+    }
 
     // 3. Attach PaymentMethod to Customer (if not already attached)
     if (pm.customer !== customerId) {

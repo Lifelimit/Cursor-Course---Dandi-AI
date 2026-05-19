@@ -210,7 +210,7 @@ export async function POST(req: Request) {
     }
 
     // 1. Downgrade profile to Hobby
-    const updateQuery = supabaseAdmin
+    let query = supabaseAdmin
       .from("profiles")
       .update({ 
         plan: "Hobby",
@@ -218,12 +218,12 @@ export async function POST(req: Request) {
       });
 
     if (metadata.userId) {
-      updateQuery.eq("id", metadata.userId);
+      query = query.eq("id", metadata.userId);
     } else {
-      updateQuery.eq("stripe_customer_id", customerId);
+      query = query.eq("stripe_customer_id", customerId);
     }
 
-    const { data: profile, error: profileError } = await updateQuery
+    const { data: profile, error: profileError } = await query
       .select("id")
       .single();
 
