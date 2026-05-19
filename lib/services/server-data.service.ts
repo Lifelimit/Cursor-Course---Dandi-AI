@@ -20,15 +20,8 @@ export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], p
 
     const plan = profile?.plan || "Hobby";
     const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] || PLAN_DETAILS["Hobby"];
-    let monthlyLimit: number | null = null;
-    if (planDetail.features[0].includes("Unlimited")) {
-      monthlyLimit = null;
-    } else {
-      const match = planDetail.features[0].match(/(\d+,?\d+)/);
-      if (match) {
-        monthlyLimit = parseInt(match[0].replace(",", ""));
-      }
-    }
+    const monthlyLimit = planDetail.monthlyLimit;
+
 
     const { data, error } = await supabase
       .from("api_keys")
@@ -85,15 +78,8 @@ export async function getServerUsageData() {
 
     const plan = profile?.plan || "Hobby";
     const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] || PLAN_DETAILS["Hobby"];
-    let monthlyLimit: number | null = null;
-    if (planDetail.features[0].includes("Unlimited")) {
-      monthlyLimit = null;
-    } else {
-      const match = planDetail.features[0].match(/(\d+,?\d+)/);
-      if (match) {
-        monthlyLimit = parseInt(match[0].replace(",", ""));
-      }
-    }
+    const monthlyLimit = planDetail.monthlyLimit;
+
 
     // 2. Fetch current month's usage from Redis
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM

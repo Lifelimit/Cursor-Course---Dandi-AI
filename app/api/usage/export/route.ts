@@ -30,15 +30,8 @@ export async function GET() {
     const planDetail = PLAN_DETAILS[plan] || PLAN_DETAILS["Hobby"];
 
     // Enforce Plan limit extraction
-    let planMonthlyLimit: number | null = null;
-    if (planDetail.features[0].includes("Unlimited")) {
-      planMonthlyLimit = null;
-    } else {
-      const match = planDetail.features[0].match(/(\d+,?\d+)/);
-      if (match) {
-        planMonthlyLimit = parseInt(match[0].replace(",", ""));
-      }
-    }
+    const planMonthlyLimit = planDetail.monthlyLimit;
+
 
     // Generate CSV Metadata Header
     const metadata = [
