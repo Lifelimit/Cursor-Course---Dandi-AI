@@ -16,7 +16,6 @@ export async function GET() {
     // 1. Fetch profile early to calculate fallback monthly limits
     let profileData: { plan: string | null; billing_next_date: string | null; stripe_customer_id: string | null; stripe_subscription_id?: string | null } | null = null;
     let plan = "Hobby";
-    let monthlyLimit: number | null = null;
 
     if (userEmail) {
       const { data: profile } = await supabaseAdmin
@@ -31,15 +30,9 @@ export async function GET() {
       }
     }
 
-    const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] || PLAN_DETAILS["Hobby"];
-    if (planDetail.features[0].includes("Unlimited")) {
-      monthlyLimit = null;
-    } else {
-      const match = planDetail.features[0].match(/(\d+,?\d+)/);
-      if (match) {
-        monthlyLimit = parseInt(match[0].replace(",", ""));
-      }
-    }
+    const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] ?? PLAN_DETAILS["Hobby"];
+    // Use numeric limit directly from constants — no regex parsing needed
+    const monthlyLimit = planDetail.monthlyLimit;
 
     // 2. Fetch all API keys for the user
     const { data: keys, error: keysError } = await supabaseAdmin

@@ -7,6 +7,8 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
     price: "$0",
     features: ["1,000 requests / mo", "3 Active API Keys", "Standard Summaries", "Basic Analytics"],
     nextBilling: "N/A",
+    monthlyLimit: 1000,
+    keyLimit: 3,
   },
   Premium: {
     id: "Premium",
@@ -15,6 +17,8 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
     nextBilling: "May 24, 2026",
     monthlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID,
     yearlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY_PRICE_ID,
+    monthlyLimit: 5000,
+    keyLimit: 10,
   },
   Researcher: {
     id: "Researcher",
@@ -23,6 +27,8 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
     nextBilling: "May 24, 2026",
     monthlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID,
     yearlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID,
+    monthlyLimit: null,
+    keyLimit: null,
   }
 };
 

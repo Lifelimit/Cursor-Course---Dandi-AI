@@ -3,6 +3,28 @@ import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
 import crypto from "crypto";
 
+/** HMAC-SHA256 hash using the server secret. Used for new key hashing. */
+function hmacHash(value: string, secret: string): string {
+  return crypto.createHmac("sha256", secret).update(value).digest("hex");
+}
+
+/** Legacy SHA-256 hash (no secret). Used as a fallback for keys created before HMAC was introduced. */
+function sha256Hash(value: string): string {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+/** Returns true if the string looks like a valid GitHub repository URL. */
+function isValidGitHubUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== "github.com") return false;
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    return parts.length >= 2;
+  } catch {
+    return false;
+  }
+}
+
 export async function validateApiKey(keyValue: string) {
   // Special case for Playground Demo Key
   if (keyValue === "__demo__") {
@@ -68,18 +90,34 @@ export async function validateApiKey(keyValue: string) {
     keyData = data;
     dbError = error;
   } else {
-    // Regular API keys: Hash the incoming key value and search by hashed_key_value
-    const hashed = crypto.createHash("sha256").update(keyValue).digest("hex");
+    // Regular API keys: try HMAC-SHA256 first (new keys), fallback to plain SHA-256 (legacy keys)
+    const { getServerEnv } = await import("@/lib/env");
+    const hmacSecret = getServerEnv().API_KEY_HMAC_SECRET;
+    const hmacHashed = hmacHash(keyValue, hmacSecret);
 
-    const { data, error } = await supabaseAdmin
+    const { data: hmacData, error: hmacError } = await supabaseAdmin
       .from("api_keys")
       .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active")
-      .eq("hashed_key_value", hashed)
+      .eq("hashed_key_value", hmacHashed)
       .eq("is_active", true)
       .single();
 
-    keyData = data;
-    dbError = error;
+    if (hmacData && !hmacError) {
+      keyData = hmacData;
+      dbError = null;
+    } else {
+      // Fallback: try legacy SHA-256 hash for keys created before HMAC was introduced
+      const legacyHashed = sha256Hash(keyValue);
+      const { data: legacyData, error: legacyError } = await supabaseAdmin
+        .from("api_keys")
+        .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active")
+        .eq("hashed_key_value", legacyHashed)
+        .eq("is_active", true)
+        .single();
+
+      keyData = legacyData;
+      dbError = legacyError;
+    }
   }
 
   if (dbError || !keyData) {
@@ -98,24 +136,16 @@ export async function validateApiKey(keyValue: string) {
   }
 
   const plan = profile.plan || "Hobby";
-  const planDetail = PLAN_DETAILS[plan];
-  
-  // Extract numeric limit from string like "1,000 requests / mo"
-  let monthlyLimit: number | null = null;
-  if (planDetail.features[0].includes("Unlimited")) {
-    monthlyLimit = null;
-  } else {
-    const match = planDetail.features[0].match(/(\d+,?\d+)/);
-    if (match) {
-      monthlyLimit = parseInt(match[0].replace(",", ""));
-    }
-  }
+  const planDetail = PLAN_DETAILS[plan] ?? PLAN_DETAILS["Hobby"];
+
+  // Use numeric limit directly from plan constants — no regex parsing needed
+  const monthlyLimit = planDetail.monthlyLimit;
 
   // Get current usage from Redis (Hot data)
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
   const usageKey = `usage:user:${keyData.user_id}:${currentMonth}`;
   const keyUsageKey = `usage:key:${keyData.id}:${currentMonth}`;
-  
+
   const [currentUsage, currentKeyUsage] = await Promise.all([
     redis.get<number>(usageKey).then(v => v || 0),
     redis.get<number>(keyUsageKey).then(v => v || 0)
@@ -123,12 +153,12 @@ export async function validateApiKey(keyValue: string) {
 
   // Enforce Specific Key Limit if set
   if (keyData.monthly_limit !== null && currentKeyUsage >= keyData.monthly_limit) {
-    throw new Error(`Usage limit of ${keyData.monthly_limit} reached for this specific API key.`);
+    throw new Error(`Rate limit exceeded for this API key. Upgrade at dandi.ai`);
   }
 
   // Enforce Global Plan Limit
   if (monthlyLimit !== null && currentUsage >= monthlyLimit) {
-    throw new Error(`Monthly usage limit exceeded for your ${plan} plan. Used ${currentUsage}/${monthlyLimit} credits.`);
+    throw new Error(`Monthly usage limit exceeded for your plan. Upgrade at dandi.ai`);
   }
 
   return {
@@ -140,10 +170,10 @@ export async function validateApiKey(keyValue: string) {
 }
 
 export async function incrementKeyUsage(
-  keyId: string, 
-  userId: string, 
-  repoUrl?: string, 
-  latencyMs: number = 0, 
+  keyId: string,
+  userId: string,
+  repoUrl?: string,
+  latencyMs: number = 0,
   status: "success" | "error" = "success"
 ) {
   if (keyId === "demo-id") {
@@ -157,26 +187,34 @@ export async function incrementKeyUsage(
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
   const usageKey = `usage:user:${userId}:${currentMonth}`;
   const keyUsageKey = `usage:key:${keyId}:${currentMonth}`;
-  
-  // 1. Increment usage in Redis (Atomic)
-  // We only increment usage count for successful requests to be fair to users
+
+  // 1. Increment usage in Redis (Atomic) — only for successful requests to be fair to users
   if (status === "success") {
     await Promise.all([
       redis.incr(usageKey),
-      redis.incr(keyUsageKey)
+      redis.incr(keyUsageKey),
+    ]);
+    // Set a 60-day TTL so stale monthly counters expire automatically
+    const ttlSeconds = 60 * 24 * 60 * 60;
+    await Promise.all([
+      redis.expire(usageKey, ttlSeconds),
+      redis.expire(keyUsageKey, ttlSeconds),
     ]);
   }
 
-  // 2. Log metadata to Redis for analytics
+  // 2. Validate and sanitize repoUrl before logging
+  const safeRepoUrl = repoUrl && isValidGitHubUrl(repoUrl) ? repoUrl : undefined;
+
+  // 3. Log metadata to Redis for analytics
   const logKey = `logs:user:${userId}:${currentMonth}`;
   await redis.lpush(logKey, JSON.stringify({
     keyId,
-    repoUrl,
+    repoUrl: safeRepoUrl,
     usedAt: new Date().toISOString(),
     latencyMs,
     status
   }));
-  
+
   // Keep only last 100 logs in Redis per user for "hot" analytics
   await redis.ltrim(logKey, 0, 99);
 }

@@ -27,6 +27,10 @@ export interface PlanDetail {
   nextBilling: string;
   monthlyPriceId?: string;
   yearlyPriceId?: string;
+  /** Numeric monthly request limit; null = unlimited */
+  monthlyLimit: number | null;
+  /** Number of active API keys allowed; null = unlimited */
+  keyLimit: number | null;
 }
 
 export interface CountryData {

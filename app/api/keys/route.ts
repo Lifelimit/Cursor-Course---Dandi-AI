@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
+import { getServerEnv } from "@/lib/env";
 import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
 import crypto from "crypto";
@@ -36,16 +37,9 @@ export async function GET() {
       .single();
 
     const plan = profile?.plan || "Hobby";
-    const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] || PLAN_DETAILS["Hobby"];
-    let monthlyLimit: number | null = null;
-    if (planDetail.features[0].includes("Unlimited")) {
-      monthlyLimit = null;
-    } else {
-      const match = planDetail.features[0].match(/(\d+,?\d+)/);
-      if (match) {
-        monthlyLimit = parseInt(match[0].replace(",", ""));
-      }
-    }
+    const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] ?? PLAN_DETAILS["Hobby"];
+    // Use numeric limit directly from constants — no regex parsing needed
+    const monthlyLimit = planDetail.monthlyLimit;
 
     const { data, error } = await supabaseAdmin
       .from(TABLE_NAME)
@@ -93,7 +87,8 @@ export async function POST(request: Request) {
     }
 
     const plainKey = buildKeyValue();
-    const hashedKeyValue = crypto.createHash("sha256").update(plainKey).digest("hex");
+    const hmacSecret = getServerEnv().API_KEY_HMAC_SECRET;
+    const hashedKeyValue = crypto.createHmac("sha256", hmacSecret).update(plainKey).digest("hex");
     const maskedKey = `${plainKey.slice(0, 8)}...${plainKey.slice(-4)}`;
 
     const { data, error } = await supabaseAdmin
@@ -117,7 +112,14 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ...(data as ApiKeyRow),
       plain_key: plainKey
-    }, { status: 201 });
+    }, {
+      status: 201,
+      headers: {
+        // Prevent CDNs, proxies, and browsers from caching the response containing the plaintext key
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "Pragma": "no-cache",
+      }
+    });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 401 });
   }

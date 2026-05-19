@@ -16,7 +16,11 @@ const ratelimit = new Ratelimit({
 export async function POST(request: Request) {
   try {
     // 1. Global Rate Limiting (IP-based)
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
+    // Use x-real-ip (set by Vercel edge, not spoofable) before x-forwarded-for
+    const ip =
+      request.headers.get("x-real-ip") ||
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      "127.0.0.1";
     const { success, limit, reset, remaining } = await ratelimit.limit(ip);
 
     if (!success) {
@@ -55,11 +59,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: errorMessage }, { status });
     }
 
-    // 3. Extract GitHub URL
+    // 3. Extract and validate GitHub URL
     const { githubUrl } = await request.json();
 
     if (!githubUrl) {
       return NextResponse.json({ error: "githubUrl is required in body" }, { status: 400 });
+    }
+
+    // Validate URL is a real GitHub repo before doing anything (prevents log pollution)
+    try {
+      const parsed = new URL(githubUrl);
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      if (parsed.hostname !== "github.com" || parts.length < 2) {
+        return NextResponse.json(
+          { error: "Invalid GitHub repository URL. Expected: https://github.com/owner/repo" },
+          { status: 400 }
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid GitHub repository URL. Expected: https://github.com/owner/repo" },
+        { status: 400 }
+      );
     }
 
     const startTime = Date.now();

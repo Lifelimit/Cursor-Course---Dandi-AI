@@ -3,13 +3,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { serverEnv } from "@/lib/env";
-import { createClient } from "@supabase/supabase-js";
-
-// Service Role client for bypassing RLS to update plans and handle idempotency
-const supabaseAdmin = createClient(
-  serverEnv.NEXT_PUBLIC_SUPABASE_URL,
-  serverEnv.SUPABASE_SERVICE_ROLE_KEY
-);
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -186,10 +180,11 @@ export async function POST(req: Request) {
     // Remove undefined fields
     Object.keys(updatePayload).forEach(key => updatePayload[key] === undefined && delete updatePayload[key]);
 
-    const query = supabaseAdmin.from("profiles").update(updatePayload);
-    if (userId) query.eq("id", userId);
-    else if (userEmail) query.eq("email", userEmail);
-    else query.eq("stripe_customer_id", customerId);
+    // Build query — must re-assign after each .eq() so the condition is retained
+    let query = supabaseAdmin.from("profiles").update(updatePayload);
+    if (userId) query = query.eq("id", userId);
+    else if (userEmail) query = query.eq("email", userEmail);
+    else query = query.eq("stripe_customer_id", customerId);
 
     const { error } = await query.select();
 
