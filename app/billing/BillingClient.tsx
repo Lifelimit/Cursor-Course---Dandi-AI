@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Session, User } from "@supabase/supabase-js";
+import { User } from "@supabase/supabase-js";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
@@ -49,8 +49,6 @@ export default function BillingClient({
   const isHydrated = useRef(initialData !== null);
   const [secondaryIndex, setSecondaryIndex] = useState(0);
   const [cardToDelete, setCardToDelete] = useState<{ id: string; brand: string; last4: string } | null>(null);
-  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-  const [keysToKeep, setKeysToKeep] = useState<string[]>([]);
   const { toast, showToast } = useToast();
 
   useEffect(() => {
@@ -102,7 +100,7 @@ export default function BillingClient({
       } else {
         throw new Error("Failed to update default payment method.");
       }
-    } catch (_err) {
+    } catch {
       showToast("error", "Failed to update default payment method.");
     }
   };
@@ -122,7 +120,7 @@ export default function BillingClient({
         const errorData = await res.json();
         throw new Error(errorData.error || "Failed to remove card.");
       }
-    } catch (_err) {
+    } catch {
       showToast("error", "Failed to remove card.");
     }
   };
@@ -412,6 +410,43 @@ export default function BillingClient({
         }}
         onError={(msg) => showToast("error", msg)}
       />
+
+      {/* Remove Card Confirmation Modal */}
+      {cardToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm transition-all duration-300">
+          <div className="w-full max-w-md scale-95 transform rounded-[32px] border border-zinc-200 bg-white p-8 shadow-2xl transition-all duration-300">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-red-500">Warning / Security</p>
+                <h3 className="font-serif text-2xl font-bold tracking-tight text-zinc-900">Remove Payment Method?</h3>
+                <p className="text-xs text-zinc-500 leading-relaxed">
+                  Are you sure you want to remove the <strong className="text-zinc-900">{cardToDelete.brand}</strong> card ending in <strong className="text-zinc-900">•••• {cardToDelete.last4}</strong>? 
+                  {cardToDelete.id === data?.paymentMethods?.find(pm => pm.isDefault)?.id && (
+                    <span className="block mt-2 text-red-500 font-medium">
+                      ⚠️ Note: This is your primary payment method. Removing it may disrupt active subscriptions unless a secondary method is set.
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setCardToDelete(null)}
+                  className="flex-1 rounded-2xl border border-zinc-200 bg-white py-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 transition-all hover:bg-zinc-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeletePayment(cardToDelete.id)}
+                  className="flex-1 rounded-2xl bg-red-500 py-4 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-red-600 shadow-lg shadow-red-500/10"
+                >
+                  Remove Card
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Toast toast={toast} />
     </div>

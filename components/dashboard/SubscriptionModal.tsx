@@ -42,7 +42,7 @@ export function SubscriptionModal(props: SubscriptionModalProps) {
   );
 }
 
-function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, onSuccess, onError, initialView, initialPendingPlan, initialBillingInterval, onDowngrade, session }: SubscriptionModalProps) {
+function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, onSuccess, onError, initialView, initialPendingPlan, initialBillingInterval, session }: SubscriptionModalProps) {
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
@@ -411,9 +411,10 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
         onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
         setView("success");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Save payment process failed:", err);
-      onError?.(err.message || "Failed to save card and process transaction.");
+      const message = err instanceof Error ? err.message : "Failed to save card and process transaction.";
+      onError?.(message);
     } finally {
       setIsLoading(false);
     }
@@ -606,9 +607,10 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
       const actionText = PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "upgraded" : "downgraded";
       onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
       setView("success");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Plan change error:", error);
-      onError?.(error.message || "An error occurred. Please try again.");
+      const message = error instanceof Error ? error.message : "An error occurred. Please try again.";
+      onError?.(message);
     } finally {
       setIsLoading(false);
     }

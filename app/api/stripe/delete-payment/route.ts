@@ -76,8 +76,9 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Delete Payment Error:", err);
-    return NextResponse.json({ error: err.message || "Failed to delete payment method" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Failed to delete payment method";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

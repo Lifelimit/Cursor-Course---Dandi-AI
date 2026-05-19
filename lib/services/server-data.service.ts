@@ -3,6 +3,7 @@ import { ApiKeyApiResponse } from "@/types/api";
 import { stripe } from "@/lib/stripe";
 import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
+import Stripe from "stripe";
 
 export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], plan: string }> {
   try {
@@ -58,6 +59,14 @@ export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], p
   }
 }
 
+interface RedisUsageLog {
+  keyId: string;
+  usedAt: string;
+  status: string;
+  latencyMs: number;
+  repoUrl?: string;
+}
+
 export async function getServerUsageData() {
   try {
     const supabase = await createClient();
@@ -94,7 +103,7 @@ export async function getServerUsageData() {
     // 3. Fetch hot logs from Redis
     const logKey = `logs:user:${userId}:${currentMonth}`;
     const redisLogsStr = await redis.lrange(logKey, 0, -1);
-    const logs = redisLogsStr.map(log => typeof log === "string" ? JSON.parse(log) : log);
+    const logs = redisLogsStr.map(log => (typeof log === "string" ? JSON.parse(log) : log) as RedisUsageLog);
 
     // 4. Fetch all API keys for the user
     const { data: keys, error: keysError } = await supabase
@@ -148,8 +157,8 @@ export async function getServerUsageData() {
 
     // 6. Global aggregates and performance metrics
     const totalLogs = (logs || []).length;
-    const successfulLogs = (logs || []).filter(l => (l as any).status === "success").length;
-    const totalLatency = (logs || []).reduce((acc, l) => acc + ((l as any).latencyMs || 0), 0);
+    const successfulLogs = (logs || []).filter(l => l.status === "success").length;
+    const totalLatency = (logs || []).reduce((acc, l) => acc + (l.latencyMs || 0), 0);
     
     const avgLatency = totalLogs > 0 ? Math.round(totalLatency / totalLogs) : 0;
     const successRate = totalLogs > 0 ? (successfulLogs / totalLogs) * 100 : 0;
@@ -169,12 +178,12 @@ export async function getServerUsageData() {
     // 7. Calculate billing dates
     let resetDate = null;
     let nextInvoiceDate = null;
-    let stripeCustomerId = profile?.stripe_customer_id;
+    const stripeCustomerId = profile?.stripe_customer_id;
     let stripeSubscriptionId = profile?.stripe_subscription_id;
 
     if (!profile?.billing_next_date && (stripeSubscriptionId || stripeCustomerId)) {
       try {
-        let activeSubscription = null;
+        let activeSubscription: Stripe.Subscription | null = null;
         if (stripeSubscriptionId) {
           activeSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
         } else if (stripeCustomerId) {
@@ -190,7 +199,7 @@ export async function getServerUsageData() {
         }
 
         if (activeSubscription && activeSubscription.status === "active") {
-          const periodEnd = (activeSubscription as any).current_period_end || (activeSubscription as any).items?.data?.[0]?.current_period_end;
+          const periodEnd = activeSubscription.items?.data?.[0]?.current_period_end || activeSubscription.billing_cycle_anchor;
           const renewalDate = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
           nextInvoiceDate = renewalDate;
           
@@ -233,7 +242,13 @@ export async function getServerUsageData() {
     }
 
     // 8. Fetch payment methods
-    let paymentMethods: any[] = [];
+    let paymentMethods: {
+      id: string;
+      brand: string;
+      last4: string;
+      expiry: string;
+      isDefault: boolean;
+    }[] = [];
     if (stripeCustomerId) {
       try {
         const methods = await stripe.paymentMethods.list({
@@ -241,16 +256,18 @@ export async function getServerUsageData() {
           type: "card",
         });
         
-        const customer = await stripe.customers.retrieve(stripeCustomerId) as any;
-        const defaultMethodId = customer.invoice_settings?.default_payment_method;
+        const customer = await stripe.customers.retrieve(stripeCustomerId);
+        if (customer && !customer.deleted) {
+          const defaultMethodId = customer.invoice_settings?.default_payment_method;
 
-        paymentMethods = methods.data.map((pm, idx) => ({
-          id: pm.id,
-          brand: pm.card?.brand || "Card",
-          last4: pm.card?.last4 || "****",
-          expiry: pm.card ? `${pm.card.exp_month}/${pm.card.exp_year}` : "N/A",
-          isDefault: defaultMethodId ? pm.id === defaultMethodId : idx === 0
-        }));
+          paymentMethods = methods.data.map((pm, idx) => ({
+            id: pm.id,
+            brand: pm.card?.brand || "Card",
+            last4: pm.card?.last4 || "****",
+            expiry: pm.card ? `${pm.card.exp_month}/${pm.card.exp_year}` : "N/A",
+            isDefault: defaultMethodId ? pm.id === defaultMethodId : idx === 0
+          }));
+        }
       } catch {
         // Silent fail for Stripe fetch
       }

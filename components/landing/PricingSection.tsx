@@ -201,7 +201,7 @@ export function PricingSection({
               
               <h3 className="mb-2 text-2xl font-black tracking-tight text-zinc-900">Cancel Subscription?</h3>
               <p className="mb-8 text-sm leading-relaxed text-zinc-500">
-                Your <span className="font-bold text-zinc-900">{currentPlanId}</span> plan will remain active until the end of your current term. After that, you'll be downgraded to the Hobby plan.
+                Your <span className="font-bold text-zinc-900">{currentPlanId}</span> plan will remain active until the end of your current term. After that, you&apos;ll be downgraded to the Hobby plan.
               </p>
 
               <div className="mb-8 w-full space-y-4 rounded-3xl border border-zinc-100 bg-zinc-50/50 p-6 text-left">
@@ -271,7 +271,7 @@ export function PricingSection({
                       } else {
                         throw new Error("Failed to cancel subscription.");
                       }
-                    } catch (_err) {
+                    } catch {
                       onError?.("Failed to cancel subscription.");
                     } finally {
                       setLoadingPlanId(null);

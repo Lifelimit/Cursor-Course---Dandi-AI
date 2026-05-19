@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     }
 
     // 2. Attach new payment method if provided
-    let pmId = paymentMethodId;
+    const pmId = paymentMethodId;
     if (pmId) {
       try {
         const pm = await stripe.paymentMethods.retrieve(pmId);
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
       (sub) => sub.status === "active" || sub.status === "trialing" || sub.status === "incomplete"
     );
 
-    let subscription: any;
+    let subscription: Stripe.Subscription;
 
     if (activeSubscription) {
       // UPGRADE / CHANGE SUBSCRIPTION
@@ -103,8 +103,8 @@ export async function POST(req: Request) {
     }
 
     // 4. Handle status check (e.g. 3D Secure / SCA challenges)
-    const invoice = subscription.latest_invoice as any;
-    const paymentIntent = invoice?.payment_intent as any;
+    const invoice = subscription.latest_invoice as Stripe.Invoice | null | undefined;
+    const paymentIntent = (invoice as any)?.payment_intent as Stripe.PaymentIntent | null | undefined;
 
     if (paymentIntent && paymentIntent.status === "requires_action") {
       return NextResponse.json({
@@ -153,12 +153,12 @@ export async function POST(req: Request) {
       }
     }
 
-    const periodEnd = subscription.current_period_end || (subscription as any).items?.data?.[0]?.current_period_end;
+    const periodEnd = subscription.items?.data?.[0]?.current_period_end || subscription.billing_cycle_anchor;
     const renewalDate = periodEnd
       ? new Date(periodEnd * 1000).toISOString()
       : null;
 
-    const updatePayload: Record<string, any> = {
+    const updatePayload: Record<string, unknown> = {
       plan: planId,
       stripe_subscription_id: subscription.id,
       billing_interval: subscription.items?.data?.[0]?.price?.recurring?.interval === "year" ? "year" : "month",

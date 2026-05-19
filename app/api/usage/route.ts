@@ -57,17 +57,32 @@ export async function GET() {
       pipeline.get(`usage:key:${k.id}:${currentMonth}`);
     });
     const keyUsageCounts = await pipeline.exec<number[]>();
+    interface UsageLog {
+      status: string;
+      latencyMs?: number;
+      keyId?: string;
+      repoUrl?: string;
+      usedAt: string;
+      repo_url?: string;
+    }
+
     const userUsage = await redis.get<number>(`usage:user:${userId}:${currentMonth}`) || 0;
 
     // 4. Fetch usage logs from Redis (Hot Analytics)
     const logKey = `logs:user:${userId}:${currentMonth}`;
     const rawLogs = await redis.lrange(logKey, 0, 99);
-    const logs = rawLogs.map((l: any) => typeof l === 'string' ? JSON.parse(l) : l);
+    const logs: UsageLog[] = rawLogs.map((l: string) => {
+      try {
+        return typeof l === 'string' ? JSON.parse(l) : l;
+      } catch {
+        return {} as UsageLog;
+      }
+    });
 
     // Calculate Global Performance Metrics
     const totalLogs = logs.length;
-    const successfulLogs = logs.filter((l: any) => l.status === "success").length;
-    const totalLatency = logs.reduce((acc: number, l: any) => acc + (l.latencyMs || 0), 0);
+    const successfulLogs = logs.filter((l: UsageLog) => l.status === "success").length;
+    const totalLatency = logs.reduce((acc: number, l: UsageLog) => acc + (l.latencyMs || 0), 0);
     
     const avgLatency = totalLogs > 0 ? Math.round(totalLatency / totalLogs) : 0;
     const successRate = totalLogs > 0 ? (successfulLogs / totalLogs) * 100 : 0;
@@ -197,7 +212,7 @@ export async function GET() {
         } else {
           resetDate = nextInvoiceDate;
         }
-      } catch (_err) {
+      } catch {
         // Date calculation failed, fallback handled by null resetDate
       }
     }
@@ -222,7 +237,7 @@ export async function GET() {
           expiry: pm.card ? `${pm.card.exp_month}/${pm.card.exp_year}` : "N/A",
           isDefault: defaultMethodId ? pm.id === defaultMethodId : idx === 0
         }));
-      } catch (_err) {
+      } catch {
         // Silent error, return empty paymentMethods
       }
     }

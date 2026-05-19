@@ -38,10 +38,11 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
 
   // Sync URL to state (handles manual navigation / browser back/forward)
   useEffect(() => {
-    if (pathname === "/signup" || pathname === "/login") {
-      setIsSignUp(pathname === "/signup");
+    const shouldBeSignUp = pathname === "/signup";
+    if ((pathname === "/signup" || pathname === "/login") && isSignUp !== shouldBeSignUp) {
+      setIsSignUp(shouldBeSignUp);
     }
-  }, [pathname]);
+  }, [pathname, isSignUp]);
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
@@ -106,8 +107,9 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
         setIsMagicLinkSent(true);
         setSuccessMessage("Magic link sent! Please check your inbox.");
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "An unexpected error occurred";
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -127,8 +129,9 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
         },
       });
       if (error) throw error;
-    } catch (err: any) {
-      setError(err.message || "Failed to sign in with Google");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to sign in with Google";
+      setError(message);
       setIsLoading(false);
     }
   }

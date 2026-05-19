@@ -30,7 +30,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
 
   useEffect(() => {
     if (isOpen) {
-      setIsSubmitting(false);
+      setTimeout(() => setIsSubmitting(false), 0);
       if (initialData) {
         setKeyName(initialData.name);
         setKeyType(initialData.type as "development" | "production");

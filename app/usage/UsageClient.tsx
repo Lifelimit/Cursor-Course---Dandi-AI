@@ -70,7 +70,10 @@ export default function UsageClient({
       }, 1000);
       return () => clearTimeout(timer);
     } else {
-      fetchUsageData();
+      const timer = setTimeout(() => {
+        fetchUsageData();
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [fetchUsageData, initialData]);
 
