@@ -190,17 +190,20 @@ export async function getServerUsageData() {
         }
 
         if (activeSubscription && activeSubscription.status === "active") {
-          const renewalDate = new Date((activeSubscription as any).current_period_end * 1000).toISOString();
+          const periodEnd = (activeSubscription as any).current_period_end || (activeSubscription as any).items?.data?.[0]?.current_period_end;
+          const renewalDate = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
           nextInvoiceDate = renewalDate;
           
-          // Heal the database profile asynchronously
-          await supabase
-            .from("profiles")
-            .update({ 
-              billing_next_date: renewalDate,
-              stripe_subscription_id: stripeSubscriptionId || undefined
-            })
-            .eq("id", userId);
+          if (renewalDate) {
+            // Heal the database profile asynchronously
+            await supabase
+              .from("profiles")
+              .update({ 
+                billing_next_date: renewalDate,
+                stripe_subscription_id: stripeSubscriptionId || undefined
+              })
+              .eq("id", userId);
+          }
         }
       } catch (err) {
         console.warn("⚠️ Failed to self-heal next billing date via Stripe in server-data:", err);

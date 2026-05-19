@@ -202,7 +202,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                     </span>
                     {!isExhausted && daysLeft !== null && (
                       <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-tight">
-                        Est. {daysLeft} Days Runway
+                        Est. {daysLeft > 365 ? (daysLeft > 1825 ? "5+ Years" : `${Math.round(daysLeft / 365 * 10) / 10} Years`) : `${daysLeft} Days`} Runway
                       </span>
                     )}
                   </div>

@@ -160,11 +160,12 @@ export async function GET() {
         }
 
         if (activeSubscription && activeSubscription.status === "active") {
-          const renewalDate = new Date((activeSubscription as any).current_period_end * 1000).toISOString();
+          const periodEnd = (activeSubscription as any).current_period_end || (activeSubscription as any).items?.data?.[0]?.current_period_end;
+          const renewalDate = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
           nextInvoiceDate = renewalDate;
           
           // Heal the database profile asynchronously
-          if (userEmail) {
+          if (userEmail && renewalDate) {
             await supabaseAdmin
               .from("profiles")
               .update({ 

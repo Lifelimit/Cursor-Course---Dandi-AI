@@ -153,8 +153,9 @@ export async function POST(req: Request) {
       }
     }
 
-    const renewalDate = subscription.current_period_end
-      ? new Date(subscription.current_period_end * 1000).toISOString()
+    const periodEnd = subscription.current_period_end || (subscription as any).items?.data?.[0]?.current_period_end;
+    const renewalDate = periodEnd
+      ? new Date(periodEnd * 1000).toISOString()
       : null;
 
     const updatePayload: Record<string, any> = {

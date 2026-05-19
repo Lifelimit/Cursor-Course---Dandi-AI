@@ -166,7 +166,7 @@ export async function POST(req: Request) {
 
       const planId = metadata.planId;
       let renewalDate: string | null = null;
-      const periodEnd = (subscription as any).current_period_end;
+      const periodEnd = (subscription as any).current_period_end || (subscription as any).items?.data?.[0]?.current_period_end;
       if (periodEnd) {
         renewalDate = new Date(periodEnd * 1000).toISOString();
       }
