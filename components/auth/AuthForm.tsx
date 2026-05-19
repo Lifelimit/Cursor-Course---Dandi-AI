@@ -40,7 +40,8 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
   useEffect(() => {
     const shouldBeSignUp = pathname === "/signup";
     if ((pathname === "/signup" || pathname === "/login") && isSignUp !== shouldBeSignUp) {
-      setIsSignUp(shouldBeSignUp);
+      const timer = setTimeout(() => setIsSignUp(shouldBeSignUp), 0);
+      return () => clearTimeout(timer);
     }
   }, [pathname, isSignUp]);
 

@@ -1,8 +1,5 @@
 import Link from "next/link";
 import { AuthForm } from "@/components/auth/AuthForm";
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import { getURL } from "@/lib/utils/url-helper";
 
 export default async function LoginPage({
   searchParams,

@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     const isSubscriptionEvent = event.type === "customer.subscription.updated";
     
     // Type casting for shared access to metadata/customer
-    const obj = sessionOrSub as any;
+    const obj = sessionOrSub as unknown as Record<string, unknown>;
     const customerId = obj.customer as string;
     const metadata = (obj.metadata || {}) as Record<string, string>;
     const userId = metadata.userId;
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     });
 
     let paymentMethodDetails: Record<string, string> | null = null;
-    let updatePayload: Record<string, any> = {
+    let updatePayload: Record<string, unknown> = {
       stripe_customer_id: customerId,
       updated_at: new Date().toISOString()
     };
@@ -166,7 +166,7 @@ export async function POST(req: Request) {
 
       const planId = metadata.planId;
       let renewalDate: string | null = null;
-      const periodEnd = (subscription as any).current_period_end || (subscription as any).items?.data?.[0]?.current_period_end;
+      const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end || (subscription as unknown as { items?: { data?: Array<{ current_period_end: number }> } }).items?.data?.[0]?.current_period_end;
       if (periodEnd) {
         renewalDate = new Date(periodEnd * 1000).toISOString();
       }
@@ -175,7 +175,7 @@ export async function POST(req: Request) {
         ...updatePayload,
         plan: planId || undefined,
         stripe_subscription_id: subscriptionId,
-        billing_interval: (subscription as any).items?.data?.[0]?.price?.recurring?.interval === "year" ? "year" : "month",
+        billing_interval: (subscription as unknown as { items?: { data?: Array<{ price?: { recurring?: { interval?: string } } }> } }).items?.data?.[0]?.price?.recurring?.interval === "year" ? "year" : "month",
         payment_method_last4: paymentMethodDetails?.last4,
         payment_method_brand: paymentMethodDetails?.brand,
         payment_method_expiry: paymentMethodDetails?.expiry,
@@ -191,7 +191,7 @@ export async function POST(req: Request) {
     else if (userEmail) query.eq("email", userEmail);
     else query.eq("stripe_customer_id", customerId);
 
-    const { error, data } = await query.select();
+    const { error } = await query.select();
 
     if (error) {
       console.error("❌ Supabase webhook update error:", error.message);

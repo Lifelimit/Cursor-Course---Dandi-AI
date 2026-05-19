@@ -104,7 +104,7 @@ export async function POST(req: Request) {
 
     // 4. Handle status check (e.g. 3D Secure / SCA challenges)
     const invoice = subscription.latest_invoice as Stripe.Invoice | null | undefined;
-    const paymentIntent = (invoice as any)?.payment_intent as Stripe.PaymentIntent | null | undefined;
+    const paymentIntent = (invoice as unknown as { payment_intent?: Stripe.PaymentIntent | string | null })?.payment_intent as Stripe.PaymentIntent | null | undefined;
 
     if (paymentIntent && paymentIntent.status === "requires_action") {
       return NextResponse.json({

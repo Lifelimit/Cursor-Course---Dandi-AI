@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 
@@ -93,10 +94,13 @@ export function Sidebar({
           {user && (
             <div className="mb-4 flex items-center gap-3 px-2">
               {user.user_metadata?.avatar_url ? (
-                <img 
+                <Image 
                   src={user.user_metadata.avatar_url} 
                   alt="Avatar" 
+                  width={32}
+                  height={32}
                   className="h-8 w-8 rounded-full border border-zinc-200 shadow-sm" 
+                  unoptimized
                 />
               ) : (
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-black uppercase text-zinc-600 border border-zinc-200 shadow-sm">

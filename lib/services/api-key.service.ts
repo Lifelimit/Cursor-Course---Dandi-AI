@@ -1,7 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
-import { serverEnv } from "@/lib/env";
 import crypto from "crypto";
 
 export async function validateApiKey(keyValue: string) {

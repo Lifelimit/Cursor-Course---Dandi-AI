@@ -96,11 +96,11 @@ export async function GET() {
     }).reverse();
 
     const processedKeys = (keys || []).map((key, index) => {
-      const keyLogs = (logs || []).filter((l: any) => l.keyId === key.id);
+      const keyLogs = (logs || []).filter((l: UsageLog) => l.keyId === key.id);
       const actualUsage = keyUsageCounts[index] || 0;
       
       // Daily trend
-      const trendMap = keyLogs.reduce((acc: Record<string, number>, log: any) => {
+      const trendMap = keyLogs.reduce((acc: Record<string, number>, log: UsageLog) => {
         const date = log.usedAt.split("T")[0];
         acc[date] = (acc[date] || 0) + 1;
         return acc;
@@ -112,7 +112,7 @@ export async function GET() {
       }));
 
       // Top repos for this key
-      const repoMap = keyLogs.reduce((acc: Record<string, number>, log: any) => {
+      const repoMap = keyLogs.reduce((acc: Record<string, number>, log: UsageLog) => {
         if (log.repoUrl) {
           acc[log.repoUrl] = (acc[log.repoUrl] || 0) + 1;
         }
@@ -154,7 +154,7 @@ export async function GET() {
     // 7. Calculate billing / quota reset dates
     let resetDate = null;
     let nextInvoiceDate = null;
-    let stripeCustomerId = profileData?.stripe_customer_id;
+    const stripeCustomerId = profileData?.stripe_customer_id;
     let stripeSubscriptionId = profileData?.stripe_subscription_id;
 
     if (!profileData?.billing_next_date && (stripeSubscriptionId || stripeCustomerId)) {
@@ -175,7 +175,7 @@ export async function GET() {
         }
 
         if (activeSubscription && activeSubscription.status === "active") {
-          const periodEnd = (activeSubscription as any).current_period_end || (activeSubscription as any).items?.data?.[0]?.current_period_end;
+          const periodEnd = (activeSubscription as unknown as { current_period_end?: number }).current_period_end || (activeSubscription as unknown as { items?: { data?: Array<{ current_period_end: number }> } }).items?.data?.[0]?.current_period_end;
           const renewalDate = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
           nextInvoiceDate = renewalDate;
           

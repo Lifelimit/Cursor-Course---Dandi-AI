@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useToast } from "@/hooks/useToast";
-import { Session } from "@supabase/supabase-js";
 import { ApiKey } from "@/types/api";
 import { Toast } from "@/components/ui/Toast";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -124,13 +123,14 @@ export default function DashboardClient({
       const result = await createKey(data);
       if (result.success) {
         showToast("success", "API key created successfully.");
-        if ((result as any).plainKey) {
-          setCreatedPlainKey((result as any).plainKey);
+        const createdResult = result as { plainKey?: string; key?: { id: string } };
+        if (createdResult.plainKey) {
+          setCreatedPlainKey(createdResult.plainKey);
           setIsPlainKeyVisible(true);
-          if ((result as any).key?.id) {
+          if (createdResult.key?.id) {
             setSessionPlainKeys(prev => ({
               ...prev,
-              [(result as any).key.id]: (result as any).plainKey
+              [createdResult.key!.id]: createdResult.plainKey!
             }));
           }
         }

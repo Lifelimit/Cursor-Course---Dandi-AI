@@ -126,14 +126,11 @@ export default function BillingClient({
   };
 
   useEffect(() => {
-    if (initialData) {
-      const timer = setTimeout(() => {
-        fetchBillingData();
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else {
+    const delay = initialData ? 1000 : 0;
+    const timer = setTimeout(() => {
       fetchBillingData();
-    }
+    }, delay);
+    return () => clearTimeout(timer);
   }, [fetchBillingData, initialData]);
 
   const currentData = data || initialData;

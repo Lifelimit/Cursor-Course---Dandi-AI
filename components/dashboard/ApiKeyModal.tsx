@@ -30,25 +30,28 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => setIsSubmitting(false), 0);
-      if (initialData) {
-        setKeyName(initialData.name);
-        setKeyType(initialData.type as "development" | "production");
-        setHasUsageLimit(initialData.monthly_limit !== null);
-        setMonthlyLimit(initialData.monthly_limit !== null ? String(initialData.monthly_limit) : "1000");
-        setAlertThreshold(initialData.alert_threshold ? String(initialData.alert_threshold) : "80");
-        setAlertChannels(initialData.alert_channels || ["in-page"]);
-        setIsActive(initialData.is_active);
-      } else {
-        setKeyName("");
-        setKeyType("development");
-        setHasUsageLimit(false);
-        setMonthlyLimit("1000");
-        setAlertThreshold("80");
-        setAlertChannels(["in-page"]);
-        setIsActive(true);
-      }
-      setErrorMessage("");
+      const timer = setTimeout(() => {
+        setIsSubmitting(false);
+        if (initialData) {
+          setKeyName(initialData.name);
+          setKeyType(initialData.type as "development" | "production");
+          setHasUsageLimit(initialData.monthly_limit !== null);
+          setMonthlyLimit(initialData.monthly_limit !== null ? String(initialData.monthly_limit) : "1000");
+          setAlertThreshold(initialData.alert_threshold ? String(initialData.alert_threshold) : "80");
+          setAlertChannels(initialData.alert_channels || ["in-page"]);
+          setIsActive(initialData.is_active);
+        } else {
+          setKeyName("");
+          setKeyType("development");
+          setHasUsageLimit(false);
+          setMonthlyLimit("1000");
+          setAlertThreshold("80");
+          setAlertChannels(["in-page"]);
+          setIsActive(true);
+        }
+        setErrorMessage("");
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, initialData]);
 
