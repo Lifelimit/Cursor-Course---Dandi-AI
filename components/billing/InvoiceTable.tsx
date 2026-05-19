@@ -42,7 +42,7 @@ export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoic
   }
 
   return (
-    <div className="overflow-hidden rounded-[32px] border border-zinc-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-[32px] border border-zinc-200 bg-white shadow-sm relative">
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes shimmer-loader {
           0% { background-position: -200% 0; }
@@ -53,7 +53,22 @@ export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoic
           background-size: 200% 100%;
           animation: shimmer-loader 1.6s infinite linear;
         }
+        @keyframes progress-slide {
+          0% { left: -33%; }
+          100% { left: 100%; }
+        }
+        .animate-progress-slide {
+          animation: progress-slide 1.5s infinite linear;
+        }
       `}} />
+      
+      {/* Sleek top indicator bar for zero-refresh background syncs */}
+      {isLoading && invoices.length > 0 && (
+        <div className="absolute top-0 left-0 right-0 h-[2px] w-full overflow-hidden bg-zinc-100 z-10">
+          <div className="h-full bg-zinc-900/40 w-1/3 absolute animate-progress-slide" />
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -65,7 +80,7 @@ export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoic
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-50">
-            {isLoading ? (
+            {isLoading && invoices.length === 0 ? (
               <InvoiceTableSkeleton />
             ) : (
               invoices.map((invoice) => (
