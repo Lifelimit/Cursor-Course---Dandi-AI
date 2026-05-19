@@ -28,6 +28,7 @@ export function ApiKeyTable({
   const [visibleKeyIds, setVisibleKeyIds] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [promptedKeyId, setPromptedKeyId] = useState<string | null>(null);
+  const [securityPromptKeyId, setSecurityPromptKeyId] = useState<string | null>(null);
   const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -247,10 +248,22 @@ export function ApiKeyTable({
                   </td>
 
                 <td className="px-4 py-5">
-                  <div className="flex items-center gap-2 group/key">
+                  <div className="flex items-center gap-2.5">
                     <code className={`font-mono text-[11px] tracking-tight ${!key.is_active ? "text-zinc-300" : "text-zinc-500"}`}>
                       {visibleKeyIds[key.id] ? (sessionPlainKeys[key.id] || key.key_value) : maskApiKey(key.key_value)}
                     </code>
+                    {!sessionPlainKeys[key.id] && key.is_active && (
+                      <span 
+                        className="inline-flex items-center gap-1 rounded bg-zinc-50 border border-zinc-200/60 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-400 group-hover:bg-zinc-100/50 group-hover:text-zinc-500 transition-colors"
+                        title="Securely Hashed (HMAC-SHA256) - Recoverable only via rotation"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                          <path d="M7 11V7a5 5 0 0110 0v4" />
+                        </svg>
+                        Secured
+                      </span>
+                    )}
                   </div>
                 </td>
 
@@ -258,7 +271,14 @@ export function ApiKeyTable({
                   <div className={`flex items-center justify-center gap-1 transition-opacity ${!key.is_active ? "opacity-40" : "group-hover:opacity-100"}`}>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); toggleKeyVisibility(key.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (visibleKeyIds[key.id] || sessionPlainKeys[key.id]) {
+                          toggleKeyVisibility(key.id);
+                        } else {
+                          setSecurityPromptKeyId(securityPromptKeyId === key.id ? null : key.id);
+                        }
+                      }}
                       className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
                       title={visibleKeyIds[key.id] ? "Hide key" : "Show key"}
                     >
@@ -266,7 +286,14 @@ export function ApiKeyTable({
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); copyKeyValue(key.id, sessionPlainKeys[key.id] || key.key_value); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (sessionPlainKeys[key.id]) {
+                          copyKeyValue(key.id, sessionPlainKeys[key.id]);
+                        } else {
+                          setSecurityPromptKeyId(securityPromptKeyId === key.id ? null : key.id);
+                        }
+                      }}
                       className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
                       title={copiedId === key.id ? "Copied" : "Copy key"}
                     >
@@ -291,6 +318,60 @@ export function ApiKeyTable({
                   </div>
                 </td>
               </tr>
+            {securityPromptKeyId === key.id && (
+              <tr className="border-b border-indigo-100 bg-indigo-50/50">
+                <td colSpan={5} className="px-5 py-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 mt-0.5">
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                          <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-indigo-950 flex items-center gap-2">
+                          Secure Cryptographic Credential
+                          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-indigo-600">HMAC-SHA256</span>
+                        </p>
+                        <p className="text-xs text-indigo-800 leading-relaxed max-w-3xl">
+                          For your absolute security, existing keys are cryptographically hashed and cannot be recovered or revealed. 
+                          If you lost this key, please revoke it and generate a new one.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setSecurityPromptKeyId(null)}
+                        className="rounded-full border border-indigo-200 bg-white px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-indigo-600 transition hover:bg-indigo-50"
+                      >
+                        Dismiss
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const confirmed = window.confirm(`Are you sure you want to revoke "${key.name}"? This action will immediately deactivate this credential, and we will open the modal to create its replacement.`);
+                          if (!confirmed) return;
+                          
+                          const result = await onDelete(key.id);
+                          if (result.success) {
+                            setSecurityPromptKeyId(null);
+                            onEdit({
+                              ...key,
+                              id: "", // Blank ID means it's a new key
+                              name: `${key.name} (Replacement)`,
+                            });
+                          }
+                        }}
+                        className="rounded-full bg-indigo-600 px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-white transition hover:bg-indigo-700"
+                      >
+                        Revoke & Replace
+                      </button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            )}
             {!key.is_active && promptedKeyId === key.id && (
               <tr className="border-b border-amber-100 bg-amber-50">
                 <td colSpan={5} className="px-5 py-3">
