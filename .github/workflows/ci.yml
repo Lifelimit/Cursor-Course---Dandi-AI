@@ -50,3 +50,5 @@ jobs:
         GOOGLE_API_KEY: "mock-google-key"
         DEMO_API_KEY: "sk_live_demo_key_dandi_2026"
         NEXT_PUBLIC_DEMO_API_KEY: "sk_live_demo_key_dandi_2026"
+        API_KEY_HMAC_SECRET: "mock-hmac-secret-key-32-chars-for-ci-pipeline-pass"
+
