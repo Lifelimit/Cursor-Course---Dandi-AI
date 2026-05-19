@@ -42,22 +42,32 @@ export function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
                 </td>
                 <td className="px-8 py-6">
                   <span className="font-serif text-sm font-bold italic text-zinc-900">
-                    ${(invoice.amount / 100).toFixed(2)}
+                    {invoice.amount < 0 
+                      ? `-$${Math.abs(invoice.amount / 100).toFixed(2)}` 
+                      : `$${(invoice.amount / 100).toFixed(2)}`
+                    }
                   </span>
                 </td>
                 <td className="px-8 py-6">
-                  <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[8px] font-black uppercase tracking-widest ${
-                    invoice.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 
-                    invoice.status === 'failed' ? 'bg-red-50 text-red-600' : 
-                    (invoice.status === 'pending' || invoice.status === 'unpaid') ? 'bg-amber-50 text-amber-600' : 'bg-zinc-50 text-zinc-600'
-                  }`}>
-                    <div className={`h-1 w-1 rounded-full ${
-                      invoice.status === 'paid' ? 'bg-emerald-500' : 
-                      invoice.status === 'failed' ? 'bg-red-500' : 
-                      (invoice.status === 'pending' || invoice.status === 'unpaid') ? 'bg-amber-500' : 'bg-zinc-500'
-                    }`} />
-                    {invoice.status}
-                  </div>
+                  {invoice.amount < 0 && invoice.status === "paid" ? (
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-[8px] font-black uppercase tracking-widest text-blue-600">
+                      <div className="h-1 w-1 rounded-full bg-blue-500" />
+                      Credit
+                    </div>
+                  ) : (
+                    <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[8px] font-black uppercase tracking-widest ${
+                      invoice.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 
+                      invoice.status === 'failed' ? 'bg-red-50 text-red-600' : 
+                      (invoice.status === 'pending' || invoice.status === 'unpaid') ? 'bg-amber-50 text-amber-600' : 'bg-zinc-50 text-zinc-600'
+                    }`}>
+                      <div className={`h-1 w-1 rounded-full ${
+                        invoice.status === 'paid' ? 'bg-emerald-500' : 
+                        invoice.status === 'failed' ? 'bg-red-500' : 
+                        (invoice.status === 'pending' || invoice.status === 'unpaid') ? 'bg-amber-500' : 'bg-zinc-500'
+                      }`} />
+                      {invoice.status}
+                    </div>
+                  )}
                 </td>
                 <td className="px-8 py-6 text-right">
                   <a

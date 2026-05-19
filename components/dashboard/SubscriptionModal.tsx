@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { updatePlanAction, removePaymentMethodAction } from "@/lib/auth-actions";
 import { useRouter } from "next/navigation";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, useStripe, useElements, CardNumberElement } from "@stripe/react-stripe-js";
 
 import type { Session } from "@supabase/supabase-js";
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
 
 type SubscriptionModalProps = {
   isOpen: boolean;
@@ -28,7 +32,18 @@ import { PlanReview } from "./subscription/PlanReview";
 import { Overview } from "./subscription/Overview";
 import { KeyDowngradeSelector } from "./subscription/KeyDowngradeSelector";
 
-export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, onSuccess, onError, initialView, initialPendingPlan, initialBillingInterval, onDowngrade, session }: SubscriptionModalProps) {
+export function SubscriptionModal(props: SubscriptionModalProps) {
+  if (!props.isOpen) return null;
+  return (
+    <Elements stripe={stripePromise}>
+      <SubscriptionModalContent {...props} />
+    </Elements>
+  );
+}
+
+function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, onSuccess, onError, initialView, initialPendingPlan, initialBillingInterval, onDowngrade, session }: SubscriptionModalProps) {
+  const stripe = useStripe();
+  const elements = useElements();
   const router = useRouter();
   const [transactionId] = useState(() => Math.random().toString(36).substring(2, 9).toUpperCase());
   const [view, setView] = useState<"overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review" | "remove-card-confirm" | "key-downgrade-selector">(initialView || "overview");
@@ -216,102 +231,191 @@ export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, 
 
   const handleSavePayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Final Validation
-    const cleanNumber = formValues.number.replace(/\s/g, "");
-    if (cleanNumber.length < 13) {
-      onError?.("Please enter a valid card number.");
+
+    if (!stripe || !elements) {
+      onError?.("Stripe is not fully initialized yet.");
+      return;
+    }
+
+    const cardElement = elements.getElement(CardNumberElement);
+    if (!cardElement) {
+      onError?.("Credit card input fields not found.");
       return;
     }
 
     setIsLoading(true);
-    if (!pendingPlan) {
-      // Real Stripe Setup flow for "Just adding a card"
-      try {
-        const res = await fetch("/api/stripe/setup-session", { method: "POST" });
-        const { url } = await res.json();
-        if (url) {
-          window.location.href = url;
-        } else {
-          throw new Error("Failed to create setup session");
-        }
-      } catch (_err) {
-        onError?.("Failed to initiate payment setup.");
-        setIsLoading(false);
-      }
-      return;
-    }
 
-    // Detect Brand for simulated preview (optional, still used for immediate UI feedback before redirect/webhook)
-    const brand = cleanNumber.startsWith("4") ? "Visa" : cleanNumber.startsWith("5") ? "Mastercard" : "Card";
-    
-    // Simulate API call for card validation (only for upgrades, Checkout will replace this eventually too)
-    setTimeout(async () => {
-      const paymentMetadata = {
-        last4: cleanNumber.slice(-4),
-        brand: brand,
-        expiry: formValues.expiry
+    try {
+      const billingDetails = {
+        street: formValues.street || null,
+        city: formValues.city || null,
+        state: formValues.state || null,
+        zip: formValues.zip || null,
+        country: formValues.country || null,
       };
 
-      setCardData({
-        name: formValues.name,
-        number: `•••• •••• •••• ${paymentMetadata.last4}`,
-        brand: paymentMetadata.brand,
-        expiry: paymentMetadata.expiry,
-        cvc: formValues.cvc,
-        street: formValues.street,
-        city: formValues.city,
-        state: formValues.state,
-        zip: formValues.zip,
-        country: formValues.country
-      });
+      if (!pendingPlan) {
+        // SCENARIO 1: Just saving a payment method / adding card without changing plan
+        // 1. Create a SetupIntent on server
+        const res = await fetch("/api/stripe/create-setup-intent", { method: "POST" });
+        const { clientSecret, error: serverError } = await res.json();
 
-      if (pendingPlan) {
-        try {
-          // If upgrading from Hobby, re-enable any disabled keys
-          if (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS]) {
-            await reEnableDisabledKeys();
-          }
-          await updatePlanAction(pendingPlan, {
-            street: formValues.street,
-            city: formValues.city,
-            state: formValues.state,
-            zip: formValues.zip,
-            country: formValues.country
-          }, paymentMetadata);
-          await router.refresh();
-          router.refresh();
-          const actionText = PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "upgraded" : "downgraded";
-          onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
-          
-          // Close modal immediately on success to avoid re-mount state issues
-          onClose();
-        } catch {
-          onError?.(`Failed to change plan.`);
-        } finally {
-          setIsLoading(false);
+        if (serverError || !clientSecret) {
+          throw new Error(serverError || "Failed to create setup intent.");
         }
+
+        // 2. Confirm the SetupIntent on the client using the CardNumberElement frame
+        const { setupIntent, error: stripeError } = await stripe.confirmCardSetup(clientSecret, {
+          payment_method: {
+            card: cardElement,
+            billing_details: {
+              name: formValues.name,
+            },
+          },
+        });
+
+        if (stripeError) {
+          throw new Error(stripeError.message || "Failed to authorize credit card.");
+        }
+
+        if (!setupIntent || setupIntent.status !== "succeeded") {
+          throw new Error("Setup authorization failed.");
+        }
+
+        // 3. Attach the payment method default, update DB and auth metadata
+        const saveRes = await fetch("/api/stripe/save-payment-method", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paymentMethodId: setupIntent.payment_method,
+            billingDetails,
+          }),
+        });
+
+        const saveResult = await saveRes.json();
+        if (saveResult.error) {
+          throw new Error(saveResult.error);
+        }
+
+        // 4. Update local state
+        setCardData({
+          name: formValues.name,
+          number: `•••• •••• •••• ${saveResult.paymentMethod?.payment_method_last4 || "••••"}`,
+          brand: saveResult.paymentMethod?.payment_method_brand || "Card",
+          expiry: saveResult.paymentMethod?.payment_method_expiry || "",
+          cvc: "•••",
+          street: formValues.street,
+          city: formValues.city,
+          state: formValues.state,
+          zip: formValues.zip,
+          country: formValues.country,
+        });
+
+        await router.refresh();
+        router.refresh();
+        onSuccess?.("Payment method updated and saved.");
+        setView("overview");
       } else {
-        try {
-          // If just updating payment, still use updatePlanAction but with current plan
-          await updatePlanAction(planName, {
-            street: formValues.street,
-            city: formValues.city,
-            state: formValues.state,
-            zip: formValues.zip,
-            country: formValues.country
-          }, paymentMetadata);
-          await router.refresh();
-          router.refresh();
-          setIsLoading(false);
-          onSuccess?.("Payment method updated and saved.");
-          setView("overview");
-        } catch {
-          onError?.("Failed to save payment method.");
-          setIsLoading(false);
+        // SCENARIO 2: Upgrading to a paid plan and entering a new credit card
+        // 1. First, create a PaymentMethod client-side securely
+        const { paymentMethod, error: pmError } = await stripe.createPaymentMethod({
+          type: "card",
+          card: cardElement,
+          billing_details: {
+            name: formValues.name,
+          },
+        });
+
+        if (pmError) {
+          throw new Error(pmError.message || "Failed to process card details.");
         }
+
+        if (!paymentMethod) {
+          throw new Error("Failed to generate secure payment token.");
+        }
+
+        // 2. Call re-enable on keys before plan change
+        if (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS]) {
+          await reEnableDisabledKeys();
+        }
+
+        // 3. Initiate the subscription with the new payment method
+        const plan = PLANS.find(p => p.id === pendingPlan);
+        const priceId = billingInterval === "year" ? plan?.yearlyPriceId : plan?.monthlyPriceId;
+
+        if (!priceId) {
+          throw new Error("Missing Price ID for this plan.");
+        }
+
+        const subRes = await fetch("/api/stripe/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            priceId,
+            planId: pendingPlan,
+            paymentMethodId: paymentMethod.id,
+            billingDetails,
+          }),
+        });
+
+        const subResult = await subRes.json();
+        if (subResult.error) {
+          throw new Error(subResult.error);
+        }
+
+        // 4. Natively handle SCA / 3D Secure verification if requested by card bank
+        if (subResult.requires_action && subResult.client_secret) {
+          const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(subResult.client_secret);
+          if (confirmError) {
+            throw new Error(confirmError.message || "3D Secure authentication failed.");
+          }
+
+          if (paymentIntent && paymentIntent.status === "succeeded") {
+            // Re-sync with server to finalize state update in profile/auth metadata
+            const finalSync = await fetch("/api/stripe/subscribe", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                priceId,
+                planId: pendingPlan,
+                billingDetails,
+              }),
+            });
+            const syncRes = await finalSync.json();
+            if (syncRes.error) {
+              throw new Error(syncRes.error);
+            }
+          } else {
+            throw new Error("SCA payment authorization failed.");
+          }
+        }
+
+        // 5. Success! Populate details and trigger success view
+        setCardData({
+          name: formValues.name,
+          number: `•••• •••• •••• ${paymentMethod.card?.last4 || "••••"}`,
+          brand: paymentMethod.card?.brand || "Card",
+          expiry: `${paymentMethod.card?.exp_month}/${paymentMethod.card?.exp_year}`,
+          cvc: "•••",
+          street: formValues.street,
+          city: formValues.city,
+          state: formValues.state,
+          zip: formValues.zip,
+          country: formValues.country,
+        });
+
+        await router.refresh();
+        router.refresh();
+        const actionText = PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "upgraded" : "downgraded";
+        onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
+        setView("success");
       }
-    }, 1500);
+    } catch (err: any) {
+      console.error("Save payment process failed:", err);
+      onError?.(err.message || "Failed to save card and process transaction.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const formatCardNumber = (value: string) => {
@@ -452,8 +556,8 @@ export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, 
         return;
       }
 
-      // 4. For paid plans, trigger Stripe Checkout
-      const response = await fetch("/api/stripe/checkout", {
+      // 4. For paid plans, trigger local native subscription process using /api/stripe/subscribe
+      const response = await fetch("/api/stripe/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -463,14 +567,47 @@ export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, 
       });
 
       const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error("Failed to create checkout session");
+      if (data.error) {
+        throw new Error(data.error);
       }
-    } catch (error) {
+
+      // Natively handle SCA challenge in-app
+      if (data.requires_action && data.client_secret) {
+        if (!stripe) {
+          throw new Error("Stripe.js is required for 3D Secure verification.");
+        }
+        const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(data.client_secret);
+        if (confirmError) {
+          throw new Error(confirmError.message || "3D Secure authentication failed.");
+        }
+
+        if (paymentIntent && paymentIntent.status === "succeeded") {
+          // Re-sync final status with server
+          const finalSync = await fetch("/api/stripe/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              priceId,
+              planId: pendingPlan
+            }),
+          });
+          const syncRes = await finalSync.json();
+          if (syncRes.error) {
+            throw new Error(syncRes.error);
+          }
+        } else {
+          throw new Error("SCA payment authorization failed.");
+        }
+      }
+
+      await router.refresh();
+      router.refresh();
+      const actionText = PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "upgraded" : "downgraded";
+      onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
+      setView("success");
+    } catch (error: any) {
       console.error("Plan change error:", error);
-      onError?.("An error occurred. Please try again.");
+      onError?.(error.message || "An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -611,6 +748,7 @@ export function SubscriptionModal({ isOpen, onClose, planName, nextBillingDate, 
               isLoading={isLoading}
               hasCard={!!cardData.number}
               nextBillingDate={nextBillingDate}
+              planName={planName}
               onConfirm={handleCancelAction}
               onCancel={onClose}
             />

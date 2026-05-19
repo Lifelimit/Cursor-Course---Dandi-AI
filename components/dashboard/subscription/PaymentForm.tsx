@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { COUNTRIES, LOCATION_DATA, PLAN_RANKS } from "@/lib/constants";
 import { BillingDetails } from "@/types";
+import { CardNumberElement, CardExpiryElement, CardCvcElement } from "@stripe/react-stripe-js";
 
 type PaymentFormProps = {
   formValues: BillingDetails & { number: string; expiry: string; cvc: string };
@@ -22,14 +23,28 @@ type PaymentFormProps = {
   cardData: BillingDetails & { number: string; brand: string; expiry: string };
 };
 
+const ELEMENT_OPTIONS = {
+  style: {
+    base: {
+      color: "#18181b", // zinc-900
+      fontFamily: "Outfit, sans-serif",
+      fontSize: "14px",
+      "::placeholder": {
+        color: "#a1a1aa", // zinc-400
+      },
+    },
+    invalid: {
+      color: "#ef4444", // red-500
+    },
+  },
+};
+
 export function PaymentForm({
   formValues,
   handleInputChange,
   setFormValues,
   handleSavePayment,
   isLoading,
-  showCvc,
-  setShowCvc,
   showAddressForm,
   setShowAddressForm,
   pendingPlan,
@@ -40,6 +55,27 @@ export function PaymentForm({
   initialView,
   cardData
 }: PaymentFormProps) {
+  const [brand, setBrand] = useState("");
+
+  const renderBrandBadge = (brandName: string) => {
+    switch (brandName.toLowerCase()) {
+      case "visa":
+        return <span className="text-blue-600 font-black">VISA</span>;
+      case "mastercard":
+        return <span className="text-orange-500 font-black">MASTERCARD</span>;
+      case "amex":
+        return <span className="text-cyan-600 font-black">AMEX</span>;
+      case "discover":
+        return <span className="text-orange-600 font-black">DISCOVER</span>;
+      case "jcb":
+        return <span className="text-red-600 font-black">JCB</span>;
+      case "unionpay":
+        return <span className="text-emerald-600 font-black">UNIONPAY</span>;
+      default:
+        return <span className="text-zinc-400 font-black">{brandName.toUpperCase()}</span>;
+    }
+  };
+
   return (
     <form onSubmit={handleSavePayment} className="flex-1 space-y-6">
       <div className="grid gap-6 sm:grid-cols-2">
@@ -58,63 +94,34 @@ export function PaymentForm({
         
         <div className="space-y-2 sm:col-span-2">
           <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Card Number</label>
-          <div className="relative">
-            <input 
-              type="text" 
-              name="number"
-              required
-              value={formValues.number}
-              onChange={handleInputChange}
-              placeholder="0000 0000 0000 0000"
-              className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors pr-28 tracking-tight"
+          <div className="relative rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-[13px] transition-colors focus-within:border-zinc-900 focus-within:ring-1 focus-within:ring-zinc-900">
+            <CardNumberElement 
+              options={ELEMENT_OPTIONS}
+              onChange={(e) => {
+                if (e.brand) {
+                  setBrand(e.brand);
+                } else {
+                  setBrand("");
+                }
+              }}
             />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-1">
-              <div className="h-4 w-6 rounded bg-zinc-200" />
-              <div className="h-4 w-6 rounded bg-zinc-300" />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center text-[9px] tracking-widest">
+              {brand ? renderBrandBadge(brand) : <span className="text-zinc-300 font-black">CARD</span>}
             </div>
           </div>
         </div>
 
         <div className="space-y-2">
           <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Expiry</label>
-          <input 
-            type="text" 
-            name="expiry"
-            required
-            value={formValues.expiry}
-            onChange={handleInputChange}
-            placeholder="MM/YY"
-            className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
-          />
+          <div className="rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-[13px] transition-colors focus-within:border-zinc-900 focus-within:ring-1 focus-within:ring-zinc-900">
+            <CardExpiryElement options={ELEMENT_OPTIONS} />
+          </div>
         </div>
+
         <div className="space-y-2">
           <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">CVC</label>
-          <div className="relative">
-            <input 
-              type={showCvc ? "text" : "password"}
-              name="cvc"
-              required
-              value={formValues.cvc}
-              onChange={handleInputChange}
-              placeholder="•••"
-              className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors pr-10"
-            />
-            <button 
-              type="button"
-              onClick={() => setShowCvc(!showCvc)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-900 transition-colors"
-            >
-              {showCvc ? (
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                  <path d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.643-9.943-6.442a5.08 5.08 0 012.16-3.192m3.033-4.446A9.01 9.01 0 0112 5c4.478 0 8.268 2.643 9.943 6.442a5.08 5.08 0 01-1.602 2.454M3 3l18 18M10.477 10.477a3 3 0 004.046 4.046" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                  <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              )}
-            </button>
+          <div className="rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-[13px] transition-colors focus-within:border-zinc-900 focus-within:ring-1 focus-within:ring-zinc-900">
+            <CardCvcElement options={ELEMENT_OPTIONS} />
           </div>
         </div>
       </div>
@@ -126,7 +133,7 @@ export function PaymentForm({
             <div className="space-y-1">
               <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Billing Address</p>
               <p className="text-xs font-medium text-zinc-900 line-clamp-1">
-                {formValues.street || cardData.street}, {formValues.city || cardData.city}
+                {formValues.street || cardData.street || "No address saved"}, {formValues.city || cardData.city || ""}
               </p>
             </div>
             <button 

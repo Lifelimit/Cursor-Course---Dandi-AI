@@ -4,11 +4,12 @@ type CancelConfirmationProps = {
   isLoading: boolean;
   hasCard: boolean;
   nextBillingDate?: string | null;
+  planName?: string;
   onConfirm: (keepCard: boolean) => void;
   onCancel: () => void;
 };
 
-export function CancelConfirmation({ isLoading, hasCard, nextBillingDate, onConfirm, onCancel }: CancelConfirmationProps) {
+export function CancelConfirmation({ isLoading, hasCard, nextBillingDate, planName, onConfirm, onCancel }: CancelConfirmationProps) {
   const [keepCard, setKeepCard] = useState(true);
 
   const formattedDate = nextBillingDate 
@@ -19,7 +20,7 @@ export function CancelConfirmation({ isLoading, hasCard, nextBillingDate, onConf
     <div className="flex flex-col gap-10">
       <div className="space-y-4">
         <p className="text-sm text-zinc-500 leading-relaxed">
-          Your <span className="font-serif font-bold italic text-zinc-900">Researcher</span> plan will remain active until <span className="font-serif font-bold italic text-zinc-900">{formattedDate}</span>. After that, you&apos;ll be downgraded to the Hobby plan.
+          Your <span className="font-serif font-bold italic text-zinc-900">{planName || "Researcher"}</span> plan will remain active until <span className="font-serif font-bold italic text-zinc-900">{formattedDate}</span>. After that, you&apos;ll be downgraded to the Hobby plan.
         </p>
       </div>
 

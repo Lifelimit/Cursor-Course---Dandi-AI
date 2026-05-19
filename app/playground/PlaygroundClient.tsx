@@ -22,7 +22,7 @@ export default function PlaygroundClient({
   const router = useRouter();
   const activeSession = initialSession;
   
-  const { apiKeys } = useApiKeys(initialKeys);
+  const { apiKeys, refreshKeys } = useApiKeys(initialKeys);
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
   // Dynamic Tier Logic
@@ -122,6 +122,7 @@ export default function PlaygroundClient({
       addLog("AI Processing", processingDuration, "success");
 
       setSummaryResult(data.data);
+      refreshKeys();
     } catch (err) {
       setErrorMessage((err as Error).message);
     } finally {

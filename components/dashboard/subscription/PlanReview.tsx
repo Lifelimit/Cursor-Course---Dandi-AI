@@ -59,7 +59,7 @@ export function PlanReview({
             <div className="space-y-4">
               <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Checkout Security</span>
               <p className="text-xs text-zinc-500 leading-relaxed max-w-xs">
-                You will be redirected to Stripe&apos;s secure hosted payment page to finalize your subscription. Dandi AI does not store your card details.
+                Your payment will be processed securely inline via Stripe Elements. Your card credentials are encrypted and processed safely without ever leaving your browser.
               </p>
             </div>
           </div>
@@ -113,7 +113,7 @@ export function PlanReview({
           disabled={isLoading}
           className="w-full rounded-full bg-[#18181b] py-5 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-black shadow-xl shadow-zinc-900/10 disabled:opacity-50"
         >
-          {isLoading ? "Redirecting..." : "Proceed to Secure Checkout"}
+          {isLoading ? "Processing..." : "Proceed to Inline Payment"}
         </button>
         <button 
           onClick={onBack}
