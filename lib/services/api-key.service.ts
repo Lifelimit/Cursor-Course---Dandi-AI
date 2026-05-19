@@ -1,17 +1,27 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
+import { serverEnv } from "@/lib/env";
 
 export async function validateApiKey(keyValue: string) {
   // Special case for Playground Demo Key
-  if (keyValue === "sk_live_demo_key_dandi_2026") {
+  if (keyValue === serverEnv.DEMO_API_KEY) {
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const keyUsageKey = `usage:key:demo-id:${currentMonth}`;
+    const currentKeyUsage = await redis.get<number>(keyUsageKey).then(v => v || 0);
+
+    if (currentKeyUsage >= 1000) {
+      throw new Error("Monthly usage limit of 1,000 requests exceeded for the Playground Demo Key.");
+    }
+
     return {
       id: "demo-id",
-      name: "Playground Demo User",
-      usage_count: 0,
+      name: "Playground Demo Key",
+      usage_count: currentKeyUsage,
       monthly_limit: 1000,
       user_id: "demo-user-id",
-      key_type: "production" as const
+      key_type: "production" as const,
+      plan: "Hobby"
     };
   }
 
@@ -86,7 +96,13 @@ export async function incrementKeyUsage(
   latencyMs: number = 0, 
   status: "success" | "error" = "success"
 ) {
-  if (keyId === "demo-id") return;
+  if (keyId === "demo-id") {
+    if (status === "success") {
+      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+      await redis.incr(`usage:key:demo-id:${currentMonth}`);
+    }
+    return;
+  }
 
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
   const usageKey = `usage:user:${userId}:${currentMonth}`;

@@ -14,14 +14,14 @@ export async function GET() {
     const userEmail = user?.email;
 
     // 1. Fetch profile early to calculate fallback monthly limits
-    let profileData: { plan: string | null; billing_next_date: string | null; stripe_customer_id: string | null } | null = null;
+    let profileData: { plan: string | null; billing_next_date: string | null; stripe_customer_id: string | null; stripe_subscription_id?: string | null } | null = null;
     let plan = "Hobby";
     let monthlyLimit: number | null = null;
 
     if (userEmail) {
       const { data: profile } = await supabaseAdmin
         .from("profiles")
-        .select("plan, billing_next_date, stripe_customer_id")
+        .select("plan, billing_next_date, stripe_customer_id, stripe_subscription_id")
         .eq("email", userEmail)
         .single();
       
@@ -139,24 +139,62 @@ export async function GET() {
     // 7. Calculate billing / quota reset dates
     let resetDate = null;
     let nextInvoiceDate = null;
+    let stripeCustomerId = profileData?.stripe_customer_id;
+    let stripeSubscriptionId = profileData?.stripe_subscription_id;
 
-    if (profileData?.billing_next_date) {
-      nextInvoiceDate = profileData.billing_next_date || null;
+    if (!profileData?.billing_next_date && (stripeSubscriptionId || stripeCustomerId)) {
       try {
-        if (profileData.billing_next_date) {
-          const nextBilling = new Date(profileData.billing_next_date);
-          const now = new Date();
-          
-          if (nextBilling.getTime() - now.getTime() > 32 * 24 * 60 * 60 * 1000) {
-            const resetDay = nextBilling.getDate();
-            let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
-            if (nextReset <= now) {
-              nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
-            }
-            resetDate = nextReset.toISOString();
-          } else {
-            resetDate = profileData.billing_next_date;
+        let activeSubscription = null;
+        if (stripeSubscriptionId) {
+          activeSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+        } else if (stripeCustomerId) {
+          const subs = await stripe.subscriptions.list({
+            customer: stripeCustomerId,
+            status: "active",
+            limit: 1
+          });
+          if (subs.data.length > 0) {
+            activeSubscription = subs.data[0];
+            stripeSubscriptionId = activeSubscription.id;
           }
+        }
+
+        if (activeSubscription && activeSubscription.status === "active") {
+          const renewalDate = new Date((activeSubscription as any).current_period_end * 1000).toISOString();
+          nextInvoiceDate = renewalDate;
+          
+          // Heal the database profile asynchronously
+          if (userEmail) {
+            await supabaseAdmin
+              .from("profiles")
+              .update({ 
+                billing_next_date: renewalDate,
+                stripe_subscription_id: stripeSubscriptionId || undefined
+              })
+              .eq("email", userEmail);
+          }
+        }
+      } catch (err) {
+        console.warn("⚠️ Failed to self-heal next billing date via Stripe in API route:", err);
+      }
+    } else if (profileData?.billing_next_date) {
+      nextInvoiceDate = profileData.billing_next_date;
+    }
+
+    if (nextInvoiceDate) {
+      try {
+        const nextBilling = new Date(nextInvoiceDate);
+        const now = new Date();
+        
+        if (nextBilling.getTime() - now.getTime() > 32 * 24 * 60 * 60 * 1000) {
+          const resetDay = nextBilling.getDate();
+          let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
+          if (nextReset <= now) {
+            nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
+          }
+          resetDate = nextReset.toISOString();
+        } else {
+          resetDate = nextInvoiceDate;
         }
       } catch (_err) {
         // Date calculation failed, fallback handled by null resetDate

@@ -70,7 +70,7 @@ export async function getServerUsageData() {
     // 1. Fetch user profile to get plan, Stripe details, and calculate limits
     const { data: profile } = await supabase
       .from("profiles")
-      .select("plan, billing_next_date, stripe_customer_id")
+      .select("plan, billing_next_date, stripe_customer_id, stripe_subscription_id")
       .eq("id", userId)
       .single();
 
@@ -170,12 +170,48 @@ export async function getServerUsageData() {
     let resetDate = null;
     let nextInvoiceDate = null;
     let stripeCustomerId = profile?.stripe_customer_id;
+    let stripeSubscriptionId = profile?.stripe_subscription_id;
 
-    if (profile?.billing_next_date) {
-      nextInvoiceDate = profile.billing_next_date;
-      
+    if (!profile?.billing_next_date && (stripeSubscriptionId || stripeCustomerId)) {
       try {
-        const nextBilling = new Date(profile.billing_next_date);
+        let activeSubscription = null;
+        if (stripeSubscriptionId) {
+          activeSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+        } else if (stripeCustomerId) {
+          const subs = await stripe.subscriptions.list({
+            customer: stripeCustomerId,
+            status: "active",
+            limit: 1
+          });
+          if (subs.data.length > 0) {
+            activeSubscription = subs.data[0];
+            stripeSubscriptionId = activeSubscription.id;
+          }
+        }
+
+        if (activeSubscription && activeSubscription.status === "active") {
+          const renewalDate = new Date((activeSubscription as any).current_period_end * 1000).toISOString();
+          nextInvoiceDate = renewalDate;
+          
+          // Heal the database profile asynchronously
+          await supabase
+            .from("profiles")
+            .update({ 
+              billing_next_date: renewalDate,
+              stripe_subscription_id: stripeSubscriptionId || undefined
+            })
+            .eq("id", userId);
+        }
+      } catch (err) {
+        console.warn("⚠️ Failed to self-heal next billing date via Stripe in server-data:", err);
+      }
+    } else if (profile?.billing_next_date) {
+      nextInvoiceDate = profile.billing_next_date;
+    }
+
+    if (nextInvoiceDate) {
+      try {
+        const nextBilling = new Date(nextInvoiceDate);
         const now = new Date();
         
         if (nextBilling.getTime() - now.getTime() > 32 * 24 * 60 * 60 * 1000) {
@@ -186,10 +222,10 @@ export async function getServerUsageData() {
           }
           resetDate = nextReset.toISOString();
         } else {
-          resetDate = profile.billing_next_date;
+          resetDate = nextInvoiceDate;
         }
       } catch {
-        resetDate = profile.billing_next_date;
+        resetDate = nextInvoiceDate;
       }
     }
 

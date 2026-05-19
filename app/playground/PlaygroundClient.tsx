@@ -1,32 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useRouter } from "next/navigation";
 import { useApiKeys } from "@/hooks/useApiKeys";
-import type { Session } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 import type { ApiKey } from "@/types/api";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { CodeSnippet } from "@/components/playground/CodeSnippet";
 import { JsonViewer } from "@/components/playground/JsonViewer";
 import { NetworkLog, type LogEntry } from "@/components/playground/NetworkLog";
+import { publicEnv } from "@/lib/env";
 
 export default function PlaygroundClient({ 
-  initialSession,
-  initialKeys = []
+  initialUser,
+  initialKeys = [],
+  initialPlan = "Hobby"
 }: { 
-  initialSession: Session | null;
+  initialUser: User | null;
   initialKeys?: ApiKey[];
+  initialPlan?: string;
 }) {
   const router = useRouter();
-  const activeSession = initialSession;
+  const [realtimePlan, setRealtimePlan] = useState<string | null>(null);
   
   const { apiKeys, refreshKeys } = useApiKeys(initialKeys);
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
-  // Dynamic Tier Logic
-  const currentPlan = activeSession?.user?.user_metadata?.plan || "Hobby"; 
+  // Dynamic Tier Logic - Using the most recent session or dynamic data available
+  const currentPlan = realtimePlan || initialPlan || (initialUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
   const PLAN_LIMITS = {
     Hobby: 1000,
     Premium: 5000,
@@ -34,6 +37,16 @@ export default function PlaygroundClient({
   };
   const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
   const isUnlimited = currentPlan === "Researcher";
+
+  // Fetch real-time plan from usage endpoint on mount
+  useEffect(() => {
+    fetch("/api/usage")
+      .then(res => res.json())
+      .then(data => {
+        if (data.plan) setRealtimePlan(data.plan);
+      })
+      .catch(() => {});
+  }, []);
 
   const alerts = apiKeys
     .filter(k => k.is_active && k.alert_threshold !== null && k.alert_channels?.includes('in-page'))
@@ -131,7 +144,7 @@ export default function PlaygroundClient({
   };
 
   const handleDemoMode = () => {
-    setApiKey("sk_live_demo_key_dandi_2026");
+    setApiKey(publicEnv.NEXT_PUBLIC_DEMO_API_KEY);
     setGithubUrl("https://github.com/facebook/react");
     setSelectedKey("__demo__");
     setSelectValue("__demo__");

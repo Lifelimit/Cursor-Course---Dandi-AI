@@ -14,6 +14,11 @@ const optionalString = z.preprocess(
   z.string().trim().optional()
 );
 
+const demoKeyString = z.preprocess(
+  (value) => (value === "" || value === undefined ? "sk_live_demo_key_dandi_2026" : value),
+  z.string().trim().default("sk_live_demo_key_dandi_2026")
+);
+
 const publicEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: requiredString("NEXT_PUBLIC_SUPABASE_URL").url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: requiredString("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
@@ -33,6 +38,7 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID: requiredString(
     "NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID"
   ),
+  NEXT_PUBLIC_DEMO_API_KEY: demoKeyString,
 });
 
 const serverEnvSchema = publicEnvSchema.extend({
@@ -42,6 +48,7 @@ const serverEnvSchema = publicEnvSchema.extend({
   UPSTASH_REDIS_REST_URL: requiredString("UPSTASH_REDIS_REST_URL").url(),
   UPSTASH_REDIS_REST_TOKEN: requiredString("UPSTASH_REDIS_REST_TOKEN"),
   GOOGLE_API_KEY: requiredString("GOOGLE_API_KEY"),
+  DEMO_API_KEY: demoKeyString,
 });
 
 const rawPublicEnv = {
@@ -59,6 +66,7 @@ const rawPublicEnv = {
     process.env.NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID,
   NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID:
     process.env.NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID,
+  NEXT_PUBLIC_DEMO_API_KEY: process.env.NEXT_PUBLIC_DEMO_API_KEY,
 };
 
 export const publicEnv = publicEnvSchema.parse(rawPublicEnv);
@@ -76,6 +84,7 @@ export function getServerEnv() {
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+    DEMO_API_KEY: process.env.DEMO_API_KEY,
   });
 
   return cachedServerEnv;

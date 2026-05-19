@@ -12,8 +12,8 @@ export default async function PlaygroundPage() {
     redirect("/login");
   }
 
-  const { keys: initialKeysRaw } = await getServerApiKeys();
+  const { keys: initialKeysRaw, plan } = await getServerApiKeys();
   const initialKeys = initialKeysRaw.map(mapApiKey);
 
-  return <PlaygroundClient initialSession={user as any} initialKeys={initialKeys} />;
+  return <PlaygroundClient initialUser={user} initialKeys={initialKeys} initialPlan={plan} />;
 }
