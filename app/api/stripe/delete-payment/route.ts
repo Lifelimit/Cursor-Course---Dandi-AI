@@ -6,10 +6,9 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-    const email = session?.user?.email;
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!email) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -19,10 +18,10 @@ export async function POST(req: Request) {
     }
 
     // 1. Get Customer ID and Current Default PM from Supabase
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await supabase
       .from("profiles")
       .select("stripe_customer_id, payment_method_last4")
-      .eq("email", email)
+      .eq("id", user.id)
       .single();
 
     const customerId = profile?.stripe_customer_id;
@@ -54,7 +53,7 @@ export async function POST(req: Request) {
           invoice_settings: { default_payment_method: newPM.id }
         });
 
-        await supabaseAdmin
+        await supabase
           .from("profiles")
           .update({
             payment_method_brand: newPM.card?.brand,
@@ -62,10 +61,10 @@ export async function POST(req: Request) {
             payment_method_expiry: `${newPM.card?.exp_month}/${newPM.card?.exp_year}`,
             updated_at: new Date().toISOString()
           })
-          .eq("email", email);
+          .eq("id", user.id);
       } else {
         // No cards left
-        await supabaseAdmin
+        await supabase
           .from("profiles")
           .update({
             payment_method_brand: null,
@@ -73,7 +72,7 @@ export async function POST(req: Request) {
             payment_method_expiry: null,
             updated_at: new Date().toISOString()
           })
-          .eq("email", email);
+          .eq("id", user.id);
       }
     }
 

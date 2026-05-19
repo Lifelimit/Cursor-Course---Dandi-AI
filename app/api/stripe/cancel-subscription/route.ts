@@ -10,10 +10,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-    const email = session?.user?.email;
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!email) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -24,10 +23,10 @@ export async function POST(req: Request) {
     }
 
     // 1. Get user profile and stripe customer ID
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await supabase
       .from("profiles")
       .select("stripe_customer_id")
-      .eq("email", email)
+      .eq("id", user.id)
       .single();
 
     if (!profile?.stripe_customer_id) {

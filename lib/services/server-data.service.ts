@@ -207,12 +207,12 @@ export async function getServerUsageData() {
         const customer = await stripe.customers.retrieve(stripeCustomerId) as any;
         const defaultMethodId = customer.invoice_settings?.default_payment_method;
 
-        paymentMethods = methods.data.map(pm => ({
+        paymentMethods = methods.data.map((pm, idx) => ({
           id: pm.id,
           brand: pm.card?.brand || "Card",
           last4: pm.card?.last4 || "****",
           expiry: pm.card ? `${pm.card.exp_month}/${pm.card.exp_year}` : "N/A",
-          isDefault: pm.id === defaultMethodId
+          isDefault: defaultMethodId ? pm.id === defaultMethodId : idx === 0
         }));
       } catch {
         // Silent fail for Stripe fetch

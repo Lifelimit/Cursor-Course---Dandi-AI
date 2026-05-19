@@ -5,24 +5,33 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user?.id || !session?.user?.email) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || !user.email) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const user = session.user as { id: string; email: string; stripe_customer_id?: string };
     const { priceId, planId } = await req.json();
 
     if (!priceId) {
       return new NextResponse("Price ID is required", { status: 400 });
     }
 
+    // Retrieve stripe_customer_id from the user's database profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("stripe_customer_id")
+      .eq("id", user.id)
+      .single();
+
+    const stripeCustomerId = profile?.stripe_customer_id;
+
     // Log the metadata we're about to send
     console.log("💳 Creating Stripe Checkout Session", {
       userId: user.id,
       email: user.email,
       planId,
-      priceId
+      priceId,
+      stripeCustomerId
     });
 
     // Create a Checkout Session
@@ -37,8 +46,8 @@ export async function POST(req: Request) {
       ],
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?canceled=true`,
-      customer: user.stripe_customer_id || undefined,
-      customer_email: user.stripe_customer_id ? undefined : user.email,
+      customer: stripeCustomerId || undefined,
+      customer_email: stripeCustomerId ? undefined : user.email,
       metadata: {
         userId: user.id,
         userEmail: user.email,

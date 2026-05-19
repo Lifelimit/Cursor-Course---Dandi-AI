@@ -10,30 +10,29 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-    const email = session?.user?.email;
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!email) {
+    if (!user || !user.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // 1. Get or Create Customer
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await supabase
       .from("profiles")
       .select("stripe_customer_id")
-      .eq("email", email)
+      .eq("id", user.id)
       .single();
 
     let customerId = profile?.stripe_customer_id;
 
     if (!customerId) {
-      const customer = await stripe.customers.create({ email });
+      const customer = await stripe.customers.create({ email: user.email });
       customerId = customer.id;
       
-      await supabaseAdmin
+      await supabase
         .from("profiles")
         .update({ stripe_customer_id: customerId })
-        .eq("email", email);
+        .eq("id", user.id);
     }
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
@@ -46,7 +45,7 @@ export async function POST(req: Request) {
       success_url: `${origin}/billing?success=true`,
       cancel_url: `${origin}/billing?canceled=true`,
       metadata: {
-        userId: session.user.id,
+        userId: user.id,
         type: "setup"
       }
     });

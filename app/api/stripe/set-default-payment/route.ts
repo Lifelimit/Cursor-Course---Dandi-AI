@@ -6,10 +6,9 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-    const email = session?.user?.email;
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!email) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -19,10 +18,10 @@ export async function POST(req: Request) {
     }
 
     // 1. Get Customer ID from Supabase
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await supabase
       .from("profiles")
       .select("stripe_customer_id")
-      .eq("email", email)
+      .eq("id", user.id)
       .single();
 
     const customerId = profile?.stripe_customer_id;
@@ -40,7 +39,7 @@ export async function POST(req: Request) {
     // 3. Retrieve the payment method details for immediate DB update
     const pm = await stripe.paymentMethods.retrieve(paymentMethodId);
     if (pm.card) {
-      await supabaseAdmin
+      await supabase
         .from("profiles")
         .update({
           payment_method_brand: pm.card.brand,
@@ -48,7 +47,7 @@ export async function POST(req: Request) {
           payment_method_expiry: `${pm.card.exp_month}/${pm.card.exp_year}`,
           updated_at: new Date().toISOString()
         })
-        .eq("email", email);
+        .eq("id", user.id);
     }
 
     return NextResponse.json({ success: true });

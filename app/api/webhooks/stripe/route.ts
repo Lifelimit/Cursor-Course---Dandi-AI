@@ -122,8 +122,34 @@ export async function POST(req: Request) {
       const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription;
       
       try {
-        const pmId = subscription.default_payment_method as string;
+        let pmId = subscription.default_payment_method as string;
+        
+        // If not explicitly set on subscription, check customer's default
+        if (!pmId) {
+          const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
+          pmId = customer.invoice_settings?.default_payment_method as string;
+        }
+
+        // If still not set, fetch the customer's payment methods and set the first one as default
+        if (!pmId) {
+          const existingMethods = await stripe.paymentMethods.list({
+            customer: customerId,
+            type: "card",
+          });
+          if (existingMethods.data.length > 0) {
+            pmId = existingMethods.data[0].id;
+            await stripe.customers.update(customerId, {
+              invoice_settings: { default_payment_method: pmId }
+            });
+          }
+        }
+
         if (pmId) {
+          // Set as default payment method for the customer so it becomes the Primary Method
+          await stripe.customers.update(customerId, {
+            invoice_settings: { default_payment_method: pmId }
+          });
+
           const pm = await stripe.paymentMethods.retrieve(pmId);
           if (pm.card) {
             paymentMethodDetails = {
@@ -160,8 +186,8 @@ export async function POST(req: Request) {
     Object.keys(updatePayload).forEach(key => updatePayload[key] === undefined && delete updatePayload[key]);
 
     const query = supabaseAdmin.from("profiles").update(updatePayload);
-    if (userEmail) query.eq("email", userEmail);
-    else if (userId) query.eq("id", userId);
+    if (userId) query.eq("id", userId);
+    else if (userEmail) query.eq("email", userEmail);
     else query.eq("stripe_customer_id", customerId);
 
     const { error, data } = await query.select();
@@ -188,13 +214,20 @@ export async function POST(req: Request) {
     }
 
     // 1. Downgrade profile to Hobby
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const updateQuery = supabaseAdmin
       .from("profiles")
       .update({ 
         plan: "Hobby",
         updated_at: new Date().toISOString()
-      })
-      .eq("stripe_customer_id", customerId)
+      });
+
+    if (metadata.userId) {
+      updateQuery.eq("id", metadata.userId);
+    } else {
+      updateQuery.eq("stripe_customer_id", customerId);
+    }
+
+    const { data: profile, error: profileError } = await updateQuery
       .select("id")
       .single();
 

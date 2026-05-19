@@ -157,12 +157,12 @@ export async function GET() {
         const invoiceSettings = customer.invoice_settings as Record<string, unknown> | undefined;
         const defaultMethodId = invoiceSettings?.default_payment_method as string | undefined;
 
-        paymentMethods = methods.data.map(pm => ({
+        paymentMethods = methods.data.map((pm, idx) => ({
           id: pm.id,
           brand: pm.card?.brand || "Card",
           last4: pm.card?.last4 || "****",
           expiry: pm.card ? `${pm.card.exp_month}/${pm.card.exp_year}` : "N/A",
-          isDefault: pm.id === defaultMethodId
+          isDefault: defaultMethodId ? pm.id === defaultMethodId : idx === 0
         }));
       } catch (_err) {
         // Silent error, return empty paymentMethods
