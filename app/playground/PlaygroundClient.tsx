@@ -12,6 +12,8 @@ import { CodeSnippet } from "@/components/playground/CodeSnippet";
 import { JsonViewer } from "@/components/playground/JsonViewer";
 import { NetworkLog, type LogEntry } from "@/components/playground/NetworkLog";
 
+import { PLAN_DETAILS } from "@/lib/constants";
+
 export default function PlaygroundClient({ 
   initialUser,
   initialKeys = [],
@@ -29,13 +31,9 @@ export default function PlaygroundClient({
   
   // Dynamic Tier Logic - Using the most recent session or dynamic data available
   const currentPlan = realtimePlan || initialPlan || (initialUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
-  const PLAN_LIMITS = {
-    Hobby: 1000,
-    Premium: 5000,
-    Researcher: 1000000 
-  };
-  const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
-  const isUnlimited = currentPlan === "Researcher";
+  const planDetail = PLAN_DETAILS[currentPlan as keyof typeof PLAN_DETAILS] || PLAN_DETAILS.Hobby;
+  const currentLimit = planDetail.monthlyLimit ?? 1000000;
+  const isUnlimited = planDetail.monthlyLimit === null;
 
   // Fetch real-time plan from usage endpoint on mount
   useEffect(() => {

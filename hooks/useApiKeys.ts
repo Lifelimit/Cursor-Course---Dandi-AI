@@ -41,6 +41,15 @@ export function useApiKeys(initialData: ApiKey[] = []) {
     loadKeys();
   }, [loadKeys]);
 
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id);
+    });
+  }, []);
+
   const hookId = useId();
   // Real-time subscription
   useEffect(() => {
@@ -56,6 +65,12 @@ export function useApiKeys(initialData: ApiKey[] = []) {
           table: "api_keys",
         },
         (payload) => {
+          // Client-side security: ignore events for other users
+          const eventUserId = (payload.new as { user_id?: string })?.user_id || (payload.old as { user_id?: string })?.user_id;
+          if (userId && eventUserId && eventUserId !== userId) {
+            return;
+          }
+
           if (payload.eventType === "UPDATE") {
             const updatedRow = payload.new as ApiKeyApiResponse;
             setApiKeys((current) =>
@@ -69,7 +84,6 @@ export function useApiKeys(initialData: ApiKey[] = []) {
               return [mapApiKey(newRow), ...current];
             });
           } else if (payload.eventType === "DELETE") {
-
             const oldRow = payload.old as { id: string };
             setApiKeys((current) => current.filter((key) => key.id !== oldRow.id));
           }
@@ -82,7 +96,7 @@ export function useApiKeys(initialData: ApiKey[] = []) {
         supabase.removeChannel(channel);
       }
     };
-  }, [hookId]);
+  }, [hookId, userId]);
 
 
   const createKey = async (data: { 
