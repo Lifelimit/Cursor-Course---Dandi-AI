@@ -294,7 +294,7 @@ export function ApiKeyTable({
                             ? "bg-indigo-50 text-indigo-600"
                             : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
                         }`}
-                        title={securityPromptKeyId === key.id ? "Hide security information" : "View security protection details"}
+                        title={securityPromptKeyId === key.id ? "Hide key security details" : "View key security options"}
                       >
                         <ShieldIcon className="h-5 w-5" />
                       </button>
@@ -314,16 +314,12 @@ export function ApiKeyTable({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSecurityPromptKeyId(securityPromptKeyId === key.id ? null : key.id);
+                          onCopyError("For security, existing keys cannot be copied. Revoke and replace this key to generate a new one.");
                         }}
-                        className={`rounded-xl p-2 transition ${
-                          securityPromptKeyId === key.id
-                            ? "bg-indigo-50 text-indigo-600"
-                            : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
-                        }`}
+                        className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
                         title="Copy secured key (Rotation required)"
                       >
-                        <CopyLockedIcon className="h-5 w-5" />
+                        <CopyLockedIcon className="h-5 w-5 opacity-60" />
                       </button>
                     )}
 
