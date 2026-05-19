@@ -38,7 +38,6 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID: requiredString(
     "NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID"
   ),
-  NEXT_PUBLIC_DEMO_API_KEY: demoKeyString,
 });
 
 const serverEnvSchema = publicEnvSchema.extend({
@@ -49,6 +48,7 @@ const serverEnvSchema = publicEnvSchema.extend({
   UPSTASH_REDIS_REST_TOKEN: requiredString("UPSTASH_REDIS_REST_TOKEN"),
   GOOGLE_API_KEY: requiredString("GOOGLE_API_KEY"),
   DEMO_API_KEY: demoKeyString,
+  GITHUB_TOKEN: optionalString,
 });
 
 const rawPublicEnv = {
@@ -66,7 +66,6 @@ const rawPublicEnv = {
     process.env.NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID,
   NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID:
     process.env.NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID,
-  NEXT_PUBLIC_DEMO_API_KEY: process.env.NEXT_PUBLIC_DEMO_API_KEY,
 };
 
 export const publicEnv = publicEnvSchema.parse(rawPublicEnv);
@@ -85,6 +84,7 @@ export function getServerEnv() {
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
     DEMO_API_KEY: process.env.DEMO_API_KEY,
+    GITHUB_TOKEN: process.env.GITHUB_TOKEN,
   });
 
   return cachedServerEnv;

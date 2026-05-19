@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
+import crypto from "crypto";
 const TABLE_NAME = "api_keys";
 
 type ApiKeyRow = {
@@ -91,11 +92,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Name is required." }, { status: 400 });
     }
 
+    const plainKey = buildKeyValue();
+    const hashedKeyValue = crypto.createHash("sha256").update(plainKey).digest("hex");
+    const maskedKey = `${plainKey.slice(0, 8)}...${plainKey.slice(-4)}`;
+
     const { data, error } = await supabaseAdmin
       .from(TABLE_NAME)
       .insert({
         name,
-        key_value: buildKeyValue(),
+        key_value: maskedKey,
+        hashed_key_value: hashedKeyValue,
         key_type: keyType,
         usage_count: 0,
         monthly_limit: monthlyLimit,
@@ -108,7 +114,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data as ApiKeyRow, { status: 201 });
+    return NextResponse.json({
+      ...(data as ApiKeyRow),
+      plain_key: plainKey
+    }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 401 });
   }

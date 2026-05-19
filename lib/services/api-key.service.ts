@@ -2,10 +2,24 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
 import { serverEnv } from "@/lib/env";
+import crypto from "crypto";
 
 export async function validateApiKey(keyValue: string) {
   // Special case for Playground Demo Key
-  if (keyValue === serverEnv.DEMO_API_KEY) {
+  if (keyValue === "__demo__") {
+    // Prevent bypass / direct cURL/CLI abuse by validating caller's active browser session via Supabase SSR
+    try {
+      const { createClient } = await import("@/lib/supabase/server");
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !user.email) {
+        throw new Error("Unauthorized: Active browser session required to use the Demo Key.");
+      }
+    } catch (sessionError) {
+      console.error("Demo key session validation failed:", sessionError);
+      throw new Error("Unauthorized: Active browser session required to use the Demo Key.");
+    }
+
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
     const keyUsageKey = `usage:key:demo-id:${currentMonth}`;
     const currentKeyUsage = await redis.get<number>(keyUsageKey).then(v => v || 0);
@@ -25,14 +39,51 @@ export async function validateApiKey(keyValue: string) {
     };
   }
 
-  const { data: keyData, error } = await supabaseAdmin
-    .from("api_keys")
-    .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active")
-    .eq("key_value", keyValue)
-    .eq("is_active", true)
-    .single();
+  let keyData;
+  let dbError;
 
-  if (error || !keyData) {
+  if (keyValue.includes("...")) {
+    const normalizedKey = keyValue.replace(/\s+/g, "");
+    // Validate caller's active browser session via Supabase SSR
+    let profileId;
+    try {
+      const { getAuthenticatedUserId } = await import("@/lib/services/auth.service");
+      profileId = await getAuthenticatedUserId();
+    } catch (sessionError) {
+      console.error("Masked key session validation failed:", sessionError);
+    }
+
+    if (!profileId) {
+      throw new Error("Unauthorized: Active browser session required to use a masked API key.");
+    }
+
+    // Query key by key_value (masked) and user_id to ensure ownership
+    const { data, error } = await supabaseAdmin
+      .from("api_keys")
+      .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active")
+      .eq("key_value", normalizedKey)
+      .eq("user_id", profileId)
+      .eq("is_active", true)
+      .single();
+
+    keyData = data;
+    dbError = error;
+  } else {
+    // Regular API keys: Hash the incoming key value and search by hashed_key_value
+    const hashed = crypto.createHash("sha256").update(keyValue).digest("hex");
+
+    const { data, error } = await supabaseAdmin
+      .from("api_keys")
+      .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active")
+      .eq("hashed_key_value", hashed)
+      .eq("is_active", true)
+      .single();
+
+    keyData = data;
+    dbError = error;
+  }
+
+  if (dbError || !keyData) {
     throw new Error("Invalid API key");
   }
 

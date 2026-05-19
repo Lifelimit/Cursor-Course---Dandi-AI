@@ -11,7 +11,6 @@ import { Toast } from "@/components/ui/Toast";
 import { CodeSnippet } from "@/components/playground/CodeSnippet";
 import { JsonViewer } from "@/components/playground/JsonViewer";
 import { NetworkLog, type LogEntry } from "@/components/playground/NetworkLog";
-import { publicEnv } from "@/lib/env";
 
 export default function PlaygroundClient({ 
   initialUser,
@@ -144,7 +143,7 @@ export default function PlaygroundClient({
   };
 
   const handleDemoMode = () => {
-    setApiKey(publicEnv.NEXT_PUBLIC_DEMO_API_KEY);
+    setApiKey("__demo__");
     setGithubUrl("https://github.com/facebook/react");
     setSelectedKey("__demo__");
     setSelectValue("__demo__");

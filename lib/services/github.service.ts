@@ -1,3 +1,19 @@
+function getGitHubHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Accept": "application/vnd.github.v3+json",
+    "User-Agent": "Dandi-AI-Summarizer"
+  };
+
+  const githubToken = process.env.GITHUB_TOKEN;
+  if (githubToken) {
+    headers["Authorization"] = githubToken.startsWith("token ") || githubToken.startsWith("Bearer ")
+      ? githubToken
+      : `token ${githubToken}`;
+  }
+
+  return headers;
+}
+
 /**
  * Helper function to fetch README.md from a GitHub URL
  */
@@ -14,7 +30,9 @@ export async function fetchGitHubReadme(githubUrl: string): Promise<string> {
 
   for (const branch of branches) {
     const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/README.md`;
-    const response = await fetch(rawUrl);
+    const response = await fetch(rawUrl, {
+      headers: getGitHubHeaders()
+    });
 
     if (response.ok) {
       return await response.text();
@@ -34,10 +52,7 @@ export async function fetchGitHubMetadata(githubUrl: string) {
 
   // 1. Fetch Repository Details (Stars, License)
   const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-    headers: {
-      "Accept": "application/vnd.github.v3+json",
-      "User-Agent": "Dandi-AI-Summarizer"
-    }
+    headers: getGitHubHeaders()
   });
 
   if (!repoResponse.ok) {
@@ -50,10 +65,7 @@ export async function fetchGitHubMetadata(githubUrl: string) {
   let version = "Unknown";
   try {
     const releaseResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`, {
-      headers: {
-        "Accept": "application/vnd.github.v3+json",
-        "User-Agent": "Dandi-AI-Summarizer"
-      }
+      headers: getGitHubHeaders()
     });
     
     if (releaseResponse.ok) {
@@ -62,10 +74,7 @@ export async function fetchGitHubMetadata(githubUrl: string) {
     } else {
       // Fallback to latest tag if no official release
       const tagsResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/tags`, {
-        headers: {
-          "Accept": "application/vnd.github.v3+json",
-          "User-Agent": "Dandi-AI-Summarizer"
-        }
+        headers: getGitHubHeaders()
       });
       if (tagsResponse.ok) {
         const tagsData = await tagsResponse.json();

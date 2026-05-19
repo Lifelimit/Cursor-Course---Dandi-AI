@@ -112,7 +112,7 @@ export function useApiKeys(initialData: ApiKey[] = []) {
 
       const newKey = mapApiKey(payload);
       setApiKeys((current) => [newKey, ...current]);
-      return { success: true, key: newKey };
+      return { success: true, key: newKey, plainKey: (payload as any).plain_key };
     } catch {
       return { success: false, error: "Network error occurred." };
     }

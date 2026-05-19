@@ -11,6 +11,7 @@ type ApiKeyTableProps = {
   onCopyError: (msg: string) => void;
   onUpgradePrompt: () => void;
   currentPlan: string;
+  sessionPlainKeys?: Record<string, string>;
 };
 
 export function ApiKeyTable({
@@ -22,6 +23,7 @@ export function ApiKeyTable({
   onCopyError,
   onUpgradePrompt,
   currentPlan,
+  sessionPlainKeys = {},
 }: ApiKeyTableProps) {
   const [visibleKeyIds, setVisibleKeyIds] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -247,7 +249,7 @@ export function ApiKeyTable({
                 <td className="px-4 py-5">
                   <div className="flex items-center gap-2 group/key">
                     <code className={`font-mono text-[11px] tracking-tight ${!key.is_active ? "text-zinc-300" : "text-zinc-500"}`}>
-                      {visibleKeyIds[key.id] ? key.key_value : maskApiKey(key.key_value)}
+                      {visibleKeyIds[key.id] ? (sessionPlainKeys[key.id] || key.key_value) : maskApiKey(key.key_value)}
                     </code>
                   </div>
                 </td>
@@ -264,7 +266,7 @@ export function ApiKeyTable({
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); copyKeyValue(key.id, key.key_value); }}
+                      onClick={(e) => { e.stopPropagation(); copyKeyValue(key.id, sessionPlainKeys[key.id] || key.key_value); }}
                       className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
                       title={copiedId === key.id ? "Copied" : "Copy key"}
                     >

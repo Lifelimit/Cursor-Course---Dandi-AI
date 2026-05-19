@@ -12,6 +12,7 @@ import { ApiKeyModal } from "@/components/dashboard/ApiKeyModal";
 import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
+import { EyeIcon, EyeOffIcon } from "@/components/icons";
 
 export default function DashboardClient({ 
   initialUser, 
@@ -73,6 +74,10 @@ export default function DashboardClient({
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
+  const [createdPlainKey, setCreatedPlainKey] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [sessionPlainKeys, setSessionPlainKeys] = useState<Record<string, string>>({});
+  const [isPlainKeyVisible, setIsPlainKeyVisible] = useState(true);
 
   const handleOpenCreateModal = () => {
     setEditingKey(null);
@@ -89,6 +94,17 @@ export default function DashboardClient({
     if (a.is_active === b.is_active) return 0;
     return a.is_active ? -1 : 1;
   });
+
+  const handleCopyKey = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(true);
+      showToast("success", "API key copied to clipboard.");
+      setTimeout(() => setCopiedKey(false), 2000);
+    } catch {
+      showToast("error", "Failed to copy API key.");
+    }
+  };
 
   const handleModalSubmit = async (data: { 
     name: string; 
@@ -108,6 +124,16 @@ export default function DashboardClient({
       const result = await createKey(data);
       if (result.success) {
         showToast("success", "API key created successfully.");
+        if ((result as any).plainKey) {
+          setCreatedPlainKey((result as any).plainKey);
+          setIsPlainKeyVisible(true);
+          if ((result as any).key?.id) {
+            setSessionPlainKeys(prev => ({
+              ...prev,
+              [(result as any).key.id]: (result as any).plainKey
+            }));
+          }
+        }
       }
       return result;
     }
@@ -281,6 +307,7 @@ export default function DashboardClient({
                 onCopyError={(msg) => showToast("error", msg)}
                 onUpgradePrompt={() => router.push("/usage")}
                 currentPlan={currentPlan}
+                sessionPlainKeys={sessionPlainKeys}
               />
 
               {!isLoading && apiKeys.length === 0 ? (
@@ -297,6 +324,100 @@ export default function DashboardClient({
               initialData={editingKey}
               onSubmit={handleModalSubmit}
             />
+            {createdPlainKey && (
+              <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm px-4 animate-in fade-in duration-300">
+                <div className="w-full max-w-xl rounded-[40px] border border-zinc-200 bg-[#f4f2ed] p-10 shadow-2xl animate-in zoom-in-95 duration-300">
+                  <div className="mb-8 text-center space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">Security Warning</p>
+                    <h3 className="font-serif text-4xl font-bold tracking-tight italic">
+                      Secure Key Generated.
+                    </h3>
+                    <p className="text-sm font-medium text-zinc-500">
+                      Copy your credentials now. This token will not be displayed again.
+                    </p>
+                  </div>
+
+                  <div className="space-y-6">
+                    {/* Callout box */}
+                    <div className="rounded-3xl border border-red-200 bg-red-50 p-6 flex gap-4 items-start">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
+                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
+                          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-red-800">One-Time Visibility Only</p>
+                        <p className="text-[11px] font-medium text-red-600 leading-relaxed">
+                          For compliance and security, we only hash this credential in our database. We cannot retrieve or display this key ever again.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Key Display Area */}
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">
+                        Your Generated Plaintext API Key
+                      </label>
+                      <div className="flex items-center gap-2 rounded-2xl border border-zinc-200 bg-white p-2 pl-6">
+                        <code className="flex-1 break-all font-mono text-xs font-bold text-zinc-800 tracking-wider">
+                          {isPlainKeyVisible 
+                            ? createdPlainKey 
+                            : createdPlainKey 
+                              ? `${createdPlainKey.substring(0, 16)}••••••••••••••••••••${createdPlainKey.substring(createdPlainKey.length - 4)}`
+                              : ""
+                          }
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => setIsPlainKeyVisible(!isPlainKeyVisible)}
+                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
+                          title={isPlainKeyVisible ? "Hide API key" : "Show API key"}
+                        >
+                          {isPlainKeyVisible ? (
+                            <EyeOffIcon className="h-5 w-5" />
+                          ) : (
+                            <EyeIcon className="h-5 w-5" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyKey(createdPlainKey || "")}
+                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all ${
+                            copiedKey 
+                              ? "bg-emerald-500 text-white" 
+                              : "bg-zinc-900 text-white hover:bg-zinc-800"
+                          }`}
+                        >
+                          {copiedKey ? (
+                            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="3">
+                              <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          ) : (
+                            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m-2 4h10m-5-5l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="mt-10 flex items-center justify-end pt-4 border-t border-zinc-100">
+                    <button
+                      type="button"
+                      onClick={() => setCreatedPlainKey(null)}
+                      className="group flex items-center justify-center gap-3 rounded-full bg-zinc-900 px-10 py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl shadow-zinc-900/10 transition-all hover:bg-zinc-800 hover:scale-105 active:scale-95"
+                    >
+                      I have secured this key
+                      <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
+                        <path d="M5 12h14m-7-7l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             <Toast toast={toast} />
           </div>
         </main>

@@ -24,7 +24,25 @@ export async function POST(req: Request) {
       .eq("id", user.id)
       .single();
 
-    const stripeCustomerId = profile?.stripe_customer_id;
+    let stripeCustomerId = profile?.stripe_customer_id;
+
+    if (!stripeCustomerId && user.email) {
+      // Deduplicate: search Stripe for a customer with this email
+      const existingCustomers = await stripe.customers.list({
+        email: user.email,
+        limit: 1,
+      });
+
+      if (existingCustomers.data.length > 0) {
+        stripeCustomerId = existingCustomers.data[0].id;
+        
+        // Link customer to the database profile in Supabase
+        await supabase
+          .from("profiles")
+          .update({ stripe_customer_id: stripeCustomerId })
+          .eq("id", user.id);
+      }
+    }
 
     // Log the metadata we're about to send
     console.log("💳 Creating Stripe Checkout Session", {

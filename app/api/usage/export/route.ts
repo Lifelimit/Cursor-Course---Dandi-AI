@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
+import { PLAN_DETAILS } from "@/lib/constants";
 
 export async function GET() {
   try {
@@ -11,7 +12,7 @@ export async function GET() {
       .select(`
         used_at,
         repo_url,
-        api_keys (name, key_type)
+        api_keys (name, key_type, key_value, monthly_limit)
       `)
       .eq("user_id", userId)
       .order("used_at", { ascending: false });
@@ -19,13 +20,25 @@ export async function GET() {
     if (error) throw new Error(error.message);
 
     // Fetch user plan for the header
-    const { data: userData } = await supabaseAdmin
-      .from("users")
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
       .select("plan")
       .eq("id", userId)
       .single();
 
-    const plan = userData?.plan || "Hobby";
+    const plan = profile?.plan || "Hobby";
+    const planDetail = PLAN_DETAILS[plan] || PLAN_DETAILS["Hobby"];
+
+    // Enforce Plan limit extraction
+    let planMonthlyLimit: number | null = null;
+    if (planDetail.features[0].includes("Unlimited")) {
+      planMonthlyLimit = null;
+    } else {
+      const match = planDetail.features[0].match(/(\d+,?\d+)/);
+      if (match) {
+        planMonthlyLimit = parseInt(match[0].replace(",", ""));
+      }
+    }
 
     // Generate CSV Metadata Header
     const metadata = [
@@ -42,14 +55,16 @@ export async function GET() {
       const keyInfo = log.api_keys as unknown as { name: string, key_type: string, key_value: string, monthly_limit: number | null } | null;
       const usedAt = new Date(log.used_at);
       
+      const limit = keyInfo ? (keyInfo.monthly_limit ?? planMonthlyLimit) : planMonthlyLimit;
+
       return [
         usedAt.toLocaleDateString(),
         usedAt.toLocaleTimeString(),
         log.repo_url || "N/A",
         keyInfo?.name || "Unknown",
         keyInfo?.key_type || "N/A",
-        keyInfo?.key_value ? `${keyInfo.key_value.slice(0, 8)}...${keyInfo.key_value.slice(-4)}` : "N/A",
-        keyInfo?.monthly_limit ? `${keyInfo.monthly_limit.toLocaleString()} units` : "Unlimited"
+        keyInfo?.key_value || "N/A",
+        limit ? `${limit.toLocaleString()} units` : "Unlimited"
       ];
     });
 
