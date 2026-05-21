@@ -44,17 +44,25 @@ export default function DashboardClient({
   const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
   const isUnlimited = currentPlan === "Researcher";
 
-  // Fetch real-time plan from usage endpoint
+  // Fetch real-time usage data (including plan, avgLatency, successRate, and resetDate)
   useEffect(() => {
-    fetch("/api/usage")
-      .then(res => res.json())
-      .then(data => {
-        if (data.plan) setRealtimePlan(data.plan);
-        if (typeof data.avgLatency === 'number') setAvgLatency(data.avgLatency);
-        if (typeof data.successRate === 'number') setSuccessRate(data.successRate);
-        if (data.resetDate) setResetDate(data.resetDate);
-      })
-      .catch(() => {});
+    const fetchUsage = () => {
+      fetch("/api/usage")
+        .then(res => res.json())
+        .then(data => {
+          if (data.plan) setRealtimePlan(data.plan);
+          if (typeof data.avgLatency === 'number') setAvgLatency(data.avgLatency);
+          if (typeof data.successRate === 'number') setSuccessRate(data.successRate);
+          if (data.resetDate) setResetDate(data.resetDate);
+        })
+        .catch(() => {});
+    };
+
+    fetchUsage(); // Fetch immediately on mount
+
+    const interval = setInterval(fetchUsage, 10000); // Poll every 10 seconds to keep analytics hot and live
+
+    return () => clearInterval(interval);
   }, []);
 
   const alerts = apiKeys

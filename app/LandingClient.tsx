@@ -23,6 +23,9 @@ export default function LandingClient({ initialSession }: { initialSession: Sess
   const { toast, showToast } = useToast();
   const session = initialSession;
 
+  const fullName = session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || "Builder";
+  const firstName = fullName.split(" ")[0];
+
   return (
     <div className="min-h-screen bg-[#f4f2ed] dark:bg-zinc-950 font-sans text-[#18181b] dark:text-zinc-100 selection:bg-zinc-200 dark:selection:bg-zinc-800 overflow-x-hidden">
       {/* Navigation */}
@@ -41,8 +44,26 @@ export default function LandingClient({ initialSession }: { initialSession: Sess
         onError={(msg) => showToast("error", msg)}
       />
 
-      {/* Final CTA - Only show if NOT logged in */}
-      {!session && (
+      {/* Final CTA - Personalized depending on session state */}
+      {session ? (
+        <section className="mx-auto max-w-7xl px-6 py-24 md:py-48 text-center">
+          <div className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+            <h2 className="font-serif text-5xl font-bold md:text-8xl leading-tight">
+              Welcome back, <span className="text-zinc-400 italic">{firstName}</span>!<br />
+              Ready to orchestrate?
+            </h2>
+            <Link href="/dashboards" className="mx-auto flex w-fit items-center justify-center gap-3 rounded-full bg-[#18181b] dark:bg-zinc-100 px-12 py-6 text-sm font-bold uppercase tracking-[0.3em] text-white dark:text-zinc-950 shadow-2xl transition-all hover:scale-105 hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-95">
+              Go to Dashboard
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
+                <path d="M5 12h14m-7-7l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-550">
+              Currently signed in as {session.user.email}
+            </p>
+          </div>
+        </section>
+      ) : (
         <section className="mx-auto max-w-7xl px-6 py-24 md:py-48 text-center">
           <div className="space-y-10">
             <h2 className="font-serif text-5xl font-bold md:text-8xl">Ready to <br /> orchestrate?</h2>

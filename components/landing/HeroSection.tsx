@@ -33,7 +33,14 @@ export function HeroSection({ session }: { session: Session | null }) {
           </p>
           
           <div className="flex flex-col gap-4 sm:flex-row justify-center xl:justify-start">
-            {!session && (
+            {session ? (
+              <Link href="/dashboards" className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-full bg-[#18181b] dark:bg-zinc-100 px-6 py-4 text-sm font-bold uppercase tracking-widest text-white dark:text-zinc-950 shadow-2xl transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200 sm:w-auto md:px-10 md:py-5">
+                <span className="relative z-10 text-[9px] sm:text-xs">Go to Dashboard</span>
+                <svg viewBox="0 0 24 24" className="relative z-10 h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
+                  <path d="M5 12h14m-7-7l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Link>
+            ) : (
               <Link href="/signup" className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-full bg-[#18181b] dark:bg-zinc-100 px-6 py-4 text-sm font-bold uppercase tracking-widest text-white dark:text-zinc-950 shadow-2xl transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200 sm:w-auto md:px-10 md:py-5">
                 <span className="relative z-10 text-[9px] sm:text-xs">Initialize Session</span>
                 <svg viewBox="0 0 24 24" className="relative z-10 h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
@@ -41,12 +48,14 @@ export function HeroSection({ session }: { session: Session | null }) {
                 </svg>
               </Link>
             )}
-            <Link href="/playground" className="flex items-center justify-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 sm:w-auto md:px-10 md:py-5 shadow-sm">
-              Launch Playground
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6H9.4L11 7.7a1 1 0 0 0-1.4-1.4l-3.3 3.3a1 1 0 0 0 0 1.4l3.3 3.3a1 1 0 0 0 1.4-1.4L9.4 11.7h6.9l-1.6 1.6a1 1 0 0 0 1.4 1.4l3.3-3.3a1 1 0 0 0 0-1.4l-3.3-3.3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Link>
+            {session && (
+              <Link href="/playground" className="flex items-center justify-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-550 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 sm:w-auto md:px-10 md:py-5 shadow-sm">
+                Launch Playground
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6H9.4L11 7.7a1 1 0 0 0-1.4-1.4l-3.3 3.3a1 1 0 0 0 0 1.4l3.3 3.3a1 1 0 0 0 1.4-1.4L9.4 11.7h6.9l-1.6 1.6a1 1 0 0 0 1.4 1.4l3.3-3.3a1 1 0 0 0 0-1.4l-3.3-3.3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Link>
+            )}
           </div>
 
           {/* Code Snippet Component */}
