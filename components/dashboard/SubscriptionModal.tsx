@@ -54,6 +54,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [isInitializing, setIsInitializing] = useState(initialPendingPlan === "Hobby");
   const [billingInterval, setBillingInterval] = useState<"month" | "year">(initialBillingInterval || "month");
+  const hasInitializedRef = React.useRef(false);
   
   // State for card details
   const [cardData, setCardData] = useState({
@@ -84,6 +85,14 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
 
   // Reset to overview or initial state whenever the modal is opened
   useEffect(() => {
+    if (!isOpen) {
+      hasInitializedRef.current = false;
+      return;
+    }
+
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+
     const initializeState = async () => {
       if (isOpen) {
         let targetView = initialView || "overview";
