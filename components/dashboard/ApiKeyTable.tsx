@@ -350,7 +350,7 @@ export function ApiKeyTable({
                           e.stopPropagation();
                           setSecurityPromptKeyId(securityPromptKeyId === key.id ? null : key.id);
                         }}
-                        className="inline-flex items-center gap-1 rounded bg-zinc-50 dark:bg-zinc-850 border border-zinc-200/60 dark:border-zinc-700/60 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-800 active:scale-95 transition-all cursor-pointer"
+                        className="inline-flex items-center gap-1 rounded bg-zinc-50 dark:bg-zinc-800 border border-zinc-200/60 dark:border-zinc-700/60 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-800 active:scale-95 transition-all cursor-pointer"
                         title="Securely Hashed (HMAC-SHA256) - Click to view cryptographic security explanation"
                       >
                         <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3">

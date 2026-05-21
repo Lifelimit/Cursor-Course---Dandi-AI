@@ -257,7 +257,7 @@ export default function BillingClient({
                       setModalPendingPlan(null);
                       setIsModalOpen(true);
                     }}
-                    className="text-[10px] font-black uppercase tracking-widest text-zinc-900 hover:underline disabled:opacity-50"
+                    className="text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 hover:underline disabled:opacity-50"
                   >
                     + Add Card
                   </button>
@@ -385,18 +385,18 @@ export default function BillingClient({
 
               {/* Danger Zone */}
               {currentPlan !== "Hobby" && (
-                <section className="rounded-[32px] border border-red-100 bg-red-50/30 p-8 mt-12 mb-20">
+                <section className="rounded-[32px] border border-red-100 dark:border-red-950/20 bg-red-50/30 dark:bg-red-950/5 p-8 mt-12 mb-20">
                   <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <h3 className="text-sm font-black uppercase tracking-widest text-red-900">Danger Zone</h3>
-                      <p className="mt-1 text-xs text-red-600/60">Cancel your premium subscription and downgrade to the Hobby plan at the end of your term.</p>
+                      <h3 className="text-sm font-black uppercase tracking-widest text-red-900 dark:text-red-400">Danger Zone</h3>
+                      <p className="mt-1 text-xs text-red-600/60 dark:text-red-400/40">Cancel your premium subscription and downgrade to the Hobby plan at the end of your term.</p>
                     </div>
                     <button 
                       onClick={() => {
                         setModalPendingPlan("Hobby");
                         setIsModalOpen(true);
                       }}
-                      className="rounded-2xl border border-red-200 bg-white px-8 py-4 text-[10px] font-black uppercase tracking-widest text-red-500 transition-all hover:bg-red-500 hover:text-white"
+                      className="rounded-2xl border border-red-200 dark:border-red-950/30 bg-white dark:bg-zinc-900 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-red-500 dark:text-red-400 transition-all hover:bg-red-500 hover:text-white dark:hover:bg-red-500 dark:hover:text-white"
                     >
                       Cancel Subscription
                     </button>

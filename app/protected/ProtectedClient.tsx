@@ -168,8 +168,8 @@ export default function ProtectedClient({ initialSession }: { initialSession: Se
           <Suspense fallback={
             <div className="flex-1 rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 p-8 backdrop-blur-sm">
               <div className="animate-pulse space-y-4">
-                <div className="h-8 w-48 bg-zinc-200 dark:bg-zinc-850 rounded-full"></div>
-                <div className="h-32 w-full bg-zinc-100 dark:bg-zinc-850/50 rounded-[24px]"></div>
+                <div className="h-8 w-48 bg-zinc-200 dark:bg-zinc-800 rounded-full"></div>
+                <div className="h-32 w-full bg-zinc-100 dark:bg-zinc-800/50 rounded-[24px]"></div>
               </div>
             </div>
           }>

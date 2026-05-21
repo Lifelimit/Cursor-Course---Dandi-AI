@@ -41,7 +41,7 @@ export function HeroSection({ session }: { session: Session | null }) {
                 </svg>
               </Link>
             )}
-            <Link href="/playground" className="flex items-center justify-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-850 hover:text-zinc-900 dark:hover:text-zinc-100 sm:w-auto md:px-10 md:py-5 shadow-sm">
+            <Link href="/playground" className="flex items-center justify-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 sm:w-auto md:px-10 md:py-5 shadow-sm">
               Launch Playground
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6H9.4L11 7.7a1 1 0 0 0-1.4-1.4l-3.3 3.3a1 1 0 0 0 0 1.4l3.3 3.3a1 1 0 0 0 1.4-1.4L9.4 11.7h6.9l-1.6 1.6a1 1 0 0 0 1.4 1.4l3.3-3.3a1 1 0 0 0 0-1.4l-3.3-3.3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -73,7 +73,7 @@ export function HeroSection({ session }: { session: Session | null }) {
         {/* Floating Card Mockup */}
         <div className="relative mt-12 block xl:mt-0 animate-in fade-in zoom-in duration-1000 delay-300 scale-90 sm:scale-100 max-w-xl mx-auto w-full">
           <div className="relative z-10 overflow-hidden rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 shadow-[0_32px_64px_-15px_rgba(0,0,0,0.1)] dark:shadow-none transition-all hover:scale-[1.02] hover:-rotate-1">
-            <div className="rounded-2xl bg-zinc-50/50 dark:bg-zinc-850/50 p-6">
+            <div className="rounded-2xl bg-zinc-50/50 dark:bg-zinc-800/50 p-6">
               <div className="mb-8 flex items-center justify-between">
                 <div className="space-y-1">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Workspace</p>

@@ -251,7 +251,7 @@ export function PricingSection({
                 Your <span className="font-bold text-zinc-900 dark:text-zinc-100">{currentPlanId}</span> plan will remain active until the end of your current term. After that, you&apos;ll be downgraded to the Hobby plan.
               </p>
 
-              <div className="mb-8 w-full space-y-4 rounded-3xl border border-zinc-100 dark:border-zinc-850 bg-zinc-50/50 dark:bg-zinc-800/20 p-6 text-left font-sans">
+              <div className="mb-8 w-full space-y-4 rounded-3xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20 p-6 text-left font-sans">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Step 1: Choose 3 Keys to Keep</p>
                   <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">The Hobby plan only supports 3 active API keys. Please select your favorites.</p>
@@ -297,7 +297,7 @@ export function PricingSection({
               <div className="flex w-full gap-3">
                 <button 
                   onClick={() => setIsCancelModalOpen(false)}
-                  className="flex-1 rounded-2xl border border-zinc-200 dark:border-zinc-800 py-4 text-xs font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-850 hover:text-zinc-900 dark:hover:text-zinc-100"
+                  className="flex-1 rounded-2xl border border-zinc-200 dark:border-zinc-800 py-4 text-xs font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
                 >
                   Go Back
                 </button>

@@ -307,7 +307,7 @@ export default function DashboardClient({
               <div className="mb-8 flex items-center justify-between">
                 <h2 className="font-serif text-2xl font-bold">Encrypted Keys</h2>
                 <div className="flex items-center gap-3">
-                  <span className="rounded-full bg-zinc-50 dark:bg-zinc-950 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 border border-zinc-100 dark:border-zinc-850">
+                  <span className="rounded-full bg-zinc-50 dark:bg-zinc-950 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 border border-zinc-100 dark:border-zinc-800">
                     {apiKeys.length} Records
                   </span>
                   <button
@@ -394,7 +394,7 @@ export default function DashboardClient({
                         <button
                           type="button"
                           onClick={() => setIsPlainKeyVisible(!isPlainKeyVisible)}
-                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-zinc-400 dark:text-zinc-500 transition hover:bg-zinc-100 dark:hover:bg-zinc-850 hover:text-zinc-900 dark:hover:text-white"
+                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-zinc-400 dark:text-zinc-500 transition hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white"
                           title={isPlainKeyVisible ? "Hide API key" : "Show API key"}
                         >
                           {isPlainKeyVisible ? (

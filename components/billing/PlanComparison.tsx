@@ -40,7 +40,7 @@ export function PlanComparison({
 
           // Override plan classes dynamically for premium, responsive light/dark behavior
           const cardStyles = plan.id === "Hobby"
-            ? "border-zinc-200 dark:border-zinc-850 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
+            ? "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
             : plan.id === "Premium"
             ? "border-2 border-zinc-900 dark:border-zinc-100 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-2xl"
             : "border-zinc-200 dark:border-zinc-800 bg-[#18181b] text-white";

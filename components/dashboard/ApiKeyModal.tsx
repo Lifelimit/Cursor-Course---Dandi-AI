@@ -170,7 +170,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
               <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 px-1">Usage Constraints</p>
               <div className="rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 space-y-4">
                 <label className="flex items-center gap-3 text-xs font-bold text-zinc-600 dark:text-zinc-300 cursor-pointer">
-                  <div className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${hasUsageLimit ? "bg-zinc-900 dark:bg-zinc-100 border-zinc-900 dark:border-zinc-100" : "bg-white dark:bg-zinc-850 border-zinc-300 dark:border-zinc-700"}`}>
+                  <div className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${hasUsageLimit ? "bg-zinc-900 dark:bg-zinc-100 border-zinc-900 dark:border-zinc-100" : "bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700"}`}>
                     {hasUsageLimit && <svg viewBox="0 0 24 24" className="h-3 w-3 text-white dark:text-zinc-900" fill="none" stroke="currentColor" strokeWidth="4"><path d="M5 13l4 4L19 7" /></svg>}
                   </div>
                   <input type="checkbox" className="hidden" checked={hasUsageLimit} onChange={(e) => setHasUsageLimit(e.target.checked)} />
