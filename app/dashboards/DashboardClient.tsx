@@ -17,11 +17,17 @@ import { EyeOffIcon, ShieldIcon, CopyLockedIcon, CopyCheckIcon } from "@/compone
 export default function DashboardClient({ 
   initialUser, 
   initialKeys = [],
-  initialPlan = "Hobby"
+  initialPlan = "Hobby",
+  initialAvgLatency = 0,
+  initialSuccessRate = 100,
+  initialResetDate = null
 }: { 
   initialUser: User | null;
   initialKeys?: ApiKey[];
   initialPlan?: string;
+  initialAvgLatency?: number;
+  initialSuccessRate?: number;
+  initialResetDate?: string | null;
 }) {
   const router = useRouter();
   const activeUser = initialUser; 
@@ -30,9 +36,9 @@ export default function DashboardClient({
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
   const [realtimePlan, setRealtimePlan] = useState<string | null>(null);
-  const [avgLatency, setAvgLatency] = useState<number>(0);
-  const [successRate, setSuccessRate] = useState<number>(100);
-  const [resetDate, setResetDate] = useState<string | null>(null);
+  const [avgLatency, setAvgLatency] = useState<number>(initialAvgLatency);
+  const [successRate, setSuccessRate] = useState<number>(initialSuccessRate);
+  const [resetDate, setResetDate] = useState<string | null>(initialResetDate);
   
   // Dynamic Tier Logic - Using the most recent session data available
   const currentPlan = realtimePlan || initialPlan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 

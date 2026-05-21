@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import DashboardClient from "./DashboardClient";
 import { redirect } from "next/navigation";
-import { getServerApiKeys } from "@/lib/services/server-data.service";
+import { getServerUsageData } from "@/lib/services/server-data.service";
 import { mapApiKey } from "@/types/api";
 
 export default async function DashboardsPage() {
@@ -12,8 +12,17 @@ export default async function DashboardsPage() {
     redirect("/login");
   }
 
-  const { keys: initialKeysRaw, plan } = await getServerApiKeys();
-  const initialKeys = initialKeysRaw.map(mapApiKey);
+  const usageData = await getServerUsageData();
+  const initialKeys = (usageData?.keys || []).map(mapApiKey);
 
-  return <DashboardClient initialUser={user} initialKeys={initialKeys} initialPlan={plan} />;
+  return (
+    <DashboardClient 
+      initialUser={user} 
+      initialKeys={initialKeys} 
+      initialPlan={usageData?.plan || "Hobby"} 
+      initialAvgLatency={usageData?.avgLatency || 0}
+      initialSuccessRate={usageData?.successRate || 100}
+      initialResetDate={usageData?.resetDate || null}
+    />
+  );
 }
