@@ -114,6 +114,49 @@ function SyntaxHighlightedJSON({ data }: { data: unknown }) {
   );
 }
 
+const AuthIcon = ({ status }: { status: string }) => {
+  const colorClass = 
+    status === "success" ? "text-emerald-400" :
+    status === "error" ? "text-rose-400 animate-bounce" :
+    status === "pending" ? "text-amber-400 animate-pulse" : "text-zinc-650 dark:text-zinc-550";
+    
+  return (
+    <svg viewBox="0 0 24 24" className={`h-5 w-5 ${colorClass} transition-all duration-300`} fill="none" stroke="currentColor" strokeWidth="2.25">
+      {status === "success" ? (
+        <path d="M8 11V7a4 4 0 118 0m-4 10v-2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+    </svg>
+  );
+};
+
+const RepoIcon = ({ status }: { status: string }) => {
+  const colorClass = 
+    status === "success" ? "text-emerald-400" :
+    status === "error" ? "text-rose-400 animate-bounce" :
+    status === "pending" ? "text-amber-400" : "text-zinc-650 dark:text-zinc-550";
+    
+  return (
+    <svg viewBox="0 0 24 24" className={`h-5 w-5 ${colorClass} transition-all duration-300 ${status === "pending" ? "animate-spin-slow" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.25">
+      <path d="M6 18a3 3 0 100-6 3 3 0 000 6zM18 9a3 3 0 100-6 3 3 0 000 6zM18 21a3 3 0 100-6 3 3 0 000 6zM6 12V9a3 3 0 013-3h6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+};
+
+const AiIcon = ({ status }: { status: string }) => {
+  const colorClass = 
+    status === "success" ? "text-emerald-400" :
+    status === "error" ? "text-rose-400 animate-bounce" :
+    status === "pending" ? "text-amber-400" : "text-zinc-650 dark:text-zinc-550";
+    
+  return (
+    <svg viewBox="0 0 24 24" className={`h-5 w-5 ${colorClass} transition-all duration-300 ${status === "pending" ? "animate-pulse" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.25">
+      <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+};
+
 export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [activeTabMap, setActiveTabMap] = useState<Record<string, "request" | "response">>({});
@@ -153,6 +196,17 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
     return `curl -X ${log.method || "POST"} https://dandi.ai${log.url || "/api"} \\\n  ${headersStr}${bodyStr}`;
   };
 
+  // Derive step statuses
+  const getStepStatus = (id: string) => {
+    const log = logs.find(l => l.id === id);
+    if (!log) return "idle";
+    return log.status;
+  };
+
+  const authStatus = getStepStatus("auth");
+  const repoStatus = getStepStatus("repo_fetch");
+  const aiStatus = getStepStatus("ai_processing");
+
   return (
     <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-[#09090b] shadow-2xl transition-all duration-300">
       {/* macOS Terminal Title Bar Header */}
@@ -183,6 +237,188 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
+        </div>
+      </div>
+
+      {/* Telemetry Progress Stepper Track */}
+      <div className="relative border-b border-zinc-850 bg-zinc-950 px-6 py-6 md:py-8 select-none overflow-hidden">
+        {/* Style Block for custom animations */}
+        <style dangerouslySetInnerHTML={{__html: `
+          @keyframes pulse-flow {
+            0% { stroke-dashoffset: 24; }
+            100% { stroke-dashoffset: 0; }
+          }
+          .animate-pulse-flow {
+            animation: pulse-flow 0.8s linear infinite;
+          }
+          @keyframes spin-slow {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+          .animate-spin-slow {
+            animation: spin-slow 8s linear infinite;
+          }
+          @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.2; }
+            50% { transform: scale(1.15); opacity: 0.5; }
+            100% { transform: scale(0.95); opacity: 0.2; }
+          }
+          .animate-pulse-ring {
+            animation: pulse-ring 2s ease-in-out infinite;
+          }
+          @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+          }
+          .animate-shake {
+            animation: shake 0.3s ease-in-out 2;
+          }
+        `}} />
+
+        {/* SVG Connector Lines */}
+        <svg className="absolute inset-0 h-full w-full pointer-events-none z-0" xmlns="http://www.w3.org/2000/svg">
+          {/* Track 1: Auth to Repo Fetch */}
+          <line 
+            x1="16.6%" y1="42%" x2="50%" y2="42%" 
+            stroke={authStatus === "success" ? "#10b981" : "#27272a"} 
+            strokeWidth={authStatus === "success" ? "2.5" : "2"}
+            className="transition-all duration-500" 
+          />
+          {authStatus === "pending" && (
+            <line 
+              x1="16.6%" y1="42%" x2="50%" y2="42%" 
+              stroke="#fbbf24" 
+              strokeWidth="2.5" 
+              strokeDasharray="6 6"
+              className="animate-pulse-flow"
+            />
+          )}
+
+          {/* Track 2: Repo Fetch to AI Processing */}
+          <line 
+            x1="50%" y1="42%" x2="83.3%" y2="42%" 
+            stroke={repoStatus === "success" ? "#10b981" : "#27272a"} 
+            strokeWidth={repoStatus === "success" ? "2.5" : "2"}
+            className="transition-all duration-500" 
+          />
+          {repoStatus === "pending" && (
+            <line 
+              x1="50%" y1="42%" x2="83.3%" y2="42%" 
+              stroke="#fbbf24" 
+              strokeWidth="2.5" 
+              strokeDasharray="6 6"
+              className="animate-pulse-flow"
+            />
+          )}
+        </svg>
+
+        {/* Nodes Wrapper */}
+        <div className="relative z-10 mx-auto flex max-w-2xl justify-between items-center px-4 sm:px-8">
+          {/* Step 1: Authentication */}
+          <div className="flex flex-col items-center gap-2.5 text-center flex-1">
+            <div className="relative flex h-11 w-11 items-center justify-center rounded-full border bg-zinc-950 transition-all duration-500 z-10 border-transparent">
+              {/* Outer Pulsing Ring */}
+              <div className={`absolute -inset-1.5 rounded-full opacity-0 transition-opacity duration-500 ${
+                authStatus === "pending" ? "bg-amber-400/10 border border-amber-400/20 opacity-100 animate-pulse-ring" : 
+                authStatus === "success" ? "bg-emerald-500/5 border border-emerald-500/15 opacity-100" :
+                authStatus === "error" ? "bg-rose-500/10 border border-rose-500/25 opacity-100 animate-pulse-ring" : ""
+              }`} />
+              
+              <div className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-500 ${
+                authStatus === "success" ? "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.2)]" :
+                authStatus === "error" ? "border-rose-500/50 bg-rose-500/10 shadow-[0_0_12px_rgba(239,68,68,0.2)] animate-shake" :
+                authStatus === "pending" ? "border-amber-400 bg-amber-400/10 shadow-[0_0_12px_rgba(251,191,36,0.25)] scale-110" :
+                "border-zinc-800 bg-zinc-900/60"
+              }`}>
+                <AuthIcon status={authStatus} />
+              </div>
+            </div>
+            <div className="space-y-0.5">
+              <span className={`text-[9px] font-black uppercase tracking-widest block transition-colors duration-300 ${
+                authStatus === "success" ? "text-emerald-400" :
+                authStatus === "error" ? "text-rose-500 font-extrabold" :
+                authStatus === "pending" ? "text-amber-400 font-extrabold" : "text-zinc-500"
+              }`}>
+                Authentication
+              </span>
+              <span className="text-[7px] font-bold font-mono tracking-wide text-zinc-600 block uppercase select-none">
+                {authStatus === "success" ? "Verified" :
+                 authStatus === "error" ? "Failed" :
+                 authStatus === "pending" ? "Checking" : "Offline"}
+              </span>
+            </div>
+          </div>
+
+          {/* Step 2: Repo Fetch */}
+          <div className="flex flex-col items-center gap-2.5 text-center flex-1">
+            <div className="relative flex h-11 w-11 items-center justify-center rounded-full border bg-zinc-950 transition-all duration-500 z-10 border-transparent">
+              {/* Outer Pulsing Ring */}
+              <div className={`absolute -inset-1.5 rounded-full opacity-0 transition-opacity duration-500 ${
+                repoStatus === "pending" ? "bg-amber-400/10 border border-amber-400/20 opacity-100 animate-pulse-ring" : 
+                repoStatus === "success" ? "bg-emerald-500/5 border border-emerald-500/15 opacity-100" :
+                repoStatus === "error" ? "bg-rose-500/10 border border-rose-500/25 opacity-100 animate-pulse-ring" : ""
+              }`} />
+
+              <div className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-500 ${
+                repoStatus === "success" ? "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.2)]" :
+                repoStatus === "error" ? "border-rose-500/50 bg-rose-500/10 shadow-[0_0_12px_rgba(239,68,68,0.2)] animate-shake" :
+                repoStatus === "pending" ? "border-amber-400 bg-amber-400/10 shadow-[0_0_12px_rgba(251,191,36,0.25)] scale-110" :
+                "border-zinc-800 bg-zinc-900/60"
+              }`}>
+                <RepoIcon status={repoStatus} />
+              </div>
+            </div>
+            <div className="space-y-0.5">
+              <span className={`text-[9px] font-black uppercase tracking-widest block transition-colors duration-300 ${
+                repoStatus === "success" ? "text-emerald-400" :
+                repoStatus === "error" ? "text-rose-500 font-extrabold" :
+                repoStatus === "pending" ? "text-amber-400 font-extrabold" : "text-zinc-500"
+              }`}>
+                Repository Fetch
+              </span>
+              <span className="text-[7px] font-bold font-mono tracking-wide text-zinc-600 block uppercase select-none">
+                {repoStatus === "success" ? "Retrieved" :
+                 repoStatus === "error" ? "Failed" :
+                 repoStatus === "pending" ? "Fetching" : "Offline"}
+              </span>
+            </div>
+          </div>
+
+          {/* Step 3: AI Processing */}
+          <div className="flex flex-col items-center gap-2.5 text-center flex-1">
+            <div className="relative flex h-11 w-11 items-center justify-center rounded-full border bg-zinc-950 transition-all duration-500 z-10 border-transparent">
+              {/* Outer Pulsing Ring */}
+              <div className={`absolute -inset-1.5 rounded-full opacity-0 transition-opacity duration-500 ${
+                aiStatus === "pending" ? "bg-amber-400/10 border border-amber-400/20 opacity-100 animate-pulse-ring" : 
+                aiStatus === "success" ? "bg-emerald-500/5 border border-emerald-500/15 opacity-100" :
+                aiStatus === "error" ? "bg-rose-500/10 border border-rose-500/25 opacity-100 animate-pulse-ring" : ""
+              }`} />
+
+              <div className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-500 ${
+                aiStatus === "success" ? "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.2)]" :
+                aiStatus === "error" ? "border-rose-500/50 bg-rose-500/10 shadow-[0_0_12px_rgba(239,68,68,0.2)] animate-shake" :
+                aiStatus === "pending" ? "border-amber-400 bg-amber-400/10 shadow-[0_0_12px_rgba(251,191,36,0.25)] scale-110" :
+                "border-zinc-800 bg-zinc-900/60"
+              }`}>
+                <AiIcon status={aiStatus} />
+              </div>
+            </div>
+            <div className="space-y-0.5">
+              <span className={`text-[9px] font-black uppercase tracking-widest block transition-colors duration-300 ${
+                aiStatus === "success" ? "text-emerald-400" :
+                aiStatus === "error" ? "text-rose-500 font-extrabold" :
+                aiStatus === "pending" ? "text-amber-400 font-extrabold" : "text-zinc-500"
+              }`}>
+                AI Processing
+              </span>
+              <span className="text-[7px] font-bold font-mono tracking-wide text-zinc-600 block uppercase select-none">
+                {aiStatus === "success" ? "Complete" :
+                 aiStatus === "error" ? "Failed" :
+                 aiStatus === "pending" ? "Analyzing" : "Offline"}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -14,6 +14,56 @@ import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 import { EyeOffIcon, ShieldIcon, CopyLockedIcon, CopyCheckIcon } from "@/components/icons";
 
+function DecryptingKeyText({ text, visible, maskedText }: { text: string; visible: boolean; maskedText: string }) {
+  const [displayedText, setDisplayedText] = useState(maskedText);
+  const [prevVisible, setPrevVisible] = useState(visible);
+
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
+    if (!visible) {
+      setDisplayedText(maskedText);
+    }
+  }
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    const targetLength = text.length;
+    let iteration = 0;
+    const maxIterations = 15;
+    
+    const interval = setInterval(() => {
+      setDisplayedText(
+        text
+          .split("")
+          .map((char, index) => {
+            const progress = iteration / maxIterations;
+            const threshold = progress * targetLength;
+            if (index < threshold) {
+              return char;
+            }
+            if (char === "_" || char === "-") return char;
+            return chars[Math.floor(Math.random() * chars.length)];
+          })
+          .join("")
+      );
+
+      iteration++;
+      if (iteration >= maxIterations) {
+        clearInterval(interval);
+        setDisplayedText(text);
+      }
+    }, 25);
+
+    return () => clearInterval(interval);
+  }, [visible, text]);
+
+  return <>{visible ? displayedText : maskedText}</>;
+}
+
 export default function DashboardClient({ 
   initialUser, 
   initialKeys = [],
@@ -40,6 +90,9 @@ export default function DashboardClient({
   const [successRate, setSuccessRate] = useState<number>(initialSuccessRate);
   const [resetDate, setResetDate] = useState<string | null>(initialResetDate);
   
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncedTime, setLastSyncedTime] = useState<string>("Just now");
+  
   // Dynamic Tier Logic - Using the most recent session data available
   const currentPlan = realtimePlan || initialPlan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
   const PLAN_LIMITS = {
@@ -52,23 +105,42 @@ export default function DashboardClient({
 
   // Fetch real-time usage data (including plan, avgLatency, successRate, and resetDate)
   useEffect(() => {
-    const fetchUsage = () => {
-      fetch("/api/usage")
-        .then(res => res.json())
-        .then(data => {
-          if (data.plan) setRealtimePlan(data.plan);
-          if (typeof data.avgLatency === 'number') setAvgLatency(data.avgLatency);
-          if (typeof data.successRate === 'number') setSuccessRate(data.successRate);
-          if (data.resetDate) setResetDate(data.resetDate);
-        })
-        .catch(() => {});
+    let syncCount = 0;
+    const fetchUsage = async () => {
+      setIsSyncing(true);
+      try {
+        const res = await fetch("/api/usage");
+        const data = await res.json();
+        if (data.plan) setRealtimePlan(data.plan);
+        if (typeof data.avgLatency === 'number') setAvgLatency(data.avgLatency);
+        if (typeof data.successRate === 'number') setSuccessRate(data.successRate);
+        if (data.resetDate) setResetDate(data.resetDate);
+        setLastSyncedTime("Just now");
+        syncCount = 0;
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setTimeout(() => setIsSyncing(false), 600);
+      }
     };
 
     fetchUsage(); // Fetch immediately on mount
 
     const interval = setInterval(fetchUsage, 10000); // Poll every 10 seconds to keep analytics hot and live
 
-    return () => clearInterval(interval);
+    const syncTimeInterval = setInterval(() => {
+      syncCount += 2;
+      if (syncCount === 0) {
+        setLastSyncedTime("Just now");
+      } else {
+        setLastSyncedTime(`${syncCount}s ago`);
+      }
+    }, 2000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(syncTimeInterval);
+    };
   }, []);
 
   const alerts = apiKeys
@@ -210,16 +282,37 @@ export default function DashboardClient({
                   Back to Home
                 </Link>
               </div>
-              <h1 className="mt-4 font-serif text-5xl font-bold tracking-tight">Overview</h1>
-              {errorMessage ? (
-                <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 dark:bg-red-950/20 p-4 text-sm text-red-700 dark:text-red-400">
-                  {errorMessage}
+              <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="space-y-1">
+                  <h1 className="font-serif text-5xl font-bold tracking-tight">Overview</h1>
+                  {errorMessage ? (
+                    <div className="mt-2 rounded-2xl border border-red-200 bg-red-50 dark:bg-red-950/20 p-4 text-sm text-red-700 dark:text-red-400">
+                      {errorMessage}
+                    </div>
+                  ) : (
+                    <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                      System status and secure credentials management.
+                    </p>
+                  )}
                 </div>
-              ) : (
-                <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                  System status and secure credentials management.
-                </p>
-              )}
+                
+                {/* Live Telemetry Status Dot */}
+                <div className="flex items-center gap-2.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950 px-4 py-2 shadow-sm self-start sm:self-center transition-all">
+                  <div className="relative flex h-2 w-2">
+                    <span className={`absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 ${isSyncing ? "animate-ping scale-150" : "animate-pulse"}`} />
+                    <span className={`relative inline-flex rounded-full h-2 w-2 ${isSyncing ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-emerald-500"}`} />
+                  </div>
+                  <span className="font-mono text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-550 flex items-center gap-1.5 select-none">
+                    {isSyncing ? (
+                      <span className="text-emerald-500 font-bold animate-pulse">Syncing Telemetry...</span>
+                    ) : (
+                      <>
+                        Telemetry Active <span className="text-zinc-250 dark:text-zinc-750">|</span> <span className="text-[8px] font-bold text-zinc-400 tabular-nums">Synced {lastSyncedTime}</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Metric Tiles Row */}
@@ -398,12 +491,11 @@ export default function DashboardClient({
                       </label>
                       <div className="flex items-center gap-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-2 pl-6">
                         <code className="flex-1 break-all font-mono text-xs font-bold text-zinc-800 dark:text-zinc-200 tracking-wider">
-                          {isPlainKeyVisible 
-                            ? createdPlainKey 
-                            : createdPlainKey 
-                              ? `${createdPlainKey.substring(0, 16)}••••••••••••••••••••${createdPlainKey.substring(createdPlainKey.length - 4)}`
-                              : ""
-                          }
+                          <DecryptingKeyText 
+                            text={createdPlainKey || ""} 
+                            visible={isPlainKeyVisible} 
+                            maskedText={createdPlainKey ? `${createdPlainKey.substring(0, 16)}••••••••••••••••••••${createdPlainKey.substring(createdPlainKey.length - 4)}` : ""}
+                          />
                         </code>
                         <button
                           type="button"

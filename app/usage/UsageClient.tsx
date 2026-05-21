@@ -43,10 +43,14 @@ export default function UsageClient({
   const isHydrated = useRef(initialData !== null);
   const { toast, showToast } = useToast();
 
-  const fetchUsageData = useCallback(async () => {
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncedTime, setLastSyncedTime] = useState<string>("Just now");
+
+  const fetchUsageData = useCallback(async (background = false) => {
     try {
-      // Don't set isLoading if we already have initialData to prevent flicker
-      if (!isHydrated.current) {
+      if (background) {
+        setIsSyncing(true);
+      } else if (!isHydrated.current) {
         setIsLoading(true);
       }
       
@@ -54,27 +58,51 @@ export default function UsageClient({
       const json = await res.json();
       setData(json);
       isHydrated.current = false;
+      if (background) {
+        setLastSyncedTime("Just now");
+      }
     } catch (err) {
       console.error("Usage Fetch Error:", err);
-      showToast("error", "Failed to load usage analytics.");
+      if (!background) {
+        showToast("error", "Failed to load usage analytics.");
+      }
     } finally {
       setIsLoading(false);
+      if (background) {
+        setTimeout(() => setIsSyncing(false), 600);
+      }
     }
   }, [showToast]);
 
   useEffect(() => {
-    // If we have initialData, delay the refresh to allow instant initial paint
-    if (initialData) {
-      const timer = setTimeout(() => {
-        fetchUsageData();
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else {
-      const timer = setTimeout(() => {
-        fetchUsageData();
-      }, 0);
-      return () => clearTimeout(timer);
-    }
+    let syncCount = 0;
+    
+    // Setup initial paint refresh delay
+    const initialTimer = setTimeout(() => {
+      fetchUsageData(false);
+    }, initialData ? 1000 : 0);
+
+    // Poll every 10 seconds to keep analytics hot and live
+    const pollingInterval = setInterval(() => {
+      fetchUsageData(true);
+      syncCount = 0;
+    }, 10000);
+
+    // Track relative delta time every 2 seconds
+    const syncTimeInterval = setInterval(() => {
+      syncCount += 2;
+      if (syncCount === 0) {
+        setLastSyncedTime("Just now");
+      } else {
+        setLastSyncedTime(`${syncCount}s ago`);
+      }
+    }, 2000);
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(pollingInterval);
+      clearInterval(syncTimeInterval);
+    };
   }, [fetchUsageData, initialData]);
 
   const currentData = data || initialData;
@@ -119,16 +147,35 @@ export default function UsageClient({
         />
         
         <main className="min-w-0 flex-1 space-y-8">
-          {/* Header */}
+                 {/* Header */}
           <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 p-8 backdrop-blur-sm">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="space-y-1">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">Intelligence / Analytics</p>
-                <h1 className="font-serif text-5xl font-bold tracking-tight">Usage Center</h1>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-550">Intelligence / Analytics</p>
+                <div className="flex flex-wrap items-center gap-4">
+                  <h1 className="font-serif text-5xl font-bold tracking-tight">Usage Center</h1>
+                  
+                  {/* Live Telemetry Status Dot */}
+                  <div className="flex items-center gap-2.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950 px-4 py-2 shadow-sm transition-all select-none">
+                    <div className="relative flex h-2 w-2">
+                      <span className={`absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 ${isSyncing ? "animate-ping scale-150" : "animate-pulse"}`} />
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${isSyncing ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-emerald-500"}`} />
+                    </div>
+                    <span className="font-mono text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-550 flex items-center gap-1.5">
+                      {isSyncing ? (
+                        <span className="text-emerald-500 font-bold animate-pulse">Syncing...</span>
+                      ) : (
+                        <>
+                          Telemetry Active <span className="text-zinc-200 dark:text-zinc-800">|</span> <span className="text-[8px] font-bold text-zinc-450 tabular-nums">Synced {lastSyncedTime}</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </div>
               </div>
               <button
                 onClick={handleExport}
-                className="group flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-400 transition hover:bg-zinc-900 dark:hover:bg-zinc-100 hover:text-white dark:hover:text-zinc-950 shadow-sm"
+                className="group flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-400 transition hover:bg-zinc-900 dark:hover:bg-zinc-100 hover:text-white dark:hover:text-zinc-950 shadow-sm self-start sm:self-center"
               >
                 <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                   <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
