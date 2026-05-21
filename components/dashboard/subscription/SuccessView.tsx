@@ -19,7 +19,12 @@ export function SuccessView({ pendingPlan, transactionId, session, onClose }: Su
             </svg>
           </div>
           <div className="space-y-2">
-            <h2 className="font-serif text-3xl font-bold text-zinc-900 dark:text-zinc-50">Thank you for your purchase, {session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || session?.user?.email}!</h2>
+            <h2 className="font-serif text-3xl font-bold text-zinc-900 dark:text-zinc-50">
+              {(() => {
+                const displayName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || session?.user?.email;
+                return displayName ? `Thank you for your purchase, ${displayName}!` : "Thank you for your purchase!";
+              })()}
+            </h2>
             <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 italic">Your {pendingPlan} subscription is now active and ready for orchestration.</p>
           </div>
         </div>

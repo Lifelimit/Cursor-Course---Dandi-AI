@@ -340,7 +340,7 @@ export default function PlaygroundClient({
               <div className="flex-1 space-y-8">
                 <div className="space-y-2">
                   <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">Environment / Testing</p>
-                  <h1 className="font-serif text-4xl font-bold md:text-5xl">API Playground.</h1>
+                  <h1 className="font-serif text-4xl font-bold md:text-5xl">API Playground</h1>
                   <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Validate your secure credentials and monitor live orchestration response times.</p>
                 </div>
                 
