@@ -59,7 +59,7 @@ print(response.json())`
   };
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-[#18181b] shadow-lg shadow-zinc-900/10">
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-[#18181b] shadow-lg shadow-zinc-900/10">
       <div className="flex items-center justify-between border-b border-white/5 bg-white/5 px-4 py-2">
         <div className="flex gap-4">
           {(["curl", "fetch", "python"] as const).map((tab) => (

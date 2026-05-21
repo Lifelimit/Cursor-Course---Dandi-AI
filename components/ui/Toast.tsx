@@ -77,22 +77,22 @@ export function Toast({ toast }: { toast: ToastState }) {
 
       <div className="pointer-events-none fixed bottom-6 right-6 z-[9999] flex flex-col items-end">
         <div
-          className={`pointer-events-auto flex items-center gap-3.5 rounded-2xl border px-5 py-4 shadow-[0_20px_40px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-all duration-300 ${
+          className={`pointer-events-auto flex items-center gap-3.5 rounded-2xl border px-5 py-4 shadow-[0_20px_40px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_40px_rgba(0,0,0,0.3)] backdrop-blur-xl transition-all duration-300 ${
             toast ? "animate-toast-in" : "animate-toast-out"
           } ${
             isSuccess
-              ? "border-emerald-500/20 bg-zinc-900/90 text-white shadow-emerald-950/5"
-              : "border-red-500/20 bg-zinc-900/90 text-white shadow-red-950/5"
+              ? "border-emerald-500/20 bg-white/90 dark:bg-zinc-900/90 text-zinc-900 dark:text-white shadow-emerald-100/10 dark:shadow-emerald-950/5"
+              : "border-red-500/20 bg-white/90 dark:bg-zinc-900/90 text-zinc-900 dark:text-white shadow-red-100/10 dark:shadow-red-950/5"
           }`}
         >
           {/* Animated Status Icon */}
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-xl bg-white/5 animate-icon-scale">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-white/5 animate-icon-scale">
             {isSuccess ? (
-              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="3">
+              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" strokeWidth="3">
                 <polyline points="20 6 9 17 4 12" className="animate-stroke" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             ) : (
-              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-red-400 animate-pulse" fill="none" stroke="currentColor" strokeWidth="3">
+              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-red-500 dark:text-red-400 animate-pulse" fill="none" stroke="currentColor" strokeWidth="3">
                 <circle cx="12" cy="12" r="10" strokeLinecap="round" strokeLinejoin="round" />
                 <line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" strokeLinejoin="round" />
                 <line x1="12" y1="16" x2="12.01" y2="16" strokeLinecap="round" strokeLinejoin="round" />
@@ -101,10 +101,10 @@ export function Toast({ toast }: { toast: ToastState }) {
           </div>
 
           <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">
+            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               {isSuccess ? "Notification" : "Alert System"}
             </span>
-            <span className="text-xs font-semibold text-zinc-100 leading-snug">
+            <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-100 leading-snug">
               {activeToast?.message}
             </span>
           </div>

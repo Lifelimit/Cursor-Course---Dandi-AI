@@ -171,7 +171,7 @@ export default function DashboardClient({
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
+    <div className="min-h-screen bg-[#f4f2ed] dark:bg-zinc-950 text-[#18181b] dark:text-zinc-100 selection:bg-zinc-200 dark:selection:bg-zinc-800">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-start gap-8 p-6 md:flex-row md:py-12">
         <Sidebar 
           totalUsage={totalUsage} 
@@ -185,9 +185,9 @@ export default function DashboardClient({
         <main className="min-w-0 flex-1">
           <div className="space-y-8">
             {/* Header Section */}
-            <div className="rounded-[32px] border border-zinc-200 bg-white/50 p-8 backdrop-blur-sm">
+            <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 p-8 backdrop-blur-sm">
               <div className="flex items-center justify-between gap-4">
-                <Link href="/" className="group flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 transition hover:text-zinc-900">
+                <Link href="/" className="group flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white">
                   <svg viewBox="0 0 24 24" className="h-3 w-3 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor">
                     <path d="M15 18l-6-6 6-6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -196,11 +196,11 @@ export default function DashboardClient({
               </div>
               <h1 className="mt-4 font-serif text-5xl font-bold tracking-tight">Overview</h1>
               {errorMessage ? (
-                <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 dark:bg-red-950/20 p-4 text-sm text-red-700 dark:text-red-400">
                   {errorMessage}
                 </div>
               ) : (
-                <p className="mt-4 text-sm font-medium text-zinc-500">
+                <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">
                   System status and secure credentials management.
                 </p>
               )}
@@ -213,15 +213,15 @@ export default function DashboardClient({
                 { label: "Success Rate", value: `${successRate.toFixed(1)}%`, icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", color: "text-emerald-500", bg: "bg-emerald-50" },
                 { label: "Active Keys", value: apiKeys.length.toString(), icon: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z", color: "text-blue-500", bg: "bg-blue-50" }
               ].map((m, i) => (
-                <div key={i} className="rounded-[32px] border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-md">
+                <div key={i} className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm transition-all hover:shadow-md">
                   <div className="flex items-center gap-4">
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${m.bg} ${m.color}`}>
+                    <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${m.bg} dark:bg-zinc-950/50 ${m.color}`}>
                       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
                         <path d={m.icon} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">{m.label}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">{m.label}</p>
                       <p className="text-2xl font-black tabular-nums">{m.value}</p>
                     </div>
                   </div>
@@ -230,26 +230,26 @@ export default function DashboardClient({
             </div>
 
             {/* Plan Status Card */}
-            <div className="relative overflow-hidden rounded-[40px] border border-zinc-200 bg-white p-10 shadow-sm group">
+            <div className="relative overflow-hidden rounded-[40px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-10 shadow-sm group">
               {/* Background Glow Decoration */}
-              <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-emerald-50/50 blur-3xl transition-all group-hover:bg-emerald-100/50" />
+              <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-emerald-50/50 dark:bg-emerald-950/10 blur-3xl transition-all group-hover:bg-emerald-100/50 dark:group-hover:bg-emerald-900/10" />
               
               <div className="relative flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
                 <div className="flex-1 space-y-8">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Current Strategic Tier</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">Current Strategic Tier</p>
                       <div className="flex items-center gap-4">
                         <h2 className="font-serif text-5xl font-bold italic tracking-tight">{currentPlan}</h2>
                         {isUnlimited && (
-                          <span className="rounded-full bg-zinc-900 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-white shadow-lg shadow-zinc-900/10">Unlimited</span>
+                          <span className="rounded-full bg-zinc-900 dark:bg-zinc-100 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-950 shadow-lg shadow-zinc-900/10 dark:shadow-none">Unlimited</span>
                         )}
                       </div>
                     </div>
                     
                     <button 
                       onClick={() => router.push("/billing")}
-                      className="rounded-full border border-zinc-200 bg-white px-8 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-all hover:border-zinc-900 hover:text-zinc-900"
+                      className="rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-8 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 transition-all hover:border-zinc-900 dark:hover:border-zinc-100 hover:text-zinc-900 dark:hover:text-zinc-100"
                     >
                       Management
                     </button>
@@ -257,26 +257,26 @@ export default function DashboardClient({
 
                   <div className="space-y-6">
                     <div className="flex items-center justify-between px-1">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-                        Consumption <span className="mx-2 opacity-20">/</span> <span className="text-zinc-900">{totalUsage.toLocaleString()} Units Used</span>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
+                        Consumption <span className="mx-2 opacity-20">/</span> <span className="text-zinc-900 dark:text-zinc-100">{totalUsage.toLocaleString()} Units Used</span>
                       </p>
                       <div className="flex items-center gap-2">
                         <span className="relative flex h-2 w-2">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                         </span>
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 italic">Next Reset: May 24</span>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 italic">Next Reset: May 24</span>
                       </div>
                     </div>
                     
-                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-zinc-50">
+                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-zinc-50 dark:bg-zinc-950">
                       <div 
                         className="h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all duration-1000 ease-out" 
                         style={{ width: `${isUnlimited ? 100 : Math.min((totalUsage / currentLimit) * 100, 100)}%` }}
                       ></div>
                     </div>
 
-                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                       <span>0 Units</span>
                       <span>Target Limit: {isUnlimited ? "∞" : currentLimit.toLocaleString()} Units</span>
                     </div>
@@ -284,12 +284,12 @@ export default function DashboardClient({
                 </div>
 
                 {/* Simulated Usage Pulse Visual */}
-                <div className="hidden h-32 w-48 shrink-0 items-center justify-center rounded-3xl bg-zinc-50 p-6 md:flex border border-zinc-100/50">
+                <div className="hidden h-32 w-48 shrink-0 items-center justify-center rounded-3xl bg-zinc-50 dark:bg-zinc-950 p-6 md:flex border border-zinc-100/50 dark:border-zinc-800/50">
                   <div className="flex items-end gap-1 h-full w-full">
                     {[35, 65, 45, 85, 55, 75, 40, 90, 60, 80].map((h, i) => (
                       <div 
                         key={i} 
-                        className="flex-1 rounded-t-sm bg-emerald-500/20 transition-all hover:bg-emerald-500"
+                        className="flex-1 rounded-t-sm bg-emerald-500/20 dark:bg-emerald-500/10 transition-all hover:bg-emerald-500"
                         style={{ height: `${h}%` }}
                       />
                     ))}
@@ -299,17 +299,17 @@ export default function DashboardClient({
             </div>
 
             {/* Keys Section */}
-            <section className="rounded-[32px] border border-zinc-200 bg-white p-8 shadow-sm">
+            <section className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm">
               <div className="mb-8 flex items-center justify-between">
                 <h2 className="font-serif text-2xl font-bold">Encrypted Keys</h2>
                 <div className="flex items-center gap-3">
-                  <span className="rounded-full bg-zinc-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400 border border-zinc-100">
+                  <span className="rounded-full bg-zinc-50 dark:bg-zinc-950 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 border border-zinc-100 dark:border-zinc-850">
                     {apiKeys.length} Records
                   </span>
                   <button
                     type="button"
                     onClick={handleOpenCreateModal}
-                    className="rounded-full bg-zinc-900 px-5 py-2 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800 shadow-lg shadow-zinc-900/10"
+                    className="rounded-full bg-zinc-900 dark:bg-zinc-100 px-5 py-2 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-950 transition hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-lg shadow-zinc-900/10 dark:shadow-none"
                   >
                     New Key
                   </button>
@@ -345,29 +345,29 @@ export default function DashboardClient({
               keyUsage={keyToRevoke?.usage_count || 0}
             />
             {createdPlainKey && (
-              <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm px-4 animate-in fade-in duration-300">
-                <div className="w-full max-w-xl rounded-[40px] border border-zinc-200 bg-[#f4f2ed] p-10 shadow-2xl animate-in zoom-in-95 duration-300">
+              <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-zinc-950/40 dark:bg-zinc-950/60 backdrop-blur-sm px-4 animate-in fade-in duration-300">
+                <div className="w-full max-w-xl rounded-[40px] border border-zinc-200 dark:border-zinc-800 bg-[#f4f2ed] dark:bg-zinc-900 p-10 shadow-2xl animate-in zoom-in-95 duration-300">
                   <div className="mb-8 text-center space-y-2">
                     <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">Security Warning</p>
-                    <h3 className="font-serif text-4xl font-bold tracking-tight italic">
+                    <h3 className="font-serif text-4xl font-bold tracking-tight italic text-zinc-900 dark:text-zinc-100">
                       Secure Key Generated.
                     </h3>
-                    <p className="text-sm font-medium text-zinc-500">
+                    <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
                       Copy your credentials now. This token will not be displayed again.
                     </p>
                   </div>
 
                   <div className="space-y-6">
                     {/* Callout box */}
-                    <div className="rounded-3xl border border-red-200 bg-red-50 p-6 flex gap-4 items-start">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
+                    <div className="rounded-3xl border border-red-200 dark:border-red-950/30 bg-red-50 dark:bg-red-950/10 p-6 flex gap-4 items-start">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400">
                         <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
                           <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-xs font-bold text-red-800">One-Time Visibility Only</p>
-                        <p className="text-[11px] font-medium text-red-600 leading-relaxed">
+                        <p className="text-xs font-bold text-red-800 dark:text-red-400">One-Time Visibility Only</p>
+                        <p className="text-[11px] font-medium text-red-600 dark:text-red-500 leading-relaxed">
                           For compliance and security, we only hash this credential in our database. We cannot retrieve or display this key ever again.
                         </p>
                       </div>
@@ -375,11 +375,11 @@ export default function DashboardClient({
 
                     {/* Key Display Area */}
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 px-1">
                         Your Generated Plaintext API Key
                       </label>
-                      <div className="flex items-center gap-2 rounded-2xl border border-zinc-200 bg-white p-2 pl-6">
-                        <code className="flex-1 break-all font-mono text-xs font-bold text-zinc-800 tracking-wider">
+                      <div className="flex items-center gap-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-2 pl-6">
+                        <code className="flex-1 break-all font-mono text-xs font-bold text-zinc-800 dark:text-zinc-200 tracking-wider">
                           {isPlainKeyVisible 
                             ? createdPlainKey 
                             : createdPlainKey 
@@ -390,7 +390,7 @@ export default function DashboardClient({
                         <button
                           type="button"
                           onClick={() => setIsPlainKeyVisible(!isPlainKeyVisible)}
-                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
+                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-zinc-400 dark:text-zinc-500 transition hover:bg-zinc-100 dark:hover:bg-zinc-850 hover:text-zinc-900 dark:hover:text-white"
                           title={isPlainKeyVisible ? "Hide API key" : "Show API key"}
                         >
                           {isPlainKeyVisible ? (
@@ -405,7 +405,7 @@ export default function DashboardClient({
                           className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all ${
                             copiedKey 
                               ? "bg-emerald-500 text-white animate-pulse" 
-                              : "bg-zinc-900 text-white hover:bg-zinc-800"
+                              : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200"
                           }`}
                           title={copiedKey ? "Copied" : "Copy secure session key"}
                         >
@@ -420,11 +420,11 @@ export default function DashboardClient({
                   </div>
 
                   {/* Footer */}
-                  <div className="mt-10 flex items-center justify-end pt-4 border-t border-zinc-100">
+                  <div className="mt-10 flex items-center justify-end pt-4 border-t border-zinc-100 dark:border-zinc-800">
                     <button
                       type="button"
                       onClick={() => setCreatedPlainKey(null)}
-                      className="group flex items-center justify-center gap-3 rounded-full bg-zinc-900 px-10 py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl shadow-zinc-900/10 transition-all hover:bg-zinc-800 hover:scale-105 active:scale-95"
+                      className="group flex items-center justify-center gap-3 rounded-full bg-zinc-900 dark:bg-zinc-100 px-10 py-4 text-xs font-black uppercase tracking-widest text-white dark:text-zinc-950 shadow-xl shadow-zinc-900/10 dark:shadow-none transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200 hover:scale-105 active:scale-95"
                     >
                       I have secured this key
                       <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">

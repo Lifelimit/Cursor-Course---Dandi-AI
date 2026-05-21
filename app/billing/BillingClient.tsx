@@ -209,7 +209,7 @@ export default function BillingClient({
   const showSkeleton = isLoading && !initialData;
 
   return (
-    <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
+    <div className="min-h-screen bg-[#f4f2ed] dark:bg-zinc-950 text-[#18181b] dark:text-zinc-100 selection:bg-zinc-200 dark:selection:bg-zinc-800">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-start gap-8 p-6 md:flex-row md:py-12">
         <Sidebar 
           totalUsage={currentData?.totalUsage || 0} 
@@ -222,17 +222,17 @@ export default function BillingClient({
         
         <main className="min-w-0 flex-1 space-y-12">
           {/* Header */}
-          <div className="rounded-[32px] border border-zinc-200 bg-white/50 p-8 backdrop-blur-sm">
+          <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 p-8 backdrop-blur-sm">
             <div className="space-y-1">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400">Account / Financials</p>
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">Account / Financials</p>
               <h1 className="font-serif text-5xl font-bold tracking-tight">Billing</h1>
             </div>
           </div>
 
           {showSkeleton ? (
             <div className="space-y-8 animate-pulse">
-              <div className="h-64 rounded-[32px] bg-white border border-zinc-200" />
-              <div className="h-96 rounded-[32px] bg-white border border-zinc-200" />
+              <div className="h-64 rounded-[32px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800" />
+              <div className="h-96 rounded-[32px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800" />
             </div>
           ) : (
             <>

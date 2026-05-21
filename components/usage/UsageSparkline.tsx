@@ -5,7 +5,7 @@ import React from "react";
 type DataPoint = { date: string; count: number };
 
 export function UsageSparkline({ data, color = "#10b981" }: { data: DataPoint[]; color?: string }) {
-  if (!data || data.length < 2) return <div className="h-12 w-full bg-zinc-50 rounded-lg animate-pulse" />;
+  if (!data || data.length < 2) return <div className="h-12 w-full bg-zinc-50 dark:bg-zinc-800/50 rounded-lg animate-pulse" />;
 
   const max = Math.max(...data.map(d => d.count), 5);
   const width = 200;

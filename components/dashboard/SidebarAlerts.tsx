@@ -44,7 +44,7 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
     <div className="mt-8 space-y-4">
       <div className="flex items-center justify-between px-2">
         <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">System Alerts</h4>
-        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-zinc-900 text-[8px] font-bold text-white animate-in zoom-in duration-500">
+        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-zinc-900 dark:bg-zinc-100 text-[8px] font-bold text-white dark:text-zinc-900 animate-in zoom-in duration-500">
           {alerts.length}
         </span>
       </div>
@@ -66,18 +66,18 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
             <div key={alert.id} className="relative group">
               {/* Main Card */}
               <div 
-                className={`relative z-10 block rounded-2xl border bg-white p-3 transition-all duration-500 ${
-                  isMaxed ? 'border-red-200 shadow-lg shadow-red-50' : 'border-zinc-100'
+                className={`relative z-10 block rounded-2xl border bg-white dark:bg-zinc-900/60 p-3 transition-all duration-500 ${
+                  isMaxed ? 'border-red-200 dark:border-red-900/50 shadow-lg shadow-red-50/50 dark:shadow-none' : 'border-zinc-100 dark:border-zinc-800'
                 } ${isFlying ? 'translate-x-[-20px] opacity-40 grayscale' : ''}`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColor}`} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="block truncate text-[10px] font-black uppercase tracking-tight text-zinc-900">
+                      <span className="block truncate text-[10px] font-black uppercase tracking-tight text-zinc-900 dark:text-zinc-100">
                         {alert.keyName}
                       </span>
-                      {isMaxed && <span className="text-[8px] font-black text-red-600 uppercase">[CRITICAL]</span>}
+                      {isMaxed && <span className="text-[8px] font-black text-red-600 dark:text-red-400 uppercase">[CRITICAL]</span>}
                     </div>
                     <div className="flex items-center gap-2">
                       <p className="text-[9px] font-bold text-zinc-400">{Math.round(alert.pct)}%</p>
@@ -86,7 +86,7 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                           setNewLimit(alert.currentLimit + 1000);
                           setFlyoutKey(isFlying ? null : alert.id);
                         }}
-                        className="text-[8px] font-black uppercase tracking-widest text-emerald-600 hover:underline transition-all active:scale-95"
+                        className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:underline transition-all active:scale-95"
                       >
                         + Increase
                       </button>
@@ -95,7 +95,7 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                   
                   <button 
                     onClick={() => setPeekingKey(isPeeking ? null : alert.id)}
-                    className={`rounded-full p-1 transition-all ${isPeeking ? 'bg-zinc-900 text-white rotate-90' : 'text-zinc-300 hover:bg-zinc-50 hover:text-zinc-900'}`}
+                    className={`rounded-full p-1 transition-all ${isPeeking ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rotate-90' : 'text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100'}`}
                   >
                     <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                       <path d="M9 18l6-6-6-6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -105,10 +105,10 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
 
                 {/* Vertical Stats Peek */}
                 <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isPeeking ? 'mt-4 max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>
-                  <div className="space-y-3 pt-2 border-t border-zinc-50">
+                  <div className="space-y-3 pt-2 border-t border-zinc-50 dark:border-zinc-800">
                     <div className="flex items-center justify-between">
                       <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Activity Trend</span>
-                      <span className="text-[8px] font-bold text-zinc-900">{alert.currentLimit.toLocaleString()} Limit</span>
+                      <span className="text-[8px] font-bold text-zinc-900 dark:text-zinc-100">{alert.currentLimit.toLocaleString()} Limit</span>
                     </div>
                     <UsageSparkline data={alert.dailyTrend} color={isMaxed ? "#ef4444" : isWarning ? "#fbbf24" : "#10b981"} />
                   </div>
@@ -128,17 +128,19 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                   <svg width="12" height="24" viewBox="0 0 12 24" fill="none" className="drop-shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
                     <path 
                       d="M12 0C12 0 12 6 8 10C4 14 0 14 0 14C0 14 4 14 8 18C12 22 12 24 12 24V0Z" 
-                      fill="white" 
+                      fill="currentColor"
+                      className="text-white dark:text-zinc-900"
                     />
                     <path 
                       d="M12 0C12 0 12 6 8 10C4 14 0 14 0 14M0 14C0 14 4 14 8 18C12 22 12 24 12 24" 
-                      stroke="#e4e4e7" 
+                      stroke="currentColor" 
                       strokeWidth="1"
+                      className="text-zinc-200 dark:text-zinc-800"
                     />
                   </svg>
                 </div>
                 
-                <div className="flex flex-col gap-5 rounded-[24px] border border-zinc-200 bg-white p-6 shadow-[0_20px_50px_rgba(0,0,0,0.15)] min-w-[240px] relative z-10">
+                <div className="flex flex-col gap-5 rounded-[24px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-none min-w-[240px] relative z-10">
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col">
                       <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 leading-none">Management</span>
@@ -146,7 +148,7 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                     </div>
                     <button 
                       onClick={() => setFlyoutKey(null)}
-                      className="rounded-full bg-zinc-50 p-1.5 text-zinc-400 hover:bg-zinc-900 hover:text-white transition-all"
+                      className="rounded-full bg-zinc-50 dark:bg-zinc-800 p-1.5 text-zinc-400 hover:bg-zinc-900 dark:hover:bg-zinc-100 hover:text-white dark:hover:text-zinc-900 transition-all"
                     >
                       <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                         <path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -156,14 +158,14 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-[9px] font-black text-zinc-900 uppercase tracking-widest">New Monthly Limit</span>
+                      <span className="text-[9px] font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-widest">New Monthly Limit</span>
                     </div>
                     <div className="relative">
                       <input 
                         type="number" 
                         value={newLimit}
                         onChange={(e) => setNewLimit(Number(e.target.value))}
-                        className="w-full rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-4 font-serif text-2xl font-bold text-zinc-900 focus:border-zinc-900 focus:bg-white focus:outline-none transition-all"
+                        className="w-full rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800 px-4 py-4 font-serif text-2xl font-bold text-zinc-900 dark:text-zinc-100 focus:border-zinc-900 dark:focus:border-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:outline-none transition-all"
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black text-zinc-300 uppercase">Credits</span>
                     </div>
@@ -175,7 +177,7 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                   <button 
                     onClick={() => handleIncrease(alert)}
                     disabled={isUpdating}
-                    className="group relative w-full overflow-hidden rounded-2xl bg-[#18181b] py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+                    className="group relative w-full overflow-hidden rounded-2xl bg-[#18181b] dark:bg-zinc-100 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white dark:text-zinc-900 shadow-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                   >
                     <span className="relative z-10">{isUpdating ? 'Synchronizing...' : 'Update Quota'}</span>
                     <div className="absolute inset-0 z-0 bg-gradient-to-r from-emerald-600 to-teal-600 opacity-0 transition-opacity group-hover:opacity-10" />

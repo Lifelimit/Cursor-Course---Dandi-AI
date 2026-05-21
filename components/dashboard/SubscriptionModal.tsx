@@ -646,12 +646,12 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
         onClick={onClose}
       />
 
-      <div className={`relative z-10 w-full overflow-hidden rounded-[40px] border border-zinc-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300 ${isInitializing ? 'max-w-sm' : (view === 'update-payment' || view === 'success' || view === 'plan-change-review') ? 'max-w-4xl' : (view === 'key-downgrade-selector' || view === 'cancel-confirm') ? 'max-w-xl' : 'max-w-lg'}`}>
+      <div className={`relative z-10 w-full overflow-hidden rounded-[40px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl animate-in zoom-in-95 duration-300 ${isInitializing ? 'max-w-sm' : (view === 'update-payment' || view === 'success' || view === 'plan-change-review') ? 'max-w-4xl' : (view === 'key-downgrade-selector' || view === 'cancel-confirm') ? 'max-w-xl' : 'max-w-lg'}`}>
         
         {isInitializing ? (
           <div className="flex flex-col items-center justify-center gap-6 p-12">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-100 border-t-zinc-900" />
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 text-center">Verifying Operational Status...</p>
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-100 dark:border-zinc-800 border-t-zinc-900 dark:border-t-zinc-100" />
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500 text-center">Verifying Operational Status...</p>
           </div>
         ) : (
           <div key={view} className="animate-in fade-in slide-in-from-bottom-4 duration-500">

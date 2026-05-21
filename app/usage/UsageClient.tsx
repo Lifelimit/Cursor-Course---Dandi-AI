@@ -107,7 +107,7 @@ export default function UsageClient({
   const showSkeleton = isLoading && !initialData;
 
   return (
-    <div className="min-h-screen bg-[#f4f2ed] text-[#18181b] selection:bg-zinc-200">
+    <div className="min-h-screen bg-[#f4f2ed] dark:bg-zinc-950 text-[#18181b] dark:text-zinc-100 selection:bg-zinc-200 dark:selection:bg-zinc-800">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-start gap-8 p-6 md:flex-row md:py-12">
         <Sidebar 
           totalUsage={currentData?.totalUsage || 0} 
@@ -120,15 +120,15 @@ export default function UsageClient({
         
         <main className="min-w-0 flex-1 space-y-8">
           {/* Header */}
-          <div className="rounded-[32px] border border-zinc-200 bg-white/50 p-8 backdrop-blur-sm">
+          <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 p-8 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400">Intelligence / Analytics</p>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">Intelligence / Analytics</p>
                 <h1 className="font-serif text-5xl font-bold tracking-tight">Usage Center</h1>
               </div>
               <button
                 onClick={handleExport}
-                className="group flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-600 transition hover:bg-zinc-900 hover:text-white shadow-sm"
+                className="group flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-400 transition hover:bg-zinc-900 dark:hover:bg-zinc-100 hover:text-white dark:hover:text-zinc-950 shadow-sm"
               >
                 <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                   <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -141,7 +141,7 @@ export default function UsageClient({
           {showSkeleton ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map(i => (
-                <div key={i} className="h-64 animate-pulse rounded-[32px] bg-white border border-zinc-200" />
+                <div key={i} className="h-64 animate-pulse rounded-[32px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800" />
               ))}
             </div>
           ) : (
@@ -167,9 +167,9 @@ export default function UsageClient({
               {currentData?.keys && currentData.keys.length > 0 ? (
                 <QuotaHealthGrid keys={currentData.keys} onUpdate={fetchUsageData} />
               ) : (
-                <div className="rounded-[32px] border border-zinc-200 border-dashed p-12 text-center bg-white/30">
-                  <p className="text-sm font-medium text-zinc-400">No active API keys found for tracking.</p>
-                  <Link href="/dashboards" className="mt-4 inline-block text-[10px] font-black uppercase tracking-widest text-zinc-900 hover:underline">
+                <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 border-dashed p-12 text-center bg-white/30 dark:bg-zinc-900/10">
+                  <p className="text-sm font-medium text-zinc-400 dark:text-zinc-550">No active API keys found for tracking.</p>
+                  <Link href="/dashboards" className="mt-4 inline-block text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 hover:underline">
                     Create your first key →
                   </Link>
                 </div>
@@ -180,21 +180,21 @@ export default function UsageClient({
                 <TopReposTable data={currentData?.globalTopRepos || []} />
                 
                 <div className="flex flex-col gap-8">
-                  <div className="rounded-[32px] border border-zinc-200 bg-white p-8 shadow-sm">
+                  <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm">
                     <h3 className="font-serif text-xl font-bold mb-4">Usage Philosophy</h3>
-                    <p className="text-sm leading-relaxed text-zinc-500">
+                    <p className="text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
                       We track repository summaries to help you optimize your intelligent credits. 
                       Credits are consumed only on successful AI generation.
                     </p>
                     <div className="mt-6 flex items-center gap-4">
-                      <div className="h-px flex-1 bg-zinc-100" />
-                      <Link href="/playground" className="text-[10px] font-black uppercase tracking-widest text-zinc-900 hover:underline">
+                      <div className="h-px flex-1 bg-zinc-100 dark:bg-zinc-800" />
+                      <Link href="/playground" className="text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 hover:underline">
                         Launch Playground
                       </Link>
                     </div>
                   </div>
 
-                  <div className="rounded-[32px] border border-zinc-200 bg-[#18181b] p-8 text-white shadow-xl">
+                  <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#18181b] dark:bg-zinc-900/50 p-8 text-white shadow-xl">
                     <div className="flex items-center justify-between mb-4">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">Tier Status</p>
                       <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[8px] font-black text-emerald-400">OPTIMIZED</span>
@@ -202,7 +202,7 @@ export default function UsageClient({
                     <h3 className="font-serif text-2xl font-bold italic mb-6">Need more volume?</h3>
                     <Link 
                       href="/billing"
-                      className="w-full text-center block rounded-full bg-white py-3 text-[10px] font-black uppercase tracking-widest text-zinc-900 transition hover:bg-zinc-200"
+                      className="w-full text-center block rounded-full bg-white dark:bg-zinc-100 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-950 transition hover:bg-zinc-200 dark:hover:bg-zinc-200/80"
                     >
                       View Plans
                     </Link>

@@ -68,7 +68,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
               ? 'border-red-200 ring-2 ring-red-50 shadow-red-100/20' 
               : isWarning 
                 ? 'border-amber-200 ring-2 ring-amber-50 shadow-amber-100/20' 
-                : 'border-zinc-200';
+                : 'border-zinc-200 dark:border-zinc-800';
 
           const avgDaily = key.dailyTrend.length > 0 
             ? key.dailyTrend.reduce((acc, curr) => acc + curr.count, 0) / key.dailyTrend.length 
@@ -79,7 +79,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
           return (
             <div 
               key={key.id} 
-              className={`relative flex flex-col rounded-[32px] border bg-white p-8 transition-all shadow-sm ${alertStyles}`}
+              className={`relative flex flex-col rounded-[32px] border bg-white dark:bg-zinc-900 p-8 transition-all shadow-sm ${alertStyles}`}
             >
               {confirmingDeleteId === key.id && (
                 <div className="absolute inset-0 z-[20] flex flex-col items-center justify-center rounded-[32px] bg-zinc-900/95 p-8 text-white backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
@@ -146,9 +146,9 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
               <div className="flex items-start justify-between mb-6">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-serif text-lg font-bold">{key.name}</h3>
+                    <h3 className="font-serif text-lg font-bold text-zinc-900 dark:text-zinc-100">{key.name}</h3>
                     <span className={`rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${
-                      key.key_type === 'production' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-500'
+                      key.key_type === 'production' ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
                     }`}>
                       {key.key_type === 'production' ? 'PROD' : 'DEV'}
                     </span>
@@ -177,7 +177,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                   )}
                   <div className="relative h-12 w-12 shrink-0">
                     <svg className="h-full w-full" viewBox="0 0 36 36">
-                      <circle cx="18" cy="18" r="16" fill="none" className="stroke-zinc-50" strokeWidth="3" />
+                      <circle cx="18" cy="18" r="16" fill="none" className="stroke-zinc-50 dark:stroke-zinc-800" strokeWidth="3" />
                       <circle
                         cx="18" cy="18" r="16" fill="none"
                         stroke={color} strokeWidth="3"
@@ -186,7 +186,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                         className="transition-all duration-1000 ease-out"
                         transform="rotate(-90 18 18)"
                       />
-                      <text x="18" y="20" textAnchor="middle" className="font-serif text-[8px] font-bold fill-zinc-900">
+                      <text x="18" y="20" textAnchor="middle" className="font-serif text-[8px] font-bold fill-zinc-900 dark:fill-zinc-100">
                         {Math.round(key.pct)}%
                       </text>
                     </svg>
@@ -227,7 +227,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                     </Link>
                     <button 
                       onClick={() => setConfirmingKillId(key.id)}
-                      className="flex items-center justify-center rounded-xl border border-red-200 bg-white px-3 py-2 text-[8px] font-black uppercase tracking-widest text-red-600 hover:bg-red-50"
+                      className="flex items-center justify-center rounded-xl border border-red-200 dark:border-red-950/50 bg-white dark:bg-zinc-900 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
                     >
                       Kill Switch
                     </button>
@@ -258,17 +258,17 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
 
       {/* Dead Keys Section */}
       {deadKeys.length > 0 && (
-        <div className="space-y-8 pt-8 border-t border-zinc-100">
+        <div className="space-y-8 pt-8 border-t border-zinc-100 dark:border-zinc-800">
           <div className="flex items-center justify-between px-4">
-            <h2 className="font-serif text-xl font-bold italic text-zinc-400">Dead Keys Archive</h2>
-            <span className="rounded-full bg-zinc-100 px-3 py-1 text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+            <h2 className="font-serif text-xl font-bold italic text-zinc-400 dark:text-zinc-500">Dead Keys Archive</h2>
+            <span className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
               {deadKeys.length} Archived
             </span>
           </div>
           
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {deadKeys.map((key) => (
-              <div key={key.id} className="group relative rounded-[32px] border border-zinc-100 bg-zinc-50/50 p-8 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all">
+              <div key={key.id} className="group relative rounded-[32px] border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/10 p-8 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all">
                 {confirmingDeleteId === key.id && (
                   <div className="absolute inset-0 z-[20] flex flex-col items-center justify-center rounded-[32px] bg-zinc-900/95 p-8 text-white backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
                     <div className="mb-4 rounded-full bg-red-500/20 p-4 border border-red-500/50">
@@ -304,10 +304,10 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                 )}
                 <div className="flex items-start justify-between mb-4">
                   <div className="space-y-1">
-                    <h3 className="font-serif text-lg font-bold text-zinc-400 group-hover:text-zinc-900">{key.name}</h3>
-                    <p className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">Service Deactivated</p>
+                    <h3 className="font-serif text-lg font-bold text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100">{key.name}</h3>
+                    <p className="text-[10px] font-black text-zinc-300 dark:text-zinc-500 uppercase tracking-widest">Service Deactivated</p>
                   </div>
-                  <div className="h-1.5 w-1.5 rounded-full bg-zinc-300 group-hover:bg-zinc-400" />
+                  <div className="h-1.5 w-1.5 rounded-full bg-zinc-300 dark:bg-zinc-650 group-hover:bg-zinc-400 dark:group-hover:bg-zinc-300" />
                 </div>
                 
                 <div className="mb-6 flex items-baseline justify-between opacity-40">
@@ -318,13 +318,13 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                 <div className="grid grid-cols-2 gap-2">
                   <button 
                     onClick={() => handleToggleStatus(key.id, false)}
-                    className="flex items-center justify-center rounded-xl bg-zinc-900 px-3 py-3 text-[8px] font-black uppercase tracking-widest text-white shadow-xl hover:scale-[1.02] transition-all"
+                    className="flex items-center justify-center rounded-xl bg-zinc-900 dark:bg-zinc-100 px-3 py-3 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-900 shadow-xl hover:scale-[1.02] transition-all"
                   >
                     Re-enable Key
                   </button>
                   <button 
                     onClick={() => setConfirmingDeleteId(key.id)}
-                    className="flex items-center justify-center rounded-xl border border-zinc-200 bg-white px-3 py-3 text-[8px] font-black uppercase tracking-widest text-zinc-400 hover:text-red-600 transition-colors"
+                    className="flex items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-3 text-[8px] font-black uppercase tracking-widest text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                   >
                     Delete
                   </button>

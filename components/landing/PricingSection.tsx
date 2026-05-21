@@ -101,26 +101,26 @@ export function PricingSection({
   };
 
   return (
-    <section id="pricing" className="bg-white/50 py-24 md:py-40 backdrop-blur-sm border-y border-zinc-200">
+    <section id="pricing" className="bg-white/50 dark:bg-zinc-900/50 py-24 md:py-40 backdrop-blur-sm border-y border-zinc-200 dark:border-zinc-800">
       <div className="mx-auto max-w-7xl px-6">
         <div className="mb-20 text-center space-y-8">
           <div className="space-y-4">
             <h2 className="font-serif text-4xl font-bold md:text-5xl">Simple, transparent <br /> pricing for builders.</h2>
-            <p className="text-zinc-500">Start for free, scale as you grow.</p>
+            <p className="text-zinc-500 dark:text-zinc-400">Start for free, scale as you grow.</p>
           </div>
 
           {/* Billing Toggle */}
           <div className="flex items-center justify-center gap-4">
-            <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "month" ? "text-zinc-900" : "text-zinc-400"}`}>Monthly</span>
+            <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "month" ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500"}`}>Monthly</span>
             <button 
               onClick={() => setBillingInterval(billingInterval === "month" ? "year" : "month")}
-              className="relative h-6 w-12 rounded-full bg-zinc-200 p-1 transition-colors hover:bg-zinc-300"
+              className="relative h-6 w-12 rounded-full bg-zinc-200 dark:bg-zinc-800 p-1 transition-colors hover:bg-zinc-300 dark:hover:bg-zinc-700"
             >
-              <div className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${billingInterval === "year" ? "translate-x-6" : "translate-x-0"}`} />
+              <div className={`h-4 w-4 rounded-full bg-white dark:bg-zinc-100 shadow-sm transition-transform ${billingInterval === "year" ? "translate-x-6" : "translate-x-0"}`} />
             </button>
             <div className="flex items-center gap-2">
-              <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "year" ? "text-zinc-900" : "text-zinc-400"}`}>Annual</span>
-              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-600 uppercase tracking-widest">20% OFF</span>
+              <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "year" ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500"}`}>Annual</span>
+              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/30 px-2.5 py-1 text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">20% OFF</span>
             </div>
           </div>
         </div>
@@ -132,38 +132,49 @@ export function PricingSection({
             const isLoading = loadingPlanId === plan.id;
             const displayPrice = billingInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
 
+            // Generate clean classes for dark mode
+            const containerClass = plan.dark 
+              ? "border-zinc-200 dark:border-zinc-800 bg-[#18181b] dark:bg-zinc-950/50 text-white" 
+              : plan.id === "Premium"
+              ? "border-2 border-zinc-900 dark:border-zinc-100 bg-white dark:bg-zinc-900 shadow-2xl dark:shadow-none"
+              : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm dark:shadow-none";
+
+            const priceColor = plan.dark ? "text-white" : "text-zinc-900 dark:text-zinc-100";
+            const labelColor = plan.dark ? "text-zinc-500 dark:text-zinc-400" : "text-zinc-400 dark:text-zinc-500";
+            const textColor = plan.dark ? "text-zinc-400 dark:text-zinc-300" : "text-zinc-600 dark:text-zinc-400";
+
             return (
               <div 
                 key={plan.id}
-                className={`group relative flex flex-col rounded-[40px] border p-10 transition-all hover:scale-[1.02] ${plan.className}`}
+                className={`group relative flex flex-col rounded-[40px] border p-10 transition-all hover:scale-[1.02] ${containerClass}`}
               >
                 {plan.recommended && (
-                  <div className="absolute top-6 right-8 rounded-full bg-zinc-900 px-3 py-1 text-[8px] font-black text-white uppercase tracking-widest">
+                  <div className="absolute top-6 right-8 rounded-full bg-zinc-900 dark:bg-zinc-100 px-3 py-1 text-[8px] font-black text-white dark:text-zinc-950 uppercase tracking-widest">
                     Most Recommended
                   </div>
                 )}
                 <div className="mb-8 space-y-2">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">{plan.name}</h3>
                   <div className="flex items-baseline gap-1">
-                    <span className={`text-5xl font-bold tracking-tighter ${plan.priceColor}`}>{displayPrice}</span>
-                    <span className={`text-xs font-medium uppercase tracking-widest ${plan.labelColor}`}>/ mo</span>
+                    <span className={`text-5xl font-bold tracking-tighter ${priceColor}`}>{displayPrice}</span>
+                    <span className={`text-xs font-medium uppercase tracking-widest ${labelColor}`}>/ mo</span>
                   </div>
                   {billingInterval === "year" && plan.id !== "Hobby" && (
                     <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-500 italic">Billed annually</p>
                   )}
-                  <p className={`text-sm font-medium ${plan.textColor}`}>{plan.credits}</p>
+                  <p className={`text-sm font-medium ${textColor}`}>{plan.credits}</p>
                 </div>
 
-                <div className="mb-10 flex-1 border-t border-zinc-100 pt-8 space-y-4">
+                <div className="mb-10 flex-1 border-t border-zinc-100 dark:border-zinc-800 pt-8 space-y-4">
                   <ul className="space-y-4">
                     {plan.features.map((feature, i) => (
                       <li key={i} className="flex items-center gap-3 text-sm font-medium">
-                        <div className={`flex h-5 w-5 items-center justify-center rounded-full ${plan.dark ? "bg-white/10 text-white" : "bg-zinc-50 text-zinc-900"}`}>
+                        <div className={`flex h-5 w-5 items-center justify-center rounded-full ${plan.dark ? "bg-white/10 text-white" : "bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"}`}>
                           <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                             <path d="M5 13l4 4L19 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </div>
-                        <span className={plan.dark ? "text-zinc-300" : "text-zinc-600"}>{feature}</span>
+                        <span className={plan.dark ? "text-zinc-300" : "text-zinc-600 dark:text-zinc-400"}>{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -175,10 +186,10 @@ export function PricingSection({
                     disabled={isCurrent || isLoading}
                     className={`w-full rounded-full py-4 text-[10px] font-black uppercase tracking-widest transition-all ${
                       isCurrent 
-                        ? "bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                        ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-550 cursor-not-allowed"
                         : plan.dark
-                        ? "bg-white text-zinc-900 hover:bg-zinc-100 shadow-xl shadow-white/5"
-                        : "bg-zinc-900 text-white hover:bg-zinc-800 shadow-xl shadow-zinc-900/10"
+                        ? "bg-white dark:bg-zinc-100 text-zinc-900 dark:text-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-200 shadow-xl shadow-white/5"
+                        : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-xl shadow-zinc-900/10 dark:shadow-none"
                     }`}
                   >
                     {isLoading ? (
@@ -190,8 +201,8 @@ export function PricingSection({
                     href="/signup"
                     className={`w-full rounded-full py-4 text-center text-[10px] font-black uppercase tracking-widest transition-all ${
                       plan.dark
-                      ? "bg-white text-zinc-900 hover:bg-zinc-100 shadow-xl shadow-white/5"
-                      : "bg-zinc-900 text-white hover:bg-zinc-800 shadow-xl shadow-zinc-900/10"
+                      ? "bg-white dark:bg-zinc-100 text-zinc-900 dark:text-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-200 shadow-xl shadow-white/5"
+                      : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-xl shadow-zinc-900/10 dark:shadow-none"
                     }`}
                   >
                     Get Started
@@ -224,26 +235,26 @@ export function PricingSection({
       {isCancelModalOpen && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6">
           <div 
-            className="absolute inset-0 bg-zinc-900/40 backdrop-blur-md transition-opacity"
+            className="absolute inset-0 bg-zinc-900/40 dark:bg-black/60 backdrop-blur-md transition-opacity"
             onClick={() => setIsCancelModalOpen(false)}
           />
-          <div className="relative w-full max-w-lg scale-up-center overflow-hidden rounded-[32px] border border-zinc-200 bg-white p-10 shadow-2xl">
+          <div className="relative w-full max-w-lg scale-up-center overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-10 shadow-2xl dark:shadow-none animate-in fade-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center">
-              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
+              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 dark:bg-red-950/20 text-red-500">
                 <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor">
                   <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
               
-              <h3 className="mb-2 text-2xl font-black tracking-tight text-zinc-900">Cancel Subscription?</h3>
-              <p className="mb-8 text-sm leading-relaxed text-zinc-500">
-                Your <span className="font-bold text-zinc-900">{currentPlanId}</span> plan will remain active until the end of your current term. After that, you&apos;ll be downgraded to the Hobby plan.
+              <h3 className="mb-2 text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-100">Cancel Subscription?</h3>
+              <p className="mb-8 text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+                Your <span className="font-bold text-zinc-900 dark:text-zinc-100">{currentPlanId}</span> plan will remain active until the end of your current term. After that, you&apos;ll be downgraded to the Hobby plan.
               </p>
 
-              <div className="mb-8 w-full space-y-4 rounded-3xl border border-zinc-100 bg-zinc-50/50 p-6 text-left">
+              <div className="mb-8 w-full space-y-4 rounded-3xl border border-zinc-100 dark:border-zinc-850 bg-zinc-50/50 dark:bg-zinc-800/20 p-6 text-left font-sans">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Step 1: Choose 3 Keys to Keep</p>
-                  <p className="mt-1 text-[11px] text-zinc-500">The Hobby plan only supports 3 active API keys. Please select your favorites.</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Step 1: Choose 3 Keys to Keep</p>
+                  <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">The Hobby plan only supports 3 active API keys. Please select your favorites.</p>
                 </div>
                 
                 <div className="grid gap-2">
@@ -261,13 +272,13 @@ export function PricingSection({
                         }}
                         className={`flex items-center justify-between rounded-xl border p-4 transition-all ${
                           isSelected 
-                            ? 'border-zinc-900 bg-zinc-900 text-white shadow-md' 
-                            : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400'
+                            ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-md' 
+                            : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-600'
                         }`}
                       >
-                        <div className="text-left">
+                        <div className="text-left font-sans">
                           <p className="text-xs font-bold">{key.name}</p>
-                          <p className={`text-[9px] ${isSelected ? 'text-zinc-400' : 'text-zinc-400'}`}>{key.usage_count} requests this month</p>
+                          <p className={`text-[9px] ${isSelected ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-400 dark:text-zinc-500'}`}>{key.usage_count} requests this month</p>
                         </div>
                         {isSelected && (
                           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
@@ -278,7 +289,7 @@ export function PricingSection({
                     );
                   })}
                   {userKeys.length === 0 && (
-                    <div className="py-4 text-center text-[10px] font-bold uppercase tracking-widest text-zinc-400 italic">No keys found</div>
+                    <div className="py-4 text-center text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 italic">No keys found</div>
                   )}
                 </div>
               </div>
@@ -286,7 +297,7 @@ export function PricingSection({
               <div className="flex w-full gap-3">
                 <button 
                   onClick={() => setIsCancelModalOpen(false)}
-                  className="flex-1 rounded-2xl border border-zinc-200 py-4 text-xs font-black uppercase tracking-widest text-zinc-400 transition-all hover:bg-zinc-50 hover:text-zinc-900"
+                  className="flex-1 rounded-2xl border border-zinc-200 dark:border-zinc-800 py-4 text-xs font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-850 hover:text-zinc-900 dark:hover:text-zinc-100"
                 >
                   Go Back
                 </button>
@@ -314,7 +325,7 @@ export function PricingSection({
                       setLoadingPlanId(null);
                     }
                   }}
-                  className="flex-1 rounded-2xl bg-zinc-900 py-4 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-zinc-900/20 transition-all hover:bg-black disabled:opacity-50"
+                  className="flex-1 rounded-2xl bg-zinc-900 dark:bg-zinc-100 py-4 text-xs font-black uppercase tracking-widest text-white dark:text-zinc-950 shadow-lg shadow-zinc-900/20 dark:shadow-none transition-all hover:bg-black dark:hover:bg-zinc-200 disabled:opacity-50"
                 >
                   Confirm Downgrade
                 </button>

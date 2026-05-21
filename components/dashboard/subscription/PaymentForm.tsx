@@ -32,6 +32,12 @@ const ELEMENT_OPTIONS = {
       "::placeholder": {
         color: "#a1a1aa", // zinc-400
       },
+      "@media (prefers-color-scheme: dark)": {
+        color: "#f4f4f5", // zinc-100
+        "::placeholder": {
+          color: "#71717a", // zinc-500
+        },
+      },
     },
     invalid: {
       color: "#ef4444", // red-500
@@ -72,7 +78,7 @@ export function PaymentForm({
       case "unionpay":
         return <span className="text-emerald-600 font-black">UNIONPAY</span>;
       default:
-        return <span className="text-zinc-400 font-black">{brandName.toUpperCase()}</span>;
+        return <span className="text-zinc-400 dark:text-zinc-500 font-black">{brandName.toUpperCase()}</span>;
     }
   };
 
@@ -80,7 +86,7 @@ export function PaymentForm({
     <form onSubmit={handleSavePayment} className="flex-1 space-y-6">
       <div className="grid gap-6 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-2">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Cardholder Name</label>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Cardholder Name</label>
           <input 
             type="text" 
             name="name"
@@ -88,15 +94,15 @@ export function PaymentForm({
             value={formValues.name}
             onChange={handleInputChange}
             placeholder="Enter full name"
-            className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
+            className="w-full rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
           />
         </div>
         
         <div className="space-y-2 sm:col-span-2">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Card Number</label>
-          <div className="relative rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-[13px] transition-colors focus-within:border-zinc-900 focus-within:ring-1 focus-within:ring-zinc-900">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Card Number</label>
+          <div className="relative rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-[13px] transition-colors focus-within:border-zinc-900 dark:focus-within:border-zinc-100 focus-within:ring-1 focus-within:ring-zinc-900 dark:focus-within:ring-zinc-100">
             <CardNumberElement 
-              options={ELEMENT_OPTIONS}
+               options={ELEMENT_OPTIONS}
               onChange={(e) => {
                 if (e.brand) {
                   setBrand(e.brand);
@@ -106,21 +112,21 @@ export function PaymentForm({
               }}
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center text-[9px] tracking-widest">
-              {brand ? renderBrandBadge(brand) : <span className="text-zinc-300 font-black">CARD</span>}
+              {brand ? renderBrandBadge(brand) : <span className="text-zinc-300 dark:text-zinc-600 font-black">CARD</span>}
             </div>
           </div>
         </div>
 
         <div className="space-y-2">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Expiry</label>
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-[13px] transition-colors focus-within:border-zinc-900 focus-within:ring-1 focus-within:ring-zinc-900">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Expiry</label>
+          <div className="rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-[13px] transition-colors focus-within:border-zinc-900 dark:focus-within:border-zinc-100 focus-within:ring-1 focus-within:ring-zinc-900 dark:focus-within:ring-zinc-100">
             <CardExpiryElement options={ELEMENT_OPTIONS} />
           </div>
         </div>
 
         <div className="space-y-2">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">CVC</label>
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-[13px] transition-colors focus-within:border-zinc-900 focus-within:ring-1 focus-within:ring-zinc-900">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">CVC</label>
+          <div className="rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-[13px] transition-colors focus-within:border-zinc-900 dark:focus-within:border-zinc-100 focus-within:ring-1 focus-within:ring-zinc-900 dark:focus-within:ring-zinc-100">
             <CardCvcElement options={ELEMENT_OPTIONS} />
           </div>
         </div>
@@ -129,17 +135,17 @@ export function PaymentForm({
       {/* Sequential Address Reveal / Summary */}
       <div className="space-y-4 pt-4">
         {!showAddressForm ? (
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 flex items-center justify-between group animate-in fade-in duration-300">
+          <div className="rounded-xl border border-zinc-100 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900/60 p-4 flex items-center justify-between group animate-in fade-in duration-300">
             <div className="space-y-1">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Billing Address</p>
-              <p className="text-xs font-medium text-zinc-900 line-clamp-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Billing Address</p>
+              <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100 line-clamp-1">
                 {formValues.street || cardData.street || "No address saved"}, {formValues.city || cardData.city || ""}
               </p>
             </div>
             <button 
               type="button"
               onClick={() => setShowAddressForm(true)}
-              className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 underline underline-offset-4 transition-opacity"
+              className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 underline underline-offset-4 transition-opacity"
             >
               Change
             </button>
@@ -148,7 +154,7 @@ export function PaymentForm({
           <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
             {/* 1. Country */}
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Country</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Country</label>
               <select 
                 name="country"
                 required
@@ -164,7 +170,7 @@ export function PaymentForm({
                     street: ""
                   }));
                 }}
-                className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors appearance-none"
+                className="w-full rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors appearance-none"
               >
                 <option value="">Select Country</option>
                 {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -174,13 +180,13 @@ export function PaymentForm({
             {formValues.country && (
               <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">State / Province</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">State / Province</label>
                   <select 
                     name="state"
                     required
                     value={formValues.state}
                     onChange={handleInputChange}
-                    className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors appearance-none"
+                    className="w-full rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors appearance-none"
                   >
                     <option value="">Select State</option>
                     {formValues.country && LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].states && 
@@ -193,13 +199,13 @@ export function PaymentForm({
 
                 {formValues.state && (
                   <div className="space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">City</label>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">City</label>
                     <select 
                       name="city"
                       required
                       value={formValues.city}
                       onChange={handleInputChange}
-                      className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors appearance-none"
+                      className="w-full rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors appearance-none"
                     >
                       <option value="">Select City</option>
                       {formValues.state && LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].states[formValues.state].map(c => (
@@ -214,7 +220,7 @@ export function PaymentForm({
             {formValues.city && (
               <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                     {LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].zipLabel}
                   </label>
                   <input 
@@ -224,11 +230,11 @@ export function PaymentForm({
                     value={formValues.zip}
                     onChange={handleInputChange}
                     placeholder={LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].zipPlaceholder}
-                    className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
+                    className="w-full rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Street Address</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Street Address</label>
                   <input 
                     type="text" 
                     name="street"
@@ -236,7 +242,7 @@ export function PaymentForm({
                     value={formValues.street}
                     onChange={handleInputChange}
                     placeholder="123 Main St"
-                    className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm font-medium outline-none focus:border-zinc-900 transition-colors"
+                    className="w-full rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
                   />
                 </div>
               </div>
@@ -245,7 +251,7 @@ export function PaymentForm({
             <button 
               type="button"
               onClick={() => setShowAddressForm(false)}
-              className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-900 pt-2 text-left"
+              className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 pt-2 text-left animate-in fade-in"
             >
               ← Back to Summary
             </button>
@@ -254,15 +260,15 @@ export function PaymentForm({
       </div>
 
       {/* Payment Security Badge */}
-      <div className="flex items-center gap-3 rounded-2xl bg-emerald-50/50 p-4 border border-emerald-100">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+      <div className="flex items-center gap-3 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 p-4 border border-emerald-100 dark:border-emerald-900/60">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400">
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
             <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Secure Transaction</p>
-          <p className="text-[9px] text-emerald-600/70">Your payment information is encrypted and never stored on our servers.</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">Secure Transaction</p>
+          <p className="text-[9px] text-emerald-600/70 dark:text-emerald-500/70">Your payment information is encrypted and never stored on our servers.</p>
         </div>
       </div>
 
@@ -270,7 +276,7 @@ export function PaymentForm({
         <button 
           type="submit"
           disabled={isLoading}
-          className="w-full rounded-full bg-zinc-900 py-4 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800 shadow-xl shadow-zinc-900/10"
+          className="w-full rounded-full bg-zinc-900 dark:bg-zinc-50 py-4 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-950 transition hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-xl shadow-zinc-900/10 dark:shadow-black/20"
         >
           {isLoading ? "Validating..." : (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? `Upgrade to ${pendingPlan}` : `Downgrade to ${pendingPlan}`) : "Save Payment Method")}
         </button>
@@ -286,7 +292,7 @@ export function PaymentForm({
               setView("overview");
             }
           }}
-          className="w-full rounded-full border border-zinc-200 bg-white py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-900"
+          className="w-full rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 transition hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
         >
           Go Back
         </button>
