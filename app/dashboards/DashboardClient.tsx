@@ -32,6 +32,7 @@ export default function DashboardClient({
   const [realtimePlan, setRealtimePlan] = useState<string | null>(null);
   const [avgLatency, setAvgLatency] = useState<number>(0);
   const [successRate, setSuccessRate] = useState<number>(100);
+  const [resetDate, setResetDate] = useState<string | null>(null);
   
   // Dynamic Tier Logic - Using the most recent session data available
   const currentPlan = realtimePlan || initialPlan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
@@ -51,6 +52,7 @@ export default function DashboardClient({
         if (data.plan) setRealtimePlan(data.plan);
         if (typeof data.avgLatency === 'number') setAvgLatency(data.avgLatency);
         if (typeof data.successRate === 'number') setSuccessRate(data.successRate);
+        if (data.resetDate) setResetDate(data.resetDate);
       })
       .catch(() => {});
   }, []);
@@ -265,7 +267,9 @@ export default function DashboardClient({
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                         </span>
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 italic">Next Reset: May 24</span>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 italic">
+                          Next Reset: {resetDate ? new Date(resetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "May 24"}
+                        </span>
                       </div>
                     </div>
                     
