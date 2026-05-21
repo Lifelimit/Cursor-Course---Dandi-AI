@@ -7,6 +7,7 @@ export function Toast({ toast }: { toast: ToastState }) {
 
   useEffect(() => {
     if (toast) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveToast(toast);
       setVisible(true);
     } else {

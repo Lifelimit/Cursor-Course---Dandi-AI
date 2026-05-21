@@ -55,9 +55,11 @@ export function PricingSection({
   useEffect(() => {
     if (activeSession) {
       const metaPlan = (activeSession.user?.user_metadata as { plan?: string })?.plan || "Hobby";
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentPlanId(metaPlan);
       fetchFreshPlan();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSession]);
   
   const fetchKeys = async () => {

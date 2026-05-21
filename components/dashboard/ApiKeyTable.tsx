@@ -7,8 +7,6 @@ type ApiKeyTableProps = {
   isLoading: boolean;
   onEdit: (key: ApiKey) => void;
   onDelete: (key: ApiKey, options?: { replace?: boolean }) => void;
-  onCopySuccess: () => void;
-  onCopyError: (msg: string) => void;
   onUpgradePrompt: () => void;
   currentPlan: string;
   onOpenCreateModal: () => void;
@@ -63,7 +61,7 @@ const QuickStartEmptyState = ({ onOpenCreateModal }: { onOpenCreateModal: () => 
         No active credentials.
       </h3>
       <p className="text-xs font-semibold text-zinc-500 leading-relaxed">
-        To start using our secure API endpoints, model registry, and developer playground, you'll need to generate a secure access token.
+        To start using our secure API endpoints, model registry, and developer playground, you&apos;ll need to generate a secure access token.
       </p>
     </div>
 
@@ -130,8 +128,6 @@ export function ApiKeyTable({
   isLoading,
   onEdit,
   onDelete,
-  onCopySuccess,
-  onCopyError,
   onUpgradePrompt,
   currentPlan,
   onOpenCreateModal,

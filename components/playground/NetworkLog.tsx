@@ -13,9 +13,9 @@ export type LogEntry = {
   method?: string;
   url?: string;
   requestHeaders?: Record<string, string>;
-  requestBody?: any;
+  requestBody?: unknown;
   responseHeaders?: Record<string, string>;
-  responseBody?: any;
+  responseBody?: unknown;
   statusCode?: number;
   statusText?: string;
 };
@@ -26,7 +26,7 @@ type NetworkLogProps = {
 };
 
 // Custom interactive JSON syntax highlighter with line numbers
-function SyntaxHighlightedJSON({ data }: { data: any }) {
+function SyntaxHighlightedJSON({ data }: { data: unknown }) {
   if (data === null || data === undefined) {
     return <span className="text-zinc-500 font-mono text-[10px]">null</span>;
   }
@@ -135,11 +135,6 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
 
   const setActiveTab = (logId: string, tab: "request" | "response") => {
     setActiveTabMap(prev => ({ ...prev, [logId]: tab }));
-  };
-
-  const formatHeaders = (headers?: Record<string, string>) => {
-    if (!headers) return "{}";
-    return JSON.stringify(headers, null, 2);
   };
 
   const copyToClipboard = (text: string, message: string) => {

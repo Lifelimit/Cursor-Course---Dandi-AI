@@ -12,7 +12,7 @@ import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
 import { RevocationModal } from "@/components/dashboard/RevocationModal";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
-import { EyeIcon, EyeOffIcon, ShieldIcon, CopyLockedIcon, CopyCheckIcon } from "@/components/icons";
+import { EyeOffIcon, ShieldIcon, CopyLockedIcon, CopyCheckIcon } from "@/components/icons";
 
 export default function DashboardClient({ 
   initialUser, 
@@ -160,7 +160,9 @@ export default function DashboardClient({
           alert_channels: keyToRevoke.alert_channels,
           is_active: true,
           usage_count: 0,
-        } as any);
+          createdAt: "",
+          alert_phone: null,
+        });
         setIsModalOpen(true);
       }
     } else {
@@ -319,8 +321,6 @@ export default function DashboardClient({
                 isLoading={isLoading}
                 onEdit={handleOpenEditModal}
                 onDelete={handleDelete}
-                onCopySuccess={() => showToast("success", "API key copied to clipboard.")}
-                onCopyError={(msg) => showToast("error", msg)}
                 onUpgradePrompt={() => router.push("/usage")}
                 currentPlan={currentPlan}
                 onOpenCreateModal={handleOpenCreateModal}

@@ -22,6 +22,7 @@ export function RevocationModal({
 
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsChecked(false);
       setIsSubmitting(false);
     }
@@ -118,7 +119,7 @@ export function RevocationModal({
               disabled={isSubmitting}
             />
             <span className="text-[11px] font-bold text-zinc-600 leading-snug">
-              I understand that revoking <span className="font-semibold text-zinc-800">"{keyName}"</span> will immediately and permanently deactivate it. This action cannot be undone.
+              I understand that revoking <span className="font-semibold text-zinc-800">&quot;{keyName}&quot;</span> will immediately and permanently deactivate it. This action cannot be undone.
             </span>
           </label>
         </div>
