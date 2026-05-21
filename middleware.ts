@@ -39,7 +39,8 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = 
     request.nextUrl.pathname.startsWith('/dashboards') ||
     request.nextUrl.pathname.startsWith('/billing') ||
-    request.nextUrl.pathname.startsWith('/usage')
+    request.nextUrl.pathname.startsWith('/usage') ||
+    request.nextUrl.pathname.startsWith('/playground')
 
   if (!user && isProtectedRoute) {
     // no user, potentially respond by redirecting the user to the login page

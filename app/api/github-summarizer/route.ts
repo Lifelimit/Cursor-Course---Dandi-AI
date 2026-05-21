@@ -12,6 +12,21 @@ const ratelimit = new Ratelimit({
   analytics: true,
   prefix: "@upstash/ratelimit",
 });
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, x-api-key",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      ...corsHeaders,
+      "Access-Control-Max-Age": "86400",
+    },
+  });
+}
 
 export async function POST(request: Request) {
   try {
@@ -32,6 +47,7 @@ export async function POST(request: Request) {
         { 
           status: 429,
           headers: {
+            ...corsHeaders,
             "X-RateLimit-Limit": limit.toString(),
             "X-RateLimit-Remaining": remaining.toString(),
             "X-RateLimit-Reset": reset.toString(),
@@ -46,7 +62,7 @@ export async function POST(request: Request) {
     if (!apiKey) {
       return NextResponse.json(
         { error: "API key is required in headers (x-api-key)" },
-        { status: 401 }
+        { status: 401, headers: corsHeaders }
       );
     }
 
@@ -56,14 +72,14 @@ export async function POST(request: Request) {
     } catch (keyError) {
       const errorMessage = (keyError as Error).message;
       const status = errorMessage.includes("limit exceeded") ? 403 : 401;
-      return NextResponse.json({ error: errorMessage }, { status });
+      return NextResponse.json({ error: errorMessage }, { status, headers: corsHeaders });
     }
 
     // 3. Extract and validate GitHub URL
     const { githubUrl } = await request.json();
 
     if (!githubUrl) {
-      return NextResponse.json({ error: "githubUrl is required in body" }, { status: 400 });
+      return NextResponse.json({ error: "githubUrl is required in body" }, { status: 400, headers: corsHeaders });
     }
 
     // Validate URL is a real GitHub repo before doing anything (prevents log pollution)
@@ -73,13 +89,13 @@ export async function POST(request: Request) {
       if (parsed.hostname !== "github.com" || parts.length < 2) {
         return NextResponse.json(
           { error: "Invalid GitHub repository URL. Expected: https://github.com/owner/repo" },
-          { status: 400 }
+          { status: 400, headers: corsHeaders }
         );
       }
     } catch {
       return NextResponse.json(
         { error: "Invalid GitHub repository URL. Expected: https://github.com/owner/repo" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -99,7 +115,7 @@ export async function POST(request: Request) {
       
       return NextResponse.json(
         { error: fetchErr instanceof Error ? fetchErr.message : "Failed to fetch repository data" },
-        { status: 422 }
+        { status: 422, headers: corsHeaders }
       );
     }
 
@@ -120,6 +136,8 @@ export async function POST(request: Request) {
           metadata: metadata,
           ...aiResult,
         },
+      }, {
+        headers: corsHeaders
       });
     } catch (aiErr) {
       console.error("AI Error:", aiErr);
@@ -131,11 +149,11 @@ export async function POST(request: Request) {
           error: "Failed to generate AI summary.", 
           details: aiErr instanceof Error ? aiErr.message : String(aiErr)
         },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       );
     }
   } catch (err) {
     console.error("API Error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: corsHeaders });
   }
 }
