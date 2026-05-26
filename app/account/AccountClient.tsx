@@ -107,7 +107,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   ]);
 
   // Webhook Telemetry Logs State
-  const [webhookLogs, setWebhookLogs] = useState<WebhookLogEntry[]>([
+  const [webhookLogs, setWebhookLogs] = useState<WebhookLogEntry[]>(() => [
     {
       id: "w1",
       event: "quota.warning",
@@ -132,7 +132,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         received: true,
         message: "Webhook event parsed and queued."
       }
-    },
+    } as WebhookLogEntry,
     {
       id: "w2",
       event: "key.revoked",
@@ -154,7 +154,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         ok: true,
         message: "Key revoked hook executed."
       }
-    },
+    } as WebhookLogEntry,
     {
       id: "w3",
       event: "quota.warning",
@@ -174,7 +174,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         "server": "nginx"
       },
       responseBody: "Internal Server Error"
-    }
+    } as WebhookLogEntry
   ]);
 
   const [inspectedLog, setInspectedLog] = useState<WebhookLogEntry | null>(null);
@@ -217,7 +217,17 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   }, [showToast]);
 
   useEffect(() => {
-    loadData();
+    let active = true;
+    const fetchProfileData = async () => {
+      await Promise.resolve();
+      if (active) {
+        loadData();
+      }
+    };
+    fetchProfileData();
+    return () => {
+      active = false;
+    };
   }, [loadData]);
 
   // Sync sidebar limit properties

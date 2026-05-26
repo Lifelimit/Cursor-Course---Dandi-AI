@@ -86,13 +86,9 @@ export default function DocsClient({ initialSession }: { initialSession: Session
   const { toast, showToast } = useToast();
   const [activeTab, setActiveTab] = useState<CodeExampleTab>("curl");
   const [isCopied, setIsCopied] = useState(false);
-  const [apiBaseUrl, setApiBaseUrl] = useState("https://dandi.ai");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setApiBaseUrl(window.location.origin);
-    }
-  }, []);
+  const [apiBaseUrl] = useState(() => 
+    typeof window !== "undefined" ? window.location.origin : "https://dandi.ai"
+  );
 
   const codeExamples = getCodeExamples(apiBaseUrl);
 
