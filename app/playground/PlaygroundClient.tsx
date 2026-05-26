@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import type { User } from "@supabase/supabase-js";
 import type { ApiKey } from "@/types/api";
@@ -353,7 +354,7 @@ export default function PlaygroundClient({
                           </label>
                           {apiKeys.length > 0 && (
                             <div className="flex items-center gap-2">
-                              <span className="text-[8px] font-black uppercase tracking-widest text-zinc-300 dark:text-zinc-650">Quick Select</span>
+                              <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Quick Select</span>
                               <select 
                                 value={selectValue}
                                 onChange={(e) => {
@@ -484,7 +485,15 @@ export default function PlaygroundClient({
 
               <div className="w-full md:w-80 md:shrink-0 space-y-6">
                 <div className="space-y-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Integration Snippets</p>
+                  <div className="flex justify-between items-center px-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Integration Snippets</p>
+                    <Link 
+                      href="/docs" 
+                      className="text-[9px] font-bold uppercase tracking-widest text-emerald-500 dark:text-emerald-400 hover:underline transition"
+                    >
+                      Full API Docs →
+                    </Link>
+                  </div>
                   <CodeSnippet apiKey={apiKey} githubUrl={githubUrl} onCopy={(method) => showToast("success", `${method.toUpperCase()} code snippet copied!`)} />
                 </div>
                 
@@ -497,7 +506,7 @@ export default function PlaygroundClient({
                     Live Simulation
                   </div>
                   <p className="text-[11px] leading-relaxed text-white/60">
-                    Testing against our <span className="text-white font-mono">v1/github-summarizer</span> endpoint. 
+                    Testing against our <span className="text-white font-mono">/api/github-summarizer</span> endpoint. 
                     Requests made here consume your active monthly quota.
                   </p>
                 </div>
@@ -513,7 +522,7 @@ export default function PlaygroundClient({
                       key={mode}
                       onClick={() => setViewMode(mode)}
                       className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${
-                        viewMode === mode ? "text-emerald-500 underline underline-offset-8 decoration-2" : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-550 dark:hover:text-zinc-400"
+                        viewMode === mode ? "text-emerald-500 underline underline-offset-8 decoration-2" : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-400"
                       }`}
                     >
                       {mode} Results

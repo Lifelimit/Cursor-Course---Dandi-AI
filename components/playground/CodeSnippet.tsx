@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { GITHUB_SUMMARIZER_ENDPOINT } from "@/lib/constants";
 
 type CodeSnippetProps = {
   apiKey: string;
@@ -11,17 +12,25 @@ type CodeSnippetProps = {
 export function CodeSnippet({ apiKey, githubUrl, onCopy }: CodeSnippetProps) {
   const [activeTab, setActiveTab] = useState<"curl" | "fetch" | "python">("curl");
   const [copied, setCopied] = useState(false);
+  const [apiBaseUrl, setApiBaseUrl] = useState("https://dandi.ai");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setApiBaseUrl(window.location.origin);
+    }
+  }, []);
 
   const displayKey = apiKey || "sk_live_YOUR_API_KEY";
   const displayUrl = githubUrl || "https://github.com/facebook/react";
+  const finalEndpointUrl = `${apiBaseUrl}/api/github-summarizer`;
 
   const snippets = {
-    curl: `curl -X POST https://dandi.ai/api/github-summarizer \\
+    curl: `curl -X POST ${finalEndpointUrl} \\
   -H "Content-Type: application/json" \\
   -H "x-api-key: ${displayKey}" \\
   -d '{"githubUrl": "${displayUrl}"}'`,
     
-    fetch: `fetch("https://dandi.ai/api/github-summarizer", {
+    fetch: `fetch("${finalEndpointUrl}", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -36,7 +45,7 @@ export function CodeSnippet({ apiKey, githubUrl, onCopy }: CodeSnippetProps) {
 
     python: `import requests
 
-url = "https://dandi.ai/api/github-summarizer"
+url = "${finalEndpointUrl}"
 headers = {
     "x-api-key": "${displayKey}",
     "Content-Type": "application/json"
@@ -48,6 +57,7 @@ data = {
 response = requests.post(url, headers=headers, json=data)
 print(response.json())`
   };
+
 
   const handleCopy = () => {
     navigator.clipboard.writeText(snippets[activeTab]);

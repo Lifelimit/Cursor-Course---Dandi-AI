@@ -13,7 +13,11 @@ export async function POST(req: Request) {
 
     const { keysToKeep } = await req.json();
 
-    if (!Array.isArray(keysToKeep) || keysToKeep.length > 3) {
+    if (
+      !Array.isArray(keysToKeep) || 
+      keysToKeep.length > 3 || 
+      !keysToKeep.every(k => typeof k === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k))
+    ) {
       return NextResponse.json({ error: "Invalid keys selection" }, { status: 400 });
     }
 

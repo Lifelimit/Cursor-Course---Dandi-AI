@@ -6,17 +6,16 @@ import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { SidebarAlerts } from "./SidebarAlerts";
 
 const NAV_ITEMS = [
   { name: "Overview", href: "/dashboards" },
   { name: "API Playground", href: "/playground" },
   { name: "Usage Center", href: "/usage" },
   { name: "Billing", href: "/billing" },
-  { name: "Settings", href: "#" },
-  { name: "Documentation", href: "#" },
+  { name: "Account Settings", href: "/account" },
+  { name: "Documentation", href: "/docs" },
 ];
-
-import { SidebarAlerts } from "./SidebarAlerts";
 
 type SidebarAlert = {
   id: string;

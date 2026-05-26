@@ -302,7 +302,7 @@ export default function DashboardClient({
                     <span className={`absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 ${isSyncing ? "animate-ping scale-150" : "animate-pulse"}`} />
                     <span className={`relative inline-flex rounded-full h-2 w-2 ${isSyncing ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-emerald-500"}`} />
                   </div>
-                  <span className="font-mono text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-550 flex items-center gap-1.5 select-none">
+                  <span className="font-mono text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 flex items-center gap-1.5 select-none">
                     {isSyncing ? (
                       <span className="text-emerald-500 font-bold animate-pulse">Syncing Telemetry...</span>
                     ) : (

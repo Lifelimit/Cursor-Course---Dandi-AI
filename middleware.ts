@@ -40,7 +40,9 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/dashboards') ||
     request.nextUrl.pathname.startsWith('/billing') ||
     request.nextUrl.pathname.startsWith('/usage') ||
-    request.nextUrl.pathname.startsWith('/playground')
+    request.nextUrl.pathname.startsWith('/playground') ||
+    request.nextUrl.pathname.startsWith('/account') ||
+    request.nextUrl.pathname.startsWith('/protected')
 
   if (!user && isProtectedRoute) {
     // no user, potentially respond by redirecting the user to the login page

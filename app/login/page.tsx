@@ -22,7 +22,7 @@ export default async function LoginPage({
             </div>
             <div className="text-center">
               <h1 className="font-serif text-3xl font-bold tracking-tight uppercase text-zinc-900 dark:text-zinc-100">Dandi AI</h1>
-              <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-550">Secure Access Portal</p>
+              <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">Secure Access Portal</p>
             </div>
           </Link>
         </div>
@@ -41,7 +41,7 @@ export default async function LoginPage({
         </div>
 
         {/* Footer */}
-        <p className="text-center text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-550">
+        <p className="text-center text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
           Secure E2E Encryption Enabled
         </p>
       </div>

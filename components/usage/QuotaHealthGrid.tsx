@@ -307,7 +307,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                     <h3 className="font-serif text-lg font-bold text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100">{key.name}</h3>
                     <p className="text-[10px] font-black text-zinc-300 dark:text-zinc-500 uppercase tracking-widest">Service Deactivated</p>
                   </div>
-                  <div className="h-1.5 w-1.5 rounded-full bg-zinc-300 dark:bg-zinc-650 group-hover:bg-zinc-400 dark:group-hover:bg-zinc-300" />
+                  <div className="h-1.5 w-1.5 rounded-full bg-zinc-300 dark:bg-zinc-500 group-hover:bg-zinc-400 dark:group-hover:bg-zinc-300" />
                 </div>
                 
                 <div className="mb-6 flex items-baseline justify-between opacity-40">

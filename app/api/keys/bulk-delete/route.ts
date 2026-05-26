@@ -7,8 +7,16 @@ export async function POST(request: Request) {
     const userId = await getAuthenticatedUserId();
     const body = (await request.json()) as { ids: string[]; action?: "disable" | "enable" };
 
-    if (!Array.isArray(body.ids) || body.ids.length === 0) {
-      return NextResponse.json({ error: "ids array is required." }, { status: 400 });
+    if (
+      !Array.isArray(body.ids) || 
+      body.ids.length === 0 || 
+      body.ids.length > 50 || 
+      !body.ids.every(id => typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+    ) {
+      return NextResponse.json(
+        { error: "ids array is required, must contain only valid UUIDs, and must not exceed 50 items." },
+        { status: 400 }
+      );
     }
 
     const isActive = body.action === "enable";

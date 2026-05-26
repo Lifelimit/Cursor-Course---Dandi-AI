@@ -8,6 +8,14 @@ import { updatePlanAction } from "@/lib/auth-actions";
 
 import { Session } from "@supabase/supabase-js";
 
+const SLIDER_STEPS = [
+  { label: "1,000", value: 1000, plan: "Hobby", keys: "3 active API keys", info: "Ideal for personal exploration, sandbox setups, and side projects.", labelDetails: "1,000 repository summaries" },
+  { label: "2,500", value: 2500, plan: "Premium", keys: "10 active API keys", info: "Built for active developers requiring detailed usage logs and CSV exports.", labelDetails: "2,500 repository summaries" },
+  { label: "5,000", value: 5000, plan: "Premium", keys: "10 active API keys", info: "Built for active developers requiring detailed usage logs and CSV exports.", labelDetails: "5,000 repository summaries" },
+  { label: "7,500", value: 7500, plan: "Researcher", keys: "Unlimited active keys", info: "Engineered for intense analytical research and production integrations.", labelDetails: "7,500 repository summaries" },
+  { label: "10,000+", value: 10000, plan: "Researcher", keys: "Unlimited active keys", info: "Engineered for intense analytical research and production integrations.", labelDetails: "10,000+ repository summaries" },
+];
+
 export function PricingSection({ 
   session, 
   onSuccess, 
@@ -25,6 +33,9 @@ export function PricingSection({
   );
 
   const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
+  const [sliderIndex, setSliderIndex] = useState<number>(0);
+  const activeSliderStep = SLIDER_STEPS[sliderIndex];
+
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const currentPlan = PLANS.find(p => p.id === currentPlanId);
 
@@ -123,6 +134,56 @@ export function PricingSection({
               <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/30 px-2.5 py-1 text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">20% OFF</span>
             </div>
           </div>
+
+          {/* Volume Calculator Slider */}
+          <div className="mx-auto max-w-xl mt-12 p-6 md:p-8 rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 backdrop-blur-sm shadow-md space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1 text-left">
+                <p className="text-[9px] font-black uppercase tracking-[0.25em] text-zinc-400 dark:text-zinc-500">Volume Estimator</p>
+                <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100">{activeSliderStep.labelDetails} / mo</h4>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Fits perfectly in the <span className="font-bold text-emerald-500 dark:text-emerald-400">{activeSliderStep.plan}</span> plan</p>
+              </div>
+              <div className="rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/40 px-4 py-2.5 border border-zinc-200 dark:border-zinc-700 text-left font-sans">
+                <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest">Key Limits</p>
+                <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200 mt-0.5">{activeSliderStep.keys}</p>
+                <p className="text-[8px] text-zinc-400 dark:text-zinc-500 mt-0.5">included in selection</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <input 
+                type="range" 
+                min="0" 
+                max="4" 
+                value={sliderIndex}
+                onChange={(e) => setSliderIndex(parseInt(e.target.value))}
+                className="w-full h-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 accent-zinc-900 dark:accent-zinc-100 cursor-pointer"
+              />
+              <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 px-1">
+                {SLIDER_STEPS.map((step, idx) => (
+                  <button 
+                    key={idx}
+                    onClick={() => setSliderIndex(idx)}
+                    className={`transition-colors ${sliderIndex === idx ? "text-zinc-900 dark:text-white" : "hover:text-zinc-700"}`}
+                  >
+                    {step.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-[#f4f2ed]/50 dark:bg-zinc-950/50 p-4 border border-zinc-100 dark:border-zinc-800/40 text-left flex gap-3 items-center">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Capacity Guidance</p>
+                <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mt-0.5">{activeSliderStep.info}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-3">
@@ -133,11 +194,12 @@ export function PricingSection({
             const displayPrice = billingInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
 
             // Generate clean classes for dark mode
+            const isRecommendedByVolume = activeSliderStep.plan === plan.id;
             const containerClass = plan.dark 
-              ? "border-zinc-200 dark:border-zinc-800 bg-[#18181b] dark:bg-zinc-950/50 text-white" 
+              ? `border-zinc-200 dark:border-zinc-800 bg-zinc-950 text-white ${isRecommendedByVolume ? "ring-2 ring-emerald-400 ring-offset-4 dark:ring-offset-zinc-950 scale-[1.03] z-10 shadow-2xl" : ""}` 
               : plan.id === "Premium"
-              ? "border-2 border-zinc-900 dark:border-zinc-100 bg-white dark:bg-zinc-900 shadow-2xl dark:shadow-none"
-              : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm dark:shadow-none";
+              ? `border-2 border-zinc-900 dark:border-zinc-100 bg-white dark:bg-zinc-900 shadow-2xl dark:shadow-none ${isRecommendedByVolume ? "ring-2 ring-emerald-500 ring-offset-4 dark:ring-offset-zinc-950 scale-[1.03] z-10" : ""}`
+              : `border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm dark:shadow-none ${isRecommendedByVolume ? "ring-2 ring-emerald-500 ring-offset-4 dark:ring-offset-zinc-950 scale-[1.03] z-10" : ""}`;
 
             const priceColor = plan.dark ? "text-white" : "text-zinc-900 dark:text-zinc-100";
             const labelColor = plan.dark ? "text-zinc-500 dark:text-zinc-400" : "text-zinc-400 dark:text-zinc-500";
@@ -148,6 +210,11 @@ export function PricingSection({
                 key={plan.id}
                 className={`group relative flex flex-col rounded-[40px] border p-10 transition-all hover:scale-[1.02] ${containerClass}`}
               >
+                {isRecommendedByVolume && (
+                  <div className="absolute top-6 left-8 rounded-full bg-emerald-500 text-white dark:text-zinc-950 px-2.5 py-0.5 text-[7px] font-black uppercase tracking-widest animate-pulse">
+                    Recommended
+                  </div>
+                )}
                 {plan.recommended && (
                   <div className="absolute top-6 right-8 rounded-full bg-zinc-900 dark:bg-zinc-100 px-3 py-1 text-[8px] font-black text-white dark:text-zinc-950 uppercase tracking-widest">
                     Most Recommended
@@ -186,7 +253,7 @@ export function PricingSection({
                     disabled={isCurrent || isLoading}
                     className={`w-full rounded-full py-4 text-[10px] font-black uppercase tracking-widest transition-all ${
                       isCurrent 
-                        ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-550 cursor-not-allowed"
+                        ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
                         : plan.dark
                         ? "bg-white dark:bg-zinc-100 text-zinc-900 dark:text-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-200 shadow-xl shadow-white/5"
                         : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-xl shadow-zinc-900/10 dark:shadow-none"

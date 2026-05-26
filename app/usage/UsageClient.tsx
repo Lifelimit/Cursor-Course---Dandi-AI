@@ -151,7 +151,7 @@ export default function UsageClient({
           <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 p-8 backdrop-blur-sm">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="space-y-1">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-550">Intelligence / Analytics</p>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">Intelligence / Analytics</p>
                 <div className="flex flex-wrap items-center gap-4">
                   <h1 className="font-serif text-5xl font-bold tracking-tight">Usage Center</h1>
                   
@@ -161,12 +161,12 @@ export default function UsageClient({
                       <span className={`absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 ${isSyncing ? "animate-ping scale-150" : "animate-pulse"}`} />
                       <span className={`relative inline-flex rounded-full h-2 w-2 ${isSyncing ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-emerald-500"}`} />
                     </div>
-                    <span className="font-mono text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-550 flex items-center gap-1.5">
+                    <span className="font-mono text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 flex items-center gap-1.5">
                       {isSyncing ? (
                         <span className="text-emerald-500 font-bold animate-pulse">Syncing...</span>
                       ) : (
                         <>
-                          Telemetry Active <span className="text-zinc-200 dark:text-zinc-800">|</span> <span className="text-[8px] font-bold text-zinc-450 tabular-nums">Synced {lastSyncedTime}</span>
+                          Telemetry Active <span className="text-zinc-200 dark:text-zinc-800">|</span> <span className="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 tabular-nums">Synced {lastSyncedTime}</span>
                         </>
                       )}
                     </span>
@@ -215,7 +215,7 @@ export default function UsageClient({
                 <QuotaHealthGrid keys={currentData.keys} onUpdate={fetchUsageData} />
               ) : (
                 <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 border-dashed p-12 text-center bg-white/30 dark:bg-zinc-900/10">
-                  <p className="text-sm font-medium text-zinc-400 dark:text-zinc-550">No active API keys found for tracking.</p>
+                  <p className="text-sm font-medium text-zinc-400 dark:text-zinc-500">No active API keys found for tracking.</p>
                   <Link href="/dashboards" className="mt-4 inline-block text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 hover:underline">
                     Create your first key →
                   </Link>

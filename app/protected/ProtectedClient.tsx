@@ -95,7 +95,7 @@ function ProtectedContent() {
                   { label: "Real-time Node Telemetry", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
                   { label: "Encrypted Strategy Modules", icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" }
                 ].map((item) => (
-                  <li key={item.label} className="flex items-center gap-4 group cursor-pointer transition-colors text-zinc-800 dark:text-zinc-200 hover:text-zinc-550 dark:hover:text-white">
+                  <li key={item.label} className="flex items-center gap-4 group cursor-pointer transition-colors text-zinc-800 dark:text-zinc-200 hover:text-zinc-900 dark:hover:text-white">
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
                       <path d={item.icon} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
@@ -126,7 +126,7 @@ function ProtectedContent() {
         )}
       </div>
 
-      <div className="mt-auto pt-8 flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-550">
+      <div className="mt-auto pt-8 flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
         <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
           <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

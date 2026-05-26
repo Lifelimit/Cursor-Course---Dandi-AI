@@ -154,3 +154,6 @@ export const PLANS: Plan[] = [
     yearlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID,
   }
 ];
+
+export const GITHUB_SUMMARIZER_ENDPOINT = "https://dandi.ai/api/github-summarizer";
+

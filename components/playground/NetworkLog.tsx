@@ -118,7 +118,7 @@ const AuthIcon = ({ status }: { status: string }) => {
   const colorClass = 
     status === "success" ? "text-emerald-400" :
     status === "error" ? "text-rose-400 animate-bounce" :
-    status === "pending" ? "text-amber-400 animate-pulse" : "text-zinc-650 dark:text-zinc-550";
+    status === "pending" ? "text-amber-400 animate-pulse" : "text-zinc-500 dark:text-zinc-500";
     
   return (
     <svg viewBox="0 0 24 24" className={`h-5 w-5 ${colorClass} transition-all duration-300`} fill="none" stroke="currentColor" strokeWidth="2.25">
@@ -135,7 +135,7 @@ const RepoIcon = ({ status }: { status: string }) => {
   const colorClass = 
     status === "success" ? "text-emerald-400" :
     status === "error" ? "text-rose-400 animate-bounce" :
-    status === "pending" ? "text-amber-400" : "text-zinc-650 dark:text-zinc-550";
+    status === "pending" ? "text-amber-400" : "text-zinc-500 dark:text-zinc-500";
     
   return (
     <svg viewBox="0 0 24 24" className={`h-5 w-5 ${colorClass} transition-all duration-300 ${status === "pending" ? "animate-spin-slow" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.25">
@@ -148,7 +148,7 @@ const AiIcon = ({ status }: { status: string }) => {
   const colorClass = 
     status === "success" ? "text-emerald-400" :
     status === "error" ? "text-rose-400 animate-bounce" :
-    status === "pending" ? "text-amber-400" : "text-zinc-650 dark:text-zinc-550";
+    status === "pending" ? "text-amber-400" : "text-zinc-500 dark:text-zinc-500";
     
   return (
     <svg viewBox="0 0 24 24" className={`h-5 w-5 ${colorClass} transition-all duration-300 ${status === "pending" ? "animate-pulse" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.25">

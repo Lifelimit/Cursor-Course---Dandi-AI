@@ -35,8 +35,8 @@ export function Navbar({ session }: { session: Session | null }) {
         
         <div className="hidden items-center gap-10 text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 md:flex">
           <Link href="/#features" className="transition hover:text-[#18181b] dark:hover:text-white">Features</Link>
+          <Link href="/playground" className="transition hover:text-[#18181b] dark:hover:text-white">Playground</Link>
           <Link href="/#pricing" className="transition hover:text-[#18181b] dark:hover:text-white">Pricing</Link>
-          <Link href="/docs" className="transition hover:text-[#18181b] dark:hover:text-white">Documentation</Link>
         </div>
 
         <div className="flex items-center gap-4">
@@ -68,7 +68,7 @@ export function Navbar({ session }: { session: Session | null }) {
                         {session.user.user_metadata?.full_name || session.user.email?.split('@')[0]}
                       </span>
                       <span className="text-[9px] text-zinc-300 dark:text-zinc-700">•</span>
-                      <span className="text-[8px] font-medium text-zinc-400 dark:text-zinc-550 lowercase">{session.user.email}</span>
+                      <span className="text-[8px] font-medium text-zinc-400 dark:text-zinc-500 lowercase">{session.user.email}</span>
                     </div>
                   </div>
                   {userImage ? (
@@ -90,7 +90,7 @@ export function Navbar({ session }: { session: Session | null }) {
               <>
                 <Link 
                   href="/login"
-                  className="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-550 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                  className="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
                 >
                   Login
                 </Link>
@@ -111,8 +111,8 @@ export function Navbar({ session }: { session: Session | null }) {
         <div className="border-t border-zinc-200 dark:border-zinc-800 bg-[#f4f2ed] dark:bg-zinc-950 p-6 md:hidden animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex flex-col gap-6 text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
             <Link href="/#features" className="hover:text-zinc-900 dark:hover:text-white">Features</Link>
+            <Link href="/playground" className="hover:text-zinc-900 dark:hover:text-white">Playground</Link>
             <Link href="/#pricing" className="hover:text-zinc-900 dark:hover:text-white">Pricing</Link>
-            <Link href="/docs" className="hover:text-zinc-900 dark:hover:text-white">Documentation</Link>
             <hr className="border-zinc-200 dark:border-zinc-800" />
             {session ? (
               <>
@@ -121,7 +121,7 @@ export function Navbar({ session }: { session: Session | null }) {
                   <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100">
                     {session.user.user_metadata?.full_name || session.user.email?.split('@')[0]}
                   </span>
-                  <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-550 lowercase">{session.user.email}</span>
+                  <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 lowercase">{session.user.email}</span>
                 </div>
                 <button 
                   onClick={handleSignOut}
