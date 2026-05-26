@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Session } from "@supabase/supabase-js";
 import { Navbar } from "@/components/landing/Navbar";
