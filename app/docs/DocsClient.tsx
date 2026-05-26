@@ -6,7 +6,6 @@ import { Session } from "@supabase/supabase-js";
 import { Navbar } from "@/components/landing/Navbar";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
-import { GITHUB_SUMMARIZER_ENDPOINT } from "@/lib/constants";
 import { Footer } from "@/components/landing/Footer";
 
 const getCodeExamples = (apiBaseUrl: string) => {

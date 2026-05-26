@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { GITHUB_SUMMARIZER_ENDPOINT } from "@/lib/constants";
 
 type CodeSnippetProps = {
   apiKey: string;

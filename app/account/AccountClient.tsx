@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import Image from "next/image";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
