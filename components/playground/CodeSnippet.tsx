@@ -11,7 +11,7 @@ type CodeSnippetProps = {
 
 export function CodeSnippet({ apiKey, githubUrl, onCopy }: CodeSnippetProps) {
   const [activeTab, setActiveTab] = useState<"curl" | "fetch" | "python">("curl");
-  const [copied, setCopied] = useState(false);
+
   const [apiBaseUrl, setApiBaseUrl] = useState("https://dandi.ai");
 
   useEffect(() => {
@@ -60,11 +60,9 @@ print(response.json())`
 
   const handleCopy = () => {
     navigator.clipboard.writeText(snippets[activeTab]);
-    setCopied(true);
     if (onCopy) {
       onCopy(activeTab);
     }
-    setTimeout(() => setCopied(false), 2000);
   };
 
   return (

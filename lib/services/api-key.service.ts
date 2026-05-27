@@ -124,7 +124,8 @@ export async function validateApiKey(keyValue: string) {
     throw new Error("Invalid API key");
   }
 
-  const plan = keyData.profiles?.plan || "Hobby";
+  const profilesData = keyData.profiles as { plan?: string } | { plan?: string }[];
+  const plan = (Array.isArray(profilesData) ? profilesData[0]?.plan : profilesData?.plan) || "Hobby";
   const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] ?? PLAN_DETAILS["Hobby"];
 
   // Use numeric limit directly from plan constants — no regex parsing needed

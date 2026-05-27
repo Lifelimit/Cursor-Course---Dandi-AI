@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 
-const PULSE_BARS = [1, 2, 3, 4];
+
 
 interface RepoInfo {
   stars: string;

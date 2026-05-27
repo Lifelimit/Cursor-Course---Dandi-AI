@@ -10,7 +10,7 @@ type CopyIconButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 export function CopyIconButton({ children, textToCopy, onCopy, className = "", ...props }: CopyIconButtonProps) {
   return (
     <button
-      onClick={(e) => {
+      onClick={() => {
         if (onCopy) onCopy();
         if (textToCopy) navigator.clipboard.writeText(textToCopy);
       }}

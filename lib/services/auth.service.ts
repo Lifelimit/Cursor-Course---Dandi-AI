@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+
 
 /**
  * Secures an API route by verifying the user's session and 

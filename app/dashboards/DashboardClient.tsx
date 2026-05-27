@@ -39,50 +39,41 @@ export default function DashboardClient({
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey, refreshKeys } = useApiKeys(initialKeys);
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
-  const [realtimePlan, setRealtimePlan] = useState<string | null>(null);
-  const [avgLatency, setAvgLatency] = useState<number>(initialAvgLatency);
-  const [successRate, setSuccessRate] = useState<number>(initialSuccessRate);
-  const [resetDate, setResetDate] = useState<string | null>(initialResetDate);
-  
-  const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncedTime, setLastSyncedTime] = useState<string>("Just now");
   
-  // Dynamic Tier Logic - Using the most recent session data available
-  const currentPlan = realtimePlan || initialPlan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
-  const { monthlyLimit: currentLimit, isUnlimited } = getPlanLimits(currentPlan);
-
   // SWR automatically handles polling, caching, and loading states
   const fetcher = (url: string) => fetch(url).then(res => res.json());
   const { data: usageData, isValidating } = useSWR('/api/usage', fetcher, { 
     refreshInterval: 10000 
   });
 
-  // Sync SWR data to local state
-  useEffect(() => {
-    if (usageData) {
-      if (usageData.plan) setRealtimePlan(usageData.plan);
-      if (typeof usageData.avgLatency === 'number') setAvgLatency(usageData.avgLatency);
-      if (typeof usageData.successRate === 'number') setSuccessRate(usageData.successRate);
-      if (usageData.resetDate) setResetDate(usageData.resetDate);
-      setLastSyncedTime("Just now");
-    }
-  }, [usageData]);
+  const realtimePlan = usageData?.plan || null;
+  const avgLatency = typeof usageData?.avgLatency === 'number' ? usageData.avgLatency : initialAvgLatency;
+  const successRate = typeof usageData?.successRate === 'number' ? usageData.successRate : initialSuccessRate;
+  const resetDate = usageData?.resetDate || initialResetDate;
+  const isSyncing = isValidating;
+
+  // Dynamic Tier Logic - Using the most recent session data available
+  const currentPlan = realtimePlan || initialPlan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
+  const { monthlyLimit: currentLimit, isUnlimited } = getPlanLimits(currentPlan);
 
   // Handle mock UI timer for "last synced" display. Resets when usageData updates.
   useEffect(() => {
+    const resetTimer = setTimeout(() => {
+      setLastSyncedTime("Just now");
+    }, 0);
+    
     let syncCount = 0;
     const syncTimeInterval = setInterval(() => {
       syncCount += 2;
       setLastSyncedTime(`${syncCount}s ago`);
     }, 2000);
 
-    return () => clearInterval(syncTimeInterval);
+    return () => {
+      clearTimeout(resetTimer);
+      clearInterval(syncTimeInterval);
+    };
   }, [usageData]);
-
-  // Override isSyncing with SWR's isValidating state
-  useEffect(() => {
-    setIsSyncing(isValidating);
-  }, [isValidating]);
 
   const alerts = computeSidebarAlerts(apiKeys);
 
