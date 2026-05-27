@@ -1,8 +1,5 @@
 name: CI
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 on:
   push:
     branches: [ improvements, main ]
@@ -26,7 +23,7 @@ jobs:
       run: yarn install --frozen-lockfile
 
     - name: Cache Next.js build
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           ${{ github.workspace }}/.next/cache
