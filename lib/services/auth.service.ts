@@ -10,24 +10,10 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 export async function getAuthenticatedUserId(): Promise<string> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const email = user?.email;
 
-  if (!email) {
+  if (!user || !user.id) {
     throw new Error("Unauthorized: No active session found.");
   }
 
-  // Perform the mandatory database lookup to get the internal ID
-  // as per the course security requirements.
-  const { data: profile, error } = await supabaseAdmin
-    .from("profiles")
-    .select("id")
-    .eq("email", email)
-    .single();
-
-  if (error || !profile) {
-    console.error("AuthService: User lookup failed for email:", email, error);
-    throw new Error("Unauthorized: User profile not found in database.");
-  }
-
-  return profile.id;
+  return user.id;
 }

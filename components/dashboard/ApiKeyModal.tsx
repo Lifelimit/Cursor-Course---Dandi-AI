@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { ApiKey } from "@/types/api";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
 
 type ApiKeyModalProps = {
   isOpen: boolean;
@@ -239,22 +240,18 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
             >
               Cancel
             </button>
-            <button
+            <PrimaryButton
               type="submit"
-              disabled={isSubmitting}
-              className="group flex items-center justify-center gap-3 rounded-full bg-zinc-900 dark:bg-zinc-100 px-10 py-4 text-xs font-black uppercase tracking-widest text-white dark:text-zinc-900 shadow-xl shadow-zinc-900/10 dark:shadow-none transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200 hover:scale-105 active:scale-95 disabled:opacity-50"
+              isLoading={isSubmitting}
+              className="px-10"
+              icon={
+                <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
+                  <path d="M5 12h14m-7-7l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              }
             >
-              {isSubmitting ? (
-                <div className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 dark:border-zinc-900/20 border-t-white dark:border-t-zinc-900" />
-              ) : (
-                <>
-                  {isEditing ? "Update Credential" : "Generate Secure Key"}
-                  <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
-                    <path d="M5 12h14m-7-7l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </>
-              )}
-            </button>
+              {isEditing ? "Update Credential" : "Generate Secure Key"}
+            </PrimaryButton>
           </div>
         </form>
       </div>

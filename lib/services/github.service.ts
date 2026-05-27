@@ -1,10 +1,12 @@
+import { getServerEnv } from "@/lib/env";
+
 function getGitHubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     "Accept": "application/vnd.github.v3+json",
     "User-Agent": "Dandi-AI-Summarizer"
   };
 
-  const githubToken = process.env.GITHUB_TOKEN;
+  const githubToken = getServerEnv().GITHUB_TOKEN;
   if (githubToken) {
     headers["Authorization"] = githubToken.startsWith("token ") || githubToken.startsWith("Bearer ")
       ? githubToken

@@ -76,7 +76,13 @@ export async function POST(request: Request) {
     }
 
     // 3. Extract and validate GitHub URL
-    const { githubUrl } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400, headers: corsHeaders });
+    }
+    const { githubUrl } = body;
 
     if (!githubUrl) {
       return NextResponse.json({ error: "githubUrl is required in body" }, { status: 400, headers: corsHeaders });

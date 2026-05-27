@@ -73,9 +73,6 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
   // Temp state for the form inputs
   const [formValues, setFormValues] = useState({
     name: "",
-    number: "",
-    expiry: "",
-    cvc: "",
     street: "",
     city: "",
     state: "",
@@ -137,9 +134,6 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
           
           setFormValues({
             name: meta.full_name || "",
-            number: "",
-            expiry: meta.payment_method_expiry || "",
-            cvc: "",
             street: meta.billing_street || "",
             city: meta.billing_city || "",
             state: meta.billing_state || "",
@@ -149,9 +143,6 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
         } else {
           setFormValues({
             name: "",
-            number: "",
-            expiry: "",
-            cvc: "",
             street: "",
             city: "",
             state: "",
@@ -239,6 +230,15 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
     } catch { /* Best-effort — do not block the upgrade */ }
   };
 
+  /**
+   * Handles saving the payment method using Stripe Elements.
+   * Note: We no longer need manual formatters (formatCardNumber, formatExpiry)
+   * because Stripe handles card input formatting internally via its Elements iframe.
+   * This function covers two scenarios:
+   * 1. Saving a new payment method without changing the plan.
+   * 2. Upgrading to a paid plan and entering a new credit card.
+   * It also handles SCA / 3D Secure verification natively if requested by the card's bank.
+   */
   const handleSavePayment = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -429,64 +429,9 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
     }
   };
 
-  const formatCardNumber = (value: string) => {
-    const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
-    const matches = v.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || "";
-    const parts = [];
-
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-
-    if (parts.length) {
-      return parts.join(" ");
-    } else {
-      return v;
-    }
-  };
-
-  const formatExpiry = (value: string, prevValue: string) => {
-    // Handle backspace over the slash
-    if (prevValue.endsWith('/') && value.length === prevValue.length - 1) {
-      return value.slice(0, -1);
-    }
-
-    let v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
-    
-    if (v.length >= 1) {
-      if (parseInt(v[0], 10) > 1) {
-        v = "0" + v;
-      }
-    }
-    
-    if (v.length >= 2) {
-      const month = parseInt(v.substring(0, 2), 10);
-      if (month > 12) {
-        v = "12" + v.substring(2);
-      } else if (month === 0) {
-        v = "01" + v.substring(2);
-      }
-      return v.substring(0, 2) + "/" + v.substring(2, 4);
-    }
-    return v;
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
-    if (name === "number") {
-      setFormValues(prev => ({ ...prev, number: formatCardNumber(value).substring(0, 19) }));
-    } else if (name === "expiry") {
-      setFormValues(prev => ({ ...prev, expiry: formatExpiry(value, prev.expiry).substring(0, 5) }));
-    } else if (name === "cvc") {
-      setFormValues(prev => {
-        const isAmex = prev.number.startsWith("34") || prev.number.startsWith("37");
-        return { ...prev, cvc: value.replace(/[^0-9]/gi, "").substring(0, isAmex ? 4 : 3) };
-      });
-    } else {
-      setFormValues(prev => ({ ...prev, [name]: value }));
-    }
+    setFormValues(prev => ({ ...prev, [name]: value }));
   };
 
   const handlePlanSelection = async (newPlan: string) => {

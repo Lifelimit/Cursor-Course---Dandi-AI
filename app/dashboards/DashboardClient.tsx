@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useToast } from "@/hooks/useToast";
@@ -16,56 +17,7 @@ import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 import { EyeOffIcon, ShieldIcon, CopyLockedIcon, CopyCheckIcon } from "@/components/icons";
 
-function DecryptingKeyText({ text, visible, maskedText }: { text: string; visible: boolean; maskedText: string }) {
-  const [displayedText, setDisplayedText] = useState(maskedText);
-  const [prevVisible, setPrevVisible] = useState(visible);
-
-  if (visible !== prevVisible) {
-    setPrevVisible(visible);
-    if (!visible) {
-      setDisplayedText(maskedText);
-    }
-  }
-
-  useEffect(() => {
-    if (!visible) {
-      return;
-    }
-
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-    const targetLength = text.length;
-    let iteration = 0;
-    const maxIterations = 15;
-    
-    const interval = setInterval(() => {
-      setDisplayedText(
-        text
-          .split("")
-          .map((char, index) => {
-            const progress = iteration / maxIterations;
-            const threshold = progress * targetLength;
-            if (index < threshold) {
-              return char;
-            }
-            if (char === "_" || char === "-") return char;
-            return chars[Math.floor(Math.random() * chars.length)];
-          })
-          .join("")
-      );
-
-      iteration++;
-      if (iteration >= maxIterations) {
-        clearInterval(interval);
-        setDisplayedText(text);
-      }
-    }, 25);
-
-    return () => clearInterval(interval);
-  }, [visible, text]);
-
-  return <>{visible ? displayedText : maskedText}</>;
-}
-
+import { DecryptingKeyText } from "@/components/ui/DecryptingKeyText";
 export default function DashboardClient({ 
   initialUser, 
   initialKeys = [],
@@ -99,45 +51,38 @@ export default function DashboardClient({
   const currentPlan = realtimePlan || initialPlan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
   const { monthlyLimit: currentLimit, isUnlimited } = getPlanLimits(currentPlan);
 
-  // Fetch real-time usage data (including plan, avgLatency, successRate, and resetDate)
+  // SWR automatically handles polling, caching, and loading states
+  const fetcher = (url: string) => fetch(url).then(res => res.json());
+  const { data: usageData, isValidating } = useSWR('/api/usage', fetcher, { 
+    refreshInterval: 10000 
+  });
+
+  // Sync SWR data to local state
+  useEffect(() => {
+    if (usageData) {
+      if (usageData.plan) setRealtimePlan(usageData.plan);
+      if (typeof usageData.avgLatency === 'number') setAvgLatency(usageData.avgLatency);
+      if (typeof usageData.successRate === 'number') setSuccessRate(usageData.successRate);
+      if (usageData.resetDate) setResetDate(usageData.resetDate);
+      setLastSyncedTime("Just now");
+    }
+  }, [usageData]);
+
+  // Handle mock UI timer for "last synced" display. Resets when usageData updates.
   useEffect(() => {
     let syncCount = 0;
-    const fetchUsage = async () => {
-      setIsSyncing(true);
-      try {
-        const res = await fetch("/api/usage");
-        const data = await res.json();
-        if (data.plan) setRealtimePlan(data.plan);
-        if (typeof data.avgLatency === 'number') setAvgLatency(data.avgLatency);
-        if (typeof data.successRate === 'number') setSuccessRate(data.successRate);
-        if (data.resetDate) setResetDate(data.resetDate);
-        setLastSyncedTime("Just now");
-        syncCount = 0;
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setTimeout(() => setIsSyncing(false), 600);
-      }
-    };
-
-    fetchUsage(); // Fetch immediately on mount
-
-    const interval = setInterval(fetchUsage, 10000); // Poll every 10 seconds to keep analytics hot and live
-
     const syncTimeInterval = setInterval(() => {
       syncCount += 2;
-      if (syncCount === 0) {
-        setLastSyncedTime("Just now");
-      } else {
-        setLastSyncedTime(`${syncCount}s ago`);
-      }
+      setLastSyncedTime(`${syncCount}s ago`);
     }, 2000);
 
-    return () => {
-      clearInterval(interval);
-      clearInterval(syncTimeInterval);
-    };
-  }, []);
+    return () => clearInterval(syncTimeInterval);
+  }, [usageData]);
+
+  // Override isSyncing with SWR's isValidating state
+  useEffect(() => {
+    setIsSyncing(isValidating);
+  }, [isValidating]);
 
   const alerts = computeSidebarAlerts(apiKeys);
 

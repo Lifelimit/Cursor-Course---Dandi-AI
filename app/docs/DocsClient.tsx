@@ -334,12 +334,37 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               </p>
 
               {/* Code Tab buttons */}
-              <div className="flex border-b border-zinc-200 dark:border-zinc-800 text-xs font-bold tracking-wider uppercase">
+              <div 
+                className="flex border-b border-zinc-200 dark:border-zinc-800 text-xs font-bold tracking-wider uppercase"
+                role="tablist"
+                aria-label="Code examples in different languages"
+              >
                 {(Object.keys(codeExamples) as CodeExampleTab[]).map((tab) => (
                   <button
                     key={tab}
+                    role="tab"
+                    id={`tab-${tab}`}
+                    aria-selected={activeTab === tab}
+                    aria-controls={`tabpanel-${tab}`}
+                    tabIndex={activeTab === tab ? 0 : -1}
                     onClick={() => { setActiveTab(tab); setIsCopied(false); }}
-                    className={`py-3 px-5 transition border-b-2 -mb-[2px] ${
+                    onKeyDown={(e) => {
+                      const tabs = Object.keys(codeExamples) as CodeExampleTab[];
+                      const currentIndex = tabs.indexOf(tab);
+                      let nextIndex = currentIndex;
+                      if (e.key === "ArrowRight") {
+                        nextIndex = (currentIndex + 1) % tabs.length;
+                      } else if (e.key === "ArrowLeft") {
+                        nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+                      }
+                      if (nextIndex !== currentIndex) {
+                        const nextTab = tabs[nextIndex];
+                        setActiveTab(nextTab);
+                        setIsCopied(false);
+                        document.getElementById(`tab-${nextTab}`)?.focus();
+                      }
+                    }}
+                    className={`py-3 px-5 transition border-b-2 -mb-[2px] focus:outline-none focus-visible:bg-zinc-100 dark:focus-visible:bg-zinc-800 focus-visible:ring-inset focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-zinc-100 rounded-t-lg ${
                       activeTab === tab
                         ? "border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-white"
                         : "border-transparent text-zinc-400 hover:text-zinc-700"
@@ -351,7 +376,13 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               </div>
 
               {/* Code container */}
-              <div className="relative rounded-2xl bg-zinc-950 p-6 shadow-xl border border-zinc-800 overflow-x-auto max-w-full">
+              <div 
+                role="tabpanel"
+                id={`tabpanel-${activeTab}`}
+                aria-labelledby={`tab-${activeTab}`}
+                tabIndex={0}
+                className="relative rounded-2xl bg-zinc-950 p-6 shadow-xl border border-zinc-800 overflow-x-auto max-w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              >
                 <button
                   onClick={copyToClipboard}
                   className="absolute top-4 right-4 rounded-xl border border-zinc-800 hover:border-zinc-500 bg-zinc-900 hover:bg-zinc-900 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-all"

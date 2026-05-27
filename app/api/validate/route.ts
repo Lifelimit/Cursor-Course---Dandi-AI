@@ -34,7 +34,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const { key } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+    }
+    const { key } = body;
 
     if (!key) {
       return NextResponse.json({ error: "API key is required" }, { status: 400 });

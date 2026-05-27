@@ -60,6 +60,7 @@ export function FeatureGrid() {
   const [typewrittenSummary, setTypewrittenSummary] = useState<string>("");
   const [showResult, setShowResult] = useState<boolean>(false);
   const [activeFactIdx, setActiveFactIdx] = useState<number>(0);
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const typewriterTimer = useRef<NodeJS.Timeout | null>(null);
   const timeoutIds = useRef<NodeJS.Timeout[]>([]);
 
@@ -161,21 +162,46 @@ export function FeatureGrid() {
 
             {/* Selector and Trigger Control */}
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <select
-                value={selectedRepo}
-                disabled={isOrchestrating}
-                onChange={(e) => {
-                  setSelectedRepo(e.target.value);
-                  setShowResult(false);
-                  setLogs([]);
-                  setTypewrittenSummary("");
-                }}
-                className="flex-1 rounded-full border border-zinc-200 dark:border-zinc-800 bg-[#f4f2ed]/50 dark:bg-zinc-950 px-5 py-3 text-xs font-semibold text-zinc-800 dark:text-zinc-200 outline-none transition hover:border-zinc-400 focus:border-zinc-900 dark:focus:border-zinc-100"
-              >
-                <option value="facebook/react">facebook / react</option>
-                <option value="vercel/next.js">vercel / next.js</option>
-                <option value="tailwindlabs/tailwindcss">tailwindlabs / tailwindcss</option>
-              </select>
+              <div className="relative flex-1">
+                <button
+                  type="button"
+                  disabled={isOrchestrating}
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="w-full text-left appearance-none rounded-full border border-zinc-200 dark:border-zinc-800 bg-[#f4f2ed]/50 dark:bg-zinc-950 pl-5 pr-10 py-3 text-xs font-semibold text-zinc-800 dark:text-zinc-200 outline-none transition hover:border-zinc-400 focus:border-zinc-900 dark:focus:border-zinc-100 disabled:opacity-50"
+                >
+                  {selectedRepo.replace("/", " / ")}
+                </button>
+                <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center">
+                  <svg className={`h-3 w-3 text-zinc-400 dark:text-zinc-500 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                
+                {isDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
+                    <div className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl shadow-2xl overflow-hidden z-50 animate-dropdown-enter">
+                      {["facebook/react", "vercel/next.js", "tailwindlabs/tailwindcss"].map((repo, idx) => (
+                        <button
+                          key={repo}
+                          type="button"
+                          className="w-full text-left px-5 py-3 text-xs font-semibold text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors animate-slide-in-left"
+                          style={{ animationDelay: `${idx * 50}ms` }}
+                          onClick={() => {
+                            setSelectedRepo(repo);
+                            setIsDropdownOpen(false);
+                            setShowResult(false);
+                            setLogs([]);
+                            setTypewrittenSummary("");
+                          }}
+                        >
+                          {repo.replace("/", " / ")}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
 
               <button
                 onClick={startOrchestration}
@@ -290,41 +316,96 @@ export function FeatureGrid() {
 
         {/* Bento Item 2: Metadata at Scale */}
         <div className="group relative col-span-full md:col-span-3 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#18181b] dark:bg-zinc-900 p-10 text-white transition-all hover:border-zinc-700 min-h-[300px] flex flex-col justify-between shadow-2xl">
-          <div className="relative z-10 space-y-4">
+          <div className="relative z-10 space-y-4 max-w-[280px]">
             <h3 className="text-2xl font-bold italic font-serif">Metadata at Scale</h3>
-            <p className="max-w-xs text-sm leading-relaxed text-zinc-400 dark:text-zinc-300">Track stars, forks, license types, and version tags across your entire ecosystem with zero configuration.</p>
-            <div className="flex gap-2 pt-4">
-              {PULSE_BARS.map(i => (
-                <div key={i} className="h-1 w-8 rounded-full bg-zinc-800 dark:bg-zinc-700 overflow-hidden">
-                  <div className="h-full bg-emerald-400 w-1/2 animate-pulse"></div>
-                </div>
-              ))}
+            <p className="text-sm leading-relaxed text-zinc-400 dark:text-zinc-300">Track stars, forks, license types, and version tags across your entire ecosystem with zero configuration.</p>
+          </div>
+          
+          {/* Animated Chips Stream */}
+          <div className="absolute top-8 -right-4 md:right-4 bottom-0 w-[200px] flex flex-col gap-3 opacity-40 group-hover:opacity-100 transition-opacity duration-700 select-none pointer-events-none">
+            <div className="animate-pulse bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-mono px-3 py-1.5 rounded-xl self-end translate-x-4">
+              &#123; &quot;stars&quot;: &quot;+1.2k&quot; &#125;
+            </div>
+            <div className="animate-pulse delay-75 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] font-mono px-3 py-1.5 rounded-xl self-center -translate-x-2">
+              [v15.0.0] released
+            </div>
+            <div className="animate-pulse delay-150 bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[9px] font-mono px-3 py-1.5 rounded-xl self-start translate-x-6">
+              &#123; &quot;license&quot;: &quot;MIT&quot; &#125;
+            </div>
+            <div className="animate-pulse delay-300 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[9px] font-mono px-3 py-1.5 rounded-xl self-end -translate-x-4">
+              [Push] main branch
             </div>
           </div>
-          <div className="absolute bottom-0 right-0 h-full w-1/2 bg-gradient-to-l from-white/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100"></div>
+          
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-800/20 via-zinc-900/0 to-transparent pointer-events-none" />
         </div>
 
         {/* Bento Item 3 (Large): Live Playground */}
-        <div className="group relative col-span-full md:col-span-4 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-10 transition-all hover:border-zinc-400 dark:hover:border-zinc-700 min-h-[300px] shadow-sm dark:shadow-none">
-          <div className="flex h-full flex-col justify-between">
-            <div className="space-y-4">
-              <h3 className="text-2xl font-bold">Live Playground</h3>
-              <p className="max-w-sm text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">Test your orchestration before you ship. Monitor latency, inspect raw JSON responses, and generate integration snippets instantly.</p>
-            </div>
-            <div className="mt-8 flex gap-4 overflow-hidden opacity-40 transition-opacity group-hover:opacity-100">
-              <div className="h-24 w-32 shrink-0 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"></div>
-              <div className="h-24 w-48 shrink-0 rounded-xl bg-zinc-900 dark:bg-zinc-950 shadow-2xl"></div>
-              <div className="h-24 w-32 shrink-0 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"></div>
+        <div className="group relative col-span-full md:col-span-4 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 md:p-10 transition-all hover:border-zinc-400 dark:hover:border-zinc-700 min-h-[300px] shadow-sm dark:shadow-none flex flex-col md:flex-row gap-6 md:items-center">
+          <div className="space-y-4 md:w-5/12 relative z-10">
+            <h3 className="text-2xl font-bold">Live Playground</h3>
+            <p className="text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">Test your orchestration before you ship. Monitor latency, inspect raw JSON responses, and generate snippets instantly.</p>
+          </div>
+          
+          <div className="md:w-7/12 relative mt-4 md:mt-0 h-full">
+            {/* Mock IDE */}
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-[#fbfaf9] dark:bg-zinc-950 shadow-xl overflow-hidden flex flex-col h-[200px] relative transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-2xl">
+              <div className="flex items-center px-4 py-2 bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-red-400"></span>
+                <span className="h-2 w-2 rounded-full bg-amber-400"></span>
+                <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+                <span className="ml-2 text-[9px] font-mono text-zinc-400 uppercase tracking-widest">playground.ts</span>
+              </div>
+              <div className="flex-1 flex font-mono text-[9px] overflow-hidden">
+                {/* Left Pane: Code */}
+                <div className="w-1/2 p-4 border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300">
+                  <div className="text-emerald-500 dark:text-emerald-400">import</div> &#123; Dandi &#125; <div className="text-emerald-500 dark:text-emerald-400 inline">from</div> &quot;@dandi/sdk&quot;;<br/><br/>
+                  <div className="text-blue-500 dark:text-blue-400 inline">const</div> client = <div className="text-blue-500 dark:text-blue-400 inline">new</div> Dandi();<br/><br/>
+                  <div className="opacity-50 group-hover:opacity-100 transition-opacity delay-100">
+                    <div className="text-emerald-500 dark:text-emerald-400 inline">await</div> client.analyze(&#123;<br/>
+                    &nbsp;&nbsp;repo: &quot;vercel/next.js&quot;<br/>
+                    &#125;);
+                  </div>
+                </div>
+                {/* Right Pane: Output */}
+                <div className="w-1/2 p-4 bg-zinc-50 dark:bg-[#111] text-zinc-500 dark:text-zinc-400 relative">
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/50 dark:to-zinc-950/80 z-10" />
+                  <div className="opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 delay-300">
+                    &#123;<br/>
+                    &nbsp;&nbsp;&quot;status&quot;: 200,<br/>
+                    &nbsp;&nbsp;&quot;data&quot;: &#123;<br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&quot;stars&quot;: &quot;120.4K&quot;,<br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&quot;license&quot;: &quot;MIT&quot;<br/>
+                    &nbsp;&nbsp;&#125;<br/>
+                    &#125;
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Bento Item 4: API Developer First */}
-        <div className="group relative col-span-full md:col-span-2 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#efebe2] dark:bg-zinc-900/50 p-10 transition-all min-h-[300px] hover:border-zinc-400 dark:hover:border-zinc-700">
-          <div className="flex h-full flex-col justify-center text-center space-y-4">
+        <div className="group relative col-span-full md:col-span-2 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#efebe2] dark:bg-zinc-900/50 p-10 transition-all hover:border-zinc-400 dark:hover:border-zinc-700 min-h-[300px] flex flex-col justify-between shadow-sm dark:shadow-none">
+          <div className="relative z-10 space-y-2 text-left">
             <p className="text-5xl font-black italic font-serif tracking-tighter text-zinc-900 dark:text-zinc-100">API</p>
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">Developer First</p>
           </div>
+          
+          <div className="relative z-10 w-full mt-8">
+            <div className="bg-zinc-900 dark:bg-zinc-950 text-white rounded-xl p-4 shadow-xl border border-zinc-800 transition-transform duration-500 group-hover:-translate-y-1 group-hover:shadow-2xl">
+              <div className="flex gap-1.5 mb-3">
+                <div className="h-2 w-2 rounded-full bg-zinc-700" />
+                <div className="h-2 w-2 rounded-full bg-zinc-700" />
+                <div className="h-2 w-2 rounded-full bg-zinc-700" />
+              </div>
+              <p className="font-mono text-[10px]">
+                <span className="text-emerald-400">~</span> <span className="text-zinc-300">yarn add</span> @dandi/sdk<span className="animate-pulse">_</span>
+              </p>
+            </div>
+          </div>
+          
+          <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-white/40 dark:bg-zinc-800/20 blur-3xl group-hover:bg-emerald-500/10 transition-colors duration-1000 pointer-events-none" />
         </div>
       </div>
     </section>

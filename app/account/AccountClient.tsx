@@ -465,7 +465,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`rounded-full px-5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+                  className={`rounded-full px-5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-zinc-100 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-950 ${
                     activeTab === tab.id
                       ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-md"
                       : "text-zinc-400 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100"
@@ -537,7 +537,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                     <button
                       type="submit"
                       disabled={isSavingProfile}
-                      className="rounded-full bg-zinc-900 dark:bg-zinc-100 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-950 transition hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-95 disabled:opacity-50"
+                      className="rounded-full bg-zinc-900 dark:bg-zinc-100 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-950 transition hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-95 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-zinc-100 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-950"
                     >
                       {isSavingProfile ? "Saving Details..." : "Save Profile Details"}
                     </button>
@@ -584,7 +584,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                       <button
                         onClick={handleToggleGithub}
                         disabled={isConnectingGithub}
-                        className={`w-full rounded-full py-3.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+                        className={`w-full rounded-full py-3.5 text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-zinc-100 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-950 ${
                           githubConnected 
                             ? "bg-zinc-100 hover:bg-red-50 hover:text-red-500 border border-zinc-200 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-red-950/20 text-zinc-500"
                             : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 hover:shadow-lg active:scale-95"

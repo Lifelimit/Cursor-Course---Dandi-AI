@@ -81,7 +81,7 @@ export async function validateApiKey(keyValue: string) {
     // Query key by key_value (masked) and user_id to ensure ownership
     const { data, error } = await supabaseAdmin
       .from("api_keys")
-      .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active")
+      .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active, profiles(plan)")
       .eq("key_value", normalizedKey)
       .eq("user_id", profileId)
       .eq("is_active", true)
@@ -97,7 +97,7 @@ export async function validateApiKey(keyValue: string) {
 
     const { data: hmacData, error: hmacError } = await supabaseAdmin
       .from("api_keys")
-      .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active")
+      .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active, profiles(plan)")
       .eq("hashed_key_value", hmacHashed)
       .eq("is_active", true)
       .single();
@@ -110,7 +110,7 @@ export async function validateApiKey(keyValue: string) {
       const legacyHashed = sha256Hash(keyValue);
       const { data: legacyData, error: legacyError } = await supabaseAdmin
         .from("api_keys")
-        .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active")
+        .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active, profiles(plan)")
         .eq("hashed_key_value", legacyHashed)
         .eq("is_active", true)
         .single();
@@ -124,19 +124,8 @@ export async function validateApiKey(keyValue: string) {
     throw new Error("Invalid API key");
   }
 
-  // Fetch user profile to check plan and limits
-  const { data: profile, error: profileError } = await supabaseAdmin
-    .from("profiles")
-    .select("plan")
-    .eq("id", keyData.user_id)
-    .single();
-
-  if (profileError || !profile) {
-    throw new Error("User profile not found");
-  }
-
-  const plan = profile.plan || "Hobby";
-  const planDetail = PLAN_DETAILS[plan] ?? PLAN_DETAILS["Hobby"];
+  const plan = keyData.profiles?.plan || "Hobby";
+  const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] ?? PLAN_DETAILS["Hobby"];
 
   // Use numeric limit directly from plan constants — no regex parsing needed
   const monthlyLimit = planDetail.monthlyLimit;

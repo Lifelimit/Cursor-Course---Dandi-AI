@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ApiKey } from "@/types/api";
 import { EditIcon, TrashIcon } from "../icons";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
 
 type ApiKeyTableProps = {
   apiKeys: ApiKey[];
@@ -110,15 +111,16 @@ const QuickStartEmptyState = ({ onOpenCreateModal }: { onOpenCreateModal: () => 
 
     {/* Primary Action */}
     <div className="pt-2">
-      <button
+      <PrimaryButton
         onClick={onOpenCreateModal}
-        className="group inline-flex items-center gap-3 rounded-full bg-zinc-900 dark:bg-zinc-100 px-8 py-4 text-xs font-black uppercase tracking-widest text-white dark:text-zinc-900 shadow-lg shadow-zinc-950/10 dark:shadow-none transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200 hover:scale-105 active:scale-95"
+        icon={
+          <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
+            <path d="M12 4v16m8-8H4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        }
       >
         Create API Key
-        <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
-          <path d="M12 4v16m8-8H4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
+      </PrimaryButton>
     </div>
   </div>
 );

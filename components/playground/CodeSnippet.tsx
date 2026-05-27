@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { CopyIconButton } from "@/components/ui/CopyIconButton";
 
 type CodeSnippetProps = {
   apiKey: string;
@@ -82,21 +83,10 @@ print(response.json())`
             </button>
           ))}
         </div>
-        <button
+        <CopyIconButton
           onClick={handleCopy}
-          className="group flex items-center gap-1.5 rounded-md px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-zinc-500 transition hover:bg-white/5 hover:text-white"
-        >
-          {copied ? (
-            <span className="text-emerald-400">Copied!</span>
-          ) : (
-            <>
-              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
-                <path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Copy
-            </>
-          )}
-        </button>
+          title="Copy snippet"
+        />
       </div>
       <div className="relative p-6">
         <pre className="scrollbar-hide overflow-x-auto font-mono text-[11px] leading-relaxed text-zinc-300">

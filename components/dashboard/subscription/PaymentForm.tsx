@@ -4,9 +4,9 @@ import { BillingDetails } from "@/types";
 import { CardNumberElement, CardExpiryElement, CardCvcElement } from "@stripe/react-stripe-js";
 
 type PaymentFormProps = {
-  formValues: BillingDetails & { number: string; expiry: string; cvc: string };
+  formValues: BillingDetails;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
-  setFormValues: React.Dispatch<React.SetStateAction<BillingDetails & { number: string; expiry: string; cvc: string }>>;
+  setFormValues: React.Dispatch<React.SetStateAction<BillingDetails>>;
   handleSavePayment: (e: React.FormEvent) => void;
   isLoading: boolean;
   showCvc: boolean;
