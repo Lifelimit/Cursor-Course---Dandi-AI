@@ -10,6 +10,9 @@ import { PlanComparison } from "@/components/billing/PlanComparison";
 import { PaymentMethodCard } from "@/components/billing/PaymentMethodCard";
 import { InvoiceTable, type Invoice } from "@/components/billing/InvoiceTable";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
+import { getPlanLimits } from "@/lib/constants";
+import { computeSidebarAlerts } from "@/lib/alerts";
+
 
 
 type BillingData = {
@@ -154,24 +157,9 @@ export default function BillingClient({
   const currentPlan = currentData?.plan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby";
   const billingInterval = (activeUser?.user_metadata as { billing_interval?: "month" | "year" })?.billing_interval || "month";
   
-  const PLAN_LIMITS = { Hobby: 1000, Premium: 5000, Researcher: 1000000 };
-  const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
-  const isUnlimited = currentPlan === "Researcher";
+  const { monthlyLimit: currentLimit, isUnlimited } = getPlanLimits(currentPlan);
 
-  const alerts = (currentData?.keys || [])
-    .filter(k => k.is_active && k.alert_threshold !== null && k.alert_channels?.includes('in-page'))
-    .map(k => {
-      const pct = k.monthly_limit ? (k.usage_count / k.monthly_limit) * 100 : 0;
-      return { 
-        id: k.id, 
-        keyName: k.name, 
-        pct, 
-        threshold: k.alert_threshold!,
-        currentLimit: k.monthly_limit || 1000,
-        dailyTrend: k.dailyTrend || []
-      };
-    })
-    .filter(a => a.pct >= a.threshold);
+  const alerts = computeSidebarAlerts(currentData?.keys || []);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalInitialView, setModalInitialView] = useState<"overview" | "cancel-confirm" | "update-payment" | "plan-change-review">("overview");

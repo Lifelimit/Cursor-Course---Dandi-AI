@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type CodeSnippetProps = {
   apiKey: string;
@@ -11,9 +11,12 @@ type CodeSnippetProps = {
 export function CodeSnippet({ apiKey, githubUrl, onCopy }: CodeSnippetProps) {
   const [activeTab, setActiveTab] = useState<"curl" | "fetch" | "python">("curl");
   const [copied, setCopied] = useState(false);
-  const [apiBaseUrl] = useState(() => 
-    typeof window !== "undefined" ? window.location.origin : "https://dandi.ai"
-  );
+  const [apiBaseUrl, setApiBaseUrl] = useState("https://dandi.ai");
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setApiBaseUrl(window.location.origin);
+  }, []);
 
   const displayKey = apiKey || "sk_live_YOUR_API_KEY";
   const displayUrl = githubUrl || "https://github.com/facebook/react";

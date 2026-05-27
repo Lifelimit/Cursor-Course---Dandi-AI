@@ -157,3 +157,21 @@ export const PLANS: Plan[] = [
 
 export const GITHUB_SUMMARIZER_ENDPOINT = "https://dandi.ai/api/github-summarizer";
 
+/**
+ * Derives display-ready plan limits from PLAN_DETAILS.
+ * Handles the Researcher "unlimited" case by returning a 1M sentinel
+ * for progress bar rendering, plus an explicit `isUnlimited` flag.
+ */
+export function getPlanLimits(planName?: string | null) {
+  const name = planName || "Hobby";
+  const detail = PLAN_DETAILS[name] ?? PLAN_DETAILS["Hobby"];
+  const isUnlimited = detail.monthlyLimit === null;
+  return {
+    planName: name,
+    monthlyLimit: isUnlimited ? 1_000_000 : detail.monthlyLimit!,
+    keyLimit: detail.keyLimit ?? 3,
+    isUnlimited,
+  };
+}
+
+

@@ -6,3 +6,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Project Rules
 - Always use **Yarn** (`yarn`) for package management and script execution. Do not use `npm`.
+
+## Hidden Routes
+- `/protected` — Auth-gated Vault page for API key validation testing. Not linked from any UI navigation. Access by URL only.
+

@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import type { Session } from "@supabase/supabase-js";
+import { getPlanLimits } from "@/lib/constants";
 
 function ProtectedContent() {
   const searchParams = useSearchParams();
@@ -146,13 +147,7 @@ export default function ProtectedClient({ initialSession }: { initialSession: Se
   
   // Dynamic Tier Logic
   const currentPlan = activeSession?.user?.user_metadata?.plan || "Hobby"; 
-  const PLAN_LIMITS = {
-    Hobby: 1000,
-    Premium: 5000,
-    Researcher: 1000000 
-  };
-  const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
-  const isUnlimited = currentPlan === "Researcher";
+  const { monthlyLimit: currentLimit, isUnlimited } = getPlanLimits(currentPlan);
 
   return (
     <div className="min-h-screen bg-[#f4f2ed] dark:bg-zinc-950 text-[#18181b] dark:text-zinc-100 selection:bg-zinc-200 dark:selection:bg-zinc-800">

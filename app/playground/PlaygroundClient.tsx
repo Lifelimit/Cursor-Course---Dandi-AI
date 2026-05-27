@@ -14,6 +14,7 @@ import { JsonViewer } from "@/components/playground/JsonViewer";
 import { NetworkLog, type LogEntry } from "@/components/playground/NetworkLog";
 
 import { PLAN_DETAILS } from "@/lib/constants";
+import { computeSidebarAlerts } from "@/lib/alerts";
 
 export default function PlaygroundClient({ 
   initialUser,
@@ -46,20 +47,7 @@ export default function PlaygroundClient({
       .catch(() => {});
   }, []);
 
-  const alerts = apiKeys
-    .filter(k => k.is_active && k.alert_threshold !== null && k.alert_channels?.includes('in-page'))
-    .map(k => {
-      const pct = k.monthly_limit ? (k.usage_count / k.monthly_limit) * 100 : 0;
-      return { 
-        id: k.id, 
-        keyName: k.name, 
-        pct, 
-        threshold: k.alert_threshold!,
-        currentLimit: k.monthly_limit || 1000,
-        dailyTrend: k.dailyTrend || []
-      };
-    })
-    .filter(a => a.pct >= a.threshold);
+  const alerts = computeSidebarAlerts(apiKeys);
 
   const [apiKey, setApiKey] = useState("");
   const [selectedKey, setSelectedKey] = useState<string>(""); // tracks which key was chosen from dropdown
@@ -324,6 +312,10 @@ export default function PlaygroundClient({
     showToast("success", "Demo data populated. Hit Summarize!");
   };
 
+  const activeKeyData = apiKeys.find(k => k.key_value === apiKey);
+  const activeKeyPct = activeKeyData?.monthly_limit ? Math.min((activeKeyData.usage_count / activeKeyData.monthly_limit) * 100, 100) : null;
+  const isOverLimit = activeKeyPct !== null && activeKeyPct >= 100;
+
   return (
     <div className="min-h-screen bg-[#f4f2ed] dark:bg-zinc-950 text-[#18181b] dark:text-zinc-100 selection:bg-zinc-200 dark:selection:bg-zinc-800">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-stretch gap-8 p-6 md:flex-row md:py-12">
@@ -333,7 +325,10 @@ export default function PlaygroundClient({
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
           alerts={alerts}
-          onUpdate={() => router.refresh()}
+          onUpdate={async () => {
+            await refreshKeys();
+            router.refresh();
+          }}
         />
         
         <main className="min-w-0 flex-1 space-y-8">
@@ -447,13 +442,20 @@ export default function PlaygroundClient({
                   <div className="flex flex-col gap-4 sm:flex-row">
                     <button
                       type="submit"
-                      disabled={isLoadingSummary}
+                      disabled={isLoadingSummary || isOverLimit}
                       className="group flex flex-1 items-center justify-center gap-3 rounded-full bg-[#18181b] dark:bg-zinc-100 px-8 py-5 text-xs font-bold uppercase tracking-widest text-white dark:text-zinc-950 transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-zinc-900/10"
                     >
                       {isLoadingSummary ? (
                         <>
                           <div className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 dark:border-zinc-950/20 border-t-white dark:border-t-zinc-950"></div>
                           Processing Repo...
+                        </>
+                      ) : isOverLimit ? (
+                        <>
+                          Quota Exceeded
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
                         </>
                       ) : (
                         <>

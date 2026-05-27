@@ -6,6 +6,8 @@ import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { getPlanLimits } from "@/lib/constants";
+import { computeSidebarAlerts } from "@/lib/alerts";
 
 type ProfileData = {
   fullName: string;
@@ -232,23 +234,9 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
   // Sync sidebar limit properties
   const userPlan = profile?.plan || "Hobby";
-  const planLimit = { Hobby: 1000, Premium: 5000, Researcher: 1000000 }[userPlan] || 1000;
-  const isUnlimited = userPlan === "Researcher";
+  const { monthlyLimit: planLimit, isUnlimited } = getPlanLimits(userPlan);
   
-  const alerts = (usage?.keys || [])
-    .filter(k => k.is_active && k.alert_threshold !== null && k.alert_channels?.includes("in-page"))
-    .map(k => {
-      const pct = k.monthly_limit ? (k.usage_count / k.monthly_limit) * 100 : 0;
-      return {
-        id: k.id,
-        keyName: k.name,
-        pct,
-        threshold: k.alert_threshold!,
-        currentLimit: k.monthly_limit || 1000,
-        dailyTrend: k.dailyTrend || []
-      };
-    })
-    .filter(a => a.pct >= a.threshold);
+  const alerts = computeSidebarAlerts(usage?.keys || []);
 
   // Save profile action
   const handleSaveProfile = async (e: React.FormEvent) => {

@@ -5,6 +5,8 @@ import { getServerEnv } from "@/lib/env";
 import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
 import crypto from "crypto";
+import { hmacHash } from "@/lib/services/api-key.service";
+
 const TABLE_NAME = "api_keys";
 
 type ApiKeyRow = {
@@ -58,13 +60,53 @@ export async function GET() {
     });
     const keyUsageCounts = await pipeline.exec<number[]>();
 
-    const mappedKeys = (data ?? []).map((k, index) => ({
-      ...k,
-      usage_count: keyUsageCounts[index] || 0,
-      monthly_limit: k.monthly_limit ?? monthlyLimit
-    }));
+    // Fetch user activity logs to build trend coordinates
+    const logKey = `logs:user:${userId}:${currentMonth}`;
+    const rawLogs = await redis.lrange(logKey, 0, 99);
+    interface UsageLog {
+      status: string;
+      keyId?: string;
+      usedAt: string;
+    }
+    const logs: UsageLog[] = rawLogs.map((l: string) => {
+      try {
+        return typeof l === 'string' ? JSON.parse(l) : l;
+      } catch {
+        return {} as UsageLog;
+      }
+    });
 
-    return NextResponse.json(mappedKeys as ApiKeyRow[]);
+    const now = new Date();
+    const dates = Array.from({ length: 30 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      return d.toISOString().split("T")[0];
+    }).reverse();
+
+    const mappedKeys = (data ?? []).map((k, index) => {
+      const actualUsage = keyUsageCounts[index] || 0;
+      const keyLogs = logs.filter((l) => l.keyId === k.id);
+      
+      const trendMap = keyLogs.reduce((acc: Record<string, number>, log) => {
+        const date = log.usedAt.split("T")[0];
+        acc[date] = (acc[date] || 0) + 1;
+        return acc;
+      }, {});
+
+      const dailyTrend = dates.map(date => ({
+        date,
+        count: trendMap[date] || 0
+      }));
+
+      return {
+        ...k,
+        usage_count: actualUsage,
+        monthly_limit: k.monthly_limit ?? monthlyLimit,
+        dailyTrend
+      };
+    });
+
+    return NextResponse.json(mappedKeys);
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 401 });
   }
@@ -88,7 +130,7 @@ export async function POST(request: Request) {
 
     const plainKey = buildKeyValue();
     const hmacSecret = getServerEnv().API_KEY_HMAC_SECRET;
-    const hashedKeyValue = crypto.createHmac("sha256", hmacSecret).update(plainKey).digest("hex");
+    const hashedKeyValue = hmacHash(plainKey, hmacSecret);
     const maskedKey = `${plainKey.slice(0, 8)}...${plainKey.slice(-4)}`;
 
     const { data, error } = await supabaseAdmin

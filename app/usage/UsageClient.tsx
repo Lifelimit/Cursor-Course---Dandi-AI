@@ -9,6 +9,9 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { QuotaHealthGrid } from "@/components/usage/QuotaHealthGrid";
 import { TopReposTable } from "@/components/usage/TopReposTable";
 
+import { getPlanLimits } from "@/lib/constants";
+import { computeSidebarAlerts } from "@/lib/alerts";
+
 type UsageData = {
   totalUsage: number;
   keys: {
@@ -107,24 +110,9 @@ export default function UsageClient({
 
   const currentData = data || initialData;
   const currentPlan = activeSession?.user?.user_metadata?.plan || "Hobby";
-  const PLAN_LIMITS = { Hobby: 1000, Premium: 5000, Researcher: 1000000 };
-  const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
-  const isUnlimited = currentPlan === "Researcher";
+  const { monthlyLimit: currentLimit, isUnlimited } = getPlanLimits(currentPlan);
 
-  const alerts = (currentData?.keys || [])
-    .filter(k => k.is_active && k.alert_threshold !== null && k.alert_channels?.includes('in-page'))
-    .map(k => {
-      const pct = k.monthly_limit ? (k.usage_count / k.monthly_limit) * 100 : 0;
-      return { 
-        id: k.id, 
-        keyName: k.name, 
-        pct, 
-        threshold: k.alert_threshold!,
-        currentLimit: k.monthly_limit || 1000,
-        dailyTrend: k.dailyTrend || []
-      };
-    })
-    .filter(a => a.pct >= a.threshold);
+  const alerts = computeSidebarAlerts(currentData?.keys || []);
 
   const handleExport = () => {
     window.location.href = "/api/usage/export";

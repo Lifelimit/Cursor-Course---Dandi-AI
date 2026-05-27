@@ -4,13 +4,23 @@ import React, { useState, useRef } from "react";
 
 type DataPoint = { date: string; count: number };
 
-export function UsageSparkline({ data, color = "#10b981" }: { data: DataPoint[]; color?: string }) {
+export function UsageSparkline({ data, color = "#10b981", isLoading = false }: { data: DataPoint[]; color?: string; isLoading?: boolean }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [hoveredCoords, setHoveredCoords] = useState<{ x: number; y: number } | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const gradientId = React.useId().replace(/:/g, "-");
 
-  if (!data || data.length < 2) return <div className="h-12 w-full bg-zinc-50 dark:bg-zinc-800/50 rounded-lg animate-pulse" />;
+  if (isLoading) {
+    return <div className="h-12 w-full bg-zinc-50 dark:bg-zinc-800/50 rounded-lg animate-pulse" />;
+  }
+
+  if (!data || data.length < 2) {
+    return (
+      <div className="h-12 w-full flex items-center justify-center rounded-lg border border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/10 text-[8px] font-black uppercase tracking-widest text-zinc-400 select-none">
+        Trend Data Unavailable
+      </div>
+    );
+  }
 
   const max = Math.max(...data.map(d => d.count), 5);
   const width = 200;

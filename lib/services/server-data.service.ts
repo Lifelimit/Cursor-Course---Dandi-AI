@@ -38,13 +38,45 @@ export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], p
     });
     const keyUsageCounts = await pipeline.exec<number[]>();
 
+    // Fetch user activity logs from Redis to compute trend details
+    const logKey = `logs:user:${user.id}:${currentMonth}`;
+    const redisLogsStr = await redis.lrange(logKey, 0, -1);
+    const logs = redisLogsStr.map(log => (typeof log === "string" ? JSON.parse(log) : log) as RedisUsageLog);
+
+    const now = new Date();
+    const dates = Array.from({ length: 30 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      return d.toISOString().split("T")[0];
+    }).reverse();
+
     // Prioritize the key's individual monthly_limit if set, otherwise fallback to plan limit
-    return {
-      keys: (data ?? []).map((k, index) => ({
+    const keysMapped = (data ?? []).map((k, index) => {
+      const actualKeyUsage = keyUsageCounts[index] || 0;
+      const limit = k.monthly_limit ?? monthlyLimit;
+      const keyLogs = (logs || []).filter(l => l.keyId === k.id);
+      
+      const trendMap = keyLogs.reduce((acc: Record<string, number>, log) => {
+        const date = log.usedAt.split("T")[0];
+        acc[date] = (acc[date] || 0) + 1;
+        return acc;
+      }, {});
+
+      const dailyTrend = dates.map(date => ({
+        date,
+        count: trendMap[date] || 0
+      }));
+
+      return {
         ...k,
-        usage_count: keyUsageCounts[index] || 0,
-        monthly_limit: k.monthly_limit ?? monthlyLimit
-      })) as ApiKeyApiResponse[],
+        usage_count: actualKeyUsage,
+        monthly_limit: limit,
+        dailyTrend
+      };
+    });
+
+    return {
+      keys: keysMapped as unknown as ApiKeyApiResponse[],
       plan
     };
   } catch {

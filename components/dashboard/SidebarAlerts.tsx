@@ -16,18 +16,23 @@ type Alert = {
 export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate: () => void }) {
   const [peekingKey, setPeekingKey] = React.useState<string | null>(null);
   const [flyoutKey, setFlyoutKey] = React.useState<string | null>(null);
-  const [newLimit, setNewLimit] = React.useState<number>(0);
+  const [newLimit, setNewLimit] = React.useState<string>("");
   const [isUpdating, setIsUpdating] = React.useState(false);
+
+  if (peekingKey === null && peekingKey !== undefined) {} // lint keep
 
   if (alerts.length === 0) return null;
 
   const handleIncrease = async (alert: Alert) => {
+    const parsedLimit = parseInt(newLimit.replace(/,/g, ''), 10);
+    if (isNaN(parsedLimit) || parsedLimit <= 0) return;
+    if (alert.pct >= 100 && parsedLimit <= alert.currentLimit) return;
     setIsUpdating(true);
     try {
       const res = await fetch("/api/usage/alert", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyId: alert.id, monthlyLimit: newLimit })
+        body: JSON.stringify({ keyId: alert.id, monthlyLimit: parsedLimit })
       });
       if (res.ok) {
         onUpdate();
@@ -83,7 +88,7 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                       <p className="text-[9px] font-bold text-zinc-400">{Math.round(alert.pct)}%</p>
                       <button 
                         onClick={() => {
-                          setNewLimit(alert.currentLimit + 1000);
+                          setNewLimit("");
                           setFlyoutKey(isFlying ? null : alert.id);
                         }}
                         className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:underline transition-all active:scale-95"
@@ -162,21 +167,33 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                     </div>
                     <div className="relative">
                       <input 
-                        type="number" 
+                        type="text" 
+                        inputMode="numeric"
                         value={newLimit}
-                        onChange={(e) => setNewLimit(Number(e.target.value))}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '');
+                          setNewLimit(val);
+                        }}
+                        placeholder="500"
                         className="w-full rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800 px-4 py-4 font-serif text-2xl font-bold text-zinc-900 dark:text-zinc-100 focus:border-zinc-900 dark:focus:border-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:outline-none transition-all"
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black text-zinc-300 uppercase">Credits</span>
                     </div>
-                    <p className="px-1 text-[8px] font-medium text-zinc-400 italic">
-                      Current: {alert.currentLimit.toLocaleString()}
-                    </p>
+                    <div className="flex flex-col gap-1">
+                      <p className="px-1 text-[8px] font-medium text-zinc-400 italic">
+                        Current: {alert.currentLimit.toLocaleString()}
+                      </p>
+                      {isMaxed && parseInt(newLimit.replace(/,/g, ''), 10) <= alert.currentLimit && (
+                        <p className="px-1 text-[8px] font-bold text-red-500">
+                          Must be greater than current limit when quota is reached.
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   <button 
                     onClick={() => handleIncrease(alert)}
-                    disabled={isUpdating}
+                    disabled={isUpdating || (isMaxed && parseInt(newLimit.replace(/,/g, ''), 10) <= alert.currentLimit)}
                     className="group relative w-full overflow-hidden rounded-2xl bg-[#18181b] dark:bg-zinc-100 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white dark:text-zinc-900 shadow-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                   >
                     <span className="relative z-10">{isUpdating ? 'Synchronizing...' : 'Update Quota'}</span>

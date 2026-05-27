@@ -8,6 +8,8 @@ import { ApiKey } from "@/types/api";
 import { Toast } from "@/components/ui/Toast";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { ApiKeyModal } from "@/components/dashboard/ApiKeyModal";
+import { getPlanLimits } from "@/lib/constants";
+import { computeSidebarAlerts } from "@/lib/alerts";
 import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
 import { RevocationModal } from "@/components/dashboard/RevocationModal";
 import { useRouter } from "next/navigation";
@@ -82,7 +84,7 @@ export default function DashboardClient({
   const router = useRouter();
   const activeUser = initialUser; 
   
-  const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey } = useApiKeys(initialKeys);
+  const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey, refreshKeys } = useApiKeys(initialKeys);
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
   const [realtimePlan, setRealtimePlan] = useState<string | null>(null);
@@ -95,13 +97,7 @@ export default function DashboardClient({
   
   // Dynamic Tier Logic - Using the most recent session data available
   const currentPlan = realtimePlan || initialPlan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
-  const PLAN_LIMITS = {
-    Hobby: 1000,
-    Premium: 5000,
-    Researcher: 1000000 // High number for visual progress on "Unlimited"
-  };
-  const currentLimit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 1000;
-  const isUnlimited = currentPlan === "Researcher";
+  const { monthlyLimit: currentLimit, isUnlimited } = getPlanLimits(currentPlan);
 
   // Fetch real-time usage data (including plan, avgLatency, successRate, and resetDate)
   useEffect(() => {
@@ -143,20 +139,7 @@ export default function DashboardClient({
     };
   }, []);
 
-  const alerts = apiKeys
-    .filter(k => k.is_active && k.alert_threshold !== null && k.alert_channels?.includes('in-page'))
-    .map(k => {
-      const pct = k.monthly_limit ? (k.usage_count / k.monthly_limit) * 100 : 0;
-      return { 
-        id: k.id, 
-        keyName: k.name, 
-        pct, 
-        threshold: k.alert_threshold!,
-        currentLimit: k.monthly_limit || 1000,
-        dailyTrend: k.dailyTrend || []
-      };
-    })
-    .filter(a => a.pct >= a.threshold);
+  const alerts = computeSidebarAlerts(apiKeys);
 
   const { toast, showToast } = useToast();
   
@@ -267,7 +250,10 @@ export default function DashboardClient({
           limit={currentLimit} 
           isUnlimited={isUnlimited} 
           alerts={alerts}
-          onUpdate={() => router.refresh()}
+          onUpdate={async () => {
+            await refreshKeys();
+            router.refresh();
+          }}
         />
         
         <main className="min-w-0 flex-1">

@@ -25,6 +25,7 @@ export type ApiKeyApiResponse = {
   alert_threshold: number | null;
   alert_channels: string[] | null;
   alert_phone: string | null;
+  dailyTrend?: { date: string; count: number }[];
 };
 
 export function formatDate(date: Date) {
@@ -44,5 +45,6 @@ export function mapApiKey(row: ApiKeyApiResponse): ApiKey {
     alert_threshold: row.alert_threshold ?? null,
     alert_channels: row.alert_channels ?? null,
     alert_phone: row.alert_phone ?? null,
+    dailyTrend: row.dailyTrend,
   };
 }

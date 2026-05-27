@@ -4,7 +4,7 @@ import { PLAN_DETAILS } from "@/lib/constants";
 import crypto from "crypto";
 
 /** HMAC-SHA256 hash using the server secret. Used for new key hashing. */
-function hmacHash(value: string, secret: string): string {
+export function hmacHash(value: string, secret: string): string {
   return crypto.createHmac("sha256", secret).update(value).digest("hex");
 }
 
