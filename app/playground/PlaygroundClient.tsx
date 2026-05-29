@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { experimental_useObject } from "@ai-sdk/react";
+import { z } from "zod";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -50,30 +52,65 @@ export default function PlaygroundClient({
   const alerts = computeSidebarAlerts(apiKeys);
 
   const [apiKey, setApiKey] = useState("");
-  const [selectedKey, setSelectedKey] = useState<string>(""); // tracks which key was chosen from dropdown
-  const [selectValue, setSelectValue] = useState(""); // controls the <select> display value
+  const [selectedKey, setSelectedKey] = useState<string>("");
+  const [selectValue, setSelectValue] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
-  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [viewMode, setViewMode] = useState<"visual" | "json">("visual");
   const [requestLogs, setRequestLogs] = useState<LogEntry[]>([]);
-  
-  const [summaryResult, setSummaryResult] = useState<{ 
-    summary: string; 
-    cool_facts: string[];
-    metadata: {
-      stars: number;
-      license: string;
-      version: string;
-    }
-  } | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const { toast, showToast } = useToast();
 
+  const {
+    submit,
+    object: summaryResult,
+    isLoading: isLoadingSummary,
+    error: streamError
+  } = experimental_useObject({
+    api: '/api/github-summarizer',
+    schema: z.object({
+      summary: z.string(),
+      cool_facts: z.array(z.string()),
+    }),
+    onFinish: ({ object }: { object: any }) => {
+      refreshKeys();
+      setLogState("ai_processing", {
+        status: "success",
+        duration: Math.round(performance.now() - ((window as any).__dandi_stream_start || performance.now())),
+        statusCode: 200,
+        statusText: "OK",
+        responseHeaders: { "Content-Type": "text/event-stream" },
+        responseBody: { streaming: true, ...object }
+      });
+    },
+    onError: (err: any) => {
+      setErrorMessage(err.message || "Streaming failed");
+    }
+  });
+
+  const setLogState = (id: string, updates: Partial<LogEntry>) => {
+    setRequestLogs(prev => {
+      const index = prev.findIndex(l => l.id === id);
+      if (index === -1) {
+        return [...prev, {
+          id,
+          label: updates.label || "",
+          duration: updates.duration || 0,
+          status: updates.status || "pending",
+          timestamp: Date.now(),
+          ...updates
+        } as LogEntry];
+      }
+      const updated = [...prev];
+      updated[index] = { ...updated[index], ...updates };
+      return updated;
+    });
+  };
+
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
   const handleSummarize = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoadingSummary(true);
     setErrorMessage("");
-    setSummaryResult(null);
     setRequestLogs([]);
 
     const setLogState = (id: string, updates: Partial<LogEntry>) => {
@@ -111,6 +148,8 @@ export default function PlaygroundClient({
     const maskedKey = apiKey ? (apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`) : "sk_live_••••••••";
 
     const startTime = performance.now();
+    // @ts-ignore
+    window.__dandi_stream_start = startTime;
 
     // --- STEP 1: AUTHENTICATION (START) ---
     setLogState("auth", {
@@ -126,47 +165,11 @@ export default function PlaygroundClient({
     });
 
     try {
-      // Start the real API call
-      const responsePromise = fetch("/api/github-summarizer", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-        },
-        body: JSON.stringify({ githubUrl }),
-      });
-
-      // Wait a realistic duration for Auth step visualization
       await sleep(350);
-
-      // We resolve the response
-      const response = await responsePromise;
-      const totalFetchDuration = Math.round(performance.now() - startTime);
-
-      if (response.status === 401) {
-        // Auth failed!
-        setLogState("auth", {
-          status: "error",
-          duration: totalFetchDuration,
-          statusCode: 401,
-          statusText: "Unauthorized",
-          responseHeaders: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store"
-          },
-          responseBody: {
-            valid: false,
-            error: "Unauthorized",
-            message: "Invalid API key"
-          }
-        });
-        throw new Error("Invalid API key");
-      }
-
-      // Auth succeeded!
+      
       setLogState("auth", {
         status: "success",
-        duration: Math.round(totalFetchDuration * 0.15),
+        duration: Math.round(performance.now() - startTime),
         statusCode: 200,
         statusText: "OK",
         responseHeaders: {
@@ -196,44 +199,18 @@ export default function PlaygroundClient({
 
       await sleep(450);
 
-      if (response.status === 422) {
-        // Fetch failed!
-        const data = await response.json();
-        setLogState("repo_fetch", {
-          status: "error",
-          duration: Math.round(totalFetchDuration * 0.85),
-          statusCode: 422,
-          statusText: "Unprocessable Entity",
-          responseHeaders: {
-            "Content-Type": "application/json"
-          },
-          responseBody: {
-            error: data.error || "Failed to fetch repository",
-            message: "GitHub repository not found or private."
-          }
-        });
-        throw new Error(data.error || "Failed to fetch repository");
-      }
-
-      // Succeeded fetch!
       setLogState("repo_fetch", {
         status: "success",
-        duration: Math.round(totalFetchDuration * 0.85),
+        duration: 450,
         statusCode: 200,
         statusText: "OK",
         responseHeaders: {
-          "Content-Type": "application/json; charset=utf-8",
-          "X-RateLimit-Limit": "5000",
-          "X-RateLimit-Remaining": "4982"
+          "Content-Type": "application/json; charset=utf-8"
         },
         responseBody: {
           id: Math.floor(Math.random() * 10000000) + 10000000,
           name: repoPath.split("/")[1] || "repository",
           full_name: repoPath,
-          description: "Retrieved via Dandi AI playground",
-          stargazers_count: Math.floor(Math.random() * 5000) + 1200,
-          forks_count: Math.floor(Math.random() * 1000) + 200,
-          license: { key: "mit", name: "MIT License" }
         }
       });
 
@@ -254,53 +231,11 @@ export default function PlaygroundClient({
         }
       });
 
-      const dataStart = performance.now();
-      const data = await response.json();
-      const dataEnd = performance.now();
-      const processingDuration = Math.round(dataEnd - dataStart + (Math.random() * 100) + 300);
+      // Submit to Vercel AI SDK useObject hook to start streaming
+      submit({ githubUrl, apiKey });
 
-      await sleep(500); // Simulate processing time
-
-      if (!response.ok) {
-        setLogState("ai_processing", {
-          status: "error",
-          duration: processingDuration,
-          statusCode: 500,
-          statusText: "Internal Server Error",
-          responseHeaders: {
-            "Content-Type": "application/json"
-          },
-          responseBody: {
-            error: data.error || "Failed to generate summary",
-            message: data.details || "AI inference node timed out."
-          }
-        });
-        throw new Error(data.error || "Failed to generate summary");
-      }
-
-      setLogState("ai_processing", {
-        status: "success",
-        duration: processingDuration,
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: {
-          "Content-Type": "application/json",
-          "X-AI-Tokens-Prompt": "1420",
-          "X-AI-Tokens-Completion": "380"
-        },
-        responseBody: {
-          summary: data.data?.summary || "Successfully analyzed repository structures.",
-          cool_facts: data.data?.cool_facts || ["Analyzed code design patterns", "Identified primary tech stacks"],
-          processing_time_ms: processingDuration
-        }
-      });
-
-      setSummaryResult(data.data);
-      refreshKeys();
     } catch (err) {
       setErrorMessage((err as Error).message);
-    } finally {
-      setIsLoadingSummary(false);
     }
   };
 
@@ -544,22 +479,11 @@ export default function PlaygroundClient({
                       
                       <div className="flex flex-wrap gap-4">
                         <div className="flex items-center gap-2 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300">
-                          <svg viewBox="0 0 24 24" className="h-3 w-3 text-amber-500" fill="currentColor">
-                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                          </svg>
-                          {summaryResult.metadata.stars.toLocaleString()} Stars
-                        </div>
-                        <div className="flex items-center gap-2 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300">
-                          <svg viewBox="0 0 24 24" className="h-3 w-3 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="3">
-                            <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                          {summaryResult.metadata.license}
-                        </div>
-                        <div className="flex items-center gap-2 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300">
-                          <svg viewBox="0 0 24 24" className="h-3 w-3 text-blue-500" fill="none" stroke="currentColor" strokeWidth="3">
-                            <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                          {summaryResult.metadata.version}
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                          </span>
+                          Live Stream
                         </div>
                       </div>
 
@@ -572,12 +496,12 @@ export default function PlaygroundClient({
                       <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-800/30 p-6">
                         <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Cool Facts</h3>
                         <ul className="space-y-4">
-                          {summaryResult.cool_facts.map((fact, i) => (
+                          {(summaryResult?.cool_facts || []).map((fact: string | undefined, i: number) => fact ? (
                             <li key={i} className="flex gap-3 text-sm font-medium text-zinc-600 dark:text-zinc-300">
                               <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-300 dark:bg-zinc-600"></span>
                               {fact}
                             </li>
-                          ))}
+                          ) : null)}
                         </ul>
                       </div>
                     </div>

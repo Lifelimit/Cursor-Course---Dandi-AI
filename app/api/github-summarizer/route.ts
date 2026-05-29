@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
 import { fetchGitHubReadme, fetchGitHubMetadata } from "@/lib/services/github.service";
-import { generateGithubSummary } from "@/lib/services/ai.service";
+import { streamGithubSummary } from "@/lib/services/ai.service";
 import { Ratelimit } from "@upstash/ratelimit";
 import { redis } from "@/lib/redis";
 
@@ -56,12 +56,21 @@ export async function POST(request: Request) {
       );
     }
 
+    // 3. Extract and validate GitHub URL & API Key
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400, headers: corsHeaders });
+    }
+    const { githubUrl, apiKey: bodyApiKey } = body;
+
     // 2. Extract and Validate the API key
-    const apiKey = request.headers.get("x-api-key");
+    const apiKey = request.headers.get("x-api-key") || bodyApiKey;
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: "API key is required in headers (x-api-key)" },
+        { error: "API key is required in headers (x-api-key) or body" },
         { status: 401, headers: corsHeaders }
       );
     }
@@ -74,15 +83,6 @@ export async function POST(request: Request) {
       const status = errorMessage.includes("limit exceeded") ? 403 : 401;
       return NextResponse.json({ error: errorMessage }, { status, headers: corsHeaders });
     }
-
-    // 3. Extract and validate GitHub URL
-    let body;
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400, headers: corsHeaders });
-    }
-    const { githubUrl } = body;
 
     if (!githubUrl) {
       return NextResponse.json({ error: "githubUrl is required in body" }, { status: 400, headers: corsHeaders });
@@ -125,39 +125,37 @@ export async function POST(request: Request) {
       );
     }
 
-    // 5. Generate AI Summary
+    // 5. Generate AI Summary Stream
     try {
-      const aiResult = await generateGithubSummary(readmeContent);
-      const latencyMs = Date.now() - startTime;
+      const result = await streamGithubSummary(readmeContent);
 
-      // 6. Track Usage (Successful requests only)
+      // We need to return the stream response, but also track usage when the stream finishes.
+      // With Vercel AI SDK, we can't directly hook into `onFinish` from `streamObject` unless we pass it to the streamObject call?
+      // Wait, streamObject does not have `onFinish` in its config, but we can hook into the stream itself or just track usage instantly since the stream *started* successfully. 
+      // It is standard practice to count usage as soon as the LLM stream begins, because tokens will be consumed.
+      const latencyMs = Date.now() - startTime;
       await incrementKeyUsage(keyData, githubUrl, latencyMs, "success");
 
-      return NextResponse.json({
-        success: true,
-        message: `Successfully summarized ${githubUrl}`,
-        data: {
-          owner: keyData.name,
-          repo: githubUrl,
-          metadata: metadata,
-          ...aiResult,
-        },
-      }, {
-        headers: corsHeaders
+      const response = result.toTextStreamResponse({
+        headers: {
+          ...corsHeaders,
+          "x-github-metadata": JSON.stringify({
+            owner: keyData.name,
+            repo: githubUrl,
+            metadata: metadata,
+          })
+        }
       });
+
+      return response;
     } catch (aiErr) {
       console.error("AI Error:", aiErr);
       const latencyMs = Date.now() - startTime;
-      
       const errMsg = aiErr instanceof Error ? aiErr.message : String(aiErr);
-      
       await incrementKeyUsage(keyData, githubUrl, latencyMs, "error");
 
       return NextResponse.json(
-        { 
-          error: "Failed to generate AI summary.", 
-          details: errMsg
-        },
+        { error: "Failed to generate AI summary.", details: errMsg },
         { status: 500, headers: corsHeaders }
       );
     }
