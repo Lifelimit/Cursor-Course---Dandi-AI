@@ -99,6 +99,7 @@ export function Sidebar({
                   width={32}
                   height={32}
                   className="h-8 w-8 rounded-full border border-zinc-200 dark:border-zinc-800 shadow-sm" 
+                  referrerPolicy="no-referrer"
                   unoptimized
                 />
               ) : (

@@ -37,15 +37,14 @@ export default function DashboardClient({
   const activeUser = initialUser; 
   
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey, refreshKeys } = useApiKeys(initialKeys);
-  const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
-  const [lastSyncedTime, setLastSyncedTime] = useState<string>("Just now");
-  
-  // SWR automatically handles polling, caching, and loading states
   const fetcher = (url: string) => fetch(url).then(res => res.json());
   const { data: usageData, isValidating } = useSWR('/api/usage', fetcher, { 
     refreshInterval: 10000 
   });
+
+  const [lastSyncedTime, setLastSyncedTime] = useState<string>("Just now");
+  const totalUsage = usageData?.totalUsage ?? apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
 
   const realtimePlan = usageData?.plan || null;
   const avgLatency = typeof usageData?.avgLatency === 'number' ? usageData.avgLatency : initialAvgLatency;
@@ -75,7 +74,7 @@ export default function DashboardClient({
     };
   }, [usageData]);
 
-  const alerts = computeSidebarAlerts(apiKeys);
+  const alerts = computeSidebarAlerts(usageData?.keys || apiKeys);
 
   const { toast, showToast } = useToast();
   

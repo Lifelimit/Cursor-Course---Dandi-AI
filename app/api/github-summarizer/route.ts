@@ -117,7 +117,7 @@ export async function POST(request: Request) {
       ]);
     } catch (fetchErr) {
       const latencyMs = Date.now() - startTime;
-      await incrementKeyUsage(keyData.id, keyData.user_id, githubUrl, latencyMs, "error");
+      await incrementKeyUsage(keyData, githubUrl, latencyMs, "error");
       
       return NextResponse.json(
         { error: fetchErr instanceof Error ? fetchErr.message : "Failed to fetch repository data" },
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
       const latencyMs = Date.now() - startTime;
 
       // 6. Track Usage (Successful requests only)
-      await incrementKeyUsage(keyData.id, keyData.user_id, githubUrl, latencyMs, "success");
+      await incrementKeyUsage(keyData, githubUrl, latencyMs, "success");
 
       return NextResponse.json({
         success: true,
@@ -148,7 +148,7 @@ export async function POST(request: Request) {
     } catch (aiErr) {
       console.error("AI Error:", aiErr);
       const latencyMs = Date.now() - startTime;
-      await incrementKeyUsage(keyData.id, keyData.user_id, githubUrl, latencyMs, "error");
+      await incrementKeyUsage(keyData, githubUrl, latencyMs, "error");
 
       return NextResponse.json(
         { 

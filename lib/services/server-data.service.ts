@@ -32,11 +32,14 @@ export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], p
     if (error) return { keys: [], plan: plan || "Hobby" };
     
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-    const pipeline = redis.pipeline();
-    (data ?? []).forEach(k => {
-      pipeline.get(`usage:key:${k.id}:${currentMonth}`);
-    });
-    const keyUsageCounts = await pipeline.exec<number[]>();
+    let keyUsageCounts: number[] = [];
+    if (data && data.length > 0) {
+      const pipeline = redis.pipeline();
+      data.forEach(k => {
+        pipeline.get(`usage:key:${k.id}:${currentMonth}`);
+      });
+      keyUsageCounts = await pipeline.exec<number[]>();
+    }
 
     // Fetch user activity logs from Redis to compute trend details
     const logKey = `logs:user:${user.id}:${currentMonth}`;
@@ -133,11 +136,14 @@ export async function getServerUsageData() {
     if (keysError) throw new Error(keysError.message);
 
     // 5. Fetch per-key usage from Redis for accurate counts
-    const pipeline = redis.pipeline();
-    (keys || []).forEach(k => {
-      pipeline.get(`usage:key:${k.id}:${currentMonth}`);
-    });
-    const keyUsageCounts = await pipeline.exec<number[]>();
+    let keyUsageCounts: number[] = [];
+    if (keys && keys.length > 0) {
+      const pipeline = redis.pipeline();
+      keys.forEach(k => {
+        pipeline.get(`usage:key:${k.id}:${currentMonth}`);
+      });
+      keyUsageCounts = await pipeline.exec<number[]>();
+    }
 
     const now = new Date();
     const dates = Array.from({ length: 30 }, (_, i) => {

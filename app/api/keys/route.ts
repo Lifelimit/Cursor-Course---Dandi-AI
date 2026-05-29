@@ -54,11 +54,14 @@ export async function GET() {
     }
 
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-    const pipeline = redis.pipeline();
-    (data ?? []).forEach(k => {
-      pipeline.get(`usage:key:${k.id}:${currentMonth}`);
-    });
-    const keyUsageCounts = await pipeline.exec<number[]>();
+    let keyUsageCounts: number[] = [];
+    if (data && data.length > 0) {
+      const pipeline = redis.pipeline();
+      data.forEach(k => {
+        pipeline.get(`usage:key:${k.id}:${currentMonth}`);
+      });
+      keyUsageCounts = await pipeline.exec<number[]>();
+    }
 
     // Fetch user activity logs to build trend coordinates
     const logKey = `logs:user:${userId}:${currentMonth}`;
@@ -128,6 +131,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Name is required." }, { status: 400 });
     }
 
+    const alertThreshold = typeof body?.alert_threshold === "number" ? body.alert_threshold : 80;
+    const alertChannels = Array.isArray(body?.alert_channels) ? body.alert_channels : ["in-page"];
+
     const plainKey = buildKeyValue();
     const hmacSecret = getServerEnv().API_KEY_HMAC_SECRET;
     const hashedKeyValue = hmacHash(plainKey, hmacSecret);
@@ -143,6 +149,8 @@ export async function POST(request: Request) {
         usage_count: 0,
         monthly_limit: monthlyLimit,
         user_id: userId,
+        alert_threshold: alertThreshold,
+        alert_channels: alertChannels,
       })
       .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active,alert_threshold,alert_channels,alert_phone")
       .single();

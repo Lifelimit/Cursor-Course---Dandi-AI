@@ -78,10 +78,9 @@ export async function validateApiKey(keyValue: string) {
       throw new Error("Unauthorized: Active browser session required to use a masked API key.");
     }
 
-    // Query key by key_value (masked) and user_id to ensure ownership
     const { data, error } = await supabaseAdmin
       .from("api_keys")
-      .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active, profiles(plan)")
+      .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active, alert_threshold, alert_channels, profiles(plan, email)")
       .eq("key_value", normalizedKey)
       .eq("user_id", profileId)
       .eq("is_active", true)
@@ -97,7 +96,7 @@ export async function validateApiKey(keyValue: string) {
 
     const { data: hmacData, error: hmacError } = await supabaseAdmin
       .from("api_keys")
-      .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active, profiles(plan)")
+      .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active, alert_threshold, alert_channels, profiles(plan, email)")
       .eq("hashed_key_value", hmacHashed)
       .eq("is_active", true)
       .single();
@@ -107,10 +106,9 @@ export async function validateApiKey(keyValue: string) {
       dbError = null;
     } else {
       // Fallback: try legacy SHA-256 hash for keys created before HMAC was introduced
-      const legacyHashed = sha256Hash(keyValue);
       const { data: legacyData, error: legacyError } = await supabaseAdmin
         .from("api_keys")
-        .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active, profiles(plan)")
+        .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active, alert_threshold, alert_channels, profiles(plan, email)")
         .eq("hashed_key_value", legacyHashed)
         .eq("is_active", true)
         .single();
@@ -124,8 +122,9 @@ export async function validateApiKey(keyValue: string) {
     throw new Error("Invalid API key");
   }
 
-  const profilesData = keyData.profiles as { plan?: string } | { plan?: string }[];
+  const profilesData = keyData.profiles as { plan?: string; email?: string } | { plan?: string; email?: string }[];
   const plan = (Array.isArray(profilesData) ? profilesData[0]?.plan : profilesData?.plan) || "Hobby";
+  const userEmail = Array.isArray(profilesData) ? profilesData[0]?.email : profilesData?.email;
   const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] ?? PLAN_DETAILS["Hobby"];
 
   // Use numeric limit directly from plan constants — no regex parsing needed
@@ -155,17 +154,19 @@ export async function validateApiKey(keyValue: string) {
     ...keyData,
     monthly_limit: keyData.monthly_limit ?? monthlyLimit,
     usage_count: currentKeyUsage,
-    plan
+    plan,
+    email: userEmail
   };
 }
 
 export async function incrementKeyUsage(
-  keyId: string,
-  userId: string,
+  keyData: any,
   repoUrl?: string,
   latencyMs: number = 0,
   status: "success" | "error" = "success"
 ) {
+  const keyId = keyData.id;
+  const userId = keyData.user_id;
   if (keyId === "demo-id") {
     if (status === "success") {
       const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -180,7 +181,7 @@ export async function incrementKeyUsage(
 
   // 1. Increment usage in Redis (Atomic) — only for successful requests to be fair to users
   if (status === "success") {
-    await Promise.all([
+    const [newUsage, newKeyUsage] = await Promise.all([
       redis.incr(usageKey),
       redis.incr(keyUsageKey),
     ]);
@@ -190,6 +191,23 @@ export async function incrementKeyUsage(
       redis.expire(usageKey, ttlSeconds),
       redis.expire(keyUsageKey, ttlSeconds),
     ]);
+
+    // Check for alerts
+    if (keyData.monthly_limit && keyData.alert_threshold && keyData.alert_channels?.includes("email") && keyData.email) {
+      const pct = (newKeyUsage / keyData.monthly_limit) * 100;
+      if (pct >= keyData.alert_threshold) {
+        // Only send once per month per key per threshold. Use Redis to deduplicate.
+        const alertSentKey = `alert:sent:${keyId}:${currentMonth}`;
+        const alreadySent = await redis.get(alertSentKey);
+        if (!alreadySent) {
+          // Fire and forget email
+          const { sendAlertEmail } = await import("./email.service");
+          sendAlertEmail(keyData.email, keyData.name, pct, keyData.alert_threshold).catch(console.error);
+          
+          await redis.set(alertSentKey, "true", { ex: ttlSeconds });
+        }
+      }
+    }
   }
 
   // 2. Validate and sanitize repoUrl before logging

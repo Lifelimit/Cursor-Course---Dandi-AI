@@ -35,8 +35,8 @@ export function Navbar({ session }: { session: Session | null }) {
         
         <div className="hidden items-center gap-10 text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 md:flex">
           <Link href="/#features" className="transition hover:text-[#18181b] dark:hover:text-white">Features</Link>
-          <Link href="/playground" className="transition hover:text-[#18181b] dark:hover:text-white">Playground</Link>
           <Link href="/#pricing" className="transition hover:text-[#18181b] dark:hover:text-white">Pricing</Link>
+          <Link href="/playground" className="transition hover:text-[#18181b] dark:hover:text-white">Playground</Link>
         </div>
 
         <div className="flex items-center gap-4">
@@ -72,7 +72,7 @@ export function Navbar({ session }: { session: Session | null }) {
                     </div>
                   </div>
                   {userImage ? (
-                    <Image src={userImage} alt="Avatar" width={34} height={34} className="rounded-full border-2 border-white dark:border-zinc-900 shadow-sm" />
+                    <Image src={userImage} alt="Avatar" width={34} height={34} className="rounded-full border-2 border-white dark:border-zinc-900 shadow-sm" referrerPolicy="no-referrer" unoptimized />
                   ) : (
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 text-[10px] font-black uppercase text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
                       {session.user.email?.[0] || 'U'}
@@ -111,8 +111,8 @@ export function Navbar({ session }: { session: Session | null }) {
         <div className="border-t border-zinc-200 dark:border-zinc-800 bg-[#f4f2ed] dark:bg-zinc-950 p-6 md:hidden animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex flex-col gap-6 text-sm font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
             <Link href="/#features" className="hover:text-zinc-900 dark:hover:text-white">Features</Link>
-            <Link href="/playground" className="hover:text-zinc-900 dark:hover:text-white">Playground</Link>
             <Link href="/#pricing" className="hover:text-zinc-900 dark:hover:text-white">Pricing</Link>
+            <Link href="/playground" className="hover:text-zinc-900 dark:hover:text-white">Playground</Link>
             <hr className="border-zinc-200 dark:border-zinc-800" />
             {session ? (
               <>

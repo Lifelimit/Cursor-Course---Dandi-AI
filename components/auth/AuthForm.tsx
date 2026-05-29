@@ -45,6 +45,20 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
     }
   }, [pathname, isSignUp]);
 
+  // Listen for authentication across tabs (e.g. user clicks magic link in another tab)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        router.push("/dashboards");
+        router.refresh();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase.auth, router]);
+
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -71,7 +85,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
             password,
             options: {
               data: { full_name: fullName },
-              emailRedirectTo: `${getURL()}/auth/callback`,
+              emailRedirectTo: `${getURL()}/auth/callback?next=/auth/success`,
             },
           });
 
@@ -99,7 +113,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
         const { error: authError } = await supabase.auth.signInWithOtp({
           email,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=/auth/success`,
           },
         });
 

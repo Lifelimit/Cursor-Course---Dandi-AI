@@ -244,7 +244,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                   <AlertThresholdControl 
                     keyId={key.id} 
                     initialThreshold={key.alert_threshold}
-                    initialChannels={key.alert_channels || ['email', 'in-page']}
+                    initialChannels={key.alert_channels || ['in-page']}
                     initialPhone={key.alert_phone || ''}
                     limit={key.monthly_limit}
                     onUpdate={onUpdate}
