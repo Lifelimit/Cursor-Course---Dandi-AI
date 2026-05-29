@@ -11,7 +11,7 @@ export default function AuthSuccessPage() {
     const timer = setTimeout(() => {
       try {
         window.close();
-      } catch (e) {
+      } catch {
         // Ignore errors if blocked
       }
     }, 3000);

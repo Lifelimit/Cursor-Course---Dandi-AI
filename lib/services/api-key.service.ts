@@ -8,10 +8,7 @@ export function hmacHash(value: string, secret: string): string {
   return crypto.createHmac("sha256", secret).update(value).digest("hex");
 }
 
-/** Legacy SHA-256 hash (no secret). Used as a fallback for keys created before HMAC was introduced. */
-function sha256Hash(value: string): string {
-  return crypto.createHash("sha256").update(value).digest("hex");
-}
+
 
 /** Returns true if the string looks like a valid GitHub repository URL. */
 function isValidGitHubUrl(url: string): boolean {
@@ -160,6 +157,7 @@ export async function validateApiKey(keyValue: string) {
 }
 
 export async function incrementKeyUsage(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   keyData: any,
   repoUrl?: string,
   latencyMs: number = 0,
@@ -181,7 +179,7 @@ export async function incrementKeyUsage(
 
   // 1. Increment usage in Redis (Atomic) — only for successful requests to be fair to users
   if (status === "success") {
-    const [newUsage, newKeyUsage] = await Promise.all([
+    const [, newKeyUsage] = await Promise.all([
       redis.incr(usageKey),
       redis.incr(keyUsageKey),
     ]);
