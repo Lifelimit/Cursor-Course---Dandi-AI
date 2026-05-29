@@ -272,7 +272,7 @@ export default function PlaygroundClient({
           },
           responseBody: {
             error: data.error || "Failed to generate summary",
-            message: "AI inference node timed out."
+            message: data.details || "AI inference node timed out."
           }
         });
         throw new Error(data.error || "Failed to generate summary");
