@@ -28,8 +28,21 @@ export async function fetchGitHubReadme(githubUrl: string): Promise<string> {
   }
 
   const [owner, repo] = pathParts;
-  const branches = ["main", "master"];
 
+  // Primary method: Use GitHub API to automatically resolve the default branch (e.g., canary, develop)
+  const headers = getGitHubHeaders();
+  headers["Accept"] = "application/vnd.github.v3.raw"; // Get raw text instead of base64 JSON
+
+  const apiResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`, {
+    headers
+  });
+
+  if (apiResponse.ok) {
+    return await apiResponse.text();
+  }
+
+  // Fallback: If API rate limited, try fetching from raw.githubusercontent.com directly
+  const branches = ["main", "master"];
   for (const branch of branches) {
     const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/README.md`;
     const response = await fetch(rawUrl, {
@@ -41,7 +54,7 @@ export async function fetchGitHubReadme(githubUrl: string): Promise<string> {
     }
   }
 
-  throw new Error("Could not find README.md in the 'main' or 'master' branches.");
+  throw new Error(`Could not find README.md for repository ${owner}/${repo}.`);
 }
 
 /**
