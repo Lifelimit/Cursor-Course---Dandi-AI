@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
 import { googleProvider } from "@/lib/services/ai.service";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { embed, streamText } from "ai";
+import { streamText } from "ai";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,6 +18,61 @@ export async function OPTIONS() {
       "Access-Control-Max-Age": "86400",
     },
   });
+}
+
+async function fetchWithRetry(url: string, options: RequestInit, retries = 3, delayMs = 1500): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.status === 429) {
+        let retryAfter = delayMs * Math.pow(2, i);
+        try {
+          const clone = res.clone();
+          const data = await clone.json() as { error?: { details?: Array<{ '@type'?: string; retryDelay?: string }> } };
+          const delaySec = data?.error?.details?.find(d => d['@type']?.includes('RetryInfo'))?.retryDelay;
+          if (delaySec) {
+            const sec = parseInt(delaySec);
+            if (!isNaN(sec)) {
+              retryAfter = sec * 1000 + 500;
+            }
+          }
+        } catch {}
+        console.warn(`⚠️ Rate limited (429). Retrying in ${retryAfter}ms (attempt ${i + 1}/${retries})...`);
+        await new Promise(resolve => setTimeout(resolve, retryAfter));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      await new Promise(resolve => setTimeout(resolve, delayMs * Math.pow(2, i)));
+    }
+  }
+  throw lastError || new Error(`Failed after ${retries} retries`);
+}
+
+async function googleEmbed(value: string): Promise<number[]> {
+  const apiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Google Generative AI API key is missing.");
+  }
+
+  const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content: { parts: [{ text: value }] },
+      outputDimensionality: 768
+    })
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(`Google Embedding API error: ${JSON.stringify(errorData)}`);
+  }
+
+  const data = await res.json() as { embedding: { values: number[] } };
+  return data.embedding.values;
 }
 
 interface Message {
@@ -97,10 +152,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Generate embedding for user query
-    const { embedding } = await embed({
-      model: googleProvider.textEmbeddingModel("text-embedding-004"),
-      value: userQuery,
-    });
+    const embedding = await googleEmbed(userQuery);
 
     // 3. Search database using vector cosine similarity
     const { data: matchedChunks, error: searchError } = await supabaseAdmin.rpc(
@@ -162,8 +214,15 @@ export async function POST(request: Request) {
     if (keyData) {
       await incrementKeyUsage(keyData, githubUrl, latencyMs, "error");
     }
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const isQuotaExceeded = errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED");
     return NextResponse.json(
-      { error: "Internal server error during chat session.", details: err instanceof Error ? err.message : String(err) },
+      { 
+        error: isQuotaExceeded 
+          ? "Gemini API rate limit exceeded. Please wait a moment before trying again." 
+          : "Internal server error during chat session.", 
+        details: errMsg 
+      },
       { status: 500, headers: corsHeaders }
     );
   }

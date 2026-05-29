@@ -8,8 +8,6 @@ export function hmacHash(value: string, secret: string): string {
   return crypto.createHmac("sha256", secret).update(value).digest("hex");
 }
 
-
-
 /** Returns true if the string looks like a valid GitHub repository URL. */
 function isValidGitHubUrl(url: string): boolean {
   try {
