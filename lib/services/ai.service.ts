@@ -17,6 +17,7 @@ export async function generateGithubSummary(readmeContent: string) {
     model: "gemini-2.5-flash", // Using stable 2.5 Flash
     apiKey: serverEnv.GOOGLE_API_KEY,
     maxOutputTokens: 2048,
+    maxRetries: 0,
   });
 
   const prompt = ChatPromptTemplate.fromMessages([
