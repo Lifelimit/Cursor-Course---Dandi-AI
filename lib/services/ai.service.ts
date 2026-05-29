@@ -1,6 +1,7 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { z } from "zod";
+import { serverEnv } from "@/lib/env";
 
 // Define the structured output schema using Zod
 const summarySchema = z.object({
@@ -14,6 +15,7 @@ const summarySchema = z.object({
 export async function generateGithubSummary(readmeContent: string) {
   const model = new ChatGoogleGenerativeAI({
     model: "gemini-2.5-flash", // Using stable 2.5 Flash
+    apiKey: serverEnv.GOOGLE_API_KEY,
     maxOutputTokens: 2048,
   });
 
