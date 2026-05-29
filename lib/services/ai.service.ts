@@ -14,7 +14,7 @@ const summarySchema = z.object({
  */
 export async function generateGithubSummary(readmeContent: string) {
   const model = new ChatGoogleGenerativeAI({
-    model: "gemini-2.5-flash", // Using stable 2.5 Flash
+    model: "gemini-3.1-flash-lite", // Using flash-lite 3.1
     apiKey: serverEnv.GOOGLE_API_KEY,
     maxOutputTokens: 2048,
     maxRetries: 0,
