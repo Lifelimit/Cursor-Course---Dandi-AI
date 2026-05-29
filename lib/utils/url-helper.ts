@@ -11,10 +11,6 @@ export const getURL = () => {
   // Remove trailing slash if present
   url = url.endsWith("/") ? url.slice(0, -1) : url;
   
-  // Hardcode the production URL as requested if we're in production
-  if (process.env.NODE_ENV === "production" && !publicEnv.NEXT_PUBLIC_SITE_URL) {
-    return "https://dandi-orcin.vercel.app";
-  }
   
   return url;
 };
