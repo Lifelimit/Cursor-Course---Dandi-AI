@@ -57,10 +57,12 @@ async function googleBatchEmbed(values: string[]): Promise<number[][]> {
   }
 
   const batchSize = 100;
-  const allEmbeddings: number[][] = [];
-
+  const batches: string[][] = [];
   for (let i = 0; i < values.length; i += batchSize) {
-    const chunkValues = values.slice(i, i + batchSize);
+    batches.push(values.slice(i, i + batchSize));
+  }
+
+  const batchPromises = batches.map(async (chunkValues) => {
     const requests = chunkValues.map(text => ({
       model: "models/gemini-embedding-001",
       content: { parts: [{ text }] },
@@ -79,10 +81,11 @@ async function googleBatchEmbed(values: string[]): Promise<number[][]> {
     }
 
     const data = await res.json() as { embeddings: { values: number[] }[] };
-    allEmbeddings.push(...data.embeddings.map(e => e.values));
-  }
+    return data.embeddings.map(e => e.values);
+  });
 
-  return allEmbeddings;
+  const embeddingsResults = await Promise.all(batchPromises);
+  return embeddingsResults.flat();
 }
 
 function splitIntoChunks(text: string, path: string, chunkSize = 1000, overlap = 150): string[] {
@@ -185,39 +188,53 @@ export async function POST(request: Request) {
       .filter(file => file.size > 0 && file.size < 50000)
       .slice(0, 40);
 
-    let totalChunksCount = 0;
-    
-    // Process files and calculate embeddings
-    for (const file of filesToIngest) {
+    // Process files and calculate embeddings in parallel
+    const crawlPromises = filesToIngest.map(async (file) => {
       try {
         const text = await fetchRawFileContent(githubUrl, branch, file.path);
         const fileChunks = splitIntoChunks(text, file.path);
-
-        if (fileChunks.length === 0) continue;
-
-        // Bulk-generate embeddings for all chunks in this file
-        const embeddings = await googleBatchEmbed(fileChunks);
-
-        const rowsToInsert = fileChunks.map((chunk, index) => ({
-          repo_url: githubUrl,
-          file_path: file.path,
-          content: chunk,
-          embedding: embeddings[index],
-        }));
-
-        const { error: insertError } = await supabaseAdmin
-          .from("repository_chunks")
-          .insert(rowsToInsert);
-
-        if (insertError) {
-          console.error(`Failed to insert chunks for ${file.path}:`, insertError);
-          continue;
-        }
-
-        totalChunksCount += fileChunks.length;
+        return { path: file.path, chunks: fileChunks };
       } catch (fileErr) {
-        console.error(`Failed to ingest file ${file.path}:`, fileErr);
+        console.error(`Failed to fetch file content or split chunks for ${file.path}:`, fileErr);
+        return { path: file.path, chunks: [] };
       }
+    });
+
+    const crawlResults = await Promise.all(crawlPromises);
+
+    interface ChunkItem {
+      path: string;
+      content: string;
+    }
+    const allChunks: ChunkItem[] = [];
+    for (const res of crawlResults) {
+      for (const chunk of res.chunks) {
+        allChunks.push({ path: res.path, content: chunk });
+      }
+    }
+
+    let totalChunksCount = 0;
+
+    if (allChunks.length > 0) {
+      const chunkTexts = allChunks.map(c => c.content);
+      const embeddings = await googleBatchEmbed(chunkTexts);
+
+      const rowsToInsert = allChunks.map((chunkItem, index) => ({
+        repo_url: githubUrl,
+        file_path: chunkItem.path,
+        content: chunkItem.content,
+        embedding: embeddings[index],
+      }));
+
+      const { error: insertError } = await supabaseAdmin
+        .from("repository_chunks")
+        .insert(rowsToInsert);
+
+      if (insertError) {
+        throw new Error(`Failed to insert repository chunks into Supabase: ${insertError.message}`);
+      }
+
+      totalChunksCount = allChunks.length;
     }
 
     // 3. Increment API key usage

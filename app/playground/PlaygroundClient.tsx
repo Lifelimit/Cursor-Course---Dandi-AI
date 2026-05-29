@@ -59,6 +59,13 @@ export default function PlaygroundClient({
   const [viewMode, setViewMode] = useState<"visual" | "json">("visual");
   const [requestLogs, setRequestLogs] = useState<LogEntry[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
+  const [repoMetadata, setRepoMetadata] = useState<{
+    stars: number;
+    license: string;
+    version: string;
+    forks: number;
+    description?: string;
+  } | null>(null);
   const { toast, showToast } = useToast();
 
   // RAG & Tab States
@@ -447,6 +454,21 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
     });
   };
 
+  const renderLineText = (text: string) => {
+    if (!text) return null;
+    const boldParts = text.split(/(\*\*.*?\*\*)/g);
+    return boldParts.map((bp, bpIdx) => {
+      if (bp.startsWith("**") && bp.endsWith("**")) {
+        return (
+          <strong key={bpIdx} className="font-bold text-zinc-900 dark:text-zinc-100">
+            {renderTextWithInlineCode(bp.slice(2, -2))}
+          </strong>
+        );
+      }
+      return renderTextWithInlineCode(bp);
+    });
+  };
+
   const renderMessageContent = (content: string) => {
     if (!content) return null;
     const parts = content.split(/(```[\s\S]*?```)/g);
@@ -478,31 +500,59 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
       } else {
         const lines = part.split("\n");
         return lines.map((line, lIdx) => {
-          if (line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
+          const trimmedLine = line.trim();
+
+          // 1. Headings
+          if (trimmedLine.startsWith("### ")) {
             return (
-              <ul key={`${index}-${lIdx}`} className="list-disc pl-5 my-1 space-y-1">
+              <h4 key={`${index}-${lIdx}`} className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mt-4 mb-2 leading-snug">
+                {renderLineText(trimmedLine.substring(4))}
+              </h4>
+            );
+          }
+          if (trimmedLine.startsWith("## ")) {
+            return (
+              <h3 key={`${index}-${lIdx}`} className="text-base font-extrabold text-zinc-900 dark:text-zinc-100 mt-5 mb-2.5 leading-snug">
+                {renderLineText(trimmedLine.substring(3))}
+              </h3>
+            );
+          }
+          if (trimmedLine.startsWith("# ")) {
+            return (
+              <h2 key={`${index}-${lIdx}`} className="text-lg font-black text-zinc-900 dark:text-zinc-100 mt-6 mb-3 leading-snug">
+                {renderLineText(trimmedLine.substring(2))}
+              </h2>
+            );
+          }
+
+          // 2. Bullet list items
+          if (trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ")) {
+            return (
+              <ul key={`${index}-${lIdx}`} className="list-disc pl-5 my-1.5 space-y-1">
                 <li className="text-zinc-700 dark:text-zinc-300">
-                  {renderTextWithInlineCode(line.trim().substring(2))}
+                  {renderLineText(trimmedLine.substring(2))}
                 </li>
               </ul>
             );
           }
-          if (line.includes("**")) {
-            const boldParts = line.split(/(\*\*.*?\*\*)/g);
+
+          // 3. Numbered list items
+          const numListMatch = trimmedLine.match(/^(\d+)\.\s(.*)/);
+          if (numListMatch) {
+            const text = numListMatch[2];
             return (
-              <p key={`${index}-${lIdx}`} className="my-1.5 text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                {boldParts.map((bp, bpIdx) => {
-                  if (bp.startsWith("**") && bp.endsWith("**")) {
-                    return <strong key={bpIdx} className="font-bold text-zinc-900 dark:text-zinc-100">{renderTextWithInlineCode(bp.slice(2, -2))}</strong>;
-                  }
-                  return renderTextWithInlineCode(bp);
-                })}
-              </p>
+              <ol key={`${index}-${lIdx}`} className="list-decimal pl-5 my-1.5 space-y-1">
+                <li className="text-zinc-700 dark:text-zinc-300">
+                  {renderLineText(text)}
+                </li>
+              </ol>
             );
           }
+
+          // 4. Paragraph
           return line.trim() ? (
             <p key={`${index}-${lIdx}`} className="my-1.5 text-zinc-700 dark:text-zinc-300 leading-relaxed">
-              {renderTextWithInlineCode(line)}
+              {renderLineText(line)}
             </p>
           ) : <div key={`${index}-${lIdx}`} className="h-2" />;
         });
@@ -514,6 +564,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
     e.preventDefault();
     setErrorMessage("");
     setRequestLogs([]);
+    setRepoMetadata(null);
 
     const setLogState = (id: string, updates: Partial<LogEntry>) => {
       setRequestLogs(prev => {
@@ -633,6 +684,22 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
         }
       });
 
+      // Asynchronously fetch repository metadata in the background
+      fetch(`/api/github-metadata?githubUrl=${encodeURIComponent(githubUrl)}&apiKey=${encodeURIComponent(apiKey)}`)
+        .then(res => {
+          if (res.ok) {
+            return res.json();
+          }
+          throw new Error("Failed to fetch metadata");
+        })
+        .then(data => {
+          setRepoMetadata(data);
+        })
+        .catch(err => {
+          console.error("Failed to load repository metadata:", err);
+          setRepoMetadata(null);
+        });
+
       // Submit to Vercel AI SDK useObject hook to start streaming
       submit({ githubUrl, apiKey });
 
@@ -671,7 +738,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
         <main className="min-w-0 flex-1 space-y-8">
           <div className="flex flex-col gap-8 md:flex-row">
             {/* Left Column (flex-1) */}
-            <div className="flex-1 space-y-8">
+            <div className="flex-1 min-w-0 space-y-8">
               {/* Page Header (always visible at top of Left Column) */}
               <div className="space-y-2 select-none">
                 <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">Environment / Testing</p>
@@ -1081,13 +1148,29 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                               </div>
                               
                               <div className="flex flex-wrap gap-4">
-                                <div className="flex items-center gap-2 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300">
+                                <div className="flex items-center gap-2 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 select-none">
                                   <span className="relative flex h-2 w-2">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                   </span>
                                   Live Stream
                                 </div>
+                                {repoMetadata && (
+                                  <>
+                                    <div className="flex items-center gap-1.5 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 select-none">
+                                      <span className="text-amber-500">★</span>
+                                      <span>{repoMetadata.stars.toLocaleString()} Stars</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 select-none">
+                                      <span className="text-zinc-400">⚖</span>
+                                      <span>{repoMetadata.license}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 select-none">
+                                      <span className="text-emerald-550 dark:text-emerald-400 font-serif lowercase italic">v</span>
+                                      <span>{repoMetadata.version}</span>
+                                    </div>
+                                  </>
+                                )}
                               </div>
 
                               <p className="text-lg font-medium leading-relaxed text-zinc-700 dark:text-zinc-300">

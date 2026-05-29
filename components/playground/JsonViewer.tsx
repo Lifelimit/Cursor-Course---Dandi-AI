@@ -17,7 +17,7 @@ export function JsonViewer({ data }: JsonViewerProps) {
         </div>
       </div>
       <div className="p-8">
-        <pre className="scrollbar-hide overflow-x-auto font-mono text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
+        <pre className="scrollbar-hide overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
           <code>{JSON.stringify(data, null, 2)}</code>
         </pre>
       </div>
