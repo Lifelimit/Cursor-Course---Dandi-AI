@@ -61,8 +61,22 @@ export function FeatureGrid() {
   const [showResult, setShowResult] = useState<boolean>(false);
   const [activeFactIdx, setActiveFactIdx] = useState<number>(0);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const typewriterTimer = useRef<NodeJS.Timeout | null>(null);
   const timeoutIds = useRef<NodeJS.Timeout[]>([]);
+
+  // Click outside to close custom feature repository dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const startOrchestration = () => {
     if (isOrchestrating) return;
@@ -162,45 +176,58 @@ export function FeatureGrid() {
 
             {/* Selector and Trigger Control */}
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <div className="relative flex-1">
+              <div ref={dropdownRef} className="relative flex-1 select-none z-30">
                 <button
                   type="button"
                   disabled={isOrchestrating}
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="w-full text-left appearance-none rounded-full border border-zinc-200 dark:border-zinc-800 bg-[#f4f2ed]/50 dark:bg-zinc-950 pl-5 pr-10 py-3 text-xs font-semibold text-zinc-800 dark:text-zinc-200 outline-none transition hover:border-zinc-400 focus:border-zinc-900 dark:focus:border-zinc-100 disabled:opacity-50"
+                  className="w-full text-left appearance-none rounded-full border border-zinc-200 dark:border-zinc-800 bg-[#f4f2ed]/50 dark:bg-zinc-950 pl-5 pr-10 py-3 text-xs font-bold text-zinc-800 dark:text-zinc-200 outline-none transition hover:border-zinc-400 focus:border-zinc-900 dark:focus:border-zinc-100 disabled:opacity-50 hover:shadow-sm active:scale-[0.99] cursor-pointer"
                 >
                   {selectedRepo.replace("/", " / ")}
                 </button>
                 <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center">
-                  <svg className={`h-3 w-3 text-zinc-400 dark:text-zinc-500 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <svg className={`h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 transition-transform duration-300 ${isDropdownOpen ? "rotate-180 text-emerald-500" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                   </svg>
                 </div>
                 
-                {isDropdownOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
-                    <div className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl shadow-2xl overflow-hidden z-50 animate-dropdown-enter">
-                      {["facebook/react", "vercel/next.js", "tailwindlabs/tailwindcss"].map((repo, idx) => (
-                        <button
-                          key={repo}
-                          type="button"
-                          className="w-full text-left px-5 py-3 text-xs font-semibold text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors animate-slide-in-left"
-                          style={{ animationDelay: `${idx * 50}ms` }}
-                          onClick={() => {
-                            setSelectedRepo(repo);
-                            setIsDropdownOpen(false);
-                            setShowResult(false);
-                            setLogs([]);
-                            setTypewrittenSummary("");
-                          }}
-                        >
-                          {repo.replace("/", " / ")}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
+                {/* Custom animated dropdown */}
+                <div
+                  className={`absolute left-0 right-0 top-full mt-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 p-1.5 shadow-xl backdrop-blur-md transition-all duration-355 origin-top transform z-50 ${
+                    isDropdownOpen
+                      ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
+                      : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
+                  }`}
+                >
+                  {["facebook/react", "vercel/next.js", "tailwindlabs/tailwindcss"].map((repo) => {
+                    const isSelected = selectedRepo === repo;
+                    return (
+                      <button
+                        key={repo}
+                        type="button"
+                        className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer ${
+                          isSelected
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+                        }`}
+                        onClick={() => {
+                          setSelectedRepo(repo);
+                          setIsDropdownOpen(false);
+                          setShowResult(false);
+                          setLogs([]);
+                          setTypewrittenSummary("");
+                        }}
+                      >
+                        <span>{repo.replace("/", " / ")}</span>
+                        {isSelected && (
+                          <svg viewBox="0 0 24 24" className="h-4 w-4 text-emerald-500 animate-in zoom-in duration-200" fill="none" stroke="currentColor" strokeWidth="3">
+                            <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <button
