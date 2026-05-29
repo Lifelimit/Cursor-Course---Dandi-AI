@@ -151,26 +151,6 @@ export async function POST(request: Request) {
       
       const errMsg = aiErr instanceof Error ? aiErr.message : String(aiErr);
       
-      // Fallback for Gemini free tier quota limits so the UI still works
-      if (errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("Too Many Requests")) {
-        await incrementKeyUsage(keyData, githubUrl, latencyMs, "success");
-        return NextResponse.json({
-          success: true,
-          message: `Successfully summarized ${githubUrl} (Mocked due to API Quota Limit)`,
-          data: {
-            owner: keyData.name,
-            repo: githubUrl,
-            metadata: metadata,
-            summary: "React is a library for building user interfaces. It is declarative, component-based, and learn once, write anywhere. (Note: This is a fallback summary because your Gemini API quota was exceeded!)",
-            cool_facts: [
-              "Used by millions of developers worldwide.",
-              "Maintained by Meta (formerly Facebook).",
-              "Pioneered the Virtual DOM approach."
-            ],
-          },
-        }, { headers: corsHeaders });
-      }
-
       await incrementKeyUsage(keyData, githubUrl, latencyMs, "error");
 
       return NextResponse.json(
