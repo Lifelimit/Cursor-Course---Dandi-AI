@@ -39,6 +39,8 @@ export function AnalyticsDashboard({
 }: AnalyticsDashboardProps) {
   const [selectedKeyId, setSelectedKeyId] = useState<string>("all");
   const [metricView, setMetricView] = useState<"requests" | "latency" | "reliability">("requests");
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   
   // Interactive hover states for SVG charts
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -47,6 +49,19 @@ export function AnalyticsDashboard({
   const chartRef = useRef<SVGSVGElement | null>(null);
   const resizeRef = useRef<HTMLDivElement | null>(null);
   const [chartWidth, setChartWidth] = useState<number>(600);
+
+  // Click outside to close custom resource context dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Resize listener to ensure SVG is fully responsive
   useEffect(() => {
@@ -220,18 +235,94 @@ export function AnalyticsDashboard({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-6 backdrop-blur-sm shadow-sm">
         <div className="flex items-center gap-3">
           <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Resource Context</span>
-          <select
-            value={selectedKeyId}
-            onChange={(e) => setSelectedKeyId(e.target.value)}
-            className="text-xs font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-700 px-4 py-2 rounded-xl outline-none border-none cursor-pointer transition dark:color-scheme-dark"
-          >
-            <option value="all">All Combined Keys</option>
-            {keys.map(k => (
-              <option key={k.id} value={k.id}>
-                {k.name} ({k.usage_count} reqs)
-              </option>
-            ))}
-          </select>
+          <div ref={dropdownRef} className="relative select-none z-30">
+            {/* Trigger Button */}
+            <button
+              type="button"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex items-center gap-2 text-xs font-bold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100 px-4.5 py-2.5 rounded-xl transition duration-200 cursor-pointer shadow-sm hover:shadow active:scale-98 border border-zinc-250/20 dark:border-zinc-700/20"
+            >
+              <span>
+                {selectedKeyId === "all"
+                  ? "All Combined Keys"
+                  : keys.find(k => k.id === selectedKeyId)?.name || "Select Key"}
+              </span>
+              <svg
+                viewBox="0 0 24 24"
+                className={`h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 transition-transform duration-300 ${
+                  isDropdownOpen ? "rotate-180 text-emerald-500" : ""
+                }`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            {/* Dropdown Menu Options */}
+            <div
+              className={`absolute left-0 mt-2 w-64 rounded-2xl bg-white/95 dark:bg-zinc-900/95 border border-zinc-200/80 dark:border-zinc-800/80 p-2 shadow-xl backdrop-blur-md transition-all duration-355 origin-top-left transform ${
+                isDropdownOpen
+                  ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
+                  : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
+              }`}
+            >
+              {/* Option: All Combined Keys */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedKeyId("all");
+                  setIsDropdownOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer ${
+                  selectedKeyId === "all"
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    : "text-zinc-700 dark:text-zinc-350 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+                }`}
+              >
+                <span>All Combined Keys</span>
+                {selectedKeyId === "all" && (
+                  <svg viewBox="0 0 24 24" className="h-4 w-4 text-emerald-500 animate-in zoom-in duration-200" fill="none" stroke="currentColor" strokeWidth="3">
+                    <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Options: Individual Keys */}
+              {keys.length > 0 && <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/60 my-1 mx-2" />}
+              <div className="max-h-48 overflow-y-auto scrollbar-hide space-y-0.5">
+                {keys.map(k => {
+                  const isSelected = selectedKeyId === k.id;
+                  return (
+                    <button
+                      key={k.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedKeyId(k.id);
+                        setIsDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer ${
+                        isSelected
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                          : "text-zinc-700 dark:text-zinc-350 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+                      }`}
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <span className="truncate max-w-[170px]">{k.name}</span>
+                        <span className="text-[9px] font-medium text-zinc-450 dark:text-zinc-500 uppercase tracking-widest">{k.usage_count.toLocaleString()} requests</span>
+                      </div>
+                      {isSelected && (
+                        <svg viewBox="0 0 24 24" className="h-4 w-4 text-emerald-500 animate-in zoom-in duration-200" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
