@@ -103,6 +103,7 @@ export async function validateApiKey(keyValue: string) {
       dbError = null;
     } else {
       // Fallback: try legacy SHA-256 hash for keys created before HMAC was introduced
+      const legacyHashed = crypto.createHash("sha256").update(keyValue).digest("hex");
       const { data: legacyData, error: legacyError } = await supabaseAdmin
         .from("api_keys")
         .select("id, name, usage_count, monthly_limit, user_id, key_type, is_active, alert_threshold, alert_channels, profiles(plan, email)")
