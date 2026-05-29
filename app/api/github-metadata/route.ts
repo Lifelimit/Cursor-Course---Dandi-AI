@@ -39,7 +39,7 @@ export async function GET(request: Request) {
   try {
     const metadata = await fetchGitHubMetadata(githubUrl);
     return NextResponse.json(metadata, { headers: corsHeaders });
-  } catch (err: any) {
+  } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err) },
       { status: 500, headers: corsHeaders }
