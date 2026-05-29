@@ -8,6 +8,7 @@ import { Toast } from "@/components/ui/Toast";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { QuotaHealthGrid } from "@/components/usage/QuotaHealthGrid";
 import { TopReposTable } from "@/components/usage/TopReposTable";
+import { AnalyticsDashboard } from "@/components/usage/AnalyticsDashboard";
 
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
@@ -30,6 +31,15 @@ type UsageData = {
   globalTopRepos: { repo_url: string; count: number }[];
   resetDate: string | null;
   nextInvoiceDate: string | null;
+  avgLatency?: number;
+  successRate?: number;
+  dailyAnalytics?: {
+    date: string;
+    count: number;
+    success: number;
+    error: number;
+    avgLatency: number;
+  }[];
 };
 
 export default function UsageClient({ 
@@ -42,6 +52,7 @@ export default function UsageClient({
   const activeSession = initialSession;
   
   const [data, setData] = useState<UsageData | null>(initialData);
+  const [activeTab, setActiveTab] = useState<"credentials" | "analytics">("credentials");
   const [isLoading, setIsLoading] = useState(initialData === null);
   const isHydrated = useRef(initialData !== null);
   const { toast, showToast } = useToast();
@@ -198,52 +209,90 @@ export default function UsageClient({
                 </div>
               )}
 
-              {/* Quota Health Grid */}
-              {currentData?.keys && currentData.keys.length > 0 ? (
-                <QuotaHealthGrid keys={currentData.keys} onUpdate={fetchUsageData} />
-              ) : (
-                <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 border-dashed p-12 text-center bg-white/30 dark:bg-zinc-900/10">
-                  <p className="text-sm font-medium text-zinc-400 dark:text-zinc-500">No active API keys found for tracking.</p>
-                  <Link href="/dashboards" className="mt-4 inline-block text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 hover:underline">
-                    Create your first key →
-                  </Link>
-                </div>
-              )}
+              {/* Tabs Switch */}
+              <div className="flex gap-6 border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                <button
+                  onClick={() => setActiveTab("credentials")}
+                  className={`text-[10px] font-black uppercase tracking-widest transition-all pb-1.5 border-b-2 outline-none ${
+                    activeTab === "credentials"
+                      ? "text-zinc-900 dark:text-white border-zinc-900 dark:border-zinc-100"
+                      : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 border-transparent"
+                  }`}
+                >
+                  Active Credentials
+                </button>
+                <button
+                  onClick={() => setActiveTab("analytics")}
+                  className={`text-[10px] font-black uppercase tracking-widest transition-all pb-1.5 border-b-2 outline-none ${
+                    activeTab === "analytics"
+                      ? "text-zinc-900 dark:text-white border-zinc-900 dark:border-zinc-100"
+                      : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 border-transparent"
+                  }`}
+                >
+                  Analytics & Trends
+                </button>
+              </div>
 
-              {/* Bottom Section */}
-              <div className="grid gap-8 lg:grid-cols-2">
-                <TopReposTable data={currentData?.globalTopRepos || []} />
-                
-                <div className="flex flex-col gap-8">
-                  <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm">
-                    <h3 className="font-serif text-xl font-bold mb-4">Usage Philosophy</h3>
-                    <p className="text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
-                      We track repository summaries to help you optimize your intelligent credits. 
-                      Credits are consumed only on successful AI generation.
-                    </p>
-                    <div className="mt-6 flex items-center gap-4">
-                      <div className="h-px flex-1 bg-zinc-100 dark:bg-zinc-800" />
-                      <Link href="/playground" className="text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 hover:underline">
-                        Launch Playground
+              {activeTab === "credentials" ? (
+                <>
+                  {/* Quota Health Grid */}
+                  {currentData?.keys && currentData.keys.length > 0 ? (
+                    <QuotaHealthGrid keys={currentData.keys} onUpdate={fetchUsageData} />
+                  ) : (
+                    <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 border-dashed p-12 text-center bg-white/30 dark:bg-zinc-900/10">
+                      <p className="text-sm font-medium text-zinc-400 dark:text-zinc-500">No active API keys found for tracking.</p>
+                      <Link href="/dashboards" className="mt-4 inline-block text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 hover:underline">
+                        Create your first key →
                       </Link>
                     </div>
-                  </div>
+                  )}
 
-                  <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#18181b] dark:bg-zinc-900/50 p-8 text-white shadow-xl">
-                    <div className="flex items-center justify-between mb-4">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">Tier Status</p>
-                      <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[8px] font-black text-emerald-400">OPTIMIZED</span>
+                  {/* Bottom Section */}
+                  <div className="grid gap-8 lg:grid-cols-2">
+                    <TopReposTable data={currentData?.globalTopRepos || []} />
+                    
+                    <div className="flex flex-col gap-8">
+                      <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm">
+                        <h3 className="font-serif text-xl font-bold mb-4">Usage Philosophy</h3>
+                        <p className="text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+                          We track repository summaries to help you optimize your intelligent credits. 
+                          Credits are consumed only on successful AI generation.
+                        </p>
+                        <div className="mt-6 flex items-center gap-4">
+                          <div className="h-px flex-1 bg-zinc-100 dark:bg-zinc-800" />
+                          <Link href="/playground" className="text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 hover:underline">
+                            Launch Playground
+                          </Link>
+                        </div>
+                      </div>
+
+                      <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#18181b] dark:bg-zinc-900/50 p-8 text-white shadow-xl">
+                        <div className="flex items-center justify-between mb-4">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">Tier Status</p>
+                          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[8px] font-black text-emerald-400">OPTIMIZED</span>
+                        </div>
+                        <h3 className="font-serif text-2xl font-bold italic mb-6">Need more volume?</h3>
+                        <Link 
+                          href="/billing"
+                          className="w-full text-center block rounded-full bg-white dark:bg-zinc-100 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-950 transition hover:bg-zinc-200 dark:hover:bg-zinc-200/80"
+                        >
+                          View Plans
+                        </Link>
+                      </div>
                     </div>
-                    <h3 className="font-serif text-2xl font-bold italic mb-6">Need more volume?</h3>
-                    <Link 
-                      href="/billing"
-                      className="w-full text-center block rounded-full bg-white dark:bg-zinc-100 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-950 transition hover:bg-zinc-200 dark:hover:bg-zinc-200/80"
-                    >
-                      View Plans
-                    </Link>
                   </div>
-                </div>
-              </div>
+                </>
+              ) : (
+                /* Analytics & Trends Tab */
+                <AnalyticsDashboard
+                  keys={currentData?.keys || []}
+                  globalTopRepos={currentData?.globalTopRepos || []}
+                  avgLatency={currentData?.avgLatency || 0}
+                  successRate={currentData?.successRate || 0}
+                  dailyAnalytics={currentData?.dailyAnalytics || []}
+                  onUpdate={fetchUsageData}
+                />
+              )}
             </>
           )}
         </main>

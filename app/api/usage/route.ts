@@ -144,6 +144,24 @@ export async function GET() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
+    // Global Daily Trends (requests, latency, success, error) over the last 30 days
+    const dailyAnalytics = dates.map(date => {
+      const dayLogs = (logs || []).filter((l: UsageLog) => l.usedAt.split("T")[0] === date);
+      const count = dayLogs.length;
+      const successCount = dayLogs.filter((l: UsageLog) => l.status === "success").length;
+      const errorCount = count - successCount;
+      const totalLatency = dayLogs.reduce((acc: number, l: UsageLog) => acc + (l.latencyMs || 0), 0);
+      const avgLatency = count > 0 ? Math.round(totalLatency / count) : 0;
+
+      return {
+        date,
+        count,
+        success: successCount,
+        error: errorCount,
+        avgLatency
+      };
+    });
+
     // 7. Calculate billing / quota reset dates
     let resetDate = null;
     let nextInvoiceDate = null;
@@ -244,7 +262,8 @@ export async function GET() {
       successRate,
       resetDate,
       nextInvoiceDate,
-      paymentMethods
+      paymentMethods,
+      dailyAnalytics
     });
   } catch (err) {
     console.error("❌ Usage API: Critical failure:", err);
