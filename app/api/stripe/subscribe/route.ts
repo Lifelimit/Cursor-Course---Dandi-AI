@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
       status: "all",
-      limit: 1,
+      limit: 100,
     });
 
     const activeSubscription = subscriptions.data.find(
@@ -153,7 +153,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const periodEnd = subscription.items?.data?.[0]?.current_period_end || subscription.billing_cycle_anchor;
+    const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end || (subscription as unknown as { billing_cycle_anchor?: number }).billing_cycle_anchor;
     const renewalDate = periodEnd
       ? new Date(periodEnd * 1000).toISOString()
       : null;
