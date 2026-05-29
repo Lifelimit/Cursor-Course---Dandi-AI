@@ -13,7 +13,7 @@ export const summarySchema = z.object({
  */
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
-const googleProvider = createGoogleGenerativeAI({
+export const googleProvider = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
 

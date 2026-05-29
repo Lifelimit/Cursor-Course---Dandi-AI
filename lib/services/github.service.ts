@@ -108,3 +108,104 @@ export async function fetchGitHubMetadata(githubUrl: string) {
     description: repoData.description
   };
 }
+
+/**
+ * Fetches default branch of a GitHub repository
+ */
+export async function fetchGitHubBranch(githubUrl: string): Promise<string> {
+  const url = new URL(githubUrl);
+  const pathParts = url.pathname.split("/").filter(Boolean);
+  if (pathParts.length < 2) {
+    throw new Error("Invalid GitHub URL. Expected format: https://github.com/owner/repo");
+  }
+  const [owner, repo] = pathParts;
+
+  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+    headers: getGitHubHeaders()
+  });
+
+  if (!response.ok) {
+    return "main"; // Fallback to main
+  }
+
+  const data = await response.json();
+  return data.default_branch || "main";
+}
+
+/**
+ * Recursively fetches a repository file tree
+ */
+export async function fetchGitHubRepoTree(githubUrl: string, branch: string): Promise<{ path: string; size: number }[]> {
+  const url = new URL(githubUrl);
+  const pathParts = url.pathname.split("/").filter(Boolean);
+  if (pathParts.length < 2) {
+    throw new Error("Invalid GitHub URL. Expected format: https://github.com/owner/repo");
+  }
+  const [owner, repo] = pathParts;
+
+  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, {
+    headers: getGitHubHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch repository tree: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (!data.tree) return [];
+
+  // Allowed code & documentation text extensions
+  const textExtensions = [
+    ".js", ".jsx", ".ts", ".tsx", ".py", ".go", ".rs", ".java", ".c", ".cpp", ".h", 
+    ".md", ".txt", ".json", ".html", ".css", ".yaml", ".yml", ".toml", ".sh"
+  ];
+  
+  // Folders and files to exclude from RAG embeddings
+  const excludedPaths = [
+    "node_modules/", ".next/", "dist/", "build/", "out/", ".git/", ".github/", 
+    "yarn.lock", "package-lock.json", "pnpm-lock.yaml", ".svg", ".png", ".jpg", ".jpeg"
+  ];
+
+  interface GitHubTreeItem {
+    type: string;
+    path: string;
+    size?: number;
+  }
+
+  return (data.tree as GitHubTreeItem[])
+    .filter((item: GitHubTreeItem) => {
+      if (item.type !== "blob") return false;
+      const pathLower = item.path.toLowerCase();
+      const isExcluded = excludedPaths.some(p => pathLower.includes(p));
+      if (isExcluded) return false;
+      const hasTextExtension = textExtensions.some(ext => pathLower.endsWith(ext));
+      return hasTextExtension;
+    })
+    .map((item: GitHubTreeItem) => ({
+      path: item.path,
+      size: item.size || 0
+    }));
+}
+
+/**
+ * Downloads raw file content from GitHub raw usercontent servers
+ */
+export async function fetchRawFileContent(githubUrl: string, branch: string, path: string): Promise<string> {
+  const url = new URL(githubUrl);
+  const pathParts = url.pathname.split("/").filter(Boolean);
+  if (pathParts.length < 2) {
+    throw new Error("Invalid GitHub URL. Expected format: https://github.com/owner/repo");
+  }
+  const [owner, repo] = pathParts;
+
+  const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
+  const response = await fetch(rawUrl, {
+    headers: getGitHubHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch file content: ${response.statusText}`);
+  }
+
+  return await response.text();
+}

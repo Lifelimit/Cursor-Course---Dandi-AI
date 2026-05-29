@@ -7,9 +7,10 @@ type CodeSnippetProps = {
   apiKey: string;
   githubUrl: string;
   onCopy?: (tabName: string) => void;
+  mode?: "summary" | "rag";
 };
 
-export function CodeSnippet({ apiKey, githubUrl, onCopy }: CodeSnippetProps) {
+export function CodeSnippet({ apiKey, githubUrl, onCopy, mode = "summary" }: CodeSnippetProps) {
   const [activeTab, setActiveTab] = useState<"curl" | "fetch" | "python">("curl");
 
   const [apiBaseUrl, setApiBaseUrl] = useState("https://dandi.ai");
@@ -21,15 +22,36 @@ export function CodeSnippet({ apiKey, githubUrl, onCopy }: CodeSnippetProps) {
 
   const displayKey = apiKey || "sk_live_YOUR_API_KEY";
   const displayUrl = githubUrl || "https://github.com/facebook/react";
-  const finalEndpointUrl = `${apiBaseUrl}/api/github-summarizer`;
+  const finalEndpointUrl = mode === "rag" 
+    ? `${apiBaseUrl}/api/rag/chat` 
+    : `${apiBaseUrl}/api/github-summarizer`;
 
   const snippets = {
-    curl: `curl -X POST ${finalEndpointUrl} \\
+    curl: mode === "rag" 
+      ? `curl -X POST ${finalEndpointUrl} \\
+  -H "Content-Type: application/json" \\
+  -H "x-api-key: ${displayKey}" \\
+  -d '{"githubUrl": "${displayUrl}", "messages": [{"role": "user", "content": "Explain the architecture"}]}'`
+      : `curl -X POST ${finalEndpointUrl} \\
   -H "Content-Type: application/json" \\
   -H "x-api-key: ${displayKey}" \\
   -d '{"githubUrl": "${displayUrl}"}'`,
     
-    fetch: `fetch("${finalEndpointUrl}", {
+    fetch: mode === "rag"
+      ? `fetch("${finalEndpointUrl}", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-api-key": "${displayKey}"
+  },
+  body: JSON.stringify({ 
+    githubUrl: "${displayUrl}",
+    messages: [{ role: "user", content: "Explain the architecture" }]
+  })
+})
+.then(res => res.json())
+.then(data => console.log(data));`
+      : `fetch("${finalEndpointUrl}", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -42,7 +64,24 @@ export function CodeSnippet({ apiKey, githubUrl, onCopy }: CodeSnippetProps) {
 .then(res => res.json())
 .then(data => console.log(data));`,
 
-    python: `import requests
+    python: mode === "rag"
+      ? `import requests
+
+url = "${finalEndpointUrl}"
+headers = {
+    "x-api-key": "${displayKey}",
+    "Content-Type": "application/json"
+}
+data = {
+    "githubUrl": "${displayUrl}",
+    "messages": [
+        {"role": "user", "content": "Explain the architecture"}
+    ]
+}
+
+response = requests.post(url, headers=headers, json=data)
+print(response.json())`
+      : `import requests
 
 url = "${finalEndpointUrl}"
 headers = {
