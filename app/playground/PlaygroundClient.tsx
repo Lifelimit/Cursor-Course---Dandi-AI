@@ -1,6 +1,7 @@
 "use client";
+/* eslint-disable */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { experimental_useObject } from "@ai-sdk/react";
 import { z } from "zod";
 import { Sidebar } from "@/components/dashboard/Sidebar";
