@@ -232,7 +232,7 @@ export function AnalyticsDashboard({
     <div className="space-y-8 animate-in fade-in duration-500">
       
       {/* Selector and Filter Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-6 backdrop-blur-sm shadow-sm">
+      <div className="relative z-40 flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-6 backdrop-blur-sm shadow-sm">
         <div className="flex items-center gap-3">
           <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Resource Context</span>
           <div ref={dropdownRef} className="relative select-none z-30">
