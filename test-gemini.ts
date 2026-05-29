@@ -1,37 +1,21 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { google } from "@ai-sdk/google";
+import { streamObject } from "ai";
 import { z } from "zod";
 
-
-const summarySchema = z.object({
-  summary: z.string(),
-  cool_facts: z.array(z.string()),
-});
-
-async function main() {
-  console.log("Starting...");
-  const model = new ChatGoogleGenerativeAI({
-    model: "gemini-2.5-flash",
-    apiKey: process.env.GOOGLE_API_KEY,
-    maxOutputTokens: 2048,
-  });
-
-  const prompt = ChatPromptTemplate.fromMessages([
-    ["system", "Summarize projects."],
-    ["user", "Summarize this: React is a UI library."],
-  ]);
-
-  const structuredLlm = model.withStructuredOutput(summarySchema);
-  const chain = prompt.pipe(structuredLlm);
-
-  console.log("Invoking...");
-  const start = Date.now();
+async function test() {
   try {
-    const res = await chain.invoke({});
-    console.log("Success in", Date.now() - start, "ms", res);
-  } catch (err) {
-    console.error("Failed in", Date.now() - start, "ms", err);
+    const result = await streamObject({
+      model: google("gemini-3.1-flash-lite"),
+      schema: z.object({ summary: z.string() }),
+      prompt: "Hello",
+    });
+
+    for await (const chunk of result.partialObjectStream) {
+      console.log(chunk);
+    }
+    console.log("Done");
+  } catch (e) {
+    console.error("Error:", e.message);
   }
 }
-
-main();
+test();

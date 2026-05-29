@@ -451,7 +451,7 @@ export default function PlaygroundClient({
               </div>
             </div>
 
-          {summaryResult && (
+          {(summaryResult || isLoadingSummary) && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
               <div className="flex items-center justify-between px-4">
                 <div className="flex gap-4">
@@ -489,7 +489,7 @@ export default function PlaygroundClient({
                       </div>
 
                       <p className="text-lg font-medium leading-relaxed text-zinc-700 dark:text-zinc-300">
-                        {summaryResult.summary}
+                        {summaryResult?.summary || "Analyzing repository and streaming results..."}
                       </p>
                     </div>
 
