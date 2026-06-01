@@ -12,6 +12,8 @@ export async function GET() {
       .select(`
         used_at,
         repo_url,
+        status,
+        latency_ms,
         api_keys (name, key_type, key_value, monthly_limit)
       `)
       .eq("user_id", userId)
@@ -43,7 +45,7 @@ export async function GET() {
     ];
 
     // Generate CSV Table Data
-    const headers = ["Date", "Time", "Repository URL", "Credential Name", "Type", "Signature", "Monthly Limit"];
+    const headers = ["Date", "Time", "Repository URL", "Credential Name", "Type", "Signature", "Monthly Limit", "Status", "Latency (ms)"];
     const rows = (logs || []).map(log => {
       const keyInfo = log.api_keys as unknown as { name: string, key_type: string, key_value: string, monthly_limit: number | null } | null;
       const usedAt = new Date(log.used_at);
@@ -57,7 +59,9 @@ export async function GET() {
         keyInfo?.name || "Unknown",
         keyInfo?.key_type || "N/A",
         keyInfo?.key_value || "N/A",
-        limit ? `${limit.toLocaleString()} units` : "Unlimited"
+        limit ? `${limit.toLocaleString()} units` : "Unlimited",
+        log.status || "success",
+        log.latency_ms ?? 0
       ];
     });
 

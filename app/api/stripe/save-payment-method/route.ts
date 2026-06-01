@@ -1,18 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import { serverEnv } from "@/lib/env";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-
-const supabaseAdmin = createSupabaseClient(
-  serverEnv.NEXT_PUBLIC_SUPABASE_URL,
-  serverEnv.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    global: {
-      fetch: (url, options) => fetch(url, { ...options, cache: "no-store" })
-    }
-  }
-);
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getJsonObject, validatePaymentMethodId } from "@/lib/request-validation";
+import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
 
 export async function POST(req: Request) {
   try {
@@ -23,11 +14,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { paymentMethodId, billingDetails } = await req.json();
-
-    if (!paymentMethodId) {
-      return NextResponse.json({ error: "Payment method ID is required" }, { status: 400 });
-    }
+    const body = getJsonObject(await req.json());
+    const paymentMethodId = validatePaymentMethodId(body.paymentMethodId);
+    const billingDetails = getJsonObject(body.billingDetails);
 
     // 1. Retrieve the customer ID
     const { data: profile } = await supabase
@@ -42,7 +31,7 @@ export async function POST(req: Request) {
     }
 
     // 2. Retrieve PaymentMethod from Stripe to get brand, last4, expiry
-    const pm = await stripe.paymentMethods.retrieve(paymentMethodId);
+    const pm = await getOwnedPaymentMethod(paymentMethodId, customerId, { allowUnattached: true });
     const newFingerprint = pm.card?.fingerprint;
 
     // Check for duplicate fingerprint to prevent linking multiple identical cards
@@ -72,7 +61,7 @@ export async function POST(req: Request) {
     }
 
     // 3. Attach PaymentMethod to Customer (if not already attached)
-    if (pm.customer !== customerId) {
+    if (!pm.customer) {
       await stripe.paymentMethods.attach(paymentMethodId, { customer: customerId });
     }
 
@@ -90,12 +79,12 @@ export async function POST(req: Request) {
       payment_method_expiry: pm.card ? `${pm.card.exp_month}/${pm.card.exp_year}` : null,
     };
 
-    if (billingDetails) {
-      updateData.billing_street = billingDetails.street || null;
-      updateData.billing_city = billingDetails.city || null;
-      updateData.billing_state = billingDetails.state || null;
-      updateData.billing_zip = billingDetails.zip || null;
-      updateData.billing_country = billingDetails.country || null;
+    if (body.billingDetails && typeof body.billingDetails === "object") {
+      updateData.billing_street = typeof billingDetails.street === "string" ? billingDetails.street : null;
+      updateData.billing_city = typeof billingDetails.city === "string" ? billingDetails.city : null;
+      updateData.billing_state = typeof billingDetails.state === "string" ? billingDetails.state : null;
+      updateData.billing_zip = typeof billingDetails.zip === "string" ? billingDetails.zip : null;
+      updateData.billing_country = typeof billingDetails.country === "string" ? billingDetails.country : null;
     }
 
     // Update profiles table
@@ -112,6 +101,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, paymentMethod: updateData });
   } catch (err) {
     console.error("Save Payment Method Error:", err);
-    return NextResponse.json({ error: "Failed to save payment method" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Failed to save payment method";
+    const lowerMessage = message.toLowerCase();
+    const status = lowerMessage.includes("payment method") || lowerMessage.includes("invalid") ? 400 : 500;
+    return NextResponse.json({ error: status === 500 ? "Failed to save payment method" : message }, { status });
   }
 }

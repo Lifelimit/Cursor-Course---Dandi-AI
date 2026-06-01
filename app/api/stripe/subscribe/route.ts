@@ -1,19 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { serverEnv } from "@/lib/env";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
-
-const supabaseAdmin = createSupabaseClient(
-  serverEnv.NEXT_PUBLIC_SUPABASE_URL,
-  serverEnv.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    global: {
-      fetch: (url, options) => fetch(url, { ...options, cache: "no-store" })
-    }
-  }
-);
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { resolvePaidPlanRequest } from "@/lib/billing-catalog";
+import { getJsonObject, validatePaymentMethodId } from "@/lib/request-validation";
+import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
 
 export async function POST(req: Request) {
   try {
@@ -24,10 +16,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { priceId, planId, paymentMethodId, billingDetails } = await req.json();
+    const body = getJsonObject(await req.json());
+    const planRequest = resolvePaidPlanRequest(body);
+    const billingDetails = getJsonObject(body.billingDetails);
 
-    if (!priceId || !planId) {
-      return NextResponse.json({ error: "Price ID and Plan ID are required" }, { status: 400 });
+    if (!planRequest) {
+      return NextResponse.json({ error: "Invalid plan or price selection" }, { status: 400 });
     }
 
     // 1. Retrieve the customer ID from profiles
@@ -43,21 +37,17 @@ export async function POST(req: Request) {
     }
 
     // 2. Attach new payment method if provided
-    const pmId = paymentMethodId;
+    const pmId = body.paymentMethodId ? validatePaymentMethodId(body.paymentMethodId) : null;
     if (pmId) {
-      try {
-        const pm = await stripe.paymentMethods.retrieve(pmId);
-        if (pm.customer !== customerId) {
-          await stripe.paymentMethods.attach(pmId, { customer: customerId });
-        }
-        await stripe.customers.update(customerId, {
-          invoice_settings: {
-            default_payment_method: pmId,
-          },
-        });
-      } catch (err) {
-        console.error("Error attaching payment method:", err);
+      const pm = await getOwnedPaymentMethod(pmId, customerId, { allowUnattached: true });
+      if (!pm.customer) {
+        await stripe.paymentMethods.attach(pmId, { customer: customerId });
       }
+      await stripe.customers.update(customerId, {
+        invoice_settings: {
+          default_payment_method: pmId,
+        },
+      });
     }
 
     // 3. Find if customer has an existing subscription
@@ -77,27 +67,27 @@ export async function POST(req: Request) {
       // UPGRADE / CHANGE SUBSCRIPTION
       const subItemId = activeSubscription.items.data[0].id;
       subscription = await stripe.subscriptions.update(activeSubscription.id, {
-        items: [{ id: subItemId, price: priceId }],
+        items: [{ id: subItemId, price: planRequest.priceId }],
         proration_behavior: "always_invoice",
         payment_behavior: "pending_if_incomplete",
         expand: ["latest_invoice.payment_intent"],
         metadata: {
           userId: user.id,
           userEmail: user.email,
-          planId: planId,
+          planId: planRequest.planId,
         },
       });
     } else {
       // NEW SUBSCRIPTION
       subscription = await stripe.subscriptions.create({
         customer: customerId,
-        items: [{ price: priceId }],
+        items: [{ price: planRequest.priceId }],
         payment_behavior: "pending_if_incomplete",
         expand: ["latest_invoice.payment_intent"],
         metadata: {
           userId: user.id,
           userEmail: user.email,
-          planId: planId,
+          planId: planRequest.planId,
         },
       });
     }
@@ -140,7 +130,7 @@ export async function POST(req: Request) {
 
     if (finalPmId) {
       try {
-        const finalPm = await stripe.paymentMethods.retrieve(finalPmId);
+        const finalPm = await getOwnedPaymentMethod(finalPmId, customerId);
         if (finalPm.card) {
           pmDetails = {
             payment_method_last4: finalPm.card.last4,
@@ -159,7 +149,7 @@ export async function POST(req: Request) {
       : null;
 
     const updatePayload: Record<string, unknown> = {
-      plan: planId,
+      plan: planRequest.planId,
       stripe_subscription_id: subscription.id,
       billing_interval: subscription.items?.data?.[0]?.price?.recurring?.interval === "year" ? "year" : "month",
       billing_next_date: renewalDate,
@@ -167,12 +157,12 @@ export async function POST(req: Request) {
       ...pmDetails,
     };
 
-    if (billingDetails) {
-      updatePayload.billing_street = billingDetails.street || null;
-      updatePayload.billing_city = billingDetails.city || null;
-      updatePayload.billing_state = billingDetails.state || null;
-      updatePayload.billing_zip = billingDetails.zip || null;
-      updatePayload.billing_country = billingDetails.country || null;
+    if (body.billingDetails && typeof body.billingDetails === "object") {
+      updatePayload.billing_street = typeof billingDetails.street === "string" ? billingDetails.street : null;
+      updatePayload.billing_city = typeof billingDetails.city === "string" ? billingDetails.city : null;
+      updatePayload.billing_state = typeof billingDetails.state === "string" ? billingDetails.state : null;
+      updatePayload.billing_zip = typeof billingDetails.zip === "string" ? billingDetails.zip : null;
+      updatePayload.billing_country = typeof billingDetails.country === "string" ? billingDetails.country : null;
     }
 
     // Remove undefined values
@@ -192,6 +182,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, subscription });
   } catch (err) {
     console.error("Subscribe API Error:", err);
-    return NextResponse.json({ error: "Failed to process subscription" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Failed to process subscription";
+    const lowerMessage = message.toLowerCase();
+    const status = lowerMessage.includes("payment method") || lowerMessage.includes("invalid") ? 400 : 500;
+    return NextResponse.json({ error: status === 500 ? "Failed to process subscription" : message }, { status });
   }
 }

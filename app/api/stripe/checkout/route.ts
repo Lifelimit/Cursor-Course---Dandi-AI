@@ -2,6 +2,8 @@ import { stripe } from "@/lib/stripe";
 import { publicEnv } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { resolvePaidPlanRequest } from "@/lib/billing-catalog";
+import { getJsonObject } from "@/lib/request-validation";
 
 export async function POST(req: Request) {
   try {
@@ -11,10 +13,11 @@ export async function POST(req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { priceId, planId } = await req.json();
+    const body = getJsonObject(await req.json());
+    const planRequest = resolvePaidPlanRequest(body);
 
-    if (!priceId) {
-      return new NextResponse("Price ID is required", { status: 400 });
+    if (!planRequest) {
+      return new NextResponse("Invalid plan or price selection", { status: 400 });
     }
 
     // Retrieve stripe_customer_id from the user's database profile
@@ -48,8 +51,8 @@ export async function POST(req: Request) {
     console.log("💳 Creating Stripe Checkout Session", {
       userId: user.id,
       email: user.email,
-      planId,
-      priceId,
+      planId: planRequest.planId,
+      priceId: planRequest.priceId,
       stripeCustomerId
     });
 
@@ -59,7 +62,7 @@ export async function POST(req: Request) {
       payment_method_types: ["card"],
       line_items: [
         {
-          price: priceId,
+          price: planRequest.priceId,
           quantity: 1,
         },
       ],
@@ -70,13 +73,13 @@ export async function POST(req: Request) {
       metadata: {
         userId: user.id,
         userEmail: user.email,
-        planId: planId,
+        planId: planRequest.planId,
       },
       subscription_data: {
         metadata: {
           userId: user.id,
           userEmail: user.email,
-          planId: planId,
+          planId: planRequest.planId,
         },
       },
     });

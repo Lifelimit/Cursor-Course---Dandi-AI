@@ -3,12 +3,16 @@ import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.servic
 import { googleProvider } from "@/lib/services/ai.service";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { streamText } from "ai";
+import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
+import { getJsonObject, validateGitHubRepoUrl } from "@/lib/request-validation";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, x-api-key",
 };
+
+const chatRateLimit = createIpRateLimit("@upstash/ratelimit:rag:chat", 10, "60 s");
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -106,10 +110,13 @@ export async function POST(request: Request) {
   let keyData: ValidatedKeyData | null = null;
 
   try {
-    const body = await request.json();
-    githubUrl = body.githubUrl;
-    apiKey = request.headers.get("x-api-key") || body.apiKey;
-    messages = body.messages || [];
+    const rateLimited = await checkRateLimit(request, chatRateLimit, corsHeaders);
+    if (rateLimited) return rateLimited;
+
+    const body = getJsonObject(await request.json());
+    githubUrl = validateGitHubRepoUrl(body.githubUrl);
+    apiKey = request.headers.get("x-api-key") || (typeof body.apiKey === "string" ? body.apiKey : "");
+    messages = Array.isArray(body.messages) ? body.messages as Message[] : [];
 
     if (!apiKey) {
       return NextResponse.json(
@@ -118,16 +125,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!githubUrl) {
+    if (messages.length === 0 || messages.length > 20) {
       return NextResponse.json(
-        { error: "githubUrl is required in body" },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    if (messages.length === 0) {
-      return NextResponse.json(
-        { error: "messages array is required and cannot be empty" },
+        { error: "messages array is required and must contain 1-20 messages" },
         { status: 400, headers: corsHeaders }
       );
     }
@@ -142,11 +142,11 @@ export async function POST(request: Request) {
     }
 
     const lastUserMessage = messages[messages.length - 1];
-    const userQuery = lastUserMessage?.content || "";
+    const userQuery = typeof lastUserMessage?.content === "string" ? lastUserMessage.content : "";
 
-    if (!userQuery) {
+    if (!userQuery || userQuery.length > 8000) {
       return NextResponse.json(
-        { error: "Last message content is required" },
+        { error: "Last message content is required and must be under 8000 characters" },
         { status: 400, headers: corsHeaders }
       );
     }
@@ -162,6 +162,7 @@ export async function POST(request: Request) {
         match_threshold: 0.35, // similarity threshold
         match_count: 5, // retrieve top 5 context snippets
         p_repo_url: githubUrl,
+        p_user_id: keyData.user_id,
       }
     );
 
@@ -216,14 +217,17 @@ export async function POST(request: Request) {
     }
     const errMsg = err instanceof Error ? err.message : String(err);
     const isQuotaExceeded = errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED");
+    const isBadRequest = errMsg.includes("Invalid GitHub repository URL");
     return NextResponse.json(
       { 
         error: isQuotaExceeded 
           ? "Gemini API rate limit exceeded. Please wait a moment before trying again." 
-          : "Internal server error during chat session.", 
+          : isBadRequest
+            ? errMsg
+            : "Internal server error during chat session.",
         details: errMsg 
       },
-      { status: 500, headers: corsHeaders }
+      { status: isBadRequest ? 400 : 500, headers: corsHeaders }
     );
   }
 }

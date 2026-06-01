@@ -33,6 +33,9 @@ export async function updatePlanAction(
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) throw new Error("Unauthorized");
+  if (newPlanId !== "Hobby") {
+    throw new Error("Paid plan changes must be completed through Stripe checkout.");
+  }
 
   const updateData: Record<string, string | null> = { plan: newPlanId };
   

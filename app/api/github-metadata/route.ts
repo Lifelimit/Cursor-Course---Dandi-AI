@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { fetchGitHubMetadata } from "@/lib/services/github.service";
 import { validateApiKey } from "@/lib/services/api-key.service";
+import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
+import { validateGitHubRepoUrl } from "@/lib/request-validation";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, x-api-key",
 };
+
+const metadataRateLimit = createIpRateLimit("@upstash/ratelimit:github-metadata", 30, "60 s");
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -19,21 +23,27 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const rateLimited = await checkRateLimit(request, metadataRateLimit, corsHeaders);
+  if (rateLimited) return rateLimited;
+
   const { searchParams } = new URL(request.url);
-  const githubUrl = searchParams.get("githubUrl");
+  let githubUrl: string;
   const apiKey = request.headers.get("x-api-key") || searchParams.get("apiKey") || "";
 
-  if (!githubUrl) {
-    return NextResponse.json({ error: "githubUrl query parameter is required" }, { status: 400, headers: corsHeaders });
+  try {
+    githubUrl = validateGitHubRepoUrl(searchParams.get("githubUrl"));
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 400, headers: corsHeaders });
   }
 
-  // 1. Validate API Key if provided (optional but good for tracking and protection)
-  if (apiKey) {
-    try {
-      await validateApiKey(apiKey);
-    } catch (keyError) {
-      return NextResponse.json({ error: (keyError as Error).message }, { status: 401, headers: corsHeaders });
-    }
+  if (!apiKey) {
+    return NextResponse.json({ error: "API key is required" }, { status: 401, headers: corsHeaders });
+  }
+
+  try {
+    await validateApiKey(apiKey);
+  } catch (keyError) {
+    return NextResponse.json({ error: (keyError as Error).message }, { status: 401, headers: corsHeaders });
   }
 
   try {

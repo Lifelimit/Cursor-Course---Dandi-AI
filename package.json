@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "echo 'Running unit tests...' && exit 0",
+    "test": "node --test tests/*.test.mjs",
     "ci:check": "bash scripts/validate.sh"
   },
   "dependencies": {

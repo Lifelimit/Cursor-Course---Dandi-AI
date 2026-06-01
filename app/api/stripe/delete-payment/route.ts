@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { getJsonObject, validatePaymentMethodId } from "@/lib/request-validation";
+import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
 
 export async function POST(req: Request) {
   try {
@@ -11,10 +13,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { paymentMethodId } = await req.json();
-    if (!paymentMethodId) {
-      return NextResponse.json({ error: "Missing paymentMethodId" }, { status: 400 });
-    }
+    const body = getJsonObject(await req.json());
+    const paymentMethodId = validatePaymentMethodId(body.paymentMethodId);
 
     // 1. Get Customer ID and Current Default PM from Supabase
     const { data: profile } = await supabase
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     }
 
     // 2. Detach Payment Method from Stripe
-    const pm = await stripe.paymentMethods.retrieve(paymentMethodId);
+    const pm = await getOwnedPaymentMethod(paymentMethodId, customerId);
     
     // Check if this card is the one stored in Supabase
     const isCurrentDefaultInDB = profile.payment_method_last4 === pm.card?.last4;
@@ -79,6 +79,8 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("Delete Payment Error:", err);
     const message = err instanceof Error ? err.message : "Failed to delete payment method";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const lowerMessage = message.toLowerCase();
+    const status = lowerMessage.includes("payment method") || lowerMessage.includes("invalid") ? 400 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

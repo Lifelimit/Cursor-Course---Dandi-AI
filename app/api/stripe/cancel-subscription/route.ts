@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { validateUuidList } from "@/lib/request-validation";
 
 export async function POST(req: Request) {
   try {
@@ -11,14 +12,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { keysToKeep } = await req.json();
+    const { keysToKeep: rawKeysToKeep } = await req.json();
+    let keysToKeep: string[];
 
-    if (
-      !Array.isArray(keysToKeep) || 
-      keysToKeep.length > 3 || 
-      !keysToKeep.every(k => typeof k === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k))
-    ) {
+    try {
+      keysToKeep = validateUuidList(rawKeysToKeep, { min: 0, max: 3 });
+    } catch {
       return NextResponse.json({ error: "Invalid keys selection" }, { status: 400 });
+    }
+
+    if (keysToKeep.length > 0) {
+      const { data: ownedKeys, error: ownedError } = await supabase
+        .from("api_keys")
+        .select("id")
+        .eq("user_id", user.id)
+        .in("id", keysToKeep);
+
+      if (ownedError || (ownedKeys?.length ?? 0) !== keysToKeep.length) {
+        return NextResponse.json({ error: "Invalid keys selection" }, { status: 400 });
+      }
     }
 
     // 1. Get user profile and stripe customer ID

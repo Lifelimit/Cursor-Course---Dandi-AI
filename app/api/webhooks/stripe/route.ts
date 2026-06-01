@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { serverEnv } from "@/lib/env";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getPlanForSubscription } from "@/lib/billing-catalog";
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -115,6 +116,13 @@ export async function POST(req: Request) {
       // Handle subscription events (checkout or update)
       const subscriptionId = (isSubscriptionEvent ? (sessionOrSub as Stripe.Subscription).id : (sessionOrSub as Stripe.Checkout.Session).subscription) as string;
       const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription;
+      const verifiedPlan = getPlanForSubscription(subscription);
+      if (!verifiedPlan) {
+        console.warn("⚠️ Webhook: Subscription has an unknown Stripe price; profile plan will not be changed.", {
+          subscriptionId,
+          priceId: subscription.items?.data?.[0]?.price?.id,
+        });
+      }
       
       try {
         let pmId = subscription.default_payment_method as string;
@@ -158,7 +166,6 @@ export async function POST(req: Request) {
         console.warn("⚠️ Webhook warning: Could not retrieve payment method details:", err);
       }
 
-      const planId = metadata.planId;
       let renewalDate: string | null = null;
       const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end;
       if (periodEnd) {
@@ -167,9 +174,9 @@ export async function POST(req: Request) {
 
       updatePayload = {
         ...updatePayload,
-        plan: planId || undefined,
+        plan: verifiedPlan?.planId,
         stripe_subscription_id: subscriptionId,
-        billing_interval: (subscription as unknown as { items?: { data?: Array<{ price?: { recurring?: { interval?: string } } }> } }).items?.data?.[0]?.price?.recurring?.interval === "year" ? "year" : "month",
+        billing_interval: verifiedPlan?.interval ?? ((subscription as unknown as { items?: { data?: Array<{ price?: { recurring?: { interval?: string } } }> } }).items?.data?.[0]?.price?.recurring?.interval === "year" ? "year" : "month"),
         payment_method_last4: paymentMethodDetails?.last4,
         payment_method_brand: paymentMethodDetails?.brand,
         payment_method_expiry: paymentMethodDetails?.expiry,

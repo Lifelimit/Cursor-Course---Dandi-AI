@@ -6,6 +6,8 @@ import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
 import crypto from "crypto";
 import { hmacHash } from "@/lib/services/api-key.service";
+import { assertCanActivateKeys, getUserPlan } from "@/lib/services/api-key-limits.service";
+import { getJsonObject, parseApiKeySettings } from "@/lib/request-validation";
 
 const TABLE_NAME = "api_keys";
 
@@ -118,21 +120,13 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const userId = await getAuthenticatedUserId();
-    const body = await request.json();
+    const plan = await getUserPlan(userId);
+    const body = getJsonObject(await request.json());
+    const settings = parseApiKeySettings(body, { plan, requireName: true });
 
-    const name = typeof body?.name === "string" ? body.name.trim() : "";
-    const keyType = body?.keyType === "production" ? "production" : "development";
-    const monthlyLimit =
-      typeof body?.monthlyLimit === "number" && Number.isFinite(body.monthlyLimit)
-        ? body.monthlyLimit
-        : null;
-
-    if (!name) {
-      return NextResponse.json({ error: "Name is required." }, { status: 400 });
+    if (settings.isActive !== false) {
+      await assertCanActivateKeys(userId, plan, [], 1);
     }
-
-    const alertThreshold = typeof body?.alert_threshold === "number" ? body.alert_threshold : 80;
-    const alertChannels = Array.isArray(body?.alert_channels) ? body.alert_channels : ["in-page"];
 
     const plainKey = buildKeyValue();
     const hmacSecret = getServerEnv().API_KEY_HMAC_SECRET;
@@ -142,15 +136,17 @@ export async function POST(request: Request) {
     const { data, error } = await supabaseAdmin
       .from(TABLE_NAME)
       .insert({
-        name,
+        name: settings.name,
         key_value: maskedKey,
         hashed_key_value: hashedKeyValue,
-        key_type: keyType,
+        key_type: settings.keyType ?? "development",
         usage_count: 0,
-        monthly_limit: monthlyLimit,
+        monthly_limit: settings.monthlyLimit ?? null,
         user_id: userId,
-        alert_threshold: alertThreshold,
-        alert_channels: alertChannels,
+        alert_threshold: settings.alertThreshold ?? 80,
+        alert_channels: settings.alertChannels ?? ["in-page"],
+        alert_phone: settings.alertPhone ?? null,
+        is_active: settings.isActive ?? true,
       })
       .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active,alert_threshold,alert_channels,alert_phone")
       .single();
@@ -171,8 +167,8 @@ export async function POST(request: Request) {
       }
     });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 401 });
+    const message = (err as Error).message;
+    const status = message.includes("active API keys") || message.includes("Monthly limit") ? 400 : 401;
+    return NextResponse.json({ error: message }, { status });
   }
 }
-
-

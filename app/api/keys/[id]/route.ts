@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
+import { assertCanActivateKeys, getUserPlan } from "@/lib/services/api-key-limits.service";
+import { getJsonObject, parseApiKeySettings } from "@/lib/request-validation";
+import { isUuid } from "@/lib/security-core";
 
 const TABLE_NAME = "api_keys";
 
@@ -8,39 +11,54 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-type UpdatePayload = {
-  name?: string;
-  keyType?: "development" | "production";
-  monthlyLimit?: number | null;
-  is_active?: boolean;
-};
-
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const userId = await getAuthenticatedUserId();
     const { id } = await context.params;
-    const body = (await request.json()) as UpdatePayload;
-
-    const updates: Record<string, string | number | boolean | null> = {};
-
-    if (typeof body.name === "string") {
-      const name = body.name.trim();
-      if (!name) {
-        return NextResponse.json({ error: "Name is required." }, { status: 400 });
-      }
-      updates.name = name;
+    if (!isUuid(id)) {
+      return NextResponse.json({ error: "Invalid API key ID." }, { status: 400 });
     }
 
-    if (body.keyType === "development" || body.keyType === "production") {
-      updates.key_type = body.keyType;
+    const plan = await getUserPlan(userId);
+    const body = getJsonObject(await request.json());
+    const settings = parseApiKeySettings(body, { plan, partial: true });
+
+    if (settings.isActive === true) {
+      await assertCanActivateKeys(userId, plan, [id]);
     }
 
-    if (typeof body.monthlyLimit === "number" || body.monthlyLimit === null) {
-      updates.monthly_limit = body.monthlyLimit;
+    const updates: Record<string, string | number | boolean | string[] | null> = {};
+
+    if (settings.name !== undefined) {
+      updates.name = settings.name;
     }
 
-    if (typeof body.is_active === "boolean") {
-      updates.is_active = body.is_active;
+    if (settings.keyType) {
+      updates.key_type = settings.keyType;
+    }
+
+    if (settings.monthlyLimit !== undefined) {
+      updates.monthly_limit = settings.monthlyLimit;
+    }
+
+    if (settings.isActive !== undefined) {
+      updates.is_active = settings.isActive;
+    }
+
+    if (settings.alertThreshold !== undefined) {
+      updates.alert_threshold = settings.alertThreshold;
+    }
+
+    if (settings.alertChannels !== undefined) {
+      updates.alert_channels = settings.alertChannels;
+    }
+
+    if (settings.alertPhone !== undefined) {
+      updates.alert_phone = settings.alertPhone;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "No valid updates provided." }, { status: 400 });
     }
 
     const { data, error } = await supabaseAdmin
@@ -48,7 +66,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       .update(updates)
       .eq("id", id)
       .eq("user_id", userId) // Security: Ensure owner
-      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active")
+      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active,alert_threshold,alert_channels,alert_phone")
       .single();
 
     if (error) {
@@ -57,7 +75,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     return NextResponse.json(data);
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 401 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 400 });
   }
 }
 
@@ -65,6 +83,9 @@ export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const userId = await getAuthenticatedUserId();
     const { id } = await context.params;
+    if (!isUuid(id)) {
+      return NextResponse.json({ error: "Invalid API key ID." }, { status: 400 });
+    }
 
     const { error } = await supabaseAdmin
       .from(TABLE_NAME)
@@ -81,4 +102,3 @@ export async function DELETE(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: (err as Error).message }, { status: 401 });
   }
 }
-

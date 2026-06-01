@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
 import crypto from "crypto";
+import { normalizeGitHubRepoUrl } from "@/lib/security-core";
 
 /** HMAC-SHA256 hash using the server secret. Used for new key hashing. */
 export function hmacHash(value: string, secret: string): string {
@@ -208,7 +209,7 @@ export async function incrementKeyUsage(
   }
 
   // 2. Validate and sanitize repoUrl before logging
-  const safeRepoUrl = repoUrl && isValidGitHubUrl(repoUrl) ? repoUrl : undefined;
+  const safeRepoUrl = repoUrl && isValidGitHubUrl(repoUrl) ? normalizeGitHubRepoUrl(repoUrl) ?? undefined : undefined;
 
   // 3. Log metadata to Redis for analytics
   const logKey = `logs:user:${userId}:${currentMonth}`;
@@ -222,4 +223,19 @@ export async function incrementKeyUsage(
 
   // Keep only last 100 logs in Redis per user for "hot" analytics
   await redis.ltrim(logKey, 0, 99);
+
+  await supabaseAdmin
+    .from("api_usage_log")
+    .insert({
+      api_key_id: keyId,
+      user_id: userId,
+      repo_url: safeRepoUrl,
+      status,
+      latency_ms: Math.max(0, Math.round(latencyMs)),
+    })
+    .then(({ error }) => {
+      if (error) {
+        console.warn("Failed to persist API usage log:", error.message);
+      }
+    });
 }

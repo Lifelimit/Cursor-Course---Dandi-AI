@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
 import { fetchGitHubBranch, fetchGitHubRepoTree, fetchRawFileContent } from "@/lib/services/github.service";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
+import { getJsonObject, validateGitHubRepoUrl } from "@/lib/request-validation";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, x-api-key",
 };
+
+const ingestRateLimit = createIpRateLimit("@upstash/ratelimit:rag:ingest", 3, "60 s");
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -122,21 +126,17 @@ export async function POST(request: Request) {
   let keyData: ValidatedKeyData | null = null;
 
   try {
-    const body = await request.json();
-    githubUrl = body.githubUrl;
-    apiKey = request.headers.get("x-api-key") || body.apiKey;
+    const rateLimited = await checkRateLimit(request, ingestRateLimit, corsHeaders);
+    if (rateLimited) return rateLimited;
+
+    const body = getJsonObject(await request.json());
+    githubUrl = validateGitHubRepoUrl(body.githubUrl);
+    apiKey = request.headers.get("x-api-key") || (typeof body.apiKey === "string" ? body.apiKey : "");
 
     if (!apiKey) {
       return NextResponse.json(
         { error: "API key is required in headers (x-api-key) or body" },
         { status: 401, headers: corsHeaders }
-      );
-    }
-
-    if (!githubUrl) {
-      return NextResponse.json(
-        { error: "githubUrl is required in body" },
-        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -147,23 +147,6 @@ export async function POST(request: Request) {
       const errorMessage = (keyError as Error).message;
       const status = errorMessage.includes("limit exceeded") ? 403 : 401;
       return NextResponse.json({ error: errorMessage }, { status, headers: corsHeaders });
-    }
-
-    // Validate URL syntax
-    try {
-      const parsed = new URL(githubUrl);
-      const parts = parsed.pathname.split("/").filter(Boolean);
-      if (parsed.hostname !== "github.com" || parts.length < 2) {
-        return NextResponse.json(
-          { error: "Invalid GitHub repository URL." },
-          { status: 400, headers: corsHeaders }
-        );
-      }
-    } catch {
-      return NextResponse.json(
-        { error: "Invalid GitHub repository URL." },
-        { status: 400, headers: corsHeaders }
-      );
     }
 
     // 2. Fetch repo metadata and craw tree
@@ -181,7 +164,8 @@ export async function POST(request: Request) {
     await supabaseAdmin
       .from("repository_chunks")
       .delete()
-      .eq("repo_url", githubUrl);
+      .eq("repo_url", githubUrl)
+      .eq("user_id", keyData.user_id);
 
     // Filter: limit to top 40 files under 50KB to keep serverless invocation fast & within limits
     const filesToIngest = tree
@@ -221,6 +205,8 @@ export async function POST(request: Request) {
 
       const rowsToInsert = allChunks.map((chunkItem, index) => ({
         repo_url: githubUrl,
+        user_id: keyData?.user_id,
+        api_key_id: keyData?.id,
         file_path: chunkItem.path,
         content: chunkItem.content,
         embedding: embeddings[index],
@@ -259,14 +245,17 @@ export async function POST(request: Request) {
     }
     const errMsg = err instanceof Error ? err.message : String(err);
     const isQuotaExceeded = errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED");
+    const isBadRequest = errMsg.includes("Invalid GitHub repository URL");
     return NextResponse.json(
       { 
         error: isQuotaExceeded 
           ? "Gemini API rate limit exceeded during indexing. Please try a smaller repository or wait a moment before trying again." 
-          : "Internal server error during ingestion.", 
+          : isBadRequest
+            ? errMsg
+            : "Internal server error during ingestion.",
         details: errMsg 
       },
-      { status: 500, headers: corsHeaders }
+      { status: isBadRequest ? 400 : 500, headers: corsHeaders }
     );
   }
 }
