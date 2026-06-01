@@ -1,0 +1,2 @@
+-- Local seed file for Supabase CLI resets.
+-- Add development-only seed data here when needed.
