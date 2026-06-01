@@ -194,7 +194,7 @@ export async function POST(request: Request) {
     });
 
     const latencyMs = Date.now() - startTime;
-    await incrementKeyUsage(keyData, githubUrl, latencyMs, "success");
+    await incrementKeyUsage(keyData, githubUrl, latencyMs, "success", request);
 
     // Return the stream with matched chunks cited in headers for UI indicators
     return result.toTextStreamResponse({
@@ -213,7 +213,7 @@ export async function POST(request: Request) {
     console.error("❌ RAG Chat API Critical failure:", err);
     const latencyMs = Date.now() - startTime;
     if (keyData) {
-      await incrementKeyUsage(keyData, githubUrl, latencyMs, "error");
+      await incrementKeyUsage(keyData, githubUrl, latencyMs, "error", request);
     }
     const errMsg = err instanceof Error ? err.message : String(err);
     const isQuotaExceeded = errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED");

@@ -42,13 +42,13 @@ export function RevocationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-zinc-950/60 backdrop-blur-sm px-4 animate-in fade-in duration-300">
-      <div className="w-full max-w-xl rounded-[40px] border border-red-200 dark:border-red-950/30 bg-[#f4f2ed] dark:bg-zinc-950 p-10 shadow-2xl dark:shadow-none animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-[1200] flex items-start justify-center overflow-y-auto bg-zinc-950/60 p-3 backdrop-blur-sm animate-in fade-in duration-300 sm:items-center sm:p-6">
+      <div className="my-3 w-full max-w-xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-[28px] border border-red-200 dark:border-red-950/30 bg-[#f4f2ed] dark:bg-zinc-950 p-6 shadow-2xl dark:shadow-none animate-in zoom-in-95 duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[40px] sm:p-10">
         
         {/* Header */}
         <div className="mb-8 text-center space-y-2">
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">Critical Access Control</p>
-          <h3 className="font-serif text-4xl font-bold tracking-tight italic text-zinc-950 dark:text-zinc-100">
+          <h3 className="font-serif text-3xl font-bold tracking-tight italic text-zinc-950 dark:text-zinc-100 sm:text-4xl">
             Revoke Key.
           </h3>
           <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">

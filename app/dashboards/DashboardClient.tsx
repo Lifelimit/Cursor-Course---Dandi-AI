@@ -377,11 +377,11 @@ export default function DashboardClient({
               keyUsage={keyToRevoke?.usage_count || 0}
             />
             {createdPlainKey && (
-              <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-zinc-950/40 dark:bg-zinc-950/60 backdrop-blur-sm px-4 animate-in fade-in duration-300">
-                <div className="w-full max-w-xl rounded-[40px] border border-zinc-200 dark:border-zinc-800 bg-[#f4f2ed] dark:bg-zinc-900 p-10 shadow-2xl animate-in zoom-in-95 duration-300">
+              <div className="fixed inset-0 z-[1100] flex items-start justify-center overflow-y-auto bg-zinc-950/40 dark:bg-zinc-950/60 p-3 backdrop-blur-sm animate-in fade-in duration-300 sm:items-center sm:p-6">
+                <div className="my-3 w-full max-w-xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-[28px] border border-zinc-200 dark:border-zinc-800 bg-[#f4f2ed] dark:bg-zinc-900 p-6 shadow-2xl animate-in zoom-in-95 duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[40px] sm:p-10">
                   <div className="mb-8 text-center space-y-2">
                     <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">Security Warning</p>
-                    <h3 className="font-serif text-4xl font-bold tracking-tight italic text-zinc-900 dark:text-zinc-100">
+                    <h3 className="font-serif text-3xl font-bold tracking-tight italic text-zinc-900 dark:text-zinc-100 sm:text-4xl">
                       Secure Key Generated.
                     </h3>
                     <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">

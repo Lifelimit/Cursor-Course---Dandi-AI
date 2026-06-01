@@ -225,7 +225,7 @@ export async function POST(request: Request) {
 
     // 3. Increment API key usage
     const latencyMs = Date.now() - startTime;
-    await incrementKeyUsage(keyData, githubUrl, latencyMs, "success");
+    await incrementKeyUsage(keyData, githubUrl, latencyMs, "success", request);
 
     return NextResponse.json(
       {
@@ -241,7 +241,7 @@ export async function POST(request: Request) {
     console.error("❌ RAG Ingest API Critical failure:", err);
     const latencyMs = Date.now() - startTime;
     if (keyData) {
-      await incrementKeyUsage(keyData, githubUrl, latencyMs, "error");
+      await incrementKeyUsage(keyData, githubUrl, latencyMs, "error", request);
     }
     const errMsg = err instanceof Error ? err.message : String(err);
     const isQuotaExceeded = errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED");

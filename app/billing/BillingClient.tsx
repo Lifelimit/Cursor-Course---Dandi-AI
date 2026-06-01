@@ -415,8 +415,8 @@ export default function BillingClient({
 
       {/* Remove Card Confirmation Modal */}
       {cardToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm transition-all duration-300">
-          <div className="w-full max-w-md scale-95 transform rounded-[32px] border border-zinc-200 bg-white p-8 shadow-2xl transition-all duration-300">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-zinc-950/40 p-3 backdrop-blur-sm transition-all duration-300 sm:items-center sm:p-6">
+          <div className="my-3 w-full max-w-md max-h-[calc(100dvh-1.5rem)] scale-95 transform overflow-y-auto rounded-[28px] border border-zinc-200 bg-white p-6 shadow-2xl transition-all duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[32px] sm:p-8">
             <div className="space-y-6">
               <div className="space-y-2">
                 <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-red-500">Warning / Security</p>

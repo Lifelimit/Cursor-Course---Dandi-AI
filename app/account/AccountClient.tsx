@@ -37,13 +37,18 @@ type UsageData = {
   resetDate: string | null;
 };
 
-type SessionEntry = {
+type AccountEnvironment = {
   id: string;
-  device: string;
-  ip: string;
-  location: string;
+  kind: "browser" | "api_key" | "api_request";
+  label: string;
+  detail?: string;
+  ip: string | null;
+  location: string | null;
+  lastSeenAt: string | null;
   current: boolean;
-  activeAt: string;
+  revocable: boolean;
+  apiKeyId?: string;
+  telemetryAge?: string;
 };
 
 type WebhookLogEntry = {
@@ -57,6 +62,24 @@ type WebhookLogEntry = {
   responseHeaders: Record<string, string>;
   responseBody: unknown;
 };
+
+function formatEnvironmentAge(lastSeenAt: string | null, current: boolean) {
+  if (current) return "Active now";
+  if (!lastSeenAt) return "No telemetry";
+
+  const diffMs = Date.now() - new Date(lastSeenAt).getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) return "Recently";
+
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
 
 export default function AccountClient({ initialSession }: { initialSession: Session | null }) {
   const activeSession = initialSession;
@@ -101,12 +124,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mock sessions state
-  const [sessions, setSessions] = useState<SessionEntry[]>([
-    { id: "s1", device: "Chrome on macOS", ip: "185.143.20.1", location: "Dublin, Ireland", current: true, activeAt: "Active now" },
-    { id: "s2", device: "VS Code / Cursor", ip: "185.143.20.1", location: "Dublin, Ireland", current: false, activeAt: "2 hours ago" },
-    { id: "s3", device: "Terminal curl command", ip: "86.43.101.42", location: "London, UK", current: false, activeAt: "2 days ago" }
-  ]);
+  const [environments, setEnvironments] = useState<AccountEnvironment[]>([]);
 
   // Webhook Telemetry Logs State
   const [webhookLogs, setWebhookLogs] = useState<WebhookLogEntry[]>(() => [
@@ -191,9 +209,10 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [profileRes, usageRes] = await Promise.all([
+      const [profileRes, usageRes, environmentsRes] = await Promise.all([
         fetch("/api/profile"),
-        fetch("/api/usage")
+        fetch("/api/usage"),
+        fetch("/api/account/environments")
       ]);
 
       if (profileRes.ok) {
@@ -209,6 +228,14 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       if (usageRes.ok) {
         const uData: UsageData = await usageRes.json();
         setUsage(uData);
+      }
+
+      if (environmentsRes.ok) {
+        const envData: { environments: AccountEnvironment[] } = await environmentsRes.json();
+        setEnvironments((envData.environments || []).map(environment => ({
+          ...environment,
+          telemetryAge: formatEnvironmentAge(environment.lastSeenAt, environment.current),
+        })));
       }
     } catch (err) {
       console.error("Error loading account details:", err);
@@ -317,10 +344,29 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
     }
   };
 
-  // Session Revocation Action
-  const handleRevokeSession = (id: string) => {
-    setSessions(prev => prev.filter(s => s.id !== id));
-    showToast("success", "Active credential session successfully revoked.");
+  const handleRevokeEnvironment = async (environment: AccountEnvironment) => {
+    if (!environment.apiKeyId || !environment.revocable) {
+      showToast("error", "This environment cannot be revoked from here.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/keys/${environment.apiKeyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: false }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to revoke environment.");
+      }
+
+      setEnvironments(prev => prev.filter(env => env.apiKeyId !== environment.apiKeyId));
+      showToast("success", "Developer environment access successfully revoked.");
+    } catch (err) {
+      showToast("error", err instanceof Error ? err.message : "Failed to revoke environment.");
+    }
   };
 
   // Update secure account password
@@ -1029,40 +1075,59 @@ X-Dandi-Event: quota.warning`}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900 font-medium">
-                            {sessions.map((session) => (
+                            {environments.map((environment) => (
                               <tr 
-                                key={session.id} 
+                                key={environment.id}
                                 className={`transition-colors hover:bg-zinc-50/30 dark:hover:bg-zinc-900/10 ${
-                                  session.current ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/[0.01]" : "text-zinc-800 dark:text-zinc-200"
+                                  environment.current ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/[0.01]" : "text-zinc-800 dark:text-zinc-200"
                                 }`}
                               >
                                 <td className="px-6 py-4">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-bold">{session.device}</span>
-                                    {session.current && (
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="font-bold">{environment.label}</span>
+                                      {environment.current && (
                                       <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Current Session</span>
+                                      )}
+                                      {environment.kind !== "browser" && (
+                                        <span className="rounded-full bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-zinc-400">
+                                          {environment.kind === "api_key" ? "API Key" : "API Request"}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {environment.detail && (
+                                      <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500">{environment.detail}</span>
                                     )}
                                   </div>
                                 </td>
-                                <td className="px-6 py-4 font-mono select-all text-zinc-500">{session.ip}</td>
-                                <td className="px-6 py-4 text-zinc-500">{session.location}</td>
-                                <td className="px-6 py-4 text-zinc-400 font-bold">{session.activeAt}</td>
+                                <td className="px-6 py-4 font-mono select-all text-zinc-500">{environment.ip || "Unknown"}</td>
+                                <td className="px-6 py-4 text-zinc-500">{environment.location || "Unknown"}</td>
+                                <td className="px-6 py-4 text-zinc-400 font-bold">{environment.telemetryAge || "No telemetry"}</td>
                                 <td className="px-6 py-4 text-right">
-                                  {session.current ? (
+                                  {environment.current ? (
                                     <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 pr-4 select-none">Active Root</span>
-                                  ) : (
+                                  ) : environment.revocable ? (
                                     <button
                                       type="button"
-                                      onClick={() => handleRevokeSession(session.id)}
+                                      onClick={() => handleRevokeEnvironment(environment)}
                                       className="rounded-full bg-rose-50 px-3.5 py-2 text-[8px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-600 hover:text-white transition-all shadow-sm border border-rose-100 hover:border-rose-600 active:scale-[0.97]"
-                                      title="Revoke session session key"
+                                      title="Disable the API key behind this environment"
                                     >
-                                      Revoke Session
+                                      Revoke Access
                                     </button>
+                                  ) : (
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 pr-4 select-none">Telemetry Only</span>
                                   )}
                                 </td>
                               </tr>
                             ))}
+                            {environments.length === 0 && (
+                              <tr>
+                                <td colSpan={5} className="px-6 py-10 text-center text-xs font-semibold text-zinc-400">
+                                  No connected environments have reported telemetry yet.
+                                </td>
+                              </tr>
+                            )}
                           </tbody>
                         </table>
                       </div>
@@ -1171,11 +1236,11 @@ X-Dandi-Event: quota.warning`}
       {/* Webhook Delivery Payload Inspector Modal */}
       {inspectedLog && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 dark:bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-zinc-950/40 p-3 backdrop-blur-md animate-in fade-in duration-300 dark:bg-black/60 sm:items-center sm:p-6"
           onClick={() => setInspectedLog(null)}
         >
           <div 
-            className="w-full max-w-2xl rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xl overflow-hidden backdrop-blur-md animate-in zoom-in-95 duration-300"
+            className="my-3 w-full max-w-2xl max-h-[calc(100dvh-1.5rem)] rounded-[28px] border border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xl overflow-hidden backdrop-blur-md animate-in zoom-in-95 duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[32px]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -1206,7 +1271,7 @@ X-Dandi-Event: quota.warning`}
             </div>
 
             {/* Modal Body with internal tabs */}
-            <div className="p-6 md:p-8 space-y-6">
+            <div className="max-h-[calc(100dvh-13rem)] overflow-y-auto p-5 space-y-6 sm:max-h-[60vh] md:p-8">
               {/* Tab Selector */}
               <div className="flex gap-2 border-b border-zinc-100 dark:border-zinc-800 pb-4">
                 <button

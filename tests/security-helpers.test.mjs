@@ -114,3 +114,60 @@ test("validates Stripe payment method identifiers", () => {
   assert.equal(validatePaymentMethodId("pm_123_test"), "pm_123_test");
   assert.throws(() => validatePaymentMethodId("cus_123"), /Invalid payment method ID/);
 });
+
+test("builds account environments from browser, active keys, and request telemetry", () => {
+  const { buildAccountEnvironments } = loadTsModule("lib/account-environments.ts");
+
+  const environments = buildAccountEnvironments({
+    now: new Date("2026-06-02T12:00:00.000Z"),
+    currentRequest: {
+      ip: "203.0.113.1",
+      userAgent: "Mozilla/5.0 Chrome/125.0",
+      city: "Dublin",
+      country: "IE",
+    },
+    apiKeys: [
+      {
+        id: "key-active",
+        name: "Production Key",
+        key_type: "production",
+        created_at: "2026-06-01T10:00:00.000Z",
+        is_active: true,
+      },
+      {
+        id: "key-disabled",
+        name: "Disabled Key",
+        key_type: "development",
+        created_at: "2026-05-01T10:00:00.000Z",
+        is_active: false,
+      },
+    ],
+    usageLogs: [
+      {
+        keyId: "key-active",
+        repoUrl: "https://github.com/openai/codex",
+        usedAt: "2026-06-02T11:00:00.000Z",
+        ip: "198.51.100.7",
+        userAgent: "curl/8.7.1",
+        country: "GB",
+      },
+    ],
+  });
+
+  assert.equal(environments[0].id, "browser-current");
+  assert.equal(environments[0].current, true);
+  assert.equal(environments[0].revocable, false);
+  assert.equal(environments[0].location, "Dublin, IE");
+
+  const apiKeyEnvironment = environments.find((env) => env.id === "api-key-key-active");
+  assert.equal(apiKeyEnvironment?.label, "Production Key");
+  assert.equal(apiKeyEnvironment?.revocable, true);
+  assert.equal(apiKeyEnvironment?.apiKeyId, "key-active");
+
+  const requestEnvironment = environments.find((env) => env.kind === "api_request");
+  assert.equal(requestEnvironment?.label, "Terminal curl command");
+  assert.equal(requestEnvironment?.ip, "198.51.100.7");
+  assert.equal(requestEnvironment?.revocable, true);
+
+  assert.equal(environments.some((env) => env.id === "api-key-key-disabled"), false);
+});

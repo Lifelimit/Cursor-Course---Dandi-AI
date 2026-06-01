@@ -39,24 +39,32 @@ export function PlanComparison({
           const displayPrice = selectedInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
 
           // Override plan classes dynamically for premium, responsive light/dark behavior
-          const cardStyles = plan.id === "Hobby"
+          const baseCardStyles = plan.id === "Hobby"
             ? "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
             : plan.id === "Premium"
             ? "border-2 border-zinc-900 dark:border-zinc-100 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-2xl"
             : "border-zinc-200 dark:border-zinc-800 bg-[#18181b] text-white";
+          const cardStyles = isCurrent
+            ? "border-2 border-emerald-400 dark:border-emerald-500 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-2xl shadow-emerald-500/10 ring-1 ring-emerald-400 dark:ring-emerald-500"
+            : baseCardStyles;
 
           return (
             <div 
               key={plan.id}
               className={`group relative flex flex-col rounded-[40px] border p-10 transition-all hover:scale-[1.02] ${cardStyles}`}
             >
+              {isCurrent && (
+                <div className="absolute left-8 top-6 rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                  Active Plan
+                </div>
+              )}
               {plan.recommended && (
                 <div className="absolute top-6 right-8 rounded-full bg-zinc-900 dark:bg-zinc-100 px-3 py-1 text-[8px] font-black text-white dark:text-zinc-900 uppercase tracking-widest">
                   Most Recommended
                 </div>
               )}
               
-              <div className="mb-8 space-y-2">
+              <div className={`mb-8 space-y-2 ${isCurrent || plan.recommended ? "pt-8" : ""}`}>
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">{plan.name}</h3>
                 <div className="flex items-baseline gap-1">
                   <span className={`text-5xl font-bold tracking-tighter ${plan.priceColor} ${!plan.dark ? 'dark:text-zinc-100' : ''}`}>{displayPrice}</span>

@@ -46,8 +46,8 @@ export function IncreaseLimitModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="w-full max-w-md rounded-[32px] bg-white dark:bg-zinc-950 p-8 border border-transparent dark:border-zinc-800/80 shadow-2xl dark:shadow-black/80 animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm animate-in fade-in duration-300 sm:items-center sm:p-6">
+      <div className="my-3 w-full max-w-md max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-[28px] bg-white dark:bg-zinc-950 p-6 border border-transparent dark:border-zinc-800/80 shadow-2xl dark:shadow-black/80 animate-in zoom-in-95 duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[32px] sm:p-8">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="font-serif text-2xl font-bold italic text-zinc-900 dark:text-zinc-50">Increase Quota</h2>
           <button onClick={onClose} className="rounded-full p-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-500 dark:text-zinc-400 transition-colors">

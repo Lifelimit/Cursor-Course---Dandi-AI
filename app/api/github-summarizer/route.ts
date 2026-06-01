@@ -117,7 +117,7 @@ export async function POST(request: Request) {
       ]);
     } catch (fetchErr) {
       const latencyMs = Date.now() - startTime;
-      await incrementKeyUsage(keyData, githubUrl, latencyMs, "error");
+      await incrementKeyUsage(keyData, githubUrl, latencyMs, "error", request);
       
       return NextResponse.json(
         { error: fetchErr instanceof Error ? fetchErr.message : "Failed to fetch repository data" },
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
       // Wait, streamObject does not have `onFinish` in its config, but we can hook into the stream itself or just track usage instantly since the stream *started* successfully. 
       // It is standard practice to count usage as soon as the LLM stream begins, because tokens will be consumed.
       const latencyMs = Date.now() - startTime;
-      await incrementKeyUsage(keyData, githubUrl, latencyMs, "success");
+      await incrementKeyUsage(keyData, githubUrl, latencyMs, "success", request);
 
       const response = result.toTextStreamResponse({
         headers: {
@@ -152,7 +152,7 @@ export async function POST(request: Request) {
       console.error("AI Error:", aiErr);
       const latencyMs = Date.now() - startTime;
       const errMsg = aiErr instanceof Error ? aiErr.message : String(aiErr);
-      await incrementKeyUsage(keyData, githubUrl, latencyMs, "error");
+      await incrementKeyUsage(keyData, githubUrl, latencyMs, "error", request);
 
       return NextResponse.json(
         { error: "Failed to generate AI summary.", details: errMsg },

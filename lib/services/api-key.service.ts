@@ -3,6 +3,7 @@ import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
 import crypto from "crypto";
 import { normalizeGitHubRepoUrl } from "@/lib/security-core";
+import { getRequestTelemetry } from "@/lib/account-environments";
 
 /** HMAC-SHA256 hash using the server secret. Used for new key hashing. */
 export function hmacHash(value: string, secret: string): string {
@@ -161,7 +162,8 @@ export async function incrementKeyUsage(
   keyData: any,
   repoUrl?: string,
   latencyMs: number = 0,
-  status: "success" | "error" = "success"
+  status: "success" | "error" = "success",
+  request?: Request
 ) {
   const keyId = keyData.id;
   const userId = keyData.user_id;
@@ -213,12 +215,14 @@ export async function incrementKeyUsage(
 
   // 3. Log metadata to Redis for analytics
   const logKey = `logs:user:${userId}:${currentMonth}`;
+  const requestTelemetry = request ? getRequestTelemetry(request) : null;
   await redis.lpush(logKey, JSON.stringify({
     keyId,
     repoUrl: safeRepoUrl,
     usedAt: new Date().toISOString(),
     latencyMs,
-    status
+    status,
+    ...(requestTelemetry || {}),
   }));
 
   // Keep only last 100 logs in Redis per user for "hot" analytics
