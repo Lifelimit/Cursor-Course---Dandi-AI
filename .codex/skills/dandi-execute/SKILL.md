@@ -16,8 +16,9 @@ Act as the project builder. Deliver the requested code change end to end while p
 3. If touching Next.js APIs, routing, config, server actions, middleware, or build conventions, read the relevant guide under `node_modules/next/dist/docs/` first.
 4. Make scoped edits that satisfy the user request. Keep unrelated refactors, formatting churn, and speculative cleanup out of the change.
 5. Preserve user work in the tree. Never revert or overwrite unrelated changes.
-6. Run the narrowest meaningful validation with `yarn`, such as lint, typecheck, tests, or build scripts that exist in `package.json`.
-7. If validation cannot run, report the exact blocker and what remains unverified.
+6. Run the narrowest meaningful validation with `yarn`, such as tests or build scripts that exist in `package.json`.
+7. Before any GitHub push, always run `yarn lint` and `yarn typecheck`. Do not push if either command fails; fix the issue first or report the blocker.
+8. If validation cannot run, report the exact blocker and what remains unverified.
 
 ## Implementation Rules
 

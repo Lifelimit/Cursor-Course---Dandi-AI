@@ -6,7 +6,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Project Rules
 - Always use **Yarn** (`yarn`) for package management and script execution. Do not use `npm`.
+- Before pushing to GitHub, always run `yarn lint` and `yarn typecheck`. Do not push if either command fails; fix the issue first or explicitly report the blocker.
 
 ## Hidden Routes
 - `/protected` — Auth-gated Vault page for API key validation testing. Not linked from any UI navigation. Access by URL only.
-
