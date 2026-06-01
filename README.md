@@ -1,36 +1,123 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dandi AI
+
+Dandi AI is a Next.js application for managing AI API access, usage, billing, and repository intelligence from one authenticated workspace.
+
+The project is built as a product dashboard rather than a starter template. It includes account authentication, secure API key management, usage telemetry, Stripe billing flows, and an AI playground that can summarize and query GitHub repositories through a RAG workflow.
+
+## Scope
+
+This repository currently covers:
+
+- Public landing page with pricing and account-aware calls to action.
+- Supabase authentication for signup, login, account, and protected dashboard pages.
+- API key lifecycle management, including create, edit, revoke, replace, masking, validation, and usage limits.
+- Per-key and account-level usage analytics backed by Redis hot counters and logs.
+- Alert thresholds and alert channels for usage monitoring.
+- Stripe checkout, subscription, billing portal, invoices, payment methods, and webhook handling.
+- GitHub repository metadata, summarization, ingestion, embeddings, and RAG chat endpoints.
+- Playground UI for testing keys, summarizing repositories, ingesting code, and inspecting network logs.
+- Project-scoped Codex skills for implementation, ideation, audit, and planning workflows.
+
+## Tech Stack
+
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Supabase Auth and Postgres
+- Stripe Billing
+- Upstash Redis
+- Google AI SDK, AI SDK, LangChain
+- Tailwind CSS 4
+- Yarn 1
+
+## Main Routes
+
+- `/` - landing page
+- `/signup` and `/login` - authentication
+- `/dashboards` - API key overview and credential management
+- `/playground` - GitHub summarization and RAG testing
+- `/usage` - usage analytics and quota health
+- `/billing` - plans, invoices, and payment methods
+- `/account` - account details
+- `/docs` - product documentation surface
+- `/protected` - hidden auth-gated validation route for API key testing
+
+## API Surface
+
+The app exposes route handlers under `app/api`, including:
+
+- `/api/keys` and `/api/keys/[id]` for API key management
+- `/api/validate` for API key validation
+- `/api/usage`, `/api/usage/export`, and `/api/usage/alert` for telemetry and alerts
+- `/api/github-metadata` and `/api/github-summarizer` for repository analysis
+- `/api/rag/ingest` and `/api/rag/chat` for repository ingestion and retrieval chat
+- `/api/stripe/*` and `/api/webhooks/stripe` for billing workflows
+- `/api/profile` for account profile data
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies with Yarn:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+yarn install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create a local environment file:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Fill in the required values for Supabase, Stripe, Upstash Redis, Google AI, auth, and API key hashing. The example file documents the expected variable names.
 
-## Learn More
+Run the development server:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+yarn dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Database
 
-## Deploy on Vercel
+Supabase migrations live in `supabase/migrations`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Apply them to a Supabase project before relying on the dashboard, billing, usage, or RAG flows. The migrations cover API keys, profiles, billing metadata, payment methods, usage logs, database hardening, vector embeddings, and webhook policies.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Validation
+
+Use Yarn for all scripts:
+
+```bash
+yarn lint
+yarn typecheck
+yarn build
+```
+
+The local CI helper runs linting, typechecking, and a production build with mock build-time environment variables:
+
+```bash
+yarn ci:check
+```
+
+Before pushing to GitHub, always run:
+
+```bash
+yarn lint
+yarn typecheck
+```
+
+Do not push if either command fails.
+
+## Project Rules For Agents
+
+Repo-specific agent instructions live in `AGENTS.md`.
+
+Codex project skills live in `.codex/skills`:
+
+- `dandi-execute` - implementation workflow
+- `dandi-ideate` - architecture and brainstorming workflow
+- `dandi-audit` - review and quality workflow
+- `dandi-plan` - staged planning workflow
+
+These are committed with the project so they can travel with the repository.
