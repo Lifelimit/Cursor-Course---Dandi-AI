@@ -1,0 +1,7 @@
+interface:
+  display_name: "Dandi Plan"
+  short_description: "Turn large work into staged prompts"
+  brand_color: "#7C3AED"
+  default_prompt: "Use $dandi-plan to create an execution-ready roadmap for this Dandi task."
+policy:
+  allow_implicit_invocation: true

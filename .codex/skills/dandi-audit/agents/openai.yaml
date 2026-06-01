@@ -1,0 +1,7 @@
+interface:
+  display_name: "Dandi Audit"
+  short_description: "Review code from all key lenses"
+  brand_color: "#B91C1C"
+  default_prompt: "Use $dandi-audit to review this code for correctness, security, RLS, performance, and maintainability."
+policy:
+  allow_implicit_invocation: true

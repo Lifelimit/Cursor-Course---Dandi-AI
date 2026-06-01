@@ -1,0 +1,7 @@
+interface:
+  display_name: "Dandi Execute"
+  short_description: "Implement scoped code changes"
+  brand_color: "#2563EB"
+  default_prompt: "Use $dandi-execute to implement this change in the Dandi project."
+policy:
+  allow_implicit_invocation: true

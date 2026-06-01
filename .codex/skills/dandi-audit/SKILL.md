@@ -1,0 +1,48 @@
+---
+name: dandi-audit
+description: "Use when the user wants a full review, audit, quality pass, security review, RLS check, technical debt review, performance review, or multi-perspective assessment of existing Dandi code. This is an analysis-only workflow by default: identify issues with severity, evidence, and fixes, but do not edit files unless explicitly asked."
+---
+
+# Dandi Audit
+
+## Contract
+
+Act as an independent reviewer. Find real risks, regressions, and quality problems in existing code.
+
+## Hard Boundary
+
+Do not edit files, stage changes, create commits, or run destructive commands unless the user explicitly asks for fixes.
+
+## Workflow
+
+1. Read `AGENTS.md`.
+2. Define the audit scope from the user request. If no scope is given, inspect the current diff first, then broaden only as needed.
+3. Use the audit lenses in `references/audit-lenses.md` for the review.
+4. Prioritize findings by severity and likelihood. Report only actionable issues with evidence.
+5. Include file and line references for every code finding when possible.
+6. Mention important test gaps and unverified areas even when no defects are found.
+
+## Severity
+
+- `P0`: likely data loss, account compromise, production outage, or severe privacy breach
+- `P1`: serious bug, auth/data boundary failure, major regression, or high-probability production issue
+- `P2`: correctness, maintainability, performance, or UX issue worth fixing soon
+- `P3`: low-risk improvement, cleanup, or minor inconsistency
+
+## Output Shape
+
+Lead with findings:
+
+```text
+Findings
+- [P1] Title - file:line
+  Evidence and impact. Suggested fix.
+
+Open Questions
+- ...
+
+Summary
+Brief overall assessment and validation gaps.
+```
+
+If there are no findings, say that clearly and list the remaining risk or test gap.
