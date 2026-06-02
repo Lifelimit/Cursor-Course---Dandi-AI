@@ -22,6 +22,7 @@ type KeyData = {
 export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate: () => void }) {
   const [confirmingKillId, setConfirmingKillId] = useState<string | null>(null);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [updatingKeyId, setUpdatingKeyId] = useState<string | null>(null);
   const activeKeys = keys.filter(k => k.is_active);
   const deadKeys = keys.filter(k => !k.is_active);
 
@@ -37,18 +38,23 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
   });
 
   const handleToggleStatus = async (keyId: string, currentStatus: boolean) => {
+    setUpdatingKeyId(keyId);
     try {
-      const res = await fetch("/api/usage/alert", {
+      const res = await fetch(`/api/keys/${keyId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyId, isActive: !currentStatus })
+        body: JSON.stringify({ isActive: !currentStatus })
       });
       if (res.ok) {
         setConfirmingKillId(null);
         onUpdate();
+        return;
       }
+      console.error("Failed to update API key status.");
     } catch (err) {
       console.error(err);
+    } finally {
+      setUpdatingKeyId(null);
     }
   };
 
@@ -318,9 +324,10 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                 <div className="grid grid-cols-2 gap-2">
                   <button 
                     onClick={() => handleToggleStatus(key.id, false)}
+                    disabled={updatingKeyId === key.id}
                     className="flex items-center justify-center rounded-xl bg-zinc-900 dark:bg-zinc-100 px-3 py-3 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-900 shadow-xl hover:scale-[1.02] transition-all"
                   >
-                    Re-enable Key
+                    {updatingKeyId === key.id ? "Re-enabling..." : "Re-enable Key"}
                   </button>
                   <button 
                     onClick={() => setConfirmingDeleteId(key.id)}
