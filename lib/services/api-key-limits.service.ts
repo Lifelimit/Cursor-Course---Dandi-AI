@@ -17,7 +17,8 @@ export async function assertCanActivateKeys(
   activatingIds: string[] = [],
   additionalNewKeys = 0
 ) {
-  const keyLimit = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS]?.keyLimit ?? PLAN_DETAILS.Hobby.keyLimit;
+  const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] ?? PLAN_DETAILS.Hobby;
+  const keyLimit = planDetail.keyLimit;
   if (keyLimit === null) return;
 
   let activeQuery = supabaseAdmin

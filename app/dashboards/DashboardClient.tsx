@@ -178,7 +178,7 @@ export default function DashboardClient({
 
   return (
     <div className="min-h-screen bg-[#f4f2ed] dark:bg-zinc-950 text-[#18181b] dark:text-zinc-100 selection:bg-zinc-200 dark:selection:bg-zinc-800">
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-start gap-8 p-6 md:flex-row md:py-12">
+      <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-start gap-6 p-4 sm:p-6 md:flex-row md:gap-8 md:py-12">
         <Sidebar 
           totalUsage={totalUsage} 
           plan={currentPlan} 
@@ -191,10 +191,10 @@ export default function DashboardClient({
           }}
         />
         
-        <main className="min-w-0 flex-1">
+        <main className="w-full min-w-0 flex-1">
           <div className="space-y-8">
             {/* Header Section */}
-            <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 p-8 backdrop-blur-sm">
+            <div className="rounded-[28px] border border-zinc-200 bg-white/50 p-5 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/50 sm:p-8">
               <div className="flex items-center justify-between gap-4">
                 <Link href="/" className="group flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white">
                   <svg viewBox="0 0 24 24" className="h-3 w-3 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor">
@@ -205,7 +205,7 @@ export default function DashboardClient({
               </div>
               <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="space-y-1">
-                  <h1 className="font-serif text-5xl font-bold tracking-tight">Overview</h1>
+                  <h1 className="font-serif text-4xl font-bold tracking-tight sm:text-5xl">Overview</h1>
                   {errorMessage ? (
                     <div className="mt-2 rounded-2xl border border-red-200 bg-red-50 dark:bg-red-950/20 p-4 text-sm text-red-700 dark:text-red-400">
                       {errorMessage}
@@ -218,12 +218,12 @@ export default function DashboardClient({
                 </div>
                 
                 {/* Live Telemetry Status Dot */}
-                <div className="flex items-center gap-2.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950 px-4 py-2 shadow-sm self-start sm:self-center transition-all">
+                <div className="flex max-w-full items-center gap-2.5 rounded-full border border-zinc-200 bg-white/80 px-4 py-2 shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-950 sm:self-center">
                   <div className="relative flex h-2 w-2">
                     <span className={`absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 ${isSyncing ? "animate-ping scale-150" : "animate-pulse"}`} />
                     <span className={`relative inline-flex rounded-full h-2 w-2 ${isSyncing ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-emerald-500"}`} />
                   </div>
-                  <span className="font-mono text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 flex items-center gap-1.5 select-none">
+                  <span className="flex min-w-0 items-center gap-1.5 font-mono text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none">
                     {isSyncing ? (
                       <span className="text-emerald-500 font-bold animate-pulse">Syncing Telemetry...</span>
                     ) : (
@@ -260,17 +260,17 @@ export default function DashboardClient({
             </div>
 
             {/* Plan Status Card */}
-            <div className="relative overflow-hidden rounded-[40px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-10 shadow-sm group">
+            <div className="group relative overflow-hidden rounded-[32px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8 md:rounded-[40px] md:p-10">
               {/* Background Glow Decoration */}
               <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-emerald-50/50 dark:bg-emerald-950/10 blur-3xl transition-all group-hover:bg-emerald-100/50 dark:group-hover:bg-emerald-900/10" />
               
               <div className="relative flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
                 <div className="flex-1 space-y-8">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1">
                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">Current Strategic Tier</p>
-                      <div className="flex items-center gap-4">
-                        <h2 className="font-serif text-5xl font-bold italic tracking-tight">{currentPlan}</h2>
+                      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                        <h2 className="font-serif text-4xl font-bold italic tracking-tight sm:text-5xl">{currentPlan}</h2>
                         {isUnlimited && (
                           <span className="rounded-full bg-zinc-900 dark:bg-zinc-100 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-950 shadow-lg shadow-zinc-900/10 dark:shadow-none">Unlimited</span>
                         )}
@@ -279,14 +279,14 @@ export default function DashboardClient({
                     
                     <button 
                       onClick={() => router.push("/billing")}
-                      className="rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-8 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 transition-all hover:border-zinc-900 dark:hover:border-zinc-100 hover:text-zinc-900 dark:hover:text-zinc-100"
+                      className="w-full rounded-full border border-zinc-200 bg-white px-8 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-all hover:border-zinc-900 hover:text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-500 dark:hover:border-zinc-100 dark:hover:text-zinc-100 sm:w-auto"
                     >
                       Management
                     </button>
                   </div>
 
                   <div className="space-y-6">
-                    <div className="flex items-center justify-between px-1">
+                    <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
                         Consumption <span className="mx-2 opacity-20">/</span> <span className="text-zinc-900 dark:text-zinc-100">{totalUsage.toLocaleString()} Units Used</span>
                       </p>
@@ -308,7 +308,7 @@ export default function DashboardClient({
                       ></div>
                     </div>
 
-                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                    <div className="flex items-center justify-between gap-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                       <span>0 Units</span>
                       <span>Target Limit: {isUnlimited ? "∞" : currentLimit.toLocaleString()} Units</span>
                     </div>
@@ -331,17 +331,17 @@ export default function DashboardClient({
             </div>
 
             {/* Keys Section */}
-            <section className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm">
-              <div className="mb-8 flex items-center justify-between">
+            <section className="rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8 md:rounded-[32px]">
+              <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="font-serif text-2xl font-bold">Encrypted Keys</h2>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <span className="rounded-full bg-zinc-50 dark:bg-zinc-950 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 border border-zinc-100 dark:border-zinc-800">
                     {apiKeys.length} Records
                   </span>
                   <button
                     type="button"
                     onClick={handleOpenCreateModal}
-                    className="rounded-full bg-zinc-900 dark:bg-zinc-100 px-5 py-2 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-950 transition hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-lg shadow-zinc-900/10 dark:shadow-none"
+                    className="rounded-full bg-zinc-900 px-5 py-2 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-zinc-900/10 transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:shadow-none dark:hover:bg-zinc-200"
                   >
                     New Key
                   </button>

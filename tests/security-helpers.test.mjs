@@ -92,6 +92,14 @@ test("validates API key settings against plan limits", () => {
   );
 });
 
+test("preserves unlimited Researcher key limits", () => {
+  const { getPlanLimits, PLAN_DETAILS } = loadTsModule("lib/constants.ts");
+
+  assert.equal(PLAN_DETAILS.Researcher.keyLimit, null);
+  assert.equal(getPlanLimits("Researcher").keyLimit, null);
+  assert.equal(getPlanLimits("Hobby").keyLimit, 3);
+});
+
 test("resolves paid plans only when plan and price match the server catalog", () => {
   const { resolvePaidPlanRequest, getPlanForPriceId } = loadTsModule("lib/billing-catalog.ts");
 
