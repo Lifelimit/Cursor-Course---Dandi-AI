@@ -2,6 +2,15 @@ import { useState, useEffect, useCallback, useId, useRef } from "react";
 import { ApiKey, ApiKeyApiResponse, mapApiKey } from "@/types/api";
 import { supabase } from "@/lib/supabase-client";
 
+type ApiKeyMutationData = {
+  name?: string;
+  keyType?: string;
+  monthlyLimit?: number | null;
+  alertThreshold?: number;
+  alertChannels?: string[];
+  isActive?: boolean;
+};
+
 export function useApiKeys(initialData: ApiKey[] = []) {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>(initialData);
   const [isLoading, setIsLoading] = useState(initialData.length === 0);
@@ -99,13 +108,10 @@ export function useApiKeys(initialData: ApiKey[] = []) {
   }, [hookId, userId]);
 
 
-  const createKey = async (data: { 
+  const createKey = async (data: ApiKeyMutationData & {
     name: string; 
     keyType: string; 
     monthlyLimit: number | null; 
-    alertThreshold?: number;
-    alertChannels?: string[];
-    isActive?: boolean 
   }) => {
     try {
       const response = await fetch("/api/keys", {
@@ -121,7 +127,7 @@ export function useApiKeys(initialData: ApiKey[] = []) {
       const payload = (await response.json()) as ApiKeyApiResponse | { error?: string };
 
       if (!response.ok || Array.isArray(payload) || !("id" in payload)) {
-        return { success: false, error: "Create failed. Please try again." };
+        return { success: false, error: "error" in payload && payload.error ? payload.error : "Create failed. Please try again." };
       }
 
       const newKey = mapApiKey(payload);
@@ -132,14 +138,7 @@ export function useApiKeys(initialData: ApiKey[] = []) {
     }
   };
 
-  const updateKey = async (id: string, data: { 
-    name: string; 
-    keyType: string; 
-    monthlyLimit: number | null; 
-    alertThreshold?: number;
-    alertChannels?: string[];
-    isActive?: boolean 
-  }) => {
+  const updateKey = async (id: string, data: ApiKeyMutationData) => {
     try {
       const response = await fetch(`/api/keys/${id}`, {
         method: "PATCH",
@@ -154,7 +153,7 @@ export function useApiKeys(initialData: ApiKey[] = []) {
       const payload = (await response.json()) as ApiKeyApiResponse | { error?: string };
 
       if (!response.ok || Array.isArray(payload) || !("id" in payload)) {
-        return { success: false, error: "Update failed. Please try again." };
+        return { success: false, error: "error" in payload && payload.error ? payload.error : "Update failed. Please try again." };
       }
 
       const updatedKey = mapApiKey(payload);

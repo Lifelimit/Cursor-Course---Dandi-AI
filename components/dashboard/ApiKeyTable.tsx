@@ -446,10 +446,13 @@ export function ApiKeyTable({
                     </div>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); onUpgradePrompt(); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUpgradePrompt();
+                      }}
                       className={`shrink-0 rounded-full px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-white transition ${isHobby ? "bg-amber-600 dark:bg-amber-500 hover:bg-amber-700 dark:hover:bg-amber-400" : "bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-400"}`}
                     >
-                      {isHobby ? "Upgrade Plan" : "Manage Status"}
+                      {isHobby ? "Upgrade Plan" : "Open Usage Center"}
                     </button>
                   </div>
                 </td>
