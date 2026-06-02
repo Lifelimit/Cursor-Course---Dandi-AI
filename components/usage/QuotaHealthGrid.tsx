@@ -19,10 +19,11 @@ type KeyData = {
   dailyTrend: { date: string, count: number }[];
 };
 
-export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate: () => void }) {
+export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate: () => Promise<void> }) {
   const [confirmingKillId, setConfirmingKillId] = useState<string | null>(null);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [updatingKeyId, setUpdatingKeyId] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<{ keyId: string; message: string } | null>(null);
   const activeKeys = keys.filter(k => k.is_active);
   const deadKeys = keys.filter(k => !k.is_active);
 
@@ -39,20 +40,29 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
 
   const handleToggleStatus = async (keyId: string, currentStatus: boolean) => {
     setUpdatingKeyId(keyId);
+    setStatusError(null);
     try {
       const res = await fetch(`/api/keys/${keyId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: !currentStatus })
       });
+      const payload = await res.json();
       if (res.ok) {
         setConfirmingKillId(null);
-        onUpdate();
+        await onUpdate();
         return;
       }
-      console.error("Failed to update API key status.");
+      setStatusError({
+        keyId,
+        message: payload?.error || "Failed to update API key status.",
+      });
     } catch (err) {
       console.error(err);
+      setStatusError({
+        keyId,
+        message: "Network error while updating API key status.",
+      });
     } finally {
       setUpdatingKeyId(null);
     }
@@ -111,7 +121,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                       onClick={async () => {
                         await fetch(`/api/keys/${key.id}`, { method: 'DELETE' });
                         setConfirmingDeleteId(null);
-                        onUpdate();
+                        await onUpdate();
                       }}
                       className="rounded-2xl bg-red-600 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-red-700 transition-all active:scale-95 shadow-xl shadow-red-900/40"
                     >
@@ -141,9 +151,10 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                     </button>
                     <button 
                       onClick={() => handleToggleStatus(key.id, true)}
+                      disabled={updatingKeyId === key.id}
                       className="flex-1 rounded-2xl bg-white px-4 py-4 text-[10px] font-black uppercase tracking-widest text-red-600 hover:bg-zinc-100 transition-all active:scale-95 shadow-xl"
                     >
-                      Confirm Kill
+                      {updatingKeyId === key.id ? "Killing..." : "Confirm Kill"}
                     </button>
                   </div>
                 </div>
@@ -299,7 +310,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                         onClick={async () => {
                           await fetch(`/api/keys/${key.id}`, { method: 'DELETE' });
                           setConfirmingDeleteId(null);
-                          onUpdate();
+                          await onUpdate();
                         }}
                         className="rounded-2xl bg-red-600 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-red-700 transition-all active:scale-95 shadow-xl shadow-red-900/40"
                       >
@@ -325,7 +336,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                   <button 
                     onClick={() => handleToggleStatus(key.id, false)}
                     disabled={updatingKeyId === key.id}
-                    className="flex items-center justify-center rounded-xl bg-zinc-900 dark:bg-zinc-100 px-3 py-3 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-900 shadow-xl hover:scale-[1.02] transition-all"
+                    className="flex items-center justify-center rounded-xl bg-zinc-900 dark:bg-zinc-100 px-3 py-3 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-900 shadow-xl hover:scale-[1.02] transition-all disabled:opacity-60 disabled:cursor-wait"
                   >
                     {updatingKeyId === key.id ? "Re-enabling..." : "Re-enable Key"}
                   </button>
@@ -336,6 +347,11 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                     Delete
                   </button>
                 </div>
+                {statusError?.keyId === key.id && (
+                  <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-bold text-red-600 dark:border-red-950/50 dark:bg-red-950/20 dark:text-red-400">
+                    {statusError.message}
+                  </p>
+                )}
               </div>
             ))}
           </div>

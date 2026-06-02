@@ -48,9 +48,11 @@ export function PaymentMethodCard({ brand, last4, expiryMonth, expiryYear, isDef
   };
 
   const getBrandLogo = (brand: string) => {
+    const brandLabel = brand.toUpperCase();
+
     return (
-      <div className="flex h-8 w-12 items-center justify-center rounded-md bg-zinc-900 dark:bg-zinc-800 text-[8px] font-black italic tracking-tighter text-white dark:text-zinc-100 shadow-sm border border-zinc-800 dark:border-zinc-700">
-        {brand.toUpperCase()}
+      <div className="inline-flex h-8 min-w-12 max-w-24 items-center justify-center overflow-hidden rounded-md border border-zinc-800 bg-zinc-900 px-2.5 text-[7px] font-black italic leading-none tracking-normal text-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100">
+        <span className="max-w-full truncate">{brandLabel}</span>
       </div>
     );
   };

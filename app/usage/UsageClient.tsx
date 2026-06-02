@@ -68,8 +68,11 @@ export default function UsageClient({
         setIsLoading(true);
       }
       
-      const res = await fetch("/api/usage");
+      const res = await fetch("/api/usage", { cache: "no-store" });
       const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.error || "Failed to load usage analytics.");
+      }
       setData(json);
       isHydrated.current = false;
       if (background) {
@@ -237,7 +240,7 @@ export default function UsageClient({
                 <>
                   {/* Quota Health Grid */}
                   {currentData?.keys && currentData.keys.length > 0 ? (
-                    <QuotaHealthGrid keys={currentData.keys} onUpdate={fetchUsageData} />
+                    <QuotaHealthGrid keys={currentData.keys} onUpdate={() => fetchUsageData(true)} />
                   ) : (
                     <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 border-dashed p-12 text-center bg-white/30 dark:bg-zinc-900/10">
                       <p className="text-sm font-medium text-zinc-400 dark:text-zinc-500">No active API keys found for tracking.</p>

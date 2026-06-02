@@ -169,9 +169,8 @@ export function getPlanLimits(planName?: string | null) {
   return {
     planName: name,
     monthlyLimit: isUnlimited ? 1_000_000 : detail.monthlyLimit!,
-    keyLimit: detail.keyLimit ?? 3,
+    keyLimit: detail.keyLimit,
     isUnlimited,
   };
 }
-
 
