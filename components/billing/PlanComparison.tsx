@@ -38,11 +38,10 @@ export function PlanComparison({
           const isUpgrade = !isCurrent && (PLAN_RANKS[plan.id as keyof typeof PLAN_RANKS] > PLAN_RANKS[currentPlan as keyof typeof PLAN_RANKS]);
           const displayPrice = selectedInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
 
-          // Override plan classes dynamically for premium, responsive light/dark behavior
           const baseCardStyles = plan.id === "Hobby"
             ? "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
             : plan.id === "Premium"
-            ? "border-2 border-zinc-900 dark:border-zinc-100 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-2xl"
+            ? "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-2xl"
             : "border-zinc-200 dark:border-zinc-800 bg-[#18181b] text-white";
           const cardStyles = isCurrent
             ? "border-2 border-emerald-400 dark:border-emerald-500 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-2xl shadow-emerald-500/10 ring-1 ring-emerald-400 dark:ring-emerald-500"
@@ -58,18 +57,27 @@ export function PlanComparison({
               key={plan.id}
               className={`group relative flex flex-col rounded-[40px] border p-10 transition-all hover:scale-[1.02] ${cardStyles}`}
             >
-              {isCurrent && (
-                <div className="absolute left-8 top-6 rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                  Active Plan
-                </div>
-              )}
-              {plan.recommended && (
-                <div className="absolute top-6 right-8 rounded-full bg-zinc-900 dark:bg-zinc-100 px-3 py-1 text-[8px] font-black text-white dark:text-zinc-900 uppercase tracking-widest">
-                  Most Recommended
+              {(isCurrent || plan.recommended) && (
+                <div className="mb-6 flex min-h-6 flex-wrap gap-2">
+                  {isCurrent && (
+                    <span className="inline-flex items-center justify-center rounded-full bg-emerald-100 px-3 py-1 text-center text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                      Active Plan
+                    </span>
+                  )}
+                  {plan.recommended && (
+                    <div className="flex flex-col gap-1">
+                      <span className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                        Most Popular
+                      </span>
+                      <span className="px-0.5 text-[10px] font-medium leading-tight text-zinc-500 dark:text-zinc-400">
+                        Best fit for most users
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
               
-              <div className={`mb-8 space-y-2 ${isCurrent || plan.recommended ? "pt-8" : ""}`}>
+              <div className="mb-8 space-y-2">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">{plan.name}</h3>
                 <div className="flex items-baseline gap-1">
                   <span className={`text-5xl font-bold tracking-tighter ${priceColor}`}>{displayPrice}</span>
