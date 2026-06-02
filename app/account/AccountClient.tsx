@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { getPlanLimits } from "@/lib/constants";
@@ -1492,8 +1493,8 @@ X-Dandi-Event: quota.warning`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="p-6 md:p-8 border-b border-zinc-100 dark:border-zinc-800 flex items-start justify-between">
-              <div className="space-y-1">
+            <div className="p-6 md:p-8 border-b border-zinc-100 dark:border-zinc-800 flex items-start justify-between gap-4">
+              <div className="min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
                   <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
                     inspectedLog.status >= 200 && inspectedLog.status < 300
@@ -1507,15 +1508,10 @@ X-Dandi-Event: quota.warning`}
                 <h3 className="font-serif text-xl font-bold mt-1.5">Webhook Dispatch Audit</h3>
                 <p className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 break-all">{inspectedLog.url}</p>
               </div>
-              <button
+              <ModalCloseButton
                 onClick={() => setInspectedLog(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 transition-colors"
-                aria-label="Close modal"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+                className="relative z-10 bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+              />
             </div>
 
             {/* Modal Body with internal tabs */}
