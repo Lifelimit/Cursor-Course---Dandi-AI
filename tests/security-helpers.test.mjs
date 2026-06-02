@@ -180,3 +180,10 @@ test("builds account environments from browser, active keys, and request telemet
   assert.equal(apiAccessEnvironments.every((env) => env.revocable), true);
   assert.equal(browserEnvironments[0].revocable, false);
 });
+
+test("uses friendlier fallback labels for missing or custom clients", () => {
+  const { describeUserAgent } = loadTsModule("lib/account-environments.ts");
+
+  assert.equal(describeUserAgent(null), "Anonymous browser");
+  assert.equal(describeUserAgent("Some-Unusual-Client/1.0"), "Custom client");
+});

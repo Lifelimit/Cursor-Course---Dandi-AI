@@ -66,7 +66,7 @@ export function formatEnvironmentLocation(input: {
 }
 
 export function describeUserAgent(userAgent?: string | null) {
-  if (!userAgent) return "Unknown client";
+  if (!userAgent) return "Anonymous browser";
   const lower = userAgent.toLowerCase();
 
   if (lower.includes("curl")) return "Terminal curl command";
@@ -78,7 +78,7 @@ export function describeUserAgent(userAgent?: string | null) {
   if (lower.includes("safari") && !lower.includes("chrome")) return "Safari browser";
   if (lower.includes("firefox")) return "Firefox browser";
 
-  return userAgent.slice(0, 80);
+  return `Custom client`;
 }
 
 export function buildAccountEnvironments(input: {
