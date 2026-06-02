@@ -1,7 +1,7 @@
 interface:
-  display_name: "Dandi Ideate"
-  short_description: "Brainstorm architecture and tradeoffs"
+  display_name: "Dandi Ideate Alias"
+  short_description: "Compatibility alias for Dandi Brainstorm"
   brand_color: "#0F766E"
-  default_prompt: "Use $dandi-ideate to explore the best design before implementation."
+  default_prompt: "Use $dandi-brainstorm for new Dandi brainstorming and architecture tradeoff work."
 policy:
   allow_implicit_invocation: true

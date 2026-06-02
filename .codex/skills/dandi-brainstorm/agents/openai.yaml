@@ -1,0 +1,7 @@
+interface:
+  display_name: "Dandi Brainstorm"
+  short_description: "Explore architecture and tradeoffs"
+  brand_color: "#0F766E"
+  default_prompt: "Use $dandi-brainstorm to explore the best Dandi approach before planning or implementation."
+policy:
+  allow_implicit_invocation: true
