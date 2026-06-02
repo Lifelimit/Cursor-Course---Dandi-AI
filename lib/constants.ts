@@ -155,8 +155,6 @@ export const PLANS: Plan[] = [
   }
 ];
 
-export const GITHUB_SUMMARIZER_ENDPOINT = "https://dandi.ai/api/github-summarizer";
-
 /**
  * Derives display-ready plan limits from PLAN_DETAILS.
  * Handles the Researcher "unlimited" case by returning a 1M sentinel
@@ -173,4 +171,3 @@ export function getPlanLimits(planName?: string | null) {
     isUnlimited,
   };
 }
-

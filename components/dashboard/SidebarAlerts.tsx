@@ -3,6 +3,7 @@
 import React from "react";
 
 import { UsageSparkline } from "../usage/UsageSparkline";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 type Alert = {
   id: string;
@@ -146,19 +147,15 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                 </div>
                 
                 <div className="flex flex-col gap-5 rounded-[24px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-none min-w-[240px] relative z-10">
-                  <div className="flex items-center justify-between">
-                    <div className="flex flex-col">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex flex-col">
                       <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 leading-none">Management</span>
                       <span className="mt-1 text-[8px] font-bold text-zinc-300 uppercase italic">Quota Increase</span>
                     </div>
-                    <button 
+                    <ModalCloseButton
                       onClick={() => setFlyoutKey(null)}
-                      className="rounded-full bg-zinc-50 dark:bg-zinc-800 p-1.5 text-zinc-400 hover:bg-zinc-900 dark:hover:bg-zinc-100 hover:text-white dark:hover:text-zinc-900 transition-all"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
-                        <path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
+                      className="relative z-10 h-9 w-9 bg-zinc-50 text-zinc-400 hover:bg-zinc-900 hover:text-white dark:bg-zinc-800 dark:hover:bg-zinc-100 dark:hover:text-zinc-900 [&_svg]:h-4 [&_svg]:w-4"
+                    />
                   </div>
 
                   <div className="space-y-3">

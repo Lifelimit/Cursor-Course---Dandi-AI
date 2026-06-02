@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { updatePlanAction, removePaymentMethodAction } from "@/lib/auth-actions";
 import { publicEnv } from "@/lib/env";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, useStripe, useElements, CardNumberElement } from "@stripe/react-stripe-js";
@@ -619,16 +620,12 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")' }} />
               )}
               
-              <button 
+              <ModalCloseButton
                 onClick={onClose}
-                className="absolute right-5 top-5 z-10 text-white/30 transition-colors hover:text-white sm:right-8 sm:top-8"
-              >
-                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
-                  <path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
+                className="absolute right-3 top-3 z-30 text-white/35 hover:bg-white/10 hover:text-white sm:right-6 sm:top-6"
+              />
               
-              <div className="relative z-10 space-y-2">
+              <div className="relative z-10 space-y-2 pr-12 sm:pr-14">
                 <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">
                   {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : view === "remove-card-confirm" ? "Confirm Removal" : view === "key-downgrade-selector" ? "Hobby Plan Limit" : "Confirm Cancellation"}
                 </p>
