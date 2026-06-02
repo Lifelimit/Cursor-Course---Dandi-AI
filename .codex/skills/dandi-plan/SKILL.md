@@ -15,22 +15,23 @@ Use this skill for requests that ask for a plan, roadmap, staged checklist, impl
 
 ## Constraints
 
-Do not edit files, generate migrations, stage changes, or commit. Read local context as needed to make the plan concrete.
+Do not edit files, generate migrations, stage changes, or commit. Use shared rules from `docs/PROJECT_RULES.md` without copying them into the plan.
 
 ## Workflow
 
-1. Read `AGENTS.md`.
-2. Read relevant shared docs in `docs/`, especially `docs/PROJECT_RULES.md`, `docs/ARCHITECTURE.md`, and `docs/ROADMAP.md`.
-3. Identify the target outcome, constraints, dependencies, and risk areas.
-4. Inspect relevant files enough to anchor the plan in the real project.
-5. Break the work into small phases that produce useful checkpoints.
-6. Define acceptance criteria and validation for each phase.
-7. Generate execution prompts when the user wants handoff-ready tasks.
-8. Use the planning template in `docs/PROJECT_RULES.md` for larger plans.
+1. Read `AGENTS.md` and only the shared docs needed for the requested scope.
+2. Identify the target outcome, constraints, dependencies, and risk areas.
+3. Inspect relevant files enough to anchor the plan in the real project.
+4. Break the work into small phases that produce useful checkpoints.
+5. Define acceptance criteria and validation for each phase.
+6. Generate execution prompts when the user wants handoff-ready tasks.
+7. Use the planning template in `docs/PROJECT_RULES.md` for larger plans.
 
 ## Planning Rules
 
-- Prefer incremental phases that keep the app usable.
+- Prefer incremental phases that keep Dandi's dashboard, billing, usage, and playground flows usable.
+- For Supabase work, plan around `@supabase/ssr`, native RLS, and server-only `supabaseAdmin`; do not propose NextAuth.
+- For Stripe webhook, Upstash Redis, API key, or usage-counter work, include the relevant trust boundary and failure-mode checks.
 - Put schema, auth, RLS, and migration work before UI work when data boundaries are involved.
 - Put discovery or audit phases before implementation when unknowns are high.
 - Mark tasks that require user decisions.
@@ -56,4 +57,4 @@ End with the recommended first execution step.
 
 User: "Plan the Stripe invoice history feature."
 
-Response: produce phases covering discovery, data/auth, backend, frontend, tests, validation, and risks. Do not edit files.
+Response: produce phases covering discovery, Stripe data flow, server trust boundaries, UI states, tests, validation from `package.json`, and risks. Do not edit files.

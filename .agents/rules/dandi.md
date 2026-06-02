@@ -10,17 +10,14 @@ These rules apply to Antigravity agents in this workspace.
 
 ## Agent Boundaries
 
-- Use `/brainstorm` before `/plan` when the solution shape is unclear.
-- Use `/plan` before `/execute` for large or risky work.
-- Use `/execute` only when the user asks for implementation or file changes.
-- Use `/audit` for review, security, RLS, performance, and quality checks.
+- Use `dandi-brainstorm` before `dandi-plan` when the solution shape is unclear.
+- Use `dandi-plan` before `dandi-execute` for large or risky work.
+- Use `dandi-execute` only when the user asks for implementation or file changes.
+- Use `dandi-audit` for review, security, RLS, performance, and quality checks.
 - Brainstorm, plan, and audit are read-only by default.
 
 ## Constraints
 
-- Use Yarn only.
-- Inspect `package.json` before naming validation commands.
-- Keep shared knowledge in `docs/`.
-- Keep Antigravity-specific rules, skills, and workflows in `.agents/`.
-- Do not push to GitHub unless explicitly asked.
-- Preserve unrelated user changes.
+- Follow the cross-agent coordination model in `docs/PROJECT_RULES.md`.
+- Keep Antigravity-specific rules and skills in `.agents/`.
+- Do not modify Codex configuration in `.codex/` unless explicitly instructed.

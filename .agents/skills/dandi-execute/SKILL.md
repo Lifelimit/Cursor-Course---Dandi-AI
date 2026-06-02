@@ -12,20 +12,20 @@ Deliver the requested change end to end while preserving the existing system sha
 
 - Keep edits scoped to the request.
 - Do not perform unrelated app code changes.
-- Preserve unrelated user work in the tree.
-- Use Yarn only.
-- Inspect `package.json` before naming or running validation commands.
-- If touching Next.js APIs, routing, config, server actions, middleware, proxy behavior, or build conventions, read the relevant guide under `node_modules/next/dist/docs/` first.
-- Do not push to GitHub unless explicitly asked.
+- Use `AGENTS.md` and `docs/PROJECT_RULES.md` for global rules, validation commands, and cross-agent coordination.
+- Do not modify Codex configuration unless explicitly instructed.
 
 ## Workflow
 
-1. Read `AGENTS.md` and relevant shared docs in `docs/`.
+1. Read only the shared docs needed for the requested scope.
 2. Inspect the smallest useful file set.
 3. Make scoped edits.
-4. Run the narrowest meaningful Yarn validation from `package.json`.
-5. Run `git diff` before committing when the user asks for a commit.
-6. Report changed files, validation, and residual risk.
+4. For Supabase/auth work, preserve `@supabase/ssr`, native RLS, server-only `supabaseAdmin`, and no NextAuth.
+5. For Stripe webhook, Upstash Redis, API key, or usage-counter work, preserve the existing trust boundaries and failure handling.
+6. Use `/protected` only when the task involves the hidden auth-gated API key validation route.
+7. Run the narrowest meaningful validation from `package.json`.
+8. Run `git diff` before committing when the user asks for a commit.
+9. Report changed files, validation, and residual risk.
 
 ## Output
 

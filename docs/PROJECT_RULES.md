@@ -17,6 +17,7 @@ This document is the shared source of truth for AI agents working in Dandi. Agen
 - Use `yarn` only. Do not use `npm`, `pnpm`, or substitute package managers.
 - Before touching Next.js APIs, routing, config, server actions, middleware, proxy behavior, caching, or build conventions, read the relevant guide in `node_modules/next/dist/docs/`.
 - Do not expose secrets in client bundles, logs, browser-visible errors, docs, screenshots, or test fixtures.
+- Use Supabase Auth with `@supabase/ssr`. Do not introduce NextAuth.
 - Keep service-role or admin Supabase access server-only. Use it only for server-to-server flows that intentionally bypass RLS, such as trusted webhook handling.
 - Enforce user and tenant boundaries in Supabase RLS, not only in UI or route code.
 - Preserve unrelated user changes in the worktree. Never revert files you did not intentionally modify for the task.
@@ -33,10 +34,6 @@ These commands exist in `package.json`:
 
 Before pushing, run `yarn lint` and `yarn typecheck`. Do not push if either fails.
 
-## Hidden Route
-
-- `/protected` is an auth-gated Vault page for API key validation testing. It is intentionally not linked from normal UI navigation.
-
 ## Agent Workflow Boundary
 
 Use this sequence for project work:
@@ -45,6 +42,14 @@ Use this sequence for project work:
 2. Plan: produce a staged implementation plan without editing files.
 3. Execute: make scoped code or doc changes and run relevant validation.
 4. Audit: review existing code or diffs without editing files unless fixes are explicitly requested.
+
+## Cross-Agent Coordination
+
+- Only one agent should actively modify files at a time.
+- Codex is the preferred implementation agent.
+- Antigravity is the preferred independent review and workflow-analysis agent unless explicitly assigned implementation.
+- Both agents must respect `AGENTS.md` and the shared docs in `docs/`.
+- Neither agent should modify the other agent's configuration without explicit instruction.
 
 ## Planning Template
 
