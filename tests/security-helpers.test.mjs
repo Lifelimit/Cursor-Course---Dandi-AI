@@ -116,7 +116,7 @@ test("validates Stripe payment method identifiers", () => {
 });
 
 test("builds account environments from browser, active keys, and request telemetry", () => {
-  const { buildAccountEnvironments } = loadTsModule("lib/account-environments.ts");
+  const { buildAccountEnvironments, splitAccountEnvironments } = loadTsModule("lib/account-environments.ts");
 
   const environments = buildAccountEnvironments({
     now: new Date("2026-06-02T12:00:00.000Z"),
@@ -170,4 +170,13 @@ test("builds account environments from browser, active keys, and request telemet
   assert.equal(requestEnvironment?.revocable, true);
 
   assert.equal(environments.some((env) => env.id === "api-key-key-disabled"), false);
+
+  const { apiAccessEnvironments, browserEnvironments } = splitAccountEnvironments(environments);
+  assert.deepEqual(
+    apiAccessEnvironments.map((env) => env.kind).sort(),
+    ["api_key", "api_request"]
+  );
+  assert.deepEqual(browserEnvironments.map((env) => env.kind), ["browser"]);
+  assert.equal(apiAccessEnvironments.every((env) => env.revocable), true);
+  assert.equal(browserEnvironments[0].revocable, false);
 });

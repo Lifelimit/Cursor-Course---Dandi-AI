@@ -161,3 +161,12 @@ export function buildAccountEnvironments(input: {
     return bTime - aTime;
   });
 }
+
+export function splitAccountEnvironments<T extends AccountEnvironment>(environments: T[]) {
+  return {
+    apiAccessEnvironments: environments.filter(
+      (environment) => environment.kind === "api_key" || environment.kind === "api_request"
+    ),
+    browserEnvironments: environments.filter((environment) => environment.kind === "browser"),
+  };
+}

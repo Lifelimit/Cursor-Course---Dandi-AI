@@ -8,6 +8,7 @@ import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
+import { splitAccountEnvironments } from "@/lib/account-environments";
 
 type ProfileData = {
   fullName: string;
@@ -88,6 +89,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
   // Tab State
   const [activeTab, setActiveTab] = useState<"profile" | "integrations" | "webhooks" | "security">("profile");
+  const [accessView, setAccessView] = useState<"api" | "browser">("api");
 
   // Profile Form State
   const [fullName, setFullName] = useState("");
@@ -264,6 +266,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const { monthlyLimit: planLimit, isUnlimited } = getPlanLimits(userPlan);
   
   const alerts = computeSidebarAlerts(usage?.keys || []);
+  const { apiAccessEnvironments, browserEnvironments } = splitAccountEnvironments(environments);
 
   // Save profile action
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -1059,7 +1062,51 @@ X-Dandi-Event: quota.warning`}
                   <div className="space-y-6">
                     <div className="space-y-1">
                       <h4 className="text-base font-bold">Active Developer Terminal Access</h4>
-                      <p className="text-xs text-zinc-400">Review other browser instances and CLI terminals accessing Dandi servers under your identity.</p>
+                      <p className="text-xs text-zinc-400">Review revocable API access separately from authenticated browser session context.</p>
+                    </div>
+
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="flex gap-2 overflow-x-auto rounded-full bg-zinc-100 p-1 dark:bg-zinc-950/80">
+                        <button
+                          type="button"
+                          onClick={() => setAccessView("api")}
+                          className={`whitespace-nowrap rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all ${
+                            accessView === "api"
+                              ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-100"
+                              : "text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-100"
+                          }`}
+                        >
+                          API Keys & Access ({apiAccessEnvironments.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAccessView("browser")}
+                          className={`whitespace-nowrap rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all ${
+                            accessView === "browser"
+                              ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-100"
+                              : "text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-100"
+                          }`}
+                        >
+                          Browser Sessions ({browserEnvironments.length})
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <span className={`rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-widest ${
+                          accessView === "api"
+                            ? "bg-rose-50 text-rose-500 ring-1 ring-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:ring-rose-900/30"
+                            : "bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200 dark:bg-zinc-950 dark:ring-zinc-800"
+                        }`}>
+                          Revocable Access
+                        </span>
+                        <span className={`rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-widest ${
+                          accessView === "browser"
+                            ? "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:ring-emerald-900/30"
+                            : "bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200 dark:bg-zinc-950 dark:ring-zinc-800"
+                        }`}>
+                          Session Context
+                        </span>
+                      </div>
                     </div>
 
                     <div className="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
@@ -1067,46 +1114,51 @@ X-Dandi-Event: quota.warning`}
                         <table className="w-full text-left font-sans text-xs border-collapse">
                           <thead>
                             <tr className="border-b border-zinc-150 dark:border-zinc-850 bg-zinc-50/50 dark:bg-zinc-900/30 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none">
-                              <th className="px-6 py-4">Environment</th>
-                              <th className="px-6 py-4">IP Address</th>
-                              <th className="px-6 py-4">Location</th>
-                              <th className="px-6 py-4">Telemetry Age</th>
-                              <th className="px-6 py-4 text-right">Emergency Revocation</th>
+                              {accessView === "api" ? (
+                                <>
+                                  <th className="px-6 py-4">Access</th>
+                                  <th className="px-6 py-4">Type</th>
+                                  <th className="px-6 py-4">IP</th>
+                                  <th className="px-6 py-4">Location</th>
+                                  <th className="px-6 py-4">Last Seen</th>
+                                  <th className="px-6 py-4 text-right">Action</th>
+                                </>
+                              ) : (
+                                <>
+                                  <th className="px-6 py-4">Session</th>
+                                  <th className="px-6 py-4">IP</th>
+                                  <th className="px-6 py-4">Location</th>
+                                  <th className="px-6 py-4">Status</th>
+                                  <th className="px-6 py-4 text-right">Action</th>
+                                </>
+                              )}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900 font-medium">
-                            {environments.map((environment) => (
-                              <tr 
-                                key={environment.id}
-                                className={`transition-colors hover:bg-zinc-50/30 dark:hover:bg-zinc-900/10 ${
-                                  environment.current ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/[0.01]" : "text-zinc-800 dark:text-zinc-200"
-                                }`}
-                              >
+                            {accessView === "api" && apiAccessEnvironments.map((environment) => (
+                              <tr key={environment.id} className="text-zinc-800 transition-colors hover:bg-zinc-50/30 dark:text-zinc-200 dark:hover:bg-zinc-900/10">
                                 <td className="px-6 py-4">
-                                  <div className="flex flex-col gap-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span className="font-bold">{environment.label}</span>
-                                      {environment.current && (
-                                      <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Current Session</span>
-                                      )}
-                                      {environment.kind !== "browser" && (
-                                        <span className="rounded-full bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-zinc-400">
-                                          {environment.kind === "api_key" ? "API Key" : "API Request"}
-                                        </span>
-                                      )}
-                                    </div>
+                                  <div className="flex max-w-[280px] flex-col gap-1">
+                                    <span className="truncate font-bold" title={environment.label}>{environment.label}</span>
                                     {environment.detail && (
-                                      <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500">{environment.detail}</span>
+                                      <span className="truncate text-[10px] font-medium text-zinc-400 dark:text-zinc-500" title={environment.detail}>{environment.detail}</span>
                                     )}
                                   </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className={`rounded-full px-2 py-0.5 text-[7px] font-black uppercase tracking-widest ${
+                                    environment.kind === "api_key"
+                                      ? "bg-indigo-50 text-indigo-500 dark:bg-indigo-950/30 dark:text-indigo-400"
+                                      : "bg-zinc-100 text-zinc-400 dark:bg-zinc-900"
+                                  }`}>
+                                    {environment.kind === "api_key" ? "API Key" : "API Request"}
+                                  </span>
                                 </td>
                                 <td className="px-6 py-4 font-mono select-all text-zinc-500">{environment.ip || "Unknown"}</td>
                                 <td className="px-6 py-4 text-zinc-500">{environment.location || "Unknown"}</td>
                                 <td className="px-6 py-4 text-zinc-400 font-bold">{environment.telemetryAge || "No telemetry"}</td>
                                 <td className="px-6 py-4 text-right">
-                                  {environment.current ? (
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 pr-4 select-none">Active Root</span>
-                                  ) : environment.revocable ? (
+                                  {environment.revocable ? (
                                     <button
                                       type="button"
                                       onClick={() => handleRevokeEnvironment(environment)}
@@ -1121,10 +1173,38 @@ X-Dandi-Event: quota.warning`}
                                 </td>
                               </tr>
                             ))}
-                            {environments.length === 0 && (
+                            {accessView === "browser" && browserEnvironments.map((environment) => (
+                              <tr key={environment.id} className="bg-emerald-500/[0.01] text-emerald-600 transition-colors hover:bg-zinc-50/30 dark:text-emerald-400 dark:hover:bg-zinc-900/10">
+                                <td className="px-6 py-4">
+                                  <div className="flex max-w-[280px] flex-col gap-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="truncate font-bold" title={environment.label}>{environment.label}</span>
+                                      <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Current Session</span>
+                                    </div>
+                                    {environment.detail && (
+                                      <span className="truncate text-[10px] font-medium text-zinc-400 dark:text-zinc-500" title={environment.detail}>{environment.detail}</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 font-mono select-all text-zinc-500">{environment.ip || "Unknown"}</td>
+                                <td className="px-6 py-4 text-zinc-500">{environment.location || "Unknown"}</td>
+                                <td className="px-6 py-4 text-zinc-400 font-bold">{environment.telemetryAge || "No telemetry"}</td>
+                                <td className="px-6 py-4 text-right">
+                                  <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 pr-4 select-none">Active Root</span>
+                                </td>
+                              </tr>
+                            ))}
+                            {accessView === "api" && apiAccessEnvironments.length === 0 && (
+                              <tr>
+                                <td colSpan={6} className="px-6 py-10 text-center text-xs font-semibold text-zinc-400">
+                                  No API keys or request telemetry found.
+                                </td>
+                              </tr>
+                            )}
+                            {accessView === "browser" && browserEnvironments.length === 0 && (
                               <tr>
                                 <td colSpan={5} className="px-6 py-10 text-center text-xs font-semibold text-zinc-400">
-                                  No connected environments have reported telemetry yet.
+                                  No browser sessions found.
                                 </td>
                               </tr>
                             )}
