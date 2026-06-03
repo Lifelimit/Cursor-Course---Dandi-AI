@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { resolvePaidPlanRequest } from "@/lib/billing-catalog";
 import { getJsonObject, validatePaymentMethodId } from "@/lib/request-validation";
 import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
+import { buildSubscriptionProfilePayload, resolveSubscriptionPaymentState } from "@/lib/services/stripe-billing-flow.service";
 
 export async function POST(req: Request) {
   try {
@@ -92,23 +93,20 @@ export async function POST(req: Request) {
       });
     }
 
-    // 4. Handle status check (e.g. 3D Secure / SCA challenges)
-    const invoice = subscription.latest_invoice as Stripe.Invoice | null | undefined;
-    const paymentIntent = (invoice as unknown as { payment_intent?: Stripe.PaymentIntent | string | null })?.payment_intent as Stripe.PaymentIntent | null | undefined;
-
-    if (paymentIntent && paymentIntent.status === "requires_action") {
+    const paymentState = resolveSubscriptionPaymentState(subscription);
+    if (paymentState.type === "requires_action") {
       return NextResponse.json({
         success: false,
         requires_action: true,
-        client_secret: paymentIntent.client_secret,
-        subscriptionId: subscription.id,
+        client_secret: paymentState.clientSecret,
+        subscriptionId: paymentState.subscriptionId,
       });
     }
 
-    if (paymentIntent && paymentIntent.status === "requires_payment_method") {
+    if (paymentState.type === "requires_payment_method") {
       return NextResponse.json({
         success: false,
-        error: "Your card was declined. Please try another card.",
+        error: paymentState.error,
       });
     }
 
@@ -143,30 +141,12 @@ export async function POST(req: Request) {
       }
     }
 
-    const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end || (subscription as unknown as { billing_cycle_anchor?: number }).billing_cycle_anchor;
-    const renewalDate = periodEnd
-      ? new Date(periodEnd * 1000).toISOString()
-      : null;
-
-    const updatePayload: Record<string, unknown> = {
-      plan: planRequest.planId,
-      stripe_subscription_id: subscription.id,
-      billing_interval: subscription.items?.data?.[0]?.price?.recurring?.interval === "year" ? "year" : "month",
-      billing_next_date: renewalDate,
-      updated_at: new Date().toISOString(),
-      ...pmDetails,
-    };
-
-    if (body.billingDetails && typeof body.billingDetails === "object") {
-      updatePayload.billing_street = typeof billingDetails.street === "string" ? billingDetails.street : null;
-      updatePayload.billing_city = typeof billingDetails.city === "string" ? billingDetails.city : null;
-      updatePayload.billing_state = typeof billingDetails.state === "string" ? billingDetails.state : null;
-      updatePayload.billing_zip = typeof billingDetails.zip === "string" ? billingDetails.zip : null;
-      updatePayload.billing_country = typeof billingDetails.country === "string" ? billingDetails.country : null;
-    }
-
-    // Remove undefined values
-    Object.keys(updatePayload).forEach((key) => updatePayload[key] === undefined && delete updatePayload[key]);
+    const updatePayload = buildSubscriptionProfilePayload({
+      planRequest,
+      subscription,
+      paymentMethodDetails: pmDetails,
+      billingDetails: body.billingDetails && typeof body.billingDetails === "object" ? billingDetails : undefined,
+    });
 
     // Update profiles table
     const { error: profileError } = await supabaseAdmin

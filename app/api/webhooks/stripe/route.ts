@@ -5,6 +5,12 @@ import { stripe } from "@/lib/stripe";
 import { serverEnv } from "@/lib/env";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getPlanForSubscription } from "@/lib/billing-catalog";
+import {
+  buildSubscriptionDeletedProfilePayload,
+  buildWebhookSubscriptionUpdatePayload,
+  isDuplicateWebhookEventError,
+  parseKeysToKeep,
+} from "@/lib/services/stripe-billing-flow.service";
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -30,7 +36,7 @@ export async function POST(req: Request) {
 
   if (idempotencyError) {
     // 23505 is the Postgres code for unique_violation
-    if (idempotencyError.code === "23505") {
+    if (isDuplicateWebhookEventError(idempotencyError)) {
       console.log(`♻️ Webhook: Duplicate event detected (${event.id}). Skipping...`);
       return NextResponse.json({ received: true });
     }
@@ -167,26 +173,14 @@ export async function POST(req: Request) {
           console.warn("⚠️ Webhook warning: Could not retrieve payment method details:", err);
         }
 
-        let renewalDate: string | null = null;
-        const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end;
-        if (periodEnd) {
-          renewalDate = new Date(periodEnd * 1000).toISOString();
-        }
-
-        updatePayload = {
-          ...updatePayload,
-          plan: verifiedPlan?.planId,
-          stripe_subscription_id: subscriptionId,
-          billing_interval: verifiedPlan?.interval ?? ((subscription as unknown as { items?: { data?: Array<{ price?: { recurring?: { interval?: string } } }> } }).items?.data?.[0]?.price?.recurring?.interval === "year" ? "year" : "month"),
-          payment_method_last4: paymentMethodDetails?.last4,
-          payment_method_brand: paymentMethodDetails?.brand,
-          payment_method_expiry: paymentMethodDetails?.expiry,
-          billing_next_date: renewalDate
-        };
+        updatePayload = buildWebhookSubscriptionUpdatePayload({
+          customerId,
+          subscriptionId,
+          subscription,
+          verifiedPlan,
+          paymentMethodDetails,
+        });
       }
-
-      // Remove undefined fields
-      Object.keys(updatePayload).forEach(key => updatePayload[key] === undefined && delete updatePayload[key]);
 
       // Build query — must re-assign after each .eq() so the condition is retained
       let query = supabaseAdmin.from("profiles").update(updatePayload);
@@ -208,22 +202,12 @@ export async function POST(req: Request) {
       const subscription = event.data.object as Stripe.Subscription;
       const customerId = subscription.customer as string;
       const metadata = subscription.metadata || {};
-      const keysToKeepString = metadata.keys_to_keep;
-      
-      let keysToKeep: string[] = [];
-      try {
-        if (keysToKeepString) keysToKeep = JSON.parse(keysToKeepString);
-      } catch (err) {
-        console.warn("⚠️ Webhook: Failed to parse keys_to_keep metadata", err);
-      }
+      const keysToKeep = parseKeysToKeep(metadata.keys_to_keep);
 
       // 1. Downgrade profile to Hobby
       let query = supabaseAdmin
         .from("profiles")
-        .update({ 
-          plan: "Hobby",
-          updated_at: new Date().toISOString()
-        });
+        .update(buildSubscriptionDeletedProfilePayload());
 
       if (metadata.userId) {
         query = query.eq("id", metadata.userId);
