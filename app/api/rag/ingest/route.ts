@@ -4,6 +4,11 @@ import { fetchGitHubBranch, fetchGitHubRepoTree, fetchRawFileContent } from "@/l
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { getJsonObject, validateGitHubRepoUrl } from "@/lib/request-validation";
+import { redis } from "@/lib/redis";
+
+const BATCH_SIZE = 100;
+const BATCH_DELAY_MS = 500;
+const LOCK_TTL_SEC = 300;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,6 +50,15 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 3, de
         await new Promise(resolve => setTimeout(resolve, retryAfter));
         continue;
       }
+
+      // Retry on transient 5xx server errors
+      if (res.status >= 500) {
+        const retryAfter = delayMs * Math.pow(2, i);
+        console.warn(`⚠️ Server error (${res.status}). Retrying in ${retryAfter}ms (attempt ${i + 1}/${retries})...`);
+        await new Promise(resolve => setTimeout(resolve, retryAfter));
+        continue;
+      }
+
       return res;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
@@ -60,13 +74,15 @@ async function googleBatchEmbed(values: string[]): Promise<number[][]> {
     throw new Error("Google Generative AI API key is missing.");
   }
 
-  const batchSize = 100;
   const batches: string[][] = [];
-  for (let i = 0; i < values.length; i += batchSize) {
-    batches.push(values.slice(i, i + batchSize));
+  for (let i = 0; i < values.length; i += BATCH_SIZE) {
+    batches.push(values.slice(i, i + BATCH_SIZE));
   }
 
-  const batchPromises = batches.map(async (chunkValues) => {
+  const embeddingsResults: number[][][] = [];
+
+  for (let i = 0; i < batches.length; i++) {
+    const chunkValues = batches[i];
     const requests = chunkValues.map(text => ({
       model: "models/gemini-embedding-001",
       content: { parts: [{ text }] },
@@ -85,10 +101,13 @@ async function googleBatchEmbed(values: string[]): Promise<number[][]> {
     }
 
     const data = await res.json() as { embeddings: { values: number[] }[] };
-    return data.embeddings.map(e => e.values);
-  });
+    embeddingsResults.push(data.embeddings.map(e => e.values));
 
-  const embeddingsResults = await Promise.all(batchPromises);
+    if (i < batches.length - 1 && BATCH_DELAY_MS > 0) {
+      await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+    }
+  }
+
   return embeddingsResults.flat();
 }
 
@@ -124,6 +143,8 @@ export async function POST(request: Request) {
   let apiKey = "";
   let githubUrl = "";
   let keyData: ValidatedKeyData | null = null;
+  let lockAcquired = false;
+  let lockKey = "";
 
   try {
     const rateLimited = await checkRateLimit(request, ingestRateLimit, corsHeaders);
@@ -148,6 +169,19 @@ export async function POST(request: Request) {
       const status = errorMessage.includes("limit exceeded") ? 403 : 401;
       return NextResponse.json({ error: errorMessage }, { status, headers: corsHeaders });
     }
+
+    // Acquire Redis Lock to prevent duplicate concurrent ingestion jobs
+    // TODO: Large repositories can still exceed serverless timeout limits.
+    // A future production fix should move ingestion to an asynchronous background job/queue.
+    lockKey = `lock:ingest:${keyData.user_id}:${githubUrl}`;
+    const locked = await redis.set(lockKey, "locked", { nx: true, ex: LOCK_TTL_SEC });
+    if (!locked) {
+      return NextResponse.json(
+        { error: "An ingestion job is already running for this repository. Please wait until it completes." },
+        { status: 409, headers: corsHeaders }
+      );
+    }
+    lockAcquired = true;
 
     // 2. Fetch repo metadata and craw tree
     const branch = await fetchGitHubBranch(githubUrl);
@@ -257,5 +291,9 @@ export async function POST(request: Request) {
       },
       { status: isBadRequest ? 400 : 500, headers: corsHeaders }
     );
+  } finally {
+    if (lockAcquired && lockKey) {
+      await redis.del(lockKey);
+    }
   }
 }
