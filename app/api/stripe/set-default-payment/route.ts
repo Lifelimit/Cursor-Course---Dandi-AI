@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
     // 3. Retrieve the payment method details for immediate DB update
     if (pm.card) {
-      await supabaseAdmin
+      const { error: profileError } = await supabaseAdmin
         .from("profiles")
         .update({
           payment_method_brand: pm.card.brand,
@@ -49,6 +49,10 @@ export async function POST(req: Request) {
           updated_at: new Date().toISOString()
         })
         .eq("id", user.id);
+      if (profileError) {
+        console.error("❌ Set Default PM: Failed to update profile in database:", profileError.message);
+        throw new Error(`Database profile update failed: ${profileError.message}`);
+      }
     }
 
     return NextResponse.json({ success: true });

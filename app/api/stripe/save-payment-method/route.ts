@@ -88,15 +88,23 @@ export async function POST(req: Request) {
     }
 
     // Update profiles table
-    await supabaseAdmin
+    const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .update(updateData)
       .eq("id", user.id);
+    if (profileError) {
+      console.error("❌ Save PM: Failed to update profile in database:", profileError.message);
+      throw new Error(`Database profile update failed: ${profileError.message}`);
+    }
 
     // Update auth metadata
-    await supabaseAdmin.auth.admin.updateUserById(user.id, {
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
       user_metadata: { ...user.user_metadata, ...updateData },
     });
+    if (authError) {
+      console.error("❌ Save PM: Failed to update auth metadata:", authError.message);
+      throw new Error(`Auth metadata update failed: ${authError.message}`);
+    }
 
     return NextResponse.json({ success: true, paymentMethod: updateData });
   } catch (err) {

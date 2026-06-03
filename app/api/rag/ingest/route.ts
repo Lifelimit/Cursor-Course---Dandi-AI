@@ -293,7 +293,11 @@ export async function POST(request: Request) {
     );
   } finally {
     if (lockAcquired && lockKey) {
-      await redis.del(lockKey);
+      try {
+        await redis.del(lockKey);
+      } catch (err) {
+        console.error(`⚠️ Failed to release ingestion lock for key: ${lockKey}:`, err);
+      }
     }
   }
 }

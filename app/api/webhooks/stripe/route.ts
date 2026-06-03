@@ -244,25 +244,38 @@ export async function POST(req: Request) {
       const userId = profile.id;
       
       if (keysToKeep.length > 0) {
-        await supabaseAdmin
+        const { error: keysError } = await supabaseAdmin
           .from("api_keys")
           .update({ is_active: false })
           .eq("user_id", userId)
           .not("id", "in", `(${keysToKeep.join(",")})`);
+        if (keysError) {
+          console.error("❌ Webhook: Failed to deactivate excess keys:", keysError.message);
+          throw new Error(`Keys deactivation failed: ${keysError.message}`);
+        }
       } else {
-        const { data: allKeys } = await supabaseAdmin
+        const { data: allKeys, error: fetchKeysError } = await supabaseAdmin
           .from("api_keys")
           .select("id")
           .eq("user_id", userId)
           .order("created_at", { ascending: true });
 
+        if (fetchKeysError) {
+          console.error("❌ Webhook: Failed to fetch user keys for deactivation:", fetchKeysError.message);
+          throw new Error(`Keys fetch failed: ${fetchKeysError.message}`);
+        }
+
         if (allKeys && allKeys.length > 3) {
           const keysToDeactivate = allKeys.slice(3).map(k => k.id);
-          await supabaseAdmin
+          const { error: deactivateError } = await supabaseAdmin
             .from("api_keys")
             .update({ is_active: false })
             .eq("user_id", userId)
             .in("id", keysToDeactivate);
+          if (deactivateError) {
+            console.error("❌ Webhook: Failed to deactivate excess keys:", deactivateError.message);
+            throw new Error(`Keys deactivation failed: ${deactivateError.message}`);
+          }
         }
       }
 

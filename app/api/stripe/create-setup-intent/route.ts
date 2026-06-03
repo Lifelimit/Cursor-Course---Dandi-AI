@@ -25,10 +25,14 @@ export async function POST() {
       const customer = await stripe.customers.create({ email: user.email });
       customerId = customer.id;
       
-      await supabaseAdmin
+      const { error: profileError } = await supabaseAdmin
         .from("profiles")
         .update({ stripe_customer_id: customerId })
         .eq("id", user.id);
+      if (profileError) {
+        console.error("❌ Create Setup Intent: Failed to update stripe customer ID in database:", profileError.message);
+        throw new Error(`Database update failed: ${profileError.message}`);
+      }
     }
 
     // 2. Create SetupIntent

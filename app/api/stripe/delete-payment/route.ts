@@ -53,7 +53,7 @@ export async function POST(req: Request) {
           invoice_settings: { default_payment_method: newPM.id }
         });
 
-        await supabaseAdmin
+        const { error: profileError } = await supabaseAdmin
           .from("profiles")
           .update({
             payment_method_brand: newPM.card?.brand,
@@ -62,9 +62,13 @@ export async function POST(req: Request) {
             updated_at: new Date().toISOString()
           })
           .eq("id", user.id);
+        if (profileError) {
+          console.error("❌ Delete PM: Failed to update profile in database:", profileError.message);
+          throw new Error(`Database profile update failed: ${profileError.message}`);
+        }
       } else {
         // No cards left
-        await supabaseAdmin
+        const { error: profileError } = await supabaseAdmin
           .from("profiles")
           .update({
             payment_method_brand: null,
@@ -73,6 +77,10 @@ export async function POST(req: Request) {
             updated_at: new Date().toISOString()
           })
           .eq("id", user.id);
+        if (profileError) {
+          console.error("❌ Delete PM: Failed to clear profile payment method in database:", profileError.message);
+          throw new Error(`Database profile update failed: ${profileError.message}`);
+        }
       }
     }
 

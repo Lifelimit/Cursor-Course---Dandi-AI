@@ -169,15 +169,23 @@ export async function POST(req: Request) {
     Object.keys(updatePayload).forEach((key) => updatePayload[key] === undefined && delete updatePayload[key]);
 
     // Update profiles table
-    await supabaseAdmin
+    const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .update(updatePayload)
       .eq("id", user.id);
+    if (profileError) {
+      console.error("❌ Subscribe: Failed to update profile in database:", profileError.message);
+      throw new Error(`Database profile update failed: ${profileError.message}`);
+    }
 
     // Update auth user metadata
-    await supabaseAdmin.auth.admin.updateUserById(user.id, {
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
       user_metadata: { ...user.user_metadata, ...updatePayload },
     });
+    if (authError) {
+      console.error("❌ Subscribe: Failed to update auth metadata:", authError.message);
+      throw new Error(`Auth metadata update failed: ${authError.message}`);
+    }
 
     return NextResponse.json({ success: true, subscription });
   } catch (err) {
