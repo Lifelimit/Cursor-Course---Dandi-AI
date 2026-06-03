@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST() {
   try {
@@ -24,7 +25,7 @@ export async function POST() {
       const customer = await stripe.customers.create({ email: user.email });
       customerId = customer.id;
       
-      await supabase
+      await supabaseAdmin
         .from("profiles")
         .update({ stripe_customer_id: customerId })
         .eq("id", user.id);
