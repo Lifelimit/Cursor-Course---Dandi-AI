@@ -204,44 +204,13 @@ export async function getServerUsageData() {
     let resetDate = null;
     let nextInvoiceDate = null;
     const stripeCustomerId = profile?.stripe_customer_id;
-    let stripeSubscriptionId = profile?.stripe_subscription_id;
+    const stripeSubscriptionId = profile?.stripe_subscription_id;
 
     if (!profile?.billing_next_date && (stripeSubscriptionId || stripeCustomerId)) {
-      try {
-        let activeSubscription: Stripe.Subscription | null = null;
-        if (stripeSubscriptionId) {
-          activeSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
-        } else if (stripeCustomerId) {
-          const subs = await stripe.subscriptions.list({
-            customer: stripeCustomerId,
-            status: "active",
-            limit: 1
-          });
-          if (subs.data.length > 0) {
-            activeSubscription = subs.data[0];
-            stripeSubscriptionId = activeSubscription.id;
-          }
-        }
-
-        if (activeSubscription && activeSubscription.status === "active") {
-          const periodEnd = activeSubscription.items?.data?.[0]?.current_period_end || activeSubscription.billing_cycle_anchor;
-          const renewalDate = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
-          nextInvoiceDate = renewalDate;
-          
-          if (renewalDate) {
-            // Heal the database profile asynchronously
-            await supabaseAdmin
-              .from("profiles")
-              .update({ 
-                billing_next_date: renewalDate,
-                stripe_subscription_id: stripeSubscriptionId || undefined
-              })
-              .eq("id", userId);
-          }
-        }
-      } catch (err) {
-        console.warn("⚠️ Failed to self-heal next billing date via Stripe in server-data:", err);
-      }
+      // Trigger Stripe self-healing asynchronously to avoid blocking dashboard page rendering
+      selfHealBillingDate(userId, stripeCustomerId || null, stripeSubscriptionId || null).catch(err => {
+        console.error("❌ Unhandled rejection in billing self-healing:", err);
+      });
     } else if (profile?.billing_next_date) {
       nextInvoiceDate = profile.billing_next_date;
     }
@@ -313,5 +282,54 @@ export async function getServerUsageData() {
   } catch (err) {
     console.error("getServerUsageData error:", err);
     return null;
+  }
+}
+
+/**
+ * Asynchronously heals the next billing date for the user profile using Stripe.
+ * Runs in the background to prevent blocking server-rendered dashboard data loads.
+ */
+async function selfHealBillingDate(
+  userId: string,
+  stripeCustomerId: string | null,
+  stripeSubscriptionId: string | null
+): Promise<void> {
+  try {
+    let activeSubscription: Stripe.Subscription | null = null;
+    if (stripeSubscriptionId) {
+      activeSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    } else if (stripeCustomerId) {
+      const subs = await stripe.subscriptions.list({
+        customer: stripeCustomerId,
+        status: "active",
+        limit: 1
+      });
+      if (subs.data.length > 0) {
+        activeSubscription = subs.data[0];
+        stripeSubscriptionId = activeSubscription.id;
+      }
+    }
+
+    if (activeSubscription && activeSubscription.status === "active") {
+      const periodEnd = activeSubscription.items?.data?.[0]?.current_period_end || activeSubscription.billing_cycle_anchor;
+      const renewalDate = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
+      
+      if (renewalDate) {
+        // Heal the database profile asynchronously
+        const { error } = await supabaseAdmin
+          .from("profiles")
+          .update({ 
+            billing_next_date: renewalDate,
+            stripe_subscription_id: stripeSubscriptionId || undefined
+          })
+          .eq("id", userId);
+        
+        if (error) {
+          console.error("❌ Failed to update profile billing_next_date during self-healing:", error.message);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("⚠️ Failed to self-heal next billing date via Stripe in server-data helper:", err);
   }
 }
