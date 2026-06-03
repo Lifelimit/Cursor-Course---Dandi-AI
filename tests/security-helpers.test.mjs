@@ -126,6 +126,15 @@ test("computes configurable CORS headers", () => {
   assert.equal(isCorsOriginAllowed(allowedRequest), true);
   assert.equal(getCorsHeaders(allowedRequest)["Access-Control-Allow-Origin"], "https://app.dandi.ai");
 
+  const sameOriginRequest = new Request("https://preview-dandi.vercel.app/api/github-summarizer", {
+    headers: { origin: "https://preview-dandi.vercel.app" },
+  });
+  assert.equal(isCorsOriginAllowed(sameOriginRequest), true);
+  assert.equal(
+    getCorsHeaders(sameOriginRequest)["Access-Control-Allow-Origin"],
+    "https://preview-dandi.vercel.app"
+  );
+
   const deniedRequest = new Request("https://api.dandi.ai/api/rag/chat", {
     headers: { origin: "https://evil.example" },
   });

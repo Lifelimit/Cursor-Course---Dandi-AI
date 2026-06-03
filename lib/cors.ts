@@ -19,6 +19,18 @@ function isDevelopment() {
   return process.env.NODE_ENV !== "production";
 }
 
+function getRequestOrigin(request: Request) {
+  try {
+    return new URL(request.url).origin;
+  } catch {
+    return null;
+  }
+}
+
+function isSameOriginRequest(request: Request, origin: string) {
+  return origin === getRequestOrigin(request);
+}
+
 export function getCorsHeaders(request: Request, options: CorsOptions = {}) {
   const origin = request.headers.get("origin");
   const allowedOrigins = parseAllowedOrigins();
@@ -35,7 +47,7 @@ export function getCorsHeaders(request: Request, options: CorsOptions = {}) {
     return headers;
   }
 
-  if (allowedOrigins.includes(origin)) {
+  if (isSameOriginRequest(request, origin) || allowedOrigins.includes(origin)) {
     headers["Access-Control-Allow-Origin"] = origin;
     return headers;
   }
@@ -52,7 +64,11 @@ export function isCorsOriginAllowed(request: Request) {
   if (!origin) return true;
 
   const allowedOrigins = parseAllowedOrigins();
-  return allowedOrigins.includes(origin) || (isDevelopment() && allowedOrigins.length === 0);
+  return (
+    isSameOriginRequest(request, origin) ||
+    allowedOrigins.includes(origin) ||
+    (isDevelopment() && allowedOrigins.length === 0)
+  );
 }
 
 export function forbiddenCorsResponse(request: Request) {
