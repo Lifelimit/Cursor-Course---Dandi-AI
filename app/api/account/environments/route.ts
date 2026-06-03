@@ -25,7 +25,13 @@ export async function GET(request: Request) {
     }
 
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const rawLogs = await redis.lrange(`logs:user:${userId}:${currentMonth}`, 0, 99);
+    let rawLogs: unknown[] = [];
+    try {
+      rawLogs = await redis.lrange(`logs:user:${userId}:${currentMonth}`, 0, 99);
+    } catch (err) {
+      console.warn("⚠️ Display Redis log read failed; using empty account environment usage logs:", err);
+    }
+
     const usageLogs: AccountUsageLog[] = rawLogs.map((log: unknown) => {
       try {
         return typeof log === "string" ? JSON.parse(log) : log;

@@ -6,6 +6,70 @@ import { resolvePlan } from "@/lib/constants";
 import Stripe from "stripe";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
+interface RedisUsageLog {
+  keyId: string;
+  usedAt: string;
+  status: string;
+  latencyMs: number;
+  repoUrl?: string;
+}
+
+function parseRedisUsageLogs(rawLogs: unknown[]): RedisUsageLog[] {
+  return rawLogs.flatMap((log): RedisUsageLog[] => {
+    try {
+      const parsed = typeof log === "string" ? JSON.parse(log) : log;
+      if (!parsed || typeof parsed !== "object") return [];
+
+      const usageLog = parsed as Partial<RedisUsageLog>;
+      if (typeof usageLog.keyId !== "string" || typeof usageLog.usedAt !== "string") return [];
+
+      return [{
+        keyId: usageLog.keyId,
+        usedAt: usageLog.usedAt,
+        status: typeof usageLog.status === "string" ? usageLog.status : "",
+        latencyMs: typeof usageLog.latencyMs === "number" ? usageLog.latencyMs : 0,
+        repoUrl: typeof usageLog.repoUrl === "string" ? usageLog.repoUrl : undefined,
+      }];
+    } catch {
+      return [];
+    }
+  });
+}
+
+async function getDisplayUsageCounts(keys: { id: string }[], currentMonth: string): Promise<number[]> {
+  if (keys.length === 0) return [];
+
+  try {
+    const pipeline = redis.pipeline();
+    keys.forEach(k => {
+      pipeline.get(`usage:key:${k.id}:${currentMonth}`);
+    });
+    return (await pipeline.exec<number[]>()) || [];
+  } catch (err) {
+    console.warn("⚠️ Display Redis key usage read failed; using zero key usage:", err);
+    return [];
+  }
+}
+
+async function getDisplayUsageCount(key: string): Promise<number> {
+  try {
+    return (await redis.get<number>(key)) || 0;
+  } catch (err) {
+    console.warn("⚠️ Display Redis usage read failed; using zero usage:", err);
+    return 0;
+  }
+}
+
+async function getDisplayUsageLogs(key: string, start: number, stop: number): Promise<RedisUsageLog[]> {
+  try {
+    const rawLogs = await redis.lrange(key, start, stop);
+    return parseRedisUsageLogs(rawLogs);
+  } catch (err) {
+    console.warn("⚠️ Display Redis log read failed; using empty usage logs:", err);
+    return [];
+  }
+}
+
 export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], plan: string }> {
   try {
     const supabase = await createClient();
@@ -31,21 +95,13 @@ export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], p
       .order("created_at", { ascending: false });
 
     if (error) return { keys: [], plan: plan || "Hobby" };
-    
+
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-    let keyUsageCounts: number[] = [];
-    if (data && data.length > 0) {
-      const pipeline = redis.pipeline();
-      data.forEach(k => {
-        pipeline.get(`usage:key:${k.id}:${currentMonth}`);
-      });
-      keyUsageCounts = await pipeline.exec<number[]>();
-    }
+    const keyUsageCounts = await getDisplayUsageCounts(data ?? [], currentMonth);
 
     // Fetch user activity logs from Redis to compute trend details
     const logKey = `logs:user:${user.id}:${currentMonth}`;
-    const redisLogsStr = await redis.lrange(logKey, 0, -1);
-    const logs = redisLogsStr.map(log => (typeof log === "string" ? JSON.parse(log) : log) as RedisUsageLog);
+    const logs = await getDisplayUsageLogs(logKey, 0, -1);
 
     const now = new Date();
     const dates = Array.from({ length: 30 }, (_, i) => {
@@ -88,14 +144,6 @@ export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], p
   }
 }
 
-interface RedisUsageLog {
-  keyId: string;
-  usedAt: string;
-  status: string;
-  latencyMs: number;
-  repoUrl?: string;
-}
-
 export async function getServerUsageData() {
   try {
     const supabase = await createClient();
@@ -120,12 +168,11 @@ export async function getServerUsageData() {
     // 2. Fetch current month's usage from Redis
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
     const usageKey = `usage:user:${userId}:${currentMonth}`;
-    const totalUsage = (await redis.get<number>(usageKey)) || 0;
+    const totalUsage = await getDisplayUsageCount(usageKey);
 
     // 3. Fetch hot logs from Redis
     const logKey = `logs:user:${userId}:${currentMonth}`;
-    const redisLogsStr = await redis.lrange(logKey, 0, -1);
-    const logs = redisLogsStr.map(log => (typeof log === "string" ? JSON.parse(log) : log) as RedisUsageLog);
+    const logs = await getDisplayUsageLogs(logKey, 0, -1);
 
     // 4. Fetch all API keys for the user
     const { data: keys, error: keysError } = await supabase
@@ -137,14 +184,7 @@ export async function getServerUsageData() {
     if (keysError) throw new Error(keysError.message);
 
     // 5. Fetch per-key usage from Redis for accurate counts
-    let keyUsageCounts: number[] = [];
-    if (keys && keys.length > 0) {
-      const pipeline = redis.pipeline();
-      keys.forEach(k => {
-        pipeline.get(`usage:key:${k.id}:${currentMonth}`);
-      });
-      keyUsageCounts = await pipeline.exec<number[]>();
-    }
+    const keyUsageCounts = await getDisplayUsageCounts(keys ?? [], currentMonth);
 
     const now = new Date();
     const dates = Array.from({ length: 30 }, (_, i) => {

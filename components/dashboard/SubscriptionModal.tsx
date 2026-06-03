@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { updatePlanAction, removePaymentMethodAction } from "@/lib/auth-actions";
+import { removePaymentMethodAction } from "@/lib/auth-actions";
 import { publicEnv } from "@/lib/env";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { useRouter } from "next/navigation";
@@ -174,7 +174,20 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
 
   const currentPlan = PLAN_DETAILS[planName as keyof typeof PLAN_DETAILS] || PLAN_DETAILS.Hobby;
 
-  const handleCancelAction = async (keepCard: boolean) => {
+  const scheduleCancellation = async (keysToKeep: string[] = []) => {
+    const response = await fetch("/api/stripe/cancel-subscription", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keysToKeep }),
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || "Failed to schedule cancellation.");
+    }
+  };
+
+  const handleCancelAction = async () => {
     setIsLoading(true);
     try {
       // Before cancelling, check if we need to show the key selection selector
@@ -187,16 +200,13 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
         return;
       }
 
-      if (!keepCard) {
-        await removePaymentMethodAction();
-      }
-      await updatePlanAction("Hobby");
+      await scheduleCancellation([]);
       await router.refresh();
       router.refresh();
-      onSuccess?.("Subscription scheduled for cancellation.");
+      onSuccess?.("Cancellation scheduled. Your paid access remains active until the end of the current billing period.");
       onClose();
     } catch {
-      onError?.("Failed to process cancellation. Please try again.");
+      onError?.("Failed to schedule cancellation. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -459,27 +469,16 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
     }
   };
 
-  const handleKeyDowngradeConfirm = async (idsToDelete: string[], keepCard: boolean) => {
+  const handleKeyDowngradeConfirm = async (keysToKeep: string[]) => {
     setIsLoading(true);
     try {
-      if (idsToDelete.length > 0) {
-        const res = await fetch("/api/keys/bulk-delete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: idsToDelete, action: "disable" }),
-        });
-        if (!res.ok) throw new Error("Failed to disable excess keys.");
-      }
-      if (!keepCard) {
-        await removePaymentMethodAction();
-      }
-      await updatePlanAction("Hobby");
+      await scheduleCancellation(keysToKeep);
       await router.refresh();
       router.refresh();
-      onSuccess?.("Downgraded to Hobby. Excess keys disabled.");
+      onSuccess?.("Cancellation scheduled. Your paid access and selected key state remain active until the current billing period ends.");
       onClose();
     } catch {
-      onError?.("Failed to downgrade plan. Please try again.");
+      onError?.("Failed to schedule downgrade. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -503,11 +502,11 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
         throw new Error("Missing Price ID for this plan");
       }
 
-      // 3. If it's a downgrade to Hobby, handle it via server action
+      // 3. If it's a downgrade to Hobby, schedule Stripe cancellation and keep local paid access until webhook finalization
       if (pendingPlan === "Hobby") {
-        await updatePlanAction("Hobby");
+        await scheduleCancellation([]);
         await router.refresh();
-        onSuccess?.("Successfully downgraded to Hobby plan.");
+        onSuccess?.("Cancellation scheduled. Your paid access remains active until the end of the current billing period.");
         onClose();
         router.refresh();
         return;
@@ -693,14 +692,14 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
           ) : view === "key-downgrade-selector" ? (
             <KeyDowngradeSelector
               isLoading={isLoading}
-              hasCard={!!cardData.number}
+              hasCard={false}
               onConfirm={handleKeyDowngradeConfirm}
               onBack={onClose}
             />
           ) : view === "cancel-confirm" ? (
             <CancelConfirmation 
               isLoading={isLoading}
-              hasCard={!!cardData.number}
+              hasCard={false}
               nextBillingDate={nextBillingDate}
               planName={planName}
               onConfirm={handleCancelAction}

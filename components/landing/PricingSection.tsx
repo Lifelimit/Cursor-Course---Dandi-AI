@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { PLANS } from "@/lib/constants";
 import Link from "next/link";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
-import { updatePlanAction } from "@/lib/auth-actions";
 
 import { Session } from "@supabase/supabase-js";
 
@@ -401,9 +400,8 @@ export function PricingSection({
                         body: JSON.stringify({ keysToKeep }),
                       });
                       if (res.ok) {
-                        await updatePlanAction("Hobby");
                         setIsCancelModalOpen(false);
-                        onSuccess?.("Subscription scheduled for cancellation.");
+                        onSuccess?.("Cancellation scheduled. Your paid access remains active until the end of the current billing period.");
                         fetchFreshPlan();
                       } else {
                         throw new Error("Failed to cancel subscription.");

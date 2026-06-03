@@ -20,7 +20,7 @@ export function CancelConfirmation({ isLoading, hasCard, nextBillingDate, planNa
     <div className="flex flex-col gap-10">
       <div className="space-y-4">
         <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-          Your <span className="font-serif font-bold italic text-zinc-900 dark:text-zinc-100">{planName || "Researcher"}</span> plan will remain active until <span className="font-serif font-bold italic text-zinc-900 dark:text-zinc-100">{formattedDate}</span>. After that, you&apos;ll be downgraded to the Hobby plan.
+          Your cancellation will be scheduled with Stripe. Your <span className="font-serif font-bold italic text-zinc-900 dark:text-zinc-100">{planName || "Researcher"}</span> plan will remain active until <span className="font-serif font-bold italic text-zinc-900 dark:text-zinc-100">{formattedDate}</span>. After that, you&apos;ll be downgraded to the Hobby plan.
         </p>
       </div>
 
@@ -46,7 +46,7 @@ export function CancelConfirmation({ isLoading, hasCard, nextBillingDate, planNa
           disabled={isLoading}
           className="w-full rounded-full bg-[#18181b] dark:bg-zinc-100 py-5 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-950 transition hover:bg-black dark:hover:bg-zinc-200 shadow-xl shadow-zinc-900/10 dark:shadow-black/20 disabled:opacity-50"
         >
-          {isLoading ? "Executing..." : "Confirm Downgrade"}
+          {isLoading ? "Scheduling..." : "Schedule Cancellation"}
         </button>
         <button 
           onClick={onCancel}

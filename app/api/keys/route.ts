@@ -30,6 +30,32 @@ function buildKeyValue() {
   return `sk_live_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
 }
 
+interface UsageLog {
+  status: string;
+  keyId?: string;
+  usedAt: string;
+}
+
+function parseUsageLogs(rawLogs: unknown[]): UsageLog[] {
+  return rawLogs.flatMap((log): UsageLog[] => {
+    try {
+      const parsed = typeof log === "string" ? JSON.parse(log) : log;
+      if (!parsed || typeof parsed !== "object") return [];
+
+      const usageLog = parsed as Partial<UsageLog>;
+      if (typeof usageLog.keyId !== "string" || typeof usageLog.usedAt !== "string") return [];
+
+      return [{
+        status: typeof usageLog.status === "string" ? usageLog.status : "",
+        keyId: usageLog.keyId,
+        usedAt: usageLog.usedAt,
+      }];
+    } catch {
+      return [];
+    }
+  });
+}
+
 export async function GET() {
   try {
     const userId = await getAuthenticatedUserId();
@@ -57,28 +83,26 @@ export async function GET() {
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
     let keyUsageCounts: number[] = [];
     if (data && data.length > 0) {
-      const pipeline = redis.pipeline();
-      data.forEach(k => {
-        pipeline.get(`usage:key:${k.id}:${currentMonth}`);
-      });
-      keyUsageCounts = await pipeline.exec<number[]>();
+      try {
+        const pipeline = redis.pipeline();
+        data.forEach(k => {
+          pipeline.get(`usage:key:${k.id}:${currentMonth}`);
+        });
+        keyUsageCounts = (await pipeline.exec<number[]>()) || [];
+      } catch (err) {
+        console.warn("⚠️ Display Redis key usage read failed; using zero key usage:", err);
+      }
     }
 
     // Fetch user activity logs to build trend coordinates
     const logKey = `logs:user:${userId}:${currentMonth}`;
-    const rawLogs = await redis.lrange(logKey, 0, 99);
-    interface UsageLog {
-      status: string;
-      keyId?: string;
-      usedAt: string;
+    let logs: UsageLog[] = [];
+    try {
+      const rawLogs = await redis.lrange(logKey, 0, 99);
+      logs = parseUsageLogs(rawLogs);
+    } catch (err) {
+      console.warn("⚠️ Display Redis log read failed; using empty key trends:", err);
     }
-    const logs: UsageLog[] = rawLogs.map((l: string) => {
-      try {
-        return typeof l === 'string' ? JSON.parse(l) : l;
-      } catch {
-        return {} as UsageLog;
-      }
-    });
 
     const now = new Date();
     const dates = Array.from({ length: 30 }, (_, i) => {

@@ -8,7 +8,7 @@ const HOBBY_KEY_LIMIT = 3;
 type KeyDowngradeSelectorProps = {
   isLoading: boolean;
   hasCard: boolean;
-  onConfirm: (idsToDelete: string[], keepCard: boolean) => void;
+  onConfirm: (keysToKeep: string[], keepCard: boolean) => void;
   onBack: () => void;
 };
 
@@ -51,8 +51,8 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
   };
 
   const handleConfirm = () => {
-    const idsToDelete = keys.filter((k) => !selectedIds.has(k.id)).map((k) => k.id);
-    onConfirm(idsToDelete, keepCard);
+    const keysToKeep = keys.filter((k) => selectedIds.has(k.id)).map((k) => k.id);
+    onConfirm(keysToKeep, keepCard);
   };
 
   const selectedCount = selectedIds.size;
@@ -189,7 +189,7 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
           disabled={!canConfirm}
           className="flex-1 rounded-full bg-[#18181b] dark:bg-zinc-100 py-5 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-950 transition hover:bg-black dark:hover:bg-zinc-200 shadow-xl shadow-zinc-900/10 dark:shadow-black/20 disabled:opacity-50"
         >
-          {isLoading ? "Executing..." : "Confirm Downgrade"}
+          {isLoading ? "Scheduling..." : "Schedule Downgrade"}
         </button>
       </div>
     </div>

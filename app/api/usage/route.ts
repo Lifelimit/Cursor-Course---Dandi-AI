@@ -6,6 +6,38 @@ import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 import { resolvePlan } from "@/lib/constants";
 import { redis } from "@/lib/redis";
 
+interface UsageLog {
+  status: string;
+  latencyMs?: number;
+  keyId?: string;
+  repoUrl?: string;
+  usedAt: string;
+  repo_url?: string;
+}
+
+function parseUsageLogs(rawLogs: unknown[]): UsageLog[] {
+  return rawLogs.flatMap((log): UsageLog[] => {
+    try {
+      const parsed = typeof log === "string" ? JSON.parse(log) : log;
+      if (!parsed || typeof parsed !== "object") return [];
+
+      const usageLog = parsed as Partial<UsageLog>;
+      if (typeof usageLog.usedAt !== "string") return [];
+
+      return [{
+        status: typeof usageLog.status === "string" ? usageLog.status : "",
+        latencyMs: typeof usageLog.latencyMs === "number" ? usageLog.latencyMs : 0,
+        keyId: typeof usageLog.keyId === "string" ? usageLog.keyId : undefined,
+        repoUrl: typeof usageLog.repoUrl === "string" ? usageLog.repoUrl : undefined,
+        repo_url: typeof usageLog.repo_url === "string" ? usageLog.repo_url : undefined,
+        usedAt: usageLog.usedAt,
+      }];
+    } catch {
+      return [];
+    }
+  });
+}
+
 export async function GET() {
   try {
     const userId = await getAuthenticatedUserId();
@@ -13,10 +45,10 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
     const userEmail = user?.email;
 
-    // 1. Fetch profile, API keys, and Redis usage counters/logs in parallel
+    // 1. Fetch profile and API keys in parallel; Redis display data is best-effort below
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
-    const [profileRes, keysRes, userUsage, rawLogs] = await Promise.all([
+    const [profileRes, keysRes] = await Promise.all([
       userEmail
         ? supabaseAdmin
             .from("profiles")
@@ -28,9 +60,7 @@ export async function GET() {
         .from("api_keys")
         .select("id, name, key_type, usage_count, monthly_limit, is_active, alert_threshold, alert_channels, alert_phone, created_at")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false }),
-      redis.get<number>(`usage:user:${userId}:${currentMonth}`).then(v => v || 0),
-      redis.lrange(`logs:user:${userId}:${currentMonth}`, 0, 99)
+        .order("created_at", { ascending: false })
     ]);
 
     const profileData = profileRes.data;
@@ -48,29 +78,36 @@ export async function GET() {
     // Use numeric limit directly from constants — no regex parsing needed
     const monthlyLimit = resolved.monthlyRequests;
 
+    let userUsage = 0;
+    try {
+      userUsage = (await redis.get<number>(`usage:user:${userId}:${currentMonth}`)) || 0;
+    } catch (err) {
+      console.warn("⚠️ Display Redis usage read failed; using zero total usage:", err);
+    }
+
+    let rawLogs: unknown[] = [];
+    try {
+      rawLogs = await redis.lrange(`logs:user:${userId}:${currentMonth}`, 0, 99);
+    } catch (err) {
+      console.warn("⚠️ Display Redis log read failed; using empty usage analytics:", err);
+    }
+
     // 2. Fetch per-key usage from Redis
-    const pipeline = redis.pipeline();
-    (keys || []).forEach(k => {
-      pipeline.get(`usage:key:${k.id}:${currentMonth}`);
-    });
-    const keyUsageCounts = await pipeline.exec<number[]>();
-    interface UsageLog {
-      status: string;
-      latencyMs?: number;
-      keyId?: string;
-      repoUrl?: string;
-      usedAt: string;
-      repo_url?: string;
+    let keyUsageCounts: number[] = [];
+    if (keys && keys.length > 0) {
+      try {
+        const pipeline = redis.pipeline();
+        keys.forEach(k => {
+          pipeline.get(`usage:key:${k.id}:${currentMonth}`);
+        });
+        keyUsageCounts = (await pipeline.exec<number[]>()) || [];
+      } catch (err) {
+        console.warn("⚠️ Display Redis key usage read failed; using zero key usage:", err);
+      }
     }
 
     // 3. Process logs (Hot Analytics)
-    const logs: UsageLog[] = (rawLogs || []).map((l: string) => {
-      try {
-        return typeof l === 'string' ? JSON.parse(l) : l;
-      } catch {
-        return {} as UsageLog;
-      }
-    });
+    const logs = parseUsageLogs(rawLogs);
 
     // Calculate Global Performance Metrics
     const totalLogs = logs.length;
