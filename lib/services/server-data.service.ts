@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe";
 import { redis } from "@/lib/redis";
 import { PLAN_DETAILS } from "@/lib/constants";
 import Stripe from "stripe";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], plan: string }> {
   try {
@@ -229,7 +230,7 @@ export async function getServerUsageData() {
           
           if (renewalDate) {
             // Heal the database profile asynchronously
-            await supabase
+            await supabaseAdmin
               .from("profiles")
               .update({ 
                 billing_next_date: renewalDate,

@@ -16,17 +16,18 @@ export async function POST(request: Request) {
       await assertCanActivateKeys(userId, plan, ids);
     }
 
-    const { error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("api_keys")
       .update({ is_active: isActive })
       .in("id", ids)
-      .eq("user_id", userId); // Security: only touch keys belonging to this user
+      .eq("user_id", userId) // Security: only touch keys belonging to this user
+      .select("id");
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, affected: ids.length, action: isActive ? "enabled" : "disabled" });
+    return NextResponse.json({ success: true, affected: data?.length ?? 0, action: isActive ? "enabled" : "disabled" });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 401 });
   }

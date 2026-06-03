@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { getJsonObject, validatePaymentMethodId } from "@/lib/request-validation";
 import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(req: Request) {
   try {
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
 
     // 3. Retrieve the payment method details for immediate DB update
     if (pm.card) {
-      await supabase
+      await supabaseAdmin
         .from("profiles")
         .update({
           payment_method_brand: pm.card.brand,

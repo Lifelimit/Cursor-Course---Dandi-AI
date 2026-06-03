@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { getJsonObject, validatePaymentMethodId } from "@/lib/request-validation";
 import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(req: Request) {
   try {
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
           invoice_settings: { default_payment_method: newPM.id }
         });
 
-        await supabase
+        await supabaseAdmin
           .from("profiles")
           .update({
             payment_method_brand: newPM.card?.brand,
@@ -63,7 +64,7 @@ export async function POST(req: Request) {
           .eq("id", user.id);
       } else {
         // No cards left
-        await supabase
+        await supabaseAdmin
           .from("profiles")
           .update({
             payment_method_brand: null,
