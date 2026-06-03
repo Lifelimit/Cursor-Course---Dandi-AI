@@ -13,6 +13,9 @@ const corsOptions = {
 };
 
 const ingestRateLimit = createIpRateLimit("@upstash/ratelimit:rag:ingest", 3, "60 s");
+const ingestStatusRateLimit = createIpRateLimit("@upstash/ratelimit:rag:ingest-status", 60, "60 s");
+const INGESTION_JOBS_MISSING_MESSAGE =
+  "RAG ingestion jobs are not set up yet. Apply the latest Supabase migration, including supabase/migrations/20260604_create_ingestion_jobs.sql, then restart the dev server.";
 
 export async function OPTIONS(request: Request) {
   return corsPreflightResponse(request, corsOptions);
@@ -26,7 +29,7 @@ export async function GET(request: Request) {
   const corsHeaders = getCorsHeaders(request, corsOptions);
   if (!isCorsOriginAllowed(request)) return forbiddenCorsResponse(request);
 
-  const rateLimited = await checkRateLimit(request, ingestRateLimit, corsHeaders);
+  const rateLimited = await checkRateLimit(request, ingestStatusRateLimit, corsHeaders);
   if (rateLimited) return rateLimited;
 
   const { searchParams } = new URL(request.url);
@@ -118,11 +121,19 @@ export async function POST(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create ingestion job.";
     const lowerMessage = message.toLowerCase();
+    if (lowerMessage.includes("ingestion_jobs") && lowerMessage.includes("schema cache")) {
+      return NextResponse.json(
+        {
+          error: INGESTION_JOBS_MISSING_MESSAGE,
+          code: "INGESTION_JOBS_MIGRATION_REQUIRED",
+        },
+        { status: 503, headers: corsHeaders }
+      );
+    }
+
     const status = lowerMessage.includes("limit exceeded")
       ? 403
-      : lowerMessage.includes("user-owned")
-        ? 403
-        : lowerMessage.includes("invalid api key")
+      : lowerMessage.includes("invalid api key")
           ? 401
           : 500;
     return NextResponse.json({ error: message }, { status, headers: corsHeaders });

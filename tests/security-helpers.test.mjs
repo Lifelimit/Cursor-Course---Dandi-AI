@@ -302,26 +302,6 @@ test("resolves subscription SCA and billing payload helpers", () => {
   assert.equal(isDuplicateWebhookEventError({ code: "42P01" }), false);
 });
 
-test("rejects demo keys for ingestion jobs before database work", async () => {
-  const { createIngestionJob } = loadTsModule("lib/services/ingestion-job.service.ts");
-
-  await assert.rejects(
-    () =>
-      createIngestionJob({
-        keyData: {
-          id: "demo-id",
-          name: "Demo",
-          usage_count: 0,
-          monthly_limit: 1000,
-          user_id: "demo-user-id",
-          key_type: "production",
-        },
-        repoUrl: "https://github.com/openai/codex",
-      }),
-    /user-owned API key/
-  );
-});
-
 test("builds account environments from browser, active keys, and request telemetry", () => {
   const { buildAccountEnvironments, splitAccountEnvironments } = loadTsModule("lib/account-environments.ts");
 

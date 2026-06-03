@@ -24,21 +24,21 @@ export function Navbar({ session }: { session: Session | null }) {
 
   return (
     <nav className="fixed left-0 right-0 top-3 z-50 px-4 sm:px-6">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white/85 p-3 shadow-lg shadow-black/5 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/85 dark:shadow-black/20">
-        <Link href="/" className="group flex shrink-0 cursor-pointer items-center gap-2">
+      <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white/85 p-3 shadow-lg shadow-black/5 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/85 dark:shadow-black/20">
+        <Link href="/" className="group z-10 flex shrink-0 cursor-pointer items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#18181b] text-white transition-transform group-hover:scale-110 dark:bg-zinc-100 dark:text-zinc-900">
             <span className="font-serif text-lg font-bold italic">D</span>
           </div>
           <span className="hidden font-serif text-base font-bold tracking-tight min-[420px]:inline md:inline md:text-lg">DANDI AI</span>
         </Link>
         
-        <div className="hidden items-center gap-1 rounded-full bg-zinc-100 p-1 text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:bg-zinc-950/80 dark:text-zinc-400 md:flex">
+        <div className="hidden items-center gap-1 rounded-full bg-zinc-100 p-1 text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:bg-zinc-950/80 dark:text-zinc-400 md:absolute md:left-1/2 md:flex md:-translate-x-1/2">
           <Link href="/#features" className="rounded-full px-4 py-2 transition hover:bg-white hover:text-zinc-900 hover:shadow-sm dark:hover:bg-zinc-800 dark:hover:text-zinc-100">Features</Link>
           <Link href="/#pricing" className="rounded-full px-4 py-2 transition hover:bg-white hover:text-zinc-900 hover:shadow-sm dark:hover:bg-zinc-800 dark:hover:text-zinc-100">Pricing</Link>
           <Link href="/playground" className="rounded-full px-4 py-2 transition hover:bg-white hover:text-zinc-900 hover:shadow-sm dark:hover:bg-zinc-800 dark:hover:text-zinc-100">Playground</Link>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="z-10 flex items-center gap-2">
           <div className="hidden items-center gap-6 md:flex">
             {session ? (
               <div className="flex items-center gap-3">

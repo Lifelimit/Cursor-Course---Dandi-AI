@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS public.ingestion_jobs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id text NOT NULL,
   api_key_id uuid REFERENCES public.api_keys(id) ON DELETE SET NULL,
   repo_url text NOT NULL,
   status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'running', 'completed', 'failed')),

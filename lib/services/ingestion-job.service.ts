@@ -155,6 +155,18 @@ async function loadJob(jobId: string) {
 }
 
 async function loadUsageKeyData(job: IngestionJob): Promise<IngestionKeyData | null> {
+  if (!job.api_key_id && job.user_id === "demo-user-id") {
+    return {
+      id: "demo-id",
+      name: "Playground Demo Key",
+      usage_count: 0,
+      monthly_limit: 1000,
+      user_id: "demo-user-id",
+      key_type: "production",
+      plan: "Hobby",
+    };
+  }
+
   if (!job.api_key_id) return null;
 
   const { data, error } = await supabaseAdmin
@@ -197,10 +209,6 @@ export async function createIngestionJob(input: {
   keyData: IngestionKeyData;
   repoUrl: string;
 }): Promise<JobResult> {
-  if (!isUuid(input.keyData.user_id) || !isUuid(input.keyData.id)) {
-    throw new Error("RAG ingestion jobs require a user-owned API key.");
-  }
-
   const existing = await activeJobQuery(input.keyData.user_id, input.repoUrl);
   if (existing.data) {
     return { job: toIngestionJob(existing.data), reused: true };
@@ -210,7 +218,7 @@ export async function createIngestionJob(input: {
     .from("ingestion_jobs")
     .insert({
       user_id: input.keyData.user_id,
-      api_key_id: input.keyData.id,
+      api_key_id: isUuid(input.keyData.id) ? input.keyData.id : null,
       repo_url: input.repoUrl,
       status: "queued",
     })
@@ -234,10 +242,6 @@ export async function getIngestionJob(input: {
   jobId: string;
   keyData: IngestionKeyData;
 }) {
-  if (!isUuid(input.keyData.user_id)) {
-    throw new Error("RAG ingestion jobs require a user-owned API key.");
-  }
-
   const { data, error } = await supabaseAdmin
     .from("ingestion_jobs")
     .select("*")
