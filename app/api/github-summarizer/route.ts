@@ -4,6 +4,8 @@ import { fetchGitHubReadme, fetchGitHubMetadata } from "@/lib/services/github.se
 import { streamGithubSummary } from "@/lib/services/ai.service";
 import { Ratelimit } from "@upstash/ratelimit";
 import { redis } from "@/lib/redis";
+import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOriginAllowed } from "@/lib/cors";
+import { getJsonObject, validateGitHubRepoUrl } from "@/lib/request-validation";
 
 // Initialize Upstash Redis and Ratelimit
 const ratelimit = new Ratelimit({
@@ -12,24 +14,19 @@ const ratelimit = new Ratelimit({
   analytics: true,
   prefix: "@upstash/ratelimit",
 });
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, x-api-key",
+const corsOptions = {
+  methods: "POST, OPTIONS",
 };
 
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      ...corsHeaders,
-      "Access-Control-Max-Age": "86400",
-    },
-  });
+export async function OPTIONS(request: Request) {
+  return corsPreflightResponse(request, corsOptions);
 }
 
 export async function POST(request: Request) {
+  const corsHeaders = getCorsHeaders(request, corsOptions);
   try {
+    if (!isCorsOriginAllowed(request)) return forbiddenCorsResponse(request);
+
     // 1. Global Rate Limiting (IP-based)
     // Use x-real-ip (set by Vercel edge, not spoofable) before x-forwarded-for
     const ip =
@@ -70,16 +67,16 @@ export async function POST(request: Request) {
     }
 
     // 3. Extract and validate GitHub URL & API Key
-    let body;
+    let body: Record<string, unknown>;
     try {
-      body = await request.json();
+      body = getJsonObject(await request.json());
     } catch {
       return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400, headers: corsHeaders });
     }
-    const { githubUrl, apiKey: bodyApiKey } = body;
+    const bodyApiKey = body.apiKey;
 
     // 2. Extract and Validate the API key
-    const apiKey = request.headers.get("x-api-key") || bodyApiKey;
+    const apiKey = request.headers.get("x-api-key") || (typeof bodyApiKey === "string" ? bodyApiKey : "");
 
     if (!apiKey) {
       return NextResponse.json(
@@ -97,23 +94,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: errorMessage }, { status, headers: corsHeaders });
     }
 
-    if (!githubUrl) {
-      return NextResponse.json({ error: "githubUrl is required in body" }, { status: 400, headers: corsHeaders });
-    }
-
-    // Validate URL is a real GitHub repo before doing anything (prevents log pollution)
+    let githubUrl: string;
     try {
-      const parsed = new URL(githubUrl);
-      const parts = parsed.pathname.split("/").filter(Boolean);
-      if (parsed.hostname !== "github.com" || parts.length < 2) {
-        return NextResponse.json(
-          { error: "Invalid GitHub repository URL. Expected: https://github.com/owner/repo" },
-          { status: 400, headers: corsHeaders }
-        );
-      }
-    } catch {
+      githubUrl = validateGitHubRepoUrl(body.githubUrl);
+    } catch (err) {
       return NextResponse.json(
-        { error: "Invalid GitHub repository URL. Expected: https://github.com/owner/repo" },
+        { error: err instanceof Error ? err.message : "Invalid GitHub repository URL." },
         { status: 400, headers: corsHeaders }
       );
     }

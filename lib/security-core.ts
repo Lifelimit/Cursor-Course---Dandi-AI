@@ -2,6 +2,8 @@ export const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const STRIPE_PAYMENT_METHOD_RE = /^pm_[A-Za-z0-9_]+$/;
+const GITHUB_OWNER_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/;
+const GITHUB_REPO_RE = /^[A-Za-z0-9._-]{1,100}$/;
 
 export const PLAN_IDS = ["Hobby", "Premium", "Researcher"] as const;
 export const PAID_PLAN_IDS = ["Premium", "Researcher"] as const;
@@ -54,12 +56,20 @@ export function normalizeGitHubRepoUrl(value: unknown): string | null {
       return null;
     }
 
-    const [owner, repo] = parsed.pathname.split("/").filter(Boolean);
-    if (!owner || !repo || owner.startsWith(".") || repo.startsWith(".")) {
+    const [owner, rawRepo] = parsed.pathname.split("/").filter(Boolean);
+    const repo = rawRepo?.replace(/\.git$/i, "");
+    if (
+      !owner ||
+      !repo ||
+      !GITHUB_OWNER_RE.test(owner) ||
+      !GITHUB_REPO_RE.test(repo) ||
+      repo.startsWith(".") ||
+      repo.endsWith(".")
+    ) {
       return null;
     }
 
-    return `https://github.com/${owner}/${repo.replace(/\.git$/i, "")}`;
+    return `https://github.com/${owner}/${repo}`;
   } catch {
     return null;
   }

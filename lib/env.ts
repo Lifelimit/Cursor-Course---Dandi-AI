@@ -49,6 +49,7 @@ const serverEnvSchema = publicEnvSchema.extend({
   GOOGLE_API_KEY: requiredString("GOOGLE_API_KEY"),
   DEMO_API_KEY: demoKeyString,
   GITHUB_TOKEN: optionalString,
+  ALLOWED_API_ORIGINS: optionalString,
   /** Used for HMAC-SHA256 hashing of API keys. Must be a long random secret. */
   API_KEY_HMAC_SECRET: requiredString("API_KEY_HMAC_SECRET"),
 });
@@ -87,6 +88,7 @@ export function getServerEnv() {
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
     DEMO_API_KEY: process.env.DEMO_API_KEY,
     GITHUB_TOKEN: process.env.GITHUB_TOKEN,
+    ALLOWED_API_ORIGINS: process.env.ALLOWED_API_ORIGINS,
     API_KEY_HMAC_SECRET: process.env.API_KEY_HMAC_SECRET,
   });
 

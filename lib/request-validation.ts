@@ -18,6 +18,11 @@ export type ApiKeySettings = {
   isActive?: boolean;
 };
 
+export type ChatMessage = {
+  role: "user" | "assistant" | "system";
+  content: string;
+};
+
 export function getJsonObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -127,4 +132,50 @@ export function validateGitHubRepoUrl(value: unknown) {
     throw new Error("Invalid GitHub repository URL.");
   }
   return normalized;
+}
+
+export function validateChatMessages(value: unknown): ChatMessage[] {
+  if (!Array.isArray(value)) {
+    throw new Error("messages must be an array.");
+  }
+
+  if (value.length < 1 || value.length > 20) {
+    throw new Error("messages must contain between 1 and 20 messages.");
+  }
+
+  let totalContentLength = 0;
+  const messages = value.map((item, index): ChatMessage => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throw new Error(`messages[${index}] must be an object.`);
+    }
+
+    const message = item as Record<string, unknown>;
+    if (message.role !== "user" && message.role !== "assistant" && message.role !== "system") {
+      throw new Error(`messages[${index}].role must be user, assistant, or system.`);
+    }
+
+    if (typeof message.content !== "string") {
+      throw new Error(`messages[${index}].content must be a string.`);
+    }
+
+    if (message.content.length > 8000) {
+      throw new Error(`messages[${index}].content must be 8000 characters or less.`);
+    }
+
+    totalContentLength += message.content.length;
+    return {
+      role: message.role,
+      content: message.content,
+    };
+  });
+
+  if (totalContentLength > 30000) {
+    throw new Error("messages total content length must be 30000 characters or less.");
+  }
+
+  if (messages[messages.length - 1].role !== "user") {
+    throw new Error("Last message must have role user.");
+  }
+
+  return messages;
 }

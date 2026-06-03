@@ -3,26 +3,22 @@ import { fetchGitHubMetadata } from "@/lib/services/github.service";
 import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
 import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { validateGitHubRepoUrl } from "@/lib/request-validation";
+import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOriginAllowed } from "@/lib/cors";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, x-api-key",
+const corsOptions = {
+  methods: "GET, OPTIONS",
 };
 
 const metadataRateLimit = createIpRateLimit("@upstash/ratelimit:github-metadata", 30, "60 s");
 
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      ...corsHeaders,
-      "Access-Control-Max-Age": "86400",
-    },
-  });
+export async function OPTIONS(request: Request) {
+  return corsPreflightResponse(request, corsOptions);
 }
 
 export async function GET(request: Request) {
+  const corsHeaders = getCorsHeaders(request, corsOptions);
+  if (!isCorsOriginAllowed(request)) return forbiddenCorsResponse(request);
+
   const rateLimited = await checkRateLimit(request, metadataRateLimit, corsHeaders);
   if (rateLimited) return rateLimited;
 

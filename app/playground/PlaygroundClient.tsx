@@ -216,8 +216,8 @@ export default function PlaygroundClient({
         responseHeaders: { "Content-Type": "application/json" },
         responseBody: {
           success: true,
-          filesCount: data.filesCount,
-          chunksCount: data.chunksCount
+          jobId: data.jobId,
+          status: data.status
         }
       });
 
@@ -229,10 +229,43 @@ export default function PlaygroundClient({
         method: "INSERT",
         url: `repository_chunks`,
         requestHeaders: { "Content-Type": "application/json" },
-        requestBody: { chunksCount: data.chunksCount }
+        requestBody: { jobId: data.jobId, status: data.status }
       });
 
-      await sleep(500);
+      let completedJob = data;
+      for (let attempt = 0; attempt < 90; attempt++) {
+        await sleep(2000);
+        const statusRes = await fetch(`/api/rag/ingest?jobId=${encodeURIComponent(data.jobId)}`, {
+          headers: { "x-api-key": apiKey }
+        });
+        const statusData = await statusRes.json();
+
+        if (!statusRes.ok) {
+          throw new Error(statusData.error || "Failed to check ingestion job status.");
+        }
+
+        setLogState("ai_processing", {
+          responseBody: {
+            jobId: data.jobId,
+            status: statusData.status,
+            filesCount: statusData.filesCount,
+            chunksCount: statusData.chunksCount
+          }
+        });
+
+        if (statusData.status === "completed") {
+          completedJob = statusData;
+          break;
+        }
+
+        if (statusData.status === "failed") {
+          throw new Error(statusData.error || "Ingestion job failed.");
+        }
+      }
+
+      if (completedJob.status !== "completed") {
+        throw new Error("Ingestion job is still running. Please check again in a moment.");
+      }
 
       setLogState("ai_processing", {
         status: "success",
@@ -243,7 +276,9 @@ export default function PlaygroundClient({
         responseBody: {
           message: "pgvector tables initialized, cosine index updated.",
           dimension: 768,
-          indexType: "HNSW"
+          indexType: "HNSW",
+          filesCount: completedJob.filesCount,
+          chunksCount: completedJob.chunksCount
         }
       });
 
@@ -252,7 +287,7 @@ export default function PlaygroundClient({
       setRagMessages([
         {
           role: "assistant",
-          content: `Hi! I have successfully ingested and semantic-indexed **${repoPath}** (${data.filesCount} files, ${data.chunksCount} code chunks). 
+          content: `Hi! I have successfully ingested and semantic-indexed **${repoPath}** (${completedJob.filesCount} files, ${completedJob.chunksCount} code chunks).
           
 Feel free to ask me technical questions about this repository's codebase! I'll perform real-time RAG matching across the pgvector database and answer based on the precise code contents.`
         }
