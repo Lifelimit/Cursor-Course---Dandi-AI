@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { redis } from "@/lib/redis";
-import { PLAN_DETAILS } from "@/lib/constants";
+import { resolvePlan } from "@/lib/constants";
 import crypto from "crypto";
 import { normalizeGitHubRepoUrl } from "@/lib/security-core";
 import { getRequestTelemetry } from "@/lib/account-environments";
@@ -128,10 +128,8 @@ export async function validateApiKey(keyValue: string) {
   const profilesData = keyData.profiles as { plan?: string; email?: string } | { plan?: string; email?: string }[];
   const plan = (Array.isArray(profilesData) ? profilesData[0]?.plan : profilesData?.plan) || "Hobby";
   const userEmail = Array.isArray(profilesData) ? profilesData[0]?.email : profilesData?.email;
-  const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] ?? PLAN_DETAILS["Hobby"];
-
-  // Use numeric limit directly from plan constants — no regex parsing needed
-  const monthlyLimit = planDetail.monthlyLimit;
+  const resolved = resolvePlan(plan);
+  const monthlyLimit = resolved.monthlyRequests;
 
   // Get current usage from Redis (Hot data)
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM

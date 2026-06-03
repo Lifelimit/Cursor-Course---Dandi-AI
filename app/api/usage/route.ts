@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { stripe } from "@/lib/stripe";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
-import { PLAN_DETAILS } from "@/lib/constants";
+import { resolvePlan } from "@/lib/constants";
 import { redis } from "@/lib/redis";
 
 export async function GET() {
@@ -44,9 +44,9 @@ export async function GET() {
       plan = profileData.plan;
     }
 
-    const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] ?? PLAN_DETAILS["Hobby"];
+    const resolved = resolvePlan(plan);
     // Use numeric limit directly from constants — no regex parsing needed
-    const monthlyLimit = planDetail.monthlyLimit;
+    const monthlyLimit = resolved.monthlyRequests;
 
     // 2. Fetch per-key usage from Redis
     const pipeline = redis.pipeline();

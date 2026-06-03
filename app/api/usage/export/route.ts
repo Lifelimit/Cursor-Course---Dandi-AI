@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
-import { PLAN_DETAILS } from "@/lib/constants";
+import { resolvePlan } from "@/lib/constants";
 
 export async function GET() {
   try {
@@ -29,10 +29,10 @@ export async function GET() {
       .single();
 
     const plan = profile?.plan || "Hobby";
-    const planDetail = PLAN_DETAILS[plan] || PLAN_DETAILS["Hobby"];
+    const resolved = resolvePlan(plan);
 
     // Enforce Plan limit extraction
-    const planMonthlyLimit = planDetail.monthlyLimit;
+    const planMonthlyLimit = resolved.monthlyRequests;
 
 
     // Generate CSV Metadata Header

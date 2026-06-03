@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ApiKeyApiResponse } from "@/types/api";
 import { stripe } from "@/lib/stripe";
 import { redis } from "@/lib/redis";
-import { PLAN_DETAILS } from "@/lib/constants";
+import { resolvePlan } from "@/lib/constants";
 import Stripe from "stripe";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
@@ -20,8 +20,8 @@ export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], p
       .single();
 
     const plan = profile?.plan || "Hobby";
-    const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] || PLAN_DETAILS["Hobby"];
-    const monthlyLimit = planDetail.monthlyLimit;
+    const resolved = resolvePlan(plan);
+    const monthlyLimit = resolved.monthlyRequests;
 
 
     const { data, error } = await supabase
@@ -113,8 +113,8 @@ export async function getServerUsageData() {
       .single();
 
     const plan = profile?.plan || "Hobby";
-    const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] || PLAN_DETAILS["Hobby"];
-    const monthlyLimit = planDetail.monthlyLimit;
+    const resolved = resolvePlan(plan);
+    const monthlyLimit = resolved.monthlyRequests;
 
 
     // 2. Fetch current month's usage from Redis
