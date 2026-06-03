@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { stripe } from "@/lib/stripe";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
-import { PLAN_DETAILS } from "@/lib/constants";
+import { resolvePlan } from "@/lib/constants";
 import { redis } from "@/lib/redis";
 
 export async function GET() {
@@ -13,38 +13,42 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
     const userEmail = user?.email;
 
-    // 1. Fetch profile early to calculate fallback monthly limits
-    let profileData: { plan: string | null; billing_next_date: string | null; stripe_customer_id: string | null; stripe_subscription_id?: string | null } | null = null;
-    let plan = "Hobby";
+    // 1. Fetch profile, API keys, and Redis usage counters/logs in parallel
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
-    if (userEmail) {
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("plan, billing_next_date, stripe_customer_id, stripe_subscription_id")
-        .eq("email", userEmail)
-        .single();
-      
-      profileData = profile;
-      if (profileData?.plan) {
-        plan = profileData.plan;
-      }
-    }
+    const [profileRes, keysRes, userUsage, rawLogs] = await Promise.all([
+      userEmail
+        ? supabaseAdmin
+            .from("profiles")
+            .select("plan, billing_next_date, stripe_customer_id, stripe_subscription_id")
+            .eq("email", userEmail)
+            .single()
+        : Promise.resolve({ data: null }),
+      supabaseAdmin
+        .from("api_keys")
+        .select("id, name, key_type, usage_count, monthly_limit, is_active, alert_threshold, alert_channels, alert_phone, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
+      redis.get<number>(`usage:user:${userId}:${currentMonth}`).then(v => v || 0),
+      redis.lrange(`logs:user:${userId}:${currentMonth}`, 0, 99)
+    ]);
 
-    const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] ?? PLAN_DETAILS["Hobby"];
-    // Use numeric limit directly from constants — no regex parsing needed
-    const monthlyLimit = planDetail.monthlyLimit;
-
-    // 2. Fetch all API keys for the user
-    const { data: keys, error: keysError } = await supabaseAdmin
-      .from("api_keys")
-      .select("id, name, key_type, usage_count, monthly_limit, is_active, alert_threshold, alert_channels, alert_phone, created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+    const profileData = profileRes.data;
+    const keys = keysRes.data;
+    const keysError = keysRes.error;
 
     if (keysError) throw new Error(keysError.message);
 
-    // 3. Fetch real-time usage from Redis
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    let plan = "Hobby";
+    if (profileData?.plan) {
+      plan = profileData.plan;
+    }
+
+    const resolved = resolvePlan(plan);
+    // Use numeric limit directly from constants — no regex parsing needed
+    const monthlyLimit = resolved.monthlyRequests;
+
+    // 2. Fetch per-key usage from Redis
     const pipeline = redis.pipeline();
     (keys || []).forEach(k => {
       pipeline.get(`usage:key:${k.id}:${currentMonth}`);
@@ -59,12 +63,8 @@ export async function GET() {
       repo_url?: string;
     }
 
-    const userUsage = await redis.get<number>(`usage:user:${userId}:${currentMonth}`) || 0;
-
-    // 4. Fetch usage logs from Redis (Hot Analytics)
-    const logKey = `logs:user:${userId}:${currentMonth}`;
-    const rawLogs = await redis.lrange(logKey, 0, 99);
-    const logs: UsageLog[] = rawLogs.map((l: string) => {
+    // 3. Process logs (Hot Analytics)
+    const logs: UsageLog[] = (rawLogs || []).map((l: string) => {
       try {
         return typeof l === 'string' ? JSON.parse(l) : l;
       } catch {

@@ -19,8 +19,21 @@ export async function POST(request: Request) {
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       "127.0.0.1";
 
-    const { success, limit, remaining, reset } = await ratelimit.limit(ip);
-    if (!success) {
+    let rateLimitPassed = true;
+    let limit = 0;
+    let remaining = 0;
+    let reset = 0;
+    try {
+      const res = await ratelimit.limit(ip);
+      rateLimitPassed = res.success;
+      limit = res.limit;
+      remaining = res.remaining;
+      reset = res.reset;
+    } catch (redisErr) {
+      console.error("⚠️ Redis rate-limit outage in validate (failing open):", redisErr);
+    }
+
+    if (!rateLimitPassed) {
       return NextResponse.json(
         { error: "Too many requests. Please slow down." },
         {

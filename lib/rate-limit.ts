@@ -23,19 +23,24 @@ export async function checkRateLimit(
   limiter: Ratelimit,
   headers: Record<string, string> = {}
 ) {
-  const { success, limit, remaining, reset } = await limiter.limit(getRequestIp(request));
-  if (success) return null;
+  try {
+    const { success, limit, remaining, reset } = await limiter.limit(getRequestIp(request));
+    if (success) return null;
 
-  return Response.json(
-    { error: "Too many requests. Please slow down." },
-    {
-      status: 429,
-      headers: {
-        ...headers,
-        "X-RateLimit-Limit": limit.toString(),
-        "X-RateLimit-Remaining": remaining.toString(),
-        "X-RateLimit-Reset": reset.toString(),
-      },
-    }
-  );
+    return Response.json(
+      { error: "Too many requests. Please slow down." },
+      {
+        status: 429,
+        headers: {
+          ...headers,
+          "X-RateLimit-Limit": limit.toString(),
+          "X-RateLimit-Remaining": remaining.toString(),
+          "X-RateLimit-Reset": reset.toString(),
+        },
+      }
+    );
+  } catch (error) {
+    console.error("⚠️ Redis rate-limit outage (failing open):", error);
+    return null;
+  }
 }

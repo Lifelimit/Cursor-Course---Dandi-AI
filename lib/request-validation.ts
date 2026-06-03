@@ -1,4 +1,4 @@
-import { PLAN_DETAILS } from "@/lib/constants";
+import { resolvePlan } from "@/lib/constants";
 import {
   AlertChannel,
   clampInteger,
@@ -25,7 +25,7 @@ export function getJsonObject(value: unknown): Record<string, unknown> {
 }
 
 export function getPlanLimit(plan: string) {
-  return PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS]?.monthlyLimit ?? PLAN_DETAILS.Hobby.monthlyLimit;
+  return resolvePlan(plan).monthlyRequests;
 }
 
 export function validateMonthlyLimit(value: unknown, plan: string) {

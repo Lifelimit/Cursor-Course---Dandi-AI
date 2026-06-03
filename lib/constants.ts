@@ -156,18 +156,32 @@ export const PLANS: Plan[] = [
 ];
 
 /**
+ * Resolves a user's plan name to its canonical name and settings.
+ * Unknown, empty, or null plan names consistently resolve to "Hobby".
+ */
+export function resolvePlan(planName?: string | null) {
+  const name = (planName && PLAN_DETAILS[planName]) ? planName : "Hobby";
+  const details = PLAN_DETAILS[name];
+  return {
+    name,
+    details,
+    maxKeys: details.keyLimit,
+    monthlyRequests: details.monthlyLimit,
+  };
+}
+
+/**
  * Derives display-ready plan limits from PLAN_DETAILS.
  * Handles the Researcher "unlimited" case by returning a 1M sentinel
  * for progress bar rendering, plus an explicit `isUnlimited` flag.
  */
 export function getPlanLimits(planName?: string | null) {
-  const name = planName || "Hobby";
-  const detail = PLAN_DETAILS[name] ?? PLAN_DETAILS["Hobby"];
-  const isUnlimited = detail.monthlyLimit === null;
+  const resolved = resolvePlan(planName);
+  const isUnlimited = resolved.monthlyRequests === null;
   return {
-    planName: name,
-    monthlyLimit: isUnlimited ? 1_000_000 : detail.monthlyLimit!,
-    keyLimit: detail.keyLimit,
+    planName: resolved.name,
+    monthlyLimit: isUnlimited ? 1_000_000 : resolved.monthlyRequests!,
+    keyLimit: resolved.maxKeys,
     isUnlimited,
   };
 }

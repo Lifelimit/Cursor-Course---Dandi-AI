@@ -1,4 +1,4 @@
-import { PLAN_DETAILS } from "@/lib/constants";
+import { resolvePlan } from "@/lib/constants";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function getUserPlan(userId: string) {
@@ -17,8 +17,8 @@ export async function assertCanActivateKeys(
   activatingIds: string[] = [],
   additionalNewKeys = 0
 ) {
-  const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] ?? PLAN_DETAILS.Hobby;
-  const keyLimit = planDetail.keyLimit;
+  const resolved = resolvePlan(plan);
+  const keyLimit = resolved.maxKeys;
   if (keyLimit === null) return;
 
   let activeQuery = supabaseAdmin

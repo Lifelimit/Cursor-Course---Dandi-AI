@@ -10,14 +10,14 @@ export async function GET() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user || !user.email) {
+    if (!user || !user.id) {
       return NextResponse.json({ plan: "Hobby" });
     }
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("plan, full_name, avatar_url, org_slug, webhook_url, webhook_secret, github_connected")
-      .eq("email", user.email)
+      .eq("id", user.id)
       .single();
 
     return NextResponse.json({
@@ -40,7 +40,7 @@ export async function PATCH(req: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user || !user.email) {
+    if (!user || !user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -78,7 +78,7 @@ export async function PATCH(req: Request) {
     const { data: existingProfile } = await supabaseAdmin
       .from("profiles")
       .select("webhook_secret, webhook_url")
-      .eq("email", user.email)
+      .eq("id", user.id)
       .single();
 
     let webhookSecret = existingProfile?.webhook_secret || "";
@@ -101,7 +101,7 @@ export async function PATCH(req: Request) {
     const { data: updatedProfile, error } = await supabaseAdmin
       .from("profiles")
       .update(updateData)
-      .eq("email", user.email)
+      .eq("id", user.id)
       .select()
       .single();
 

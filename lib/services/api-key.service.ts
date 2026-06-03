@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { redis } from "@/lib/redis";
-import { PLAN_DETAILS } from "@/lib/constants";
+import { resolvePlan } from "@/lib/constants";
 import crypto from "crypto";
 import { normalizeGitHubRepoUrl } from "@/lib/security-core";
 import { getRequestTelemetry } from "@/lib/account-environments";
@@ -40,7 +40,12 @@ export async function validateApiKey(keyValue: string) {
 
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
     const keyUsageKey = `usage:key:demo-id:${currentMonth}`;
-    const currentKeyUsage = await redis.get<number>(keyUsageKey).then(v => v || 0);
+    let currentKeyUsage = 0;
+    try {
+      currentKeyUsage = await redis.get<number>(keyUsageKey).then(v => v || 0);
+    } catch (redisError) {
+      console.error("⚠️ Redis outage during demo key usage check (failing open):", redisError);
+    }
 
     if (currentKeyUsage >= 1000) {
       throw new Error("Monthly usage limit of 1,000 requests exceeded for the Playground Demo Key.");
@@ -123,20 +128,28 @@ export async function validateApiKey(keyValue: string) {
   const profilesData = keyData.profiles as { plan?: string; email?: string } | { plan?: string; email?: string }[];
   const plan = (Array.isArray(profilesData) ? profilesData[0]?.plan : profilesData?.plan) || "Hobby";
   const userEmail = Array.isArray(profilesData) ? profilesData[0]?.email : profilesData?.email;
-  const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] ?? PLAN_DETAILS["Hobby"];
-
-  // Use numeric limit directly from plan constants — no regex parsing needed
-  const monthlyLimit = planDetail.monthlyLimit;
+  const resolved = resolvePlan(plan);
+  const monthlyLimit = resolved.monthlyRequests;
 
   // Get current usage from Redis (Hot data)
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
   const usageKey = `usage:user:${keyData.user_id}:${currentMonth}`;
   const keyUsageKey = `usage:key:${keyData.id}:${currentMonth}`;
 
-  const [currentUsage, currentKeyUsage] = await Promise.all([
-    redis.get<number>(usageKey).then(v => v || 0),
-    redis.get<number>(keyUsageKey).then(v => v || 0)
-  ]);
+  let currentUsage = 0;
+  let currentKeyUsage = 0;
+  try {
+    const [usage, keyUsage] = await Promise.all([
+      redis.get<number>(usageKey).then(v => v || 0),
+      redis.get<number>(keyUsageKey).then(v => v || 0)
+    ]);
+    currentUsage = usage;
+    currentKeyUsage = keyUsage;
+  } catch (redisError) {
+    console.error("⚠️ Redis outage during user/key usage check (failing open):", redisError);
+    // Fail open: fallback to persistent usage count from db
+    currentKeyUsage = keyData.usage_count || 0;
+  }
 
   // Enforce Specific Key Limit if set
   if (keyData.monthly_limit !== null && currentKeyUsage >= keyData.monthly_limit) {
@@ -170,7 +183,11 @@ export async function incrementKeyUsage(
   if (keyId === "demo-id") {
     if (status === "success") {
       const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-      await redis.incr(`usage:key:demo-id:${currentMonth}`);
+      try {
+        await redis.incr(`usage:key:demo-id:${currentMonth}`);
+      } catch (redisError) {
+        console.error("⚠️ Redis outage during demo key increment:", redisError);
+      }
     }
     return;
   }
@@ -179,34 +196,49 @@ export async function incrementKeyUsage(
   const usageKey = `usage:user:${userId}:${currentMonth}`;
   const keyUsageKey = `usage:key:${keyId}:${currentMonth}`;
 
+  let newKeyUsage = 0;
+
   // 1. Increment usage in Redis (Atomic) — only for successful requests to be fair to users
   if (status === "success") {
-    const [, newKeyUsage] = await Promise.all([
-      redis.incr(usageKey),
-      redis.incr(keyUsageKey),
-    ]);
-    // Set a 60-day TTL so stale monthly counters expire automatically
-    const ttlSeconds = 60 * 24 * 60 * 60;
-    await Promise.all([
-      redis.expire(usageKey, ttlSeconds),
-      redis.expire(keyUsageKey, ttlSeconds),
-    ]);
+    try {
+      const [, val] = await Promise.all([
+        redis.incr(usageKey),
+        redis.incr(keyUsageKey),
+      ]);
+      newKeyUsage = val;
+      // Set a 60-day TTL so stale monthly counters expire automatically
+      const ttlSeconds = 60 * 24 * 60 * 60;
+      await Promise.all([
+        redis.expire(usageKey, ttlSeconds),
+        redis.expire(keyUsageKey, ttlSeconds),
+      ]);
 
-    // Check for alerts
-    if (keyData.monthly_limit && keyData.alert_threshold && keyData.alert_channels?.includes("email") && keyData.email) {
-      const pct = (newKeyUsage / keyData.monthly_limit) * 100;
-      if (pct >= keyData.alert_threshold) {
-        // Only send once per month per key per threshold. Use Redis to deduplicate.
-        const alertSentKey = `alert:sent:${keyId}:${currentMonth}`;
-        const alreadySent = await redis.get(alertSentKey);
-        if (!alreadySent) {
-          // Fire and forget email
-          const { sendAlertEmail } = await import("./email.service");
-          sendAlertEmail(keyData.email, keyData.name, pct, keyData.alert_threshold).catch(console.error);
-          
-          await redis.set(alertSentKey, "true", { ex: ttlSeconds });
+      // Check for alerts
+      if (keyData.monthly_limit && keyData.alert_threshold && keyData.alert_channels?.includes("email") && keyData.email) {
+        const pct = (newKeyUsage / keyData.monthly_limit) * 100;
+        if (pct >= keyData.alert_threshold) {
+          // Only send once per month per key per threshold. Use Redis to deduplicate.
+          const alertSentKey = `alert:sent:${keyId}:${currentMonth}`;
+          try {
+            const alreadySent = await redis.get(alertSentKey);
+            if (!alreadySent) {
+              // Await email sending to prevent early serverless execution suspension
+              try {
+                const { sendAlertEmail } = await import("./email.service");
+                await sendAlertEmail(keyData.email, keyData.name, pct, keyData.alert_threshold);
+              } catch (emailError) {
+                console.error("Failed to send alert email:", emailError);
+              }
+              
+              await redis.set(alertSentKey, "true", { ex: ttlSeconds });
+            }
+          } catch (redisAlertErr) {
+            console.error("⚠️ Redis error during alert check/deduplication:", redisAlertErr);
+          }
         }
       }
+    } catch (redisError) {
+      console.error("⚠️ Redis outage during usage increment/expiry:", redisError);
     }
   }
 
@@ -214,19 +246,23 @@ export async function incrementKeyUsage(
   const safeRepoUrl = repoUrl && isValidGitHubUrl(repoUrl) ? normalizeGitHubRepoUrl(repoUrl) ?? undefined : undefined;
 
   // 3. Log metadata to Redis for analytics
-  const logKey = `logs:user:${userId}:${currentMonth}`;
-  const requestTelemetry = request ? getRequestTelemetry(request) : null;
-  await redis.lpush(logKey, JSON.stringify({
-    keyId,
-    repoUrl: safeRepoUrl,
-    usedAt: new Date().toISOString(),
-    latencyMs,
-    status,
-    ...(requestTelemetry || {}),
-  }));
+  try {
+    const logKey = `logs:user:${userId}:${currentMonth}`;
+    const requestTelemetry = request ? getRequestTelemetry(request) : null;
+    await redis.lpush(logKey, JSON.stringify({
+      keyId,
+      repoUrl: safeRepoUrl,
+      usedAt: new Date().toISOString(),
+      latencyMs,
+      status,
+      ...(requestTelemetry || {}),
+    }));
 
-  // Keep only last 100 logs in Redis per user for "hot" analytics
-  await redis.ltrim(logKey, 0, 99);
+    // Keep only last 100 logs in Redis per user for "hot" analytics
+    await redis.ltrim(logKey, 0, 99);
+  } catch (redisLogErr) {
+    console.error("⚠️ Redis outage during log push/trim:", redisLogErr);
+  }
 
   await supabaseAdmin
     .from("api_usage_log")

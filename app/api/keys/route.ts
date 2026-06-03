@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 import { getServerEnv } from "@/lib/env";
 import { redis } from "@/lib/redis";
-import { PLAN_DETAILS } from "@/lib/constants";
+import { resolvePlan } from "@/lib/constants";
 import crypto from "crypto";
 import { hmacHash } from "@/lib/services/api-key.service";
 import { assertCanActivateKeys, getUserPlan } from "@/lib/services/api-key-limits.service";
@@ -41,9 +41,8 @@ export async function GET() {
       .single();
 
     const plan = profile?.plan || "Hobby";
-    const planDetail = PLAN_DETAILS[plan as keyof typeof PLAN_DETAILS] ?? PLAN_DETAILS["Hobby"];
-    // Use numeric limit directly from constants — no regex parsing needed
-    const monthlyLimit = planDetail.monthlyLimit;
+    const resolved = resolvePlan(plan);
+    const monthlyLimit = resolved.monthlyRequests;
 
     const { data, error } = await supabaseAdmin
       .from(TABLE_NAME)
