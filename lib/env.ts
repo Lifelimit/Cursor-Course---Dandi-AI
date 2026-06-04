@@ -46,12 +46,30 @@ const serverEnvSchema = publicEnvSchema.extend({
   STRIPE_WEBHOOK_SECRET: requiredString("STRIPE_WEBHOOK_SECRET"),
   UPSTASH_REDIS_REST_URL: requiredString("UPSTASH_REDIS_REST_URL").url(),
   UPSTASH_REDIS_REST_TOKEN: requiredString("UPSTASH_REDIS_REST_TOKEN"),
-  GOOGLE_API_KEY: requiredString("GOOGLE_API_KEY"),
+  GOOGLE_API_KEYS: optionalString,
+  GOOGLE_API_KEY: optionalString,
+  GOOGLE_GENERATIVE_AI_API_KEY: optionalString,
+  GOOGLE_EMBEDDING_PRIMARY: optionalString,
+  GOOGLE_EMBEDDING_FALLBACK: optionalString,
   DEMO_API_KEY: demoKeyString,
   GITHUB_TOKEN: optionalString,
   ALLOWED_API_ORIGINS: optionalString,
   /** Used for HMAC-SHA256 hashing of API keys. Must be a long random secret. */
   API_KEY_HMAC_SECRET: requiredString("API_KEY_HMAC_SECRET"),
+}).superRefine((value, ctx) => {
+  const googleKeys = [
+    value.GOOGLE_API_KEYS,
+    value.GOOGLE_API_KEY,
+    value.GOOGLE_GENERATIVE_AI_API_KEY,
+  ].filter((key) => key && key.trim().length > 0);
+
+  if (googleKeys.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["GOOGLE_API_KEYS"],
+      message: "GOOGLE_API_KEYS or a legacy Google API key is required.",
+    });
+  }
 });
 
 const rawPublicEnv = {
@@ -85,7 +103,11 @@ export function getServerEnv() {
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+    GOOGLE_API_KEYS: process.env.GOOGLE_API_KEYS,
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+    GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    GOOGLE_EMBEDDING_PRIMARY: process.env.GOOGLE_EMBEDDING_PRIMARY,
+    GOOGLE_EMBEDDING_FALLBACK: process.env.GOOGLE_EMBEDDING_FALLBACK,
     DEMO_API_KEY: process.env.DEMO_API_KEY,
     GITHUB_TOKEN: process.env.GITHUB_TOKEN,
     ALLOWED_API_ORIGINS: process.env.ALLOWED_API_ORIGINS,

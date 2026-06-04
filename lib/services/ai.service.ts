@@ -1,6 +1,6 @@
-
 import { streamObject } from "ai";
 import { z } from "zod";
+import { getGoogleApiKeys } from "@/lib/services/google-gemini.service";
 
 export const summarySchema = z.object({
   summary: z.string().describe("A detailed, engaging, and comprehensive multi-paragraph summary of what the GitHub repository is, its main features, and why a developer would want to use it. Be enthusiastic!"),
@@ -13,8 +13,10 @@ export const summarySchema = z.object({
  */
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
+const [googleApiKey] = getGoogleApiKeys();
+
 export const googleProvider = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  apiKey: googleApiKey,
 });
 
 export async function streamGithubSummary(readmeContent: string) {

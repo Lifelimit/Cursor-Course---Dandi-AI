@@ -1143,7 +1143,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                       <div className="space-y-2 select-none">
                         <h3 className="font-serif text-2xl font-bold">RAG Codebase Chat Engine</h3>
                         <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 max-w-lg mx-auto leading-relaxed">
-                          Ingest and index this repository to chat with your codebase in real-time. Dandi AI crawls the repository recursively, extracts and structures up to 40 code and markdown files, calculates 768D semantic embeddings via Google's <code className="font-mono text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 rounded px-1.5 py-0.5">text-embedding-004</code>, and saves them in pgvector indexes to power lightning-fast retrieval.
+                          Ingest and index this repository to chat with your codebase in real-time. Dandi AI crawls the repository recursively, extracts and structures up to 40 code and markdown files, calculates 768D semantic embeddings with Google's Gemini embedding models, and saves them in pgvector indexes to power lightning-fast retrieval.
                         </p>
                       </div>
                       {ingestStatus === "error" && (

@@ -59,6 +59,32 @@ process.env.UPSTASH_REDIS_REST_TOKEN = "mock-token";
 process.env.GOOGLE_API_KEY = "google-key";
 process.env.API_KEY_HMAC_SECRET = "mock-hmac-secret-key-32-chars-for-tests";
 
+const googleEnvNames = [
+  "GOOGLE_API_KEYS",
+  "GOOGLE_API_KEY",
+  "GOOGLE_GENERATIVE_AI_API_KEY",
+  "GOOGLE_EMBEDDING_PRIMARY",
+  "GOOGLE_EMBEDDING_FALLBACK",
+];
+
+function snapshotGoogleEnv() {
+  return Object.fromEntries(googleEnvNames.map((name) => [name, process.env[name]]));
+}
+
+function restoreGoogleEnv(snapshot) {
+  for (const name of googleEnvNames) {
+    if (snapshot[name] === undefined) delete process.env[name];
+    else process.env[name] = snapshot[name];
+  }
+}
+
+function jsonResponse(body, init = {}) {
+  return new Response(JSON.stringify(body), {
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
+}
+
 test("normalizes only canonical GitHub repository URLs", () => {
   const { normalizeGitHubRepoUrl } = loadTsModule("lib/security-core.ts");
 
@@ -382,4 +408,187 @@ test("uses friendlier fallback labels for missing or custom clients", () => {
 
   assert.equal(describeUserAgent(null), "Anonymous browser");
   assert.equal(describeUserAgent("Some-Unusual-Client/1.0"), "Custom client");
+});
+
+test("resolves Gemini keys from GOOGLE_API_KEYS before legacy keys", () => {
+  const snapshot = snapshotGoogleEnv();
+  const { getGoogleApiKeys } = loadTsModule("lib/services/google-gemini.service.ts");
+
+  try {
+    process.env.GOOGLE_API_KEYS = " key-1, key-2, key-1, , key-3 ";
+    process.env.GOOGLE_API_KEY = "legacy-key";
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = "legacy-genai-key";
+    assert.deepEqual(getGoogleApiKeys(), ["key-1", "key-2", "key-3"]);
+
+    delete process.env.GOOGLE_API_KEYS;
+    assert.deepEqual(getGoogleApiKeys(), ["legacy-key", "legacy-genai-key"]);
+  } finally {
+    restoreGoogleEnv(snapshot);
+  }
+});
+
+test("resolves Gemini embedding model defaults and overrides", () => {
+  const snapshot = snapshotGoogleEnv();
+  const { getFallbackEmbeddingModel, getPrimaryEmbeddingModel } = loadTsModule("lib/services/google-gemini.service.ts");
+
+  try {
+    delete process.env.GOOGLE_EMBEDDING_PRIMARY;
+    delete process.env.GOOGLE_EMBEDDING_FALLBACK;
+    assert.equal(getPrimaryEmbeddingModel(), ["gemini", "embedding", "002"].join("-"));
+    assert.equal(getFallbackEmbeddingModel(), ["gemini", "embedding", "001"].join("-"));
+
+    process.env.GOOGLE_EMBEDDING_PRIMARY = "models/custom-primary";
+    process.env.GOOGLE_EMBEDDING_FALLBACK = "custom-fallback";
+    assert.equal(getPrimaryEmbeddingModel(), "custom-primary");
+    assert.equal(getFallbackEmbeddingModel(), "custom-fallback");
+  } finally {
+    restoreGoogleEnv(snapshot);
+  }
+});
+
+test("tries Gemini embedding keys and models in the requested failover order", async () => {
+  const snapshot = snapshotGoogleEnv();
+  const originalFetch = globalThis.fetch;
+  const originalWarn = console.warn;
+  const calls = [];
+  const warnings = [];
+  const { googleEmbed } = loadTsModule("lib/services/google-gemini.service.ts");
+
+  try {
+    process.env.GOOGLE_API_KEYS = "key-1,key-2,key-3";
+    process.env.GOOGLE_EMBEDDING_PRIMARY = "primary-model";
+    process.env.GOOGLE_EMBEDDING_FALLBACK = "fallback-model";
+    console.warn = (...args) => warnings.push(args);
+    globalThis.fetch = async (url, options) => {
+      const model = String(url).match(/models\/([^:]+):/)?.[1];
+      calls.push({
+        key: options.headers["x-goog-api-key"],
+        model,
+      });
+
+      if (calls.length < 6) {
+        return jsonResponse(
+          { error: { status: "RESOURCE_EXHAUSTED", message: "quota exceeded" } },
+          { status: 429, statusText: "Too Many Requests" }
+        );
+      }
+
+      return jsonResponse({ embedding: { values: [0.1, 0.2] } });
+    };
+
+    assert.deepEqual(await googleEmbed("query"), [0.1, 0.2]);
+    assert.deepEqual(calls, [
+      { key: "key-1", model: "primary-model" },
+      { key: "key-1", model: "fallback-model" },
+      { key: "key-2", model: "primary-model" },
+      { key: "key-2", model: "fallback-model" },
+      { key: "key-3", model: "primary-model" },
+      { key: "key-3", model: "fallback-model" },
+    ]);
+    assert(warnings.some((warning) => warning[0] === "Moving from API key #1 to API key #2"));
+    assert(warnings.some((warning) => warning[0] === "Embedding primary exhausted, trying fallback model"));
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
+    restoreGoogleEnv(snapshot);
+  }
+});
+
+test("does not rotate Gemini embedding keys for invalid or unauthorized responses", async () => {
+  const snapshot = snapshotGoogleEnv();
+  const originalFetch = globalThis.fetch;
+  const originalWarn = console.warn;
+  const { googleEmbed } = loadTsModule("lib/services/google-gemini.service.ts");
+
+  try {
+    process.env.GOOGLE_API_KEYS = "key-1,key-2,key-3";
+    process.env.GOOGLE_EMBEDDING_PRIMARY = "primary-model";
+    process.env.GOOGLE_EMBEDDING_FALLBACK = "fallback-model";
+    console.warn = () => {};
+
+    for (const [status, upstreamStatus] of [
+      [400, "INVALID_ARGUMENT"],
+      [401, "UNAUTHENTICATED"],
+      [403, "PERMISSION_DENIED"],
+    ]) {
+      let callCount = 0;
+      globalThis.fetch = async () => {
+        callCount += 1;
+        return jsonResponse({ error: { status: upstreamStatus } }, { status });
+      };
+
+      await assert.rejects(() => googleEmbed("query"), new RegExp(String(status)));
+      assert.equal(callCount, 1);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
+    restoreGoogleEnv(snapshot);
+  }
+});
+
+test("reports sanitized Gemini embedding exhaustion details", async () => {
+  const snapshot = snapshotGoogleEnv();
+  const originalFetch = globalThis.fetch;
+  const originalWarn = console.warn;
+  const { googleEmbed } = loadTsModule("lib/services/google-gemini.service.ts");
+
+  try {
+    process.env.GOOGLE_API_KEYS = "secret-key";
+    process.env.GOOGLE_EMBEDDING_PRIMARY = "primary-model";
+    process.env.GOOGLE_EMBEDDING_FALLBACK = "fallback-model";
+    console.warn = () => {};
+    globalThis.fetch = async () =>
+      jsonResponse(
+        {
+          error: {
+            status: "RESOURCE_EXHAUSTED",
+            message: "quota exceeded for secret-key and super-sensitive-chunk",
+          },
+        },
+        { status: 429, statusText: "Too Many Requests" }
+      );
+
+    await assert.rejects(
+      () => googleEmbed("super-sensitive-chunk"),
+      (error) => {
+        assert.match(error.message, /exhausting all models and API keys/);
+        assert.match(error.message, /Last status: 429/);
+        assert.match(error.message, /Last error: RESOURCE_EXHAUSTED/);
+        assert(!error.message.includes("secret-key"));
+        assert(!error.message.includes("super-sensitive-chunk"));
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
+    restoreGoogleEnv(snapshot);
+  }
+});
+
+test("uses the matching Gemini model resource for batch embedding requests", async () => {
+  const snapshot = snapshotGoogleEnv();
+  const originalFetch = globalThis.fetch;
+  const { googleBatchEmbed } = loadTsModule("lib/services/google-gemini.service.ts");
+
+  try {
+    process.env.GOOGLE_API_KEYS = "key-1";
+    process.env.GOOGLE_EMBEDDING_PRIMARY = "primary-model";
+    process.env.GOOGLE_EMBEDDING_FALLBACK = "fallback-model";
+    globalThis.fetch = async (url, options) => {
+      const model = String(url).match(/models\/([^:]+):/)?.[1];
+      const body = JSON.parse(options.body);
+      assert.equal(model, "primary-model");
+      assert.equal(body.requests.length, 2);
+      assert(body.requests.every((request) => request.model === "models/primary-model"));
+      assert(body.requests.every((request) => request.outputDimensionality === 768));
+      return jsonResponse({ embeddings: [{ values: [1, 2] }, { values: [3, 4] }] });
+    };
+
+    assert.deepEqual(await googleBatchEmbed(["first", "second"]), [[1, 2], [3, 4]]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreGoogleEnv(snapshot);
+  }
 });

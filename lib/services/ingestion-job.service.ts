@@ -1,14 +1,12 @@
-import { fetchWithRetry } from "@/lib/http-retry";
 import { getRequestTelemetry } from "@/lib/account-environments";
 import { isUuid } from "@/lib/security-core";
 import { incrementKeyUsage } from "@/lib/services/api-key.service";
 import { fetchGitHubBranch, fetchGitHubRepoTree, fetchRawFileContent } from "@/lib/services/github.service";
+import { googleBatchEmbed } from "@/lib/services/google-gemini.service";
 import { selectRagFiles } from "@/lib/services/rag-file-selection.service";
 import { redis } from "@/lib/redis";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
-const BATCH_SIZE = 100;
-const BATCH_DELAY_MS = 500;
 const LOCK_TTL_SEC = 900;
 
 export type IngestionJobStatus = "queued" | "running" | "completed" | "failed";
@@ -78,51 +76,6 @@ function splitIntoChunks(text: string, path: string, chunkSize = 1000, overlap =
     i += chunkSize - overlap;
   }
   return chunks;
-}
-
-async function googleBatchEmbed(values: string[]): Promise<number[][]> {
-  const apiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (!apiKey) {
-    throw new Error("Google Generative AI API key is missing.");
-  }
-
-  const batches: string[][] = [];
-  for (let i = 0; i < values.length; i += BATCH_SIZE) {
-    batches.push(values.slice(i, i + BATCH_SIZE));
-  }
-
-  const embeddingsResults: number[][][] = [];
-
-  for (let i = 0; i < batches.length; i++) {
-    const requests = batches[i].map((text) => ({
-      model: "models/gemini-embedding-001",
-      content: { parts: [{ text }] },
-      outputDimensionality: 768,
-    }));
-
-    const response = await fetchWithRetry(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requests }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Google Batch Embedding API error: ${JSON.stringify(errorData)}`);
-    }
-
-    const data = (await response.json()) as { embeddings: { values: number[] }[] };
-    embeddingsResults.push(data.embeddings.map((embedding) => embedding.values));
-
-    if (i < batches.length - 1 && BATCH_DELAY_MS > 0) {
-      await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
-    }
-  }
-
-  return embeddingsResults.flat();
 }
 
 async function updateJob(jobId: string, values: Partial<IngestionJob>) {

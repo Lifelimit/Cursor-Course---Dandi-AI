@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { streamText } from "ai";
 import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOriginAllowed } from "@/lib/cors";
-import { fetchWithRetry } from "@/lib/http-retry";
 import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { getJsonObject, validateChatMessages, validateGitHubRepoUrl } from "@/lib/request-validation";
 import { googleProvider } from "@/lib/services/ai.service";
 import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
+import { googleEmbed } from "@/lib/services/google-gemini.service";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const corsOptions = {
@@ -16,33 +16,6 @@ const chatRateLimit = createIpRateLimit("@upstash/ratelimit:rag:chat", 10, "60 s
 
 export async function OPTIONS(request: Request) {
   return corsPreflightResponse(request, corsOptions);
-}
-
-async function googleEmbed(value: string): Promise<number[]> {
-  const apiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (!apiKey) {
-    throw new Error("Google Generative AI API key is missing.");
-  }
-
-  const response = await fetchWithRetry(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        content: { parts: [{ text: value }] },
-        outputDimensionality: 768,
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(`Google Embedding API error: ${JSON.stringify(errorData)}`);
-  }
-
-  const data = (await response.json()) as { embedding: { values: number[] } };
-  return data.embedding.values;
 }
 
 interface ValidatedKeyData {
