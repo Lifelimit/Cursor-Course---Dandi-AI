@@ -75,9 +75,9 @@ export function Toast({ toast }: { toast: ToastState }) {
         }
       `}} />
 
-      <div className="pointer-events-none fixed bottom-6 right-6 z-[9999] flex flex-col items-end">
+      <div className="pointer-events-none fixed bottom-4 left-4 right-4 z-[9999] flex flex-col items-stretch sm:bottom-6 sm:left-auto sm:right-6 sm:items-end">
         <div
-          className={`pointer-events-auto flex items-center gap-3.5 rounded-2xl border px-5 py-4 shadow-[0_20px_40px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_40px_rgba(0,0,0,0.3)] backdrop-blur-xl transition-all duration-300 ${
+          className={`pointer-events-auto flex w-full min-w-0 items-center gap-3.5 rounded-2xl border px-4 py-4 shadow-[0_20px_40px_rgba(0,0,0,0.06)] backdrop-blur-xl transition-all duration-300 dark:shadow-[0_20px_40px_rgba(0,0,0,0.3)] sm:w-auto sm:max-w-sm sm:px-5 ${
             toast ? "animate-toast-in" : "animate-toast-out"
           } ${
             isSuccess
@@ -100,11 +100,11 @@ export function Toast({ toast }: { toast: ToastState }) {
             )}
           </div>
 
-          <div className="flex flex-col gap-0.5">
+          <div className="flex min-w-0 flex-col gap-0.5">
             <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               {isSuccess ? "Notification" : "Alert System"}
             </span>
-            <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-100 leading-snug">
+            <span className="break-words text-xs font-semibold leading-snug text-zinc-800 dark:text-zinc-100">
               {activeToast?.message}
             </span>
           </div>

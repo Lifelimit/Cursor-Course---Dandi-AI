@@ -125,21 +125,21 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
   return (
     <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-[#09090b] shadow-2xl transition-all duration-300">
       {/* macOS Terminal Title Bar Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-950 px-5 py-4 select-none">
-        <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-950 px-4 py-4 select-none sm:px-5">
+        <div className="flex min-w-0 items-center gap-2">
           <div className="flex gap-1.5">
             <span className="h-3 w-3 rounded-full bg-rose-500/80 transition hover:bg-rose-500 cursor-pointer" />
             <span className="h-3 w-3 rounded-full bg-amber-500/80 transition hover:bg-amber-500 cursor-pointer" />
             <span className="h-3 w-3 rounded-full bg-emerald-500/80 transition hover:bg-emerald-500 cursor-pointer" />
           </div>
-          <span className="ml-3 font-mono text-[10px] font-bold tracking-wider text-zinc-500 uppercase">
+          <span className="ml-2 min-w-0 truncate font-mono text-[10px] font-bold uppercase tracking-wider text-zinc-500 sm:ml-3">
             dandi-orchestrator-console v1.0.4
           </span>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           {logs.length > 0 && (
-            <div className="flex items-center gap-2 text-[9px] font-bold text-zinc-400">
+            <div className="hidden items-center gap-2 text-[9px] font-bold text-zinc-400 sm:flex">
               <span className="font-mono text-zinc-500">
                 Total Latency:
               </span>
@@ -156,7 +156,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
       </div>
 
       {/* Telemetry Progress Stepper Track */}
-      <div className="relative border-b border-zinc-850 bg-zinc-950 px-6 py-6 md:py-8 select-none overflow-hidden">
+      <div className="relative overflow-hidden border-b border-zinc-850 bg-zinc-950 px-3 py-6 select-none sm:px-6 md:py-8">
         {/* Style Block for custom animations */}
         <style dangerouslySetInnerHTML={{__html: `
           @keyframes pulse-flow {
@@ -229,7 +229,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
         </svg>
 
         {/* Nodes Wrapper */}
-        <div className="relative z-10 mx-auto flex max-w-2xl justify-between items-center px-4 sm:px-8">
+        <div className="relative z-10 mx-auto flex max-w-2xl items-center justify-between px-0 sm:px-8">
           {/* Step 1: Authentication */}
           <div className="flex flex-col items-center gap-2.5 text-center flex-1">
             <div className="relative flex h-11 w-11 items-center justify-center rounded-full border bg-zinc-950 transition-all duration-500 z-10 border-transparent">
@@ -338,7 +338,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
       </div>
 
       {/* Terminal Screen Area */}
-      <div className="p-4 font-mono text-xs text-zinc-300 min-h-[120px]">
+      <div className="min-h-[120px] p-3 font-mono text-xs text-zinc-300 sm:p-4">
         {logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center space-y-2">
             <div className="flex items-center gap-2">
@@ -370,9 +370,9 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                   {/* Step Row Header */}
                   <div 
                     onClick={() => toggleExpand(log.id)}
-                    className="flex cursor-pointer items-center justify-between p-4 transition duration-200 select-none"
+                    className="flex min-w-0 cursor-pointer items-center justify-between gap-3 p-3 transition duration-200 select-none sm:p-4"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
                       {/* Neon Status Dots */}
                       <div className="relative flex h-3 w-3 shrink-0 items-center justify-center">
                         {log.status === "pending" && (
@@ -387,17 +387,17 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                         }`} />
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                      <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
                         <span className="text-[9px] text-zinc-500 tabular-nums">
                           [{new Date(log.timestamp).toLocaleTimeString()}]
                         </span>
-                        <span className="text-[10px] font-extrabold tracking-wider text-zinc-200 uppercase">
+                        <span className="truncate text-[10px] font-extrabold uppercase tracking-wider text-zinc-200">
                           {log.label}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex shrink-0 items-center gap-2 sm:gap-4">
                       {/* Visual Micro Latency Line Bar */}
                       <div className="h-1 w-24 overflow-hidden rounded-full bg-zinc-900 hidden md:block">
                         <div 
@@ -439,8 +439,8 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                     }`}
                   >
                     {/* Expand Panel Tabs */}
-                    <div className="flex items-center justify-between bg-zinc-950 px-5 py-2 border-b border-zinc-900/60">
-                      <div className="flex gap-4">
+                    <div className="flex flex-col gap-3 border-b border-zinc-900/60 bg-zinc-950 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-2">
+                      <div className="flex min-w-0 gap-4 overflow-x-auto scrollbar-hide">
                         <button
                           type="button"
                           onClick={() => setActiveTab(log.id, "request")}
@@ -464,7 +464,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
 
                       {/* Copy actions for the respective tab */}
                       {activeTab === "request" ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-2 overflow-x-auto scrollbar-hide">
                           <CopyIconButton
                             onCopy={() => copyToClipboard(generateCurl(log), "Curl snippet copied to clipboard!")}
                           >
@@ -486,7 +486,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                     </div>
 
                     {/* Tab Panels */}
-                    <div className="p-4 space-y-4 font-mono text-[10px] overflow-y-auto max-h-[400px]">
+                    <div className="max-h-[400px] space-y-4 overflow-y-auto p-3 font-mono text-[10px] sm:p-4">
                       {activeTab === "request" ? (
                         <div className="space-y-4">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-zinc-900 pb-2">
@@ -503,8 +503,8 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                             </span>
                           </div>
 
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <div>
+                          <div className="grid gap-4 lg:grid-cols-2">
+                            <div className="min-w-0">
                               <h5 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">
                                 Headers
                               </h5>
@@ -512,7 +512,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                                 <SyntaxHighlightedJSON data={log.requestHeaders} />
                               </div>
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <h5 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">
                                 Body Payload
                               </h5>
@@ -542,8 +542,8 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                             </span>
                           </div>
 
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <div>
+                          <div className="grid gap-4 lg:grid-cols-2">
+                            <div className="min-w-0">
                               <h5 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">
                                 Response Headers
                               </h5>
@@ -551,7 +551,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                                 <SyntaxHighlightedJSON data={log.responseHeaders} />
                               </div>
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <h5 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">
                                 Response Body
                               </h5>

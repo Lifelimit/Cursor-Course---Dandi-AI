@@ -60,6 +60,8 @@ export default function PlaygroundClient({
   const [viewMode, setViewMode] = useState<"visual" | "json">("visual");
   const [requestLogs, setRequestLogs] = useState<LogEntry[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
+  const [summaryStatus, setSummaryStatus] = useState<"idle" | "streaming" | "success" | "empty" | "error">("idle");
+  const [summaryIssue, setSummaryIssue] = useState("");
   const [repoMetadata, setRepoMetadata] = useState<{
     stars: number;
     license: string;
@@ -89,19 +91,53 @@ export default function PlaygroundClient({
       summary: z.string(),
       cool_facts: z.array(z.string()),
     }),
-    onFinish: ({ object }: { object: any }) => {
+    onFinish: ({ object, error }) => {
       refreshKeys();
+
+      if (error) {
+        const message = error.message || "The summary stream did not match the expected response shape.";
+        setSummaryStatus("error");
+        setSummaryIssue(message);
+        setErrorMessage(message);
+        setLogState("ai_processing", {
+          status: "error",
+          duration: Math.round(performance.now() - ((window as any).__dandi_stream_start || performance.now())),
+          statusCode: 422,
+          statusText: "Invalid Stream",
+          responseHeaders: { "Content-Type": "text/plain; charset=utf-8" },
+          responseBody: { error: message }
+        });
+        return;
+      }
+
+      const hasSummary = typeof object?.summary === "string" && object.summary.trim().length > 0;
+      const hasFacts = Array.isArray(object?.cool_facts) && object.cool_facts.some((fact) => typeof fact === "string" && fact.trim().length > 0);
+      const hasData = hasSummary || hasFacts;
+
+      setSummaryStatus(hasData ? "success" : "empty");
+      setSummaryIssue(hasData ? "" : "No summary was returned.");
       setLogState("ai_processing", {
-        status: "success",
+        status: hasData ? "success" : "error",
         duration: Math.round(performance.now() - ((window as any).__dandi_stream_start || performance.now())),
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: { "Content-Type": "text/event-stream" },
-        responseBody: { streaming: true, ...object }
+        statusCode: hasData ? 200 : 204,
+        statusText: hasData ? "OK" : "No Content",
+        responseHeaders: { "Content-Type": "text/plain; charset=utf-8" },
+        responseBody: hasData ? { streaming: true, ...object } : { streaming: true, warning: "No summary was returned." }
       });
     },
     onError: (err: any) => {
-      setErrorMessage(err.message || "Streaming failed");
+      const message = err.message || "Streaming failed";
+      setSummaryStatus("error");
+      setSummaryIssue(message);
+      setErrorMessage(message);
+      setLogState("ai_processing", {
+        status: "error",
+        duration: Math.round(performance.now() - ((window as any).__dandi_stream_start || performance.now())),
+        statusCode: 500,
+        statusText: "Stream Error",
+        responseHeaders: { "Content-Type": "application/json" },
+        responseBody: { error: message }
+      });
     }
   });
 
@@ -601,6 +637,8 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
     setErrorMessage("");
     setRequestLogs([]);
     setRepoMetadata(null);
+    setSummaryStatus("streaming");
+    setSummaryIssue("");
 
     const setLogState = (id: string, updates: Partial<LogEntry>) => {
       setRequestLogs(prev => {
@@ -737,9 +775,11 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
         });
 
       // Submit to Vercel AI SDK useObject hook to start streaming
-      submit({ githubUrl, apiKey });
+      void submit({ githubUrl, apiKey });
 
     } catch (err) {
+      setSummaryStatus("error");
+      setSummaryIssue((err as Error).message);
       setErrorMessage((err as Error).message);
     }
   };
@@ -755,6 +795,22 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
   const activeKeyData = apiKeys.find(k => k.key_value === apiKey);
   const activeKeyPct = activeKeyData?.monthly_limit ? Math.min((activeKeyData.usage_count / activeKeyData.monthly_limit) * 100, 100) : null;
   const isOverLimit = activeKeyPct !== null && activeKeyPct >= 100;
+  const summaryFacts = (summaryResult?.cool_facts || []).filter((fact): fact is string => typeof fact === "string" && fact.trim().length > 0);
+  const summaryHasData = Boolean(summaryResult?.summary?.trim() || summaryFacts.length > 0);
+  const summaryStreamMessage = streamError?.message || summaryIssue;
+  const summaryJsonData = summaryHasData
+    ? summaryResult
+    : {
+        status: summaryStatus,
+        message: summaryStatus === "empty" ? "No summary was returned." : summaryStreamMessage || "Awaiting summary stream.",
+      };
+  const shouldShowSummaryResults = activeTab === "summary" && (
+    summaryHasData ||
+    isLoadingSummary ||
+    summaryStatus === "empty" ||
+    summaryStatus === "error" ||
+    Boolean(streamError)
+  );
 
   return (
     <>
@@ -809,7 +865,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
             </div>
           </DashboardPageHeader>
 
-          <div className="flex flex-col gap-8 md:flex-row">
+          <div className="flex flex-col gap-8 xl:flex-row">
             {/* Left Column (flex-1) */}
             <div className="flex-1 min-w-0 space-y-8">
               {/* Conditional Panel Rendering */}
@@ -943,7 +999,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                         onChange={(e) => setChatInput(e.target.value)}
                         disabled={isChatLoading}
                         placeholder={isChatLoading ? "Gemini is searching & thinking..." : "Ask RAG Companion a question about codebase..."}
-                        className="flex-1 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 px-5 py-4 text-sm outline-none transition-all focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-4 focus:ring-zinc-900/5 dark:focus:ring-zinc-100/5 text-zinc-900 dark:text-zinc-100"
+                        className="min-w-0 flex-1 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 px-5 py-4 text-sm outline-none transition-all focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-4 focus:ring-zinc-900/5 dark:focus:ring-zinc-100/5 text-zinc-900 dark:text-zinc-100"
                       />
                       <button
                         type="submit"
@@ -965,7 +1021,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                 /* Otherwise show the credentials form, Stepper logs, and Landing Card */
                 <>
                   <form onSubmit={activeTab === "summary" ? handleSummarize : handleIngest} className="space-y-8">
-                    <div className="grid gap-8 md:grid-cols-2">
+                    <div className="grid gap-8 lg:grid-cols-2">
                       <div className="space-y-3">
                         <div className="flex min-h-7 flex-col gap-2 px-1 sm:flex-row sm:items-end sm:justify-between">
                           <label htmlFor="api-key" className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 leading-none">
@@ -1132,7 +1188,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
 
                   {/* Render the landing card only when idle or error (hide it when crawling/embedding to focus on telemetry logs) */}
                   {activeTab === "rag" && (ingestStatus === "idle" || ingestStatus === "error") && (
-                    <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-10 shadow-sm text-center space-y-6 animate-in fade-in duration-500">
+                    <div className="rounded-[28px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm text-center space-y-6 animate-in fade-in duration-500 sm:p-8 md:rounded-[32px]">
                       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 select-none">
                         <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" strokeLinecap="round" strokeLinejoin="round" />
@@ -1153,10 +1209,10 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                   )}
 
                   {/* Summary Results rendered in left column below NetworkLog */}
-                  {activeTab === "summary" && (summaryResult || isLoadingSummary) && (
+                  {shouldShowSummaryResults && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                      <div className="flex items-center justify-between px-4">
-                        <div className="flex gap-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3 px-4">
+                        <div className="flex min-w-0 gap-4 overflow-x-auto scrollbar-hide">
                           {(["visual", "json"] as const).map(mode => (
                             <button
                               key={mode}
@@ -1172,9 +1228,9 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                       </div>
 
                       {viewMode === "visual" ? (
-                        <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-10 shadow-sm">
-                          <div className="flex flex-col gap-8 md:flex-row">
-                            <div className="flex-1 space-y-6">
+                        <div className="rounded-[28px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm sm:p-8 md:rounded-[32px]">
+                          <div className="flex flex-col gap-8 lg:flex-row">
+                            <div className="min-w-0 flex-1 space-y-6">
                               <div className="space-y-1">
                                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500">Intelligent Summary</p>
                                 <h2 className="font-serif text-3xl font-bold italic">Repository Intelligence</h2>
@@ -1206,28 +1262,50 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                                 )}
                               </div>
 
+                              {(summaryStatus === "empty" || summaryStatus === "error" || streamError) && !summaryHasData && (
+                                <div className={`rounded-2xl border p-4 text-sm font-semibold ${
+                                  summaryStatus === "empty" && !streamError
+                                    ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-950/40 dark:bg-amber-950/15 dark:text-amber-300"
+                                    : "border-red-200 bg-red-50 text-red-700 dark:border-red-950/30 dark:bg-red-950/10 dark:text-red-400"
+                                }`}>
+                                  {summaryStatus === "empty" && !streamError ? "No summary was returned." : summaryStreamMessage || "Streaming failed."}
+                                </div>
+                              )}
+
                               <p className="text-lg font-medium leading-relaxed text-zinc-700 dark:text-zinc-300">
-                                {summaryResult?.summary || "Analyzing repository and streaming results..."}
+                                {summaryResult?.summary || (
+                                  summaryStatus === "empty" && !streamError
+                                    ? "No summary was returned."
+                                    : summaryStatus === "error" || streamError
+                                      ? "The summary could not be displayed. See the alert above for details."
+                                      : "Analyzing repository and streaming results..."
+                                )}
                               </p>
                             </div>
 
-                            <div className="w-full space-y-6 md:w-80 md:shrink-0">
+                            <div className="w-full space-y-6 lg:w-80 lg:shrink-0">
                               <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-800/30 p-6">
                                 <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Cool Facts</h3>
-                                <ul className="space-y-4">
-                                  {(summaryResult?.cool_facts || []).map((fact: string | undefined, i: number) => fact ? (
-                                    <li key={i} className="flex gap-3 text-sm font-medium text-zinc-600 dark:text-zinc-300">
-                                      <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-300 dark:bg-zinc-600"></span>
-                                      {fact}
-                                    </li>
-                                  ) : null)}
-                                </ul>
+                                {summaryFacts.length > 0 ? (
+                                  <ul className="space-y-4">
+                                    {summaryFacts.map((fact: string, i: number) => (
+                                      <li key={i} className="flex gap-3 text-sm font-medium text-zinc-600 dark:text-zinc-300">
+                                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-300 dark:bg-zinc-600"></span>
+                                        {fact}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-sm font-medium leading-relaxed text-zinc-500 dark:text-zinc-400">
+                                    {isLoadingSummary ? "Cool facts will appear as the stream completes." : "No cool facts were returned."}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </div>
                         </div>
                       ) : (
-                        <JsonViewer data={summaryResult} />
+                        <JsonViewer data={summaryJsonData} />
                       )}
                     </div>
                   )}
@@ -1235,8 +1313,8 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
               )}
             </div>
 
-            {/* Right Column (md:w-80) */}
-            <div className="w-full md:w-80 md:shrink-0 space-y-6">
+            {/* Right Column */}
+            <div className="w-full space-y-6 xl:w-80 xl:shrink-0">
               <div className="space-y-2">
                 <div className="flex justify-between items-center px-1">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Integration Snippets</p>

@@ -105,9 +105,9 @@ print(response.json())`
   };
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-[#18181b] shadow-lg shadow-zinc-900/10">
-      <div className="flex items-center justify-between border-b border-white/5 bg-white/5 px-4 py-2">
-        <div className="flex gap-4">
+    <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-[#18181b] shadow-lg shadow-zinc-900/10 dark:border-zinc-800">
+      <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/5 bg-white/5 px-4 py-2">
+        <div className="flex min-w-0 gap-4 overflow-x-auto scrollbar-hide">
           {(["curl", "fetch", "python"] as const).map((tab) => (
             <button
               key={tab}
@@ -125,7 +125,7 @@ print(response.json())`
           title="Copy snippet"
         />
       </div>
-      <div className="relative p-6">
+      <div className="relative min-w-0 p-4 sm:p-6">
         <pre className="scrollbar-hide overflow-x-auto font-mono text-[11px] leading-relaxed text-zinc-300">
           <code>{snippets[activeTab]}</code>
         </pre>

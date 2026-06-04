@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Session } from "@supabase/supabase-js";
 import { Navbar } from "@/components/landing/Navbar";
@@ -86,9 +86,16 @@ export default function DocsClient({ initialSession }: { initialSession: Session
   const { toast, showToast } = useToast();
   const [activeTab, setActiveTab] = useState<CodeExampleTab>("curl");
   const [isCopied, setIsCopied] = useState(false);
-  const [apiBaseUrl] = useState(() => 
-    typeof window !== "undefined" ? window.location.origin : "https://dandi.ai"
-  );
+  const [apiBaseUrl, setApiBaseUrl] = useState("https://dandi.ai");
+
+  useEffect(() => {
+    // Keep the server and first client render identical, then localize snippets.
+    const updateOrigin = window.setTimeout(() => {
+      setApiBaseUrl(window.location.origin);
+    }, 0);
+
+    return () => window.clearTimeout(updateOrigin);
+  }, []);
 
   const codeExamples = getCodeExamples(apiBaseUrl);
 
@@ -108,7 +115,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
     <div className="min-h-screen bg-[#f4f2ed] dark:bg-zinc-950 font-sans text-[#18181b] dark:text-zinc-100 selection:bg-zinc-200 dark:selection:bg-zinc-800">
       <Navbar session={initialSession} />
 
-      <main className="mx-auto max-w-7xl px-6 pt-32 pb-24 md:pt-40">
+      <main className="mx-auto max-w-7xl px-4 pt-32 pb-24 sm:px-6 md:pt-40">
         <div className="grid gap-12 lg:grid-cols-12">
           
           {/* Left Navigation Sidebar */}
@@ -133,7 +140,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
           </aside>
 
           {/* Right Main Content Panel */}
-          <div className="lg:col-span-9 space-y-16 max-w-3xl">
+          <div className="min-w-0 max-w-3xl space-y-16 lg:col-span-9">
             
             {/* Intro Header */}
             <header className="space-y-4">
@@ -184,8 +191,8 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               <p className="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
                 All requests to the Dandi AI server must authenticate by passing your API key in the custom <code className="bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-[11px] font-mono text-zinc-800 dark:text-zinc-200">x-api-key</code> header.
               </p>
-              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 text-xs font-mono relative group flex justify-between items-center">
-                <div>
+              <div className="group relative flex min-w-0 flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 font-mono text-xs dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 overflow-x-auto">
                   <span className="text-zinc-400">x-api-key: </span>
                   <span className="text-emerald-500 dark:text-emerald-400">dandi_live_57cf89e0231ab42ef89c...</span>
                 </div>
@@ -212,8 +219,8 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <span className="rounded bg-emerald-500 text-white dark:text-zinc-950 px-2 py-1 text-[9px] font-bold uppercase tracking-widest">POST</span>
-                <div className="flex items-center gap-2 bg-zinc-200 dark:bg-zinc-800 px-3 py-1 rounded text-xs font-mono text-zinc-800 dark:text-zinc-200 relative group">
-                  <code>/api/github-summarizer</code>
+                <div className="group relative flex min-w-0 items-center gap-2 rounded bg-zinc-200 px-3 py-1 font-mono text-xs text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+                  <code className="min-w-0 truncate">/api/github-summarizer</code>
                   <button 
                     onClick={() => {
                       navigator.clipboard.writeText("/api/github-summarizer");
@@ -301,8 +308,8 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                 </div>
                 
                 {/* Example JSON payload */}
-                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 text-xs font-mono relative group flex justify-between items-center">
-                  <pre className="text-zinc-700 dark:text-zinc-300">
+                <div className="group relative flex min-w-0 flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 font-mono text-xs dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:items-center sm:justify-between">
+                  <pre className="overflow-x-auto text-zinc-700 dark:text-zinc-300">
 {`{
   "githubUrl": "https://github.com/facebook/react"
 }`}
@@ -335,7 +342,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
 
               {/* Code Tab buttons */}
               <div 
-                className="flex border-b border-zinc-200 dark:border-zinc-800 text-xs font-bold tracking-wider uppercase"
+                className="flex overflow-x-auto border-b border-zinc-200 text-xs font-bold uppercase tracking-wider scrollbar-hide dark:border-zinc-800"
                 role="tablist"
                 aria-label="Code examples in different languages"
               >
@@ -364,7 +371,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                         document.getElementById(`tab-${nextTab}`)?.focus();
                       }
                     }}
-                    className={`py-3 px-5 transition border-b-2 -mb-[2px] focus:outline-none focus-visible:bg-zinc-100 dark:focus-visible:bg-zinc-800 focus-visible:ring-inset focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-zinc-100 rounded-t-lg ${
+                    className={`-mb-[2px] shrink-0 rounded-t-lg border-b-2 px-5 py-3 transition focus:outline-none focus-visible:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-900 dark:focus-visible:bg-zinc-800 dark:focus-visible:ring-zinc-100 ${
                       activeTab === tab
                         ? "border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-white"
                         : "border-transparent text-zinc-400 hover:text-zinc-700"
@@ -381,7 +388,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                 id={`tabpanel-${activeTab}`}
                 aria-labelledby={`tab-${activeTab}`}
                 tabIndex={0}
-                className="relative rounded-2xl bg-zinc-950 p-6 shadow-xl border border-zinc-800 overflow-x-auto max-w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                className="relative max-w-full overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-4 shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:p-6"
               >
                 <button
                   onClick={copyToClipboard}
@@ -405,7 +412,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               </p>
 
               {/* Collapsible JSON Tree */}
-              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-950 p-6 font-mono text-[10px] md:text-[11px] leading-relaxed text-zinc-300 shadow-lg text-left relative group">
+              <div className="group relative overflow-x-auto rounded-2xl border border-zinc-200 bg-zinc-950 p-4 text-left font-mono text-[10px] leading-relaxed text-zinc-300 shadow-lg dark:border-zinc-800 sm:p-6 md:text-[11px]">
                 <button 
                   onClick={() => {
                     const fullResponse = {

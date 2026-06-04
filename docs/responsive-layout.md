@@ -59,19 +59,23 @@ Header expectations:
 ## Breakpoint Expectations
 
 - At `320`, `375`, `390`, and `430`, the sidebar mobile header should show the logo, current page name, and menu button.
+- Mobile sidebar labels should use compact names when the desktop label is long, for example `API Playground` renders as `Playground`.
 - At `768` and above, the shell switches to sidebar plus content columns.
+- Page content inside the shell should not introduce additional fixed-width side columns at `md` unless the content still fits beside the sidebar. Prefer `lg`/`xl` for secondary panels such as Playground snippets and result sidebars.
 - At `1024` and `1440`, content should remain inside the `max-w-screen-2xl` shell.
 - Tables should scroll inside their own card, never the full page.
 - Payment, wallet, modal, and header action groups should stack or wrap on mobile.
+- Code snippets, JSON viewers, terminal logs, and docs tables should use internal `overflow-x-auto`.
 
 ## Manual QA Checklist
 
-Run these routes at widths `320`, `375`, `390`, `430`, `768`, `1024`, and `1440`:
+Run these routes at widths `320`, `375`, `390`, `425`, `430`, `768`, `1024`, `1280`, and `1440`:
 
 - `/dashboards`
 - `/usage`
 - `/billing`
 - `/account`
+- `/docs`
 - `/playground`
 
 Verify at each width:

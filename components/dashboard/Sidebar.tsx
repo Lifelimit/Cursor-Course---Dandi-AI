@@ -9,12 +9,12 @@ import { User } from "@supabase/supabase-js";
 import { SidebarAlerts } from "./SidebarAlerts";
 
 const NAV_ITEMS = [
-  { name: "Overview", href: "/dashboards" },
-  { name: "API Playground", href: "/playground" },
-  { name: "Usage Center", href: "/usage" },
-  { name: "Billing", href: "/billing" },
-  { name: "Account Settings", href: "/account" },
-  { name: "Documentation", href: "/docs" },
+  { name: "Overview", mobileName: "Overview", href: "/dashboards" },
+  { name: "API Playground", mobileName: "Playground", href: "/playground" },
+  { name: "Usage Center", mobileName: "Usage", href: "/usage" },
+  { name: "Billing", mobileName: "Billing", href: "/billing" },
+  { name: "Account Settings", mobileName: "Account", href: "/account" },
+  { name: "Documentation", mobileName: "Docs", href: "/docs" },
 ];
 
 export type SidebarAlert = {
@@ -50,6 +50,7 @@ export function Sidebar({
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const userInitial = user?.email?.[0]?.toUpperCase() || "U";
   const activeNavItem = NAV_ITEMS.find((item) => item.href === pathname);
+  const activeMobileLabel = activeNavItem?.mobileName || "Menu";
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -74,8 +75,11 @@ export function Sidebar({
         </Link>
 
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2 md:hidden">
-          <span className="inline-flex min-w-0 max-w-[42vw] truncate rounded-full bg-zinc-100 px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 min-[420px]:max-w-[150px]">
-            {activeNavItem?.name || "Menu"}
+          <span
+            className="inline-flex min-w-0 max-w-[38vw] truncate rounded-full bg-zinc-100 px-2.5 py-2 text-[9px] font-bold uppercase tracking-wider text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 min-[360px]:max-w-[42vw] min-[420px]:max-w-[150px] min-[420px]:tracking-widest"
+            title={activeNavItem?.name || activeMobileLabel}
+          >
+            {activeMobileLabel}
           </span>
           {user && (
             user.user_metadata?.avatar_url ? (
@@ -84,12 +88,12 @@ export function Sidebar({
                 alt="Avatar"
                 width={28}
                 height={28}
-                className="h-7 w-7 rounded-full border border-zinc-200 shadow-sm dark:border-zinc-800"
+                className="hidden h-7 w-7 rounded-full border border-zinc-200 shadow-sm dark:border-zinc-800 min-[360px]:block"
                 referrerPolicy="no-referrer"
                 unoptimized
               />
             ) : (
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 text-[10px] font-black uppercase text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
+              <div className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 text-[10px] font-black uppercase text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-300 min-[360px]:flex">
                 {userInitial}
               </div>
             )
@@ -116,7 +120,7 @@ export function Sidebar({
           <button
             type="button"
             onClick={handleSignOut}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-rose-900/50 dark:hover:bg-rose-950/20 dark:hover:text-rose-400"
+            className="hidden h-9 w-9 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-rose-900/50 dark:hover:bg-rose-950/20 dark:hover:text-rose-400 min-[390px]:flex"
             aria-label="Sign out"
             title="Sign out"
           >
@@ -194,7 +198,7 @@ export function Sidebar({
 
           <button
             onClick={handleSignOut}
-            className="hidden w-full items-center gap-3 rounded-xl px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-rose-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20 dark:hover:text-rose-400 md:flex"
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-rose-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20 dark:hover:text-rose-400 md:flex"
           >
             <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
               <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
