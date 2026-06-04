@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
 import { fetchGitHubReadme, fetchGitHubMetadata } from "@/lib/services/github.service";
-import { streamGithubSummary } from "@/lib/services/ai.service";
+import { generateGithubSummary } from "@/lib/services/ai.service";
 import { Ratelimit } from "@upstash/ratelimit";
 import { redis } from "@/lib/redis";
 import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOriginAllowed } from "@/lib/cors";
@@ -126,16 +126,11 @@ export async function POST(request: Request) {
 
     // 5. Generate AI Summary Stream
     try {
-      const result = await streamGithubSummary(readmeContent);
-
-      // We need to return the stream response, but also track usage when the stream finishes.
-      // With Vercel AI SDK, we can't directly hook into `onFinish` from `streamObject` unless we pass it to the streamObject call?
-      // Wait, streamObject does not have `onFinish` in its config, but we can hook into the stream itself or just track usage instantly since the stream *started* successfully. 
-      // It is standard practice to count usage as soon as the LLM stream begins, because tokens will be consumed.
+      const summary = await generateGithubSummary(readmeContent);
       const latencyMs = Date.now() - startTime;
       await incrementKeyUsage(keyData, githubUrl, latencyMs, "success", request);
 
-      const response = result.toTextStreamResponse({
+      return NextResponse.json(summary, {
         headers: {
           ...corsHeaders,
           "x-github-metadata": JSON.stringify({
@@ -145,8 +140,6 @@ export async function POST(request: Request) {
           })
         }
       });
-
-      return response;
     } catch (aiErr) {
       console.error("AI Error:", aiErr);
       const latencyMs = Date.now() - startTime;

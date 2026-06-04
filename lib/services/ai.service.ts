@@ -1,4 +1,4 @@
-import { streamObject } from "ai";
+import { generateObject, streamObject } from "ai";
 import { z } from "zod";
 import { getGoogleApiKeys } from "@/lib/services/google-gemini.service";
 
@@ -28,4 +28,15 @@ export async function streamGithubSummary(readmeContent: string) {
   });
 
   return result;
+}
+
+export async function generateGithubSummary(readmeContent: string) {
+  const result = await generateObject({
+    model: googleProvider("gemini-3.1-flash-lite"),
+    schema: summarySchema,
+    system: "You are an expert senior staff software engineer who writes deeply insightful, highly engaging, and technically accurate repository analysis. Your audience is other senior developers who want to know the *real* value of a project beyond the marketing fluff.",
+    prompt: `Analyze this GitHub repository based on its README content. Dive deep into its architecture, core use-cases, developer experience, and what makes it truly special. README CONTENT:\n\n${readmeContent}`,
+  });
+
+  return result.object;
 }

@@ -138,8 +138,8 @@ export default function PlaygroundClient({
         duration: Math.round(performance.now() - ((window as any).__dandi_stream_start || performance.now())),
         statusCode: hasData ? 200 : 204,
         statusText: hasData ? "OK" : "No Content",
-        responseHeaders: { "Content-Type": "text/plain; charset=utf-8" },
-        responseBody: hasData ? { streaming: true, ...object } : { streaming: true, warning: "No summary was returned." }
+        responseHeaders: { "Content-Type": "application/json" },
+        responseBody: hasData ? object : { warning: "No summary was returned." }
       });
     },
     onError: (err: any) => {
@@ -771,7 +771,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
         label: "AI Processing",
         status: "pending",
         method: "POST",
-        url: "/api/ai/summarize",
+        url: "/api/github-summarizer",
         requestHeaders: {
           "Content-Type": "application/json",
           "Authorization": "Bearer dandi_ai_internal_••••••••"
