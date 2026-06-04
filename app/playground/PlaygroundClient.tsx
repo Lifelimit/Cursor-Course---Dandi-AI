@@ -103,10 +103,11 @@ export default function PlaygroundClient({
     error: streamError
   } = experimental_useObject({
     api: '/api/github-summarizer',
+    headers: (): Record<string, string> => (apiKey ? { "x-api-key": apiKey } : {}),
     schema: z.object({
-      summary: z.string(),
-      cool_facts: z.array(z.string()),
-    }),
+      summary: z.string().default(""),
+      cool_facts: z.array(z.string()).default([]),
+    }).default({ summary: "", cool_facts: [] }),
     onFinish: ({ object, error }) => {
       refreshKeys();
 
@@ -799,7 +800,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
         });
 
       // Submit to Vercel AI SDK useObject hook to start streaming
-      void submit({ githubUrl, apiKey });
+      void submit({ githubUrl });
 
     } catch (err) {
       setSummaryStatus("error");
@@ -1047,12 +1048,12 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                   <form onSubmit={activeTab === "summary" ? handleSummarize : handleIngest} className="space-y-8">
                     <div className="grid gap-8 lg:grid-cols-2">
                       <div className="space-y-3">
-                        <div className="flex min-h-12 flex-col gap-2 px-1 sm:min-h-7 sm:flex-row sm:items-end sm:justify-between lg:min-h-12 xl:min-h-7">
+                        <div className="flex min-h-16 flex-col gap-3 px-1 sm:flex-row sm:items-start sm:justify-between lg:min-h-16">
                           <label htmlFor="api-key" className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 leading-none">
                             Secure Access Token
                           </label>
                           {apiKeys.length > 0 && (
-                            <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                               <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Quick Select</span>
                               <select 
                                 value={selectValue}
@@ -1126,7 +1127,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                       </div>
 
                       <div className="space-y-3">
-                        <div className="flex min-h-12 items-end px-1 sm:min-h-7 lg:min-h-12 xl:min-h-7">
+                        <div className="flex min-h-16 items-start px-1">
                           <label htmlFor="github-url" className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 leading-none">
                             GitHub Repository URL
                           </label>

@@ -689,11 +689,37 @@ test("uses the matching Gemini model resource for batch embedding requests", asy
       assert.equal(model, "primary-model");
       assert.equal(body.requests.length, 2);
       assert(body.requests.every((request) => request.model === "models/primary-model"));
-      assert(body.requests.every((request) => request.outputDimensionality === 768));
+      assert(body.requests.every((request) => request.embedContentConfig?.outputDimensionality === 768));
+      assert(body.requests.every((request) => request.outputDimensionality === undefined));
       return jsonResponse({ embeddings: [{ values: [1, 2] }, { values: [3, 4] }] });
     };
 
     assert.deepEqual(await googleBatchEmbed(["first", "second"]), [[1, 2], [3, 4]]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreGoogleEnv(snapshot);
+  }
+});
+
+test("uses EmbedContentConfig dimensionality for single Gemini embedding requests", async () => {
+  const snapshot = snapshotGoogleEnv();
+  const originalFetch = globalThis.fetch;
+  const { googleEmbed } = loadTsModule("lib/services/google-gemini.service.ts");
+
+  try {
+    process.env.GOOGLE_API_KEYS = "key-1";
+    process.env.GOOGLE_EMBEDDING_PRIMARY = "gemini-embedding-001";
+    globalThis.fetch = async (url, options) => {
+      const model = String(url).match(/models\/([^:]+):/)?.[1];
+      const body = JSON.parse(options.body);
+      assert.equal(model, "gemini-embedding-001");
+      assert.equal(body.model, "models/gemini-embedding-001");
+      assert.equal(body.embedContentConfig.outputDimensionality, 768);
+      assert.equal(body.outputDimensionality, undefined);
+      return jsonResponse({ embedding: { values: [0.7, 0.8] } });
+    };
+
+    assert.deepEqual(await googleEmbed("query"), [0.7, 0.8]);
   } finally {
     globalThis.fetch = originalFetch;
     restoreGoogleEnv(snapshot);

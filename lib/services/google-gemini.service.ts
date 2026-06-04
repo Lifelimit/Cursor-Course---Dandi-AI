@@ -50,6 +50,12 @@ function getModelResourceName(model: string) {
   return `models/${normalizeModelName(model, model)}`;
 }
 
+function getEmbeddingConfig() {
+  return {
+    outputDimensionality: EMBEDDING_DIMENSIONS,
+  };
+}
+
 function getErrorSearchText(status: number, payload: GeminiErrorPayload, statusText: string) {
   return `${status} ${statusText} ${payload.error?.status ?? ""} ${
     payload.error?.message ?? ""
@@ -250,7 +256,7 @@ export async function googleEmbed(value: string, options: EmbeddingRequestOption
       {
         model: getModelResourceName(model),
         content: { parts: [{ text: value }] },
-        outputDimensionality: EMBEDDING_DIMENSIONS,
+        embedContentConfig: getEmbeddingConfig(),
       },
       "embedContent"
     );
@@ -288,7 +294,7 @@ export async function googleBatchEmbedWithModel(values: string[], options: Embed
           requests: batch.map((text) => ({
             model: modelResourceName,
             content: { parts: [{ text }] },
-            outputDimensionality: EMBEDDING_DIMENSIONS,
+            embedContentConfig: getEmbeddingConfig(),
           })),
         },
         "batchEmbedContents"
