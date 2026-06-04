@@ -2,7 +2,7 @@ import { getRequestTelemetry } from "@/lib/account-environments";
 import { isUuid } from "@/lib/security-core";
 import { incrementKeyUsage } from "@/lib/services/api-key.service";
 import { fetchGitHubBranch, fetchGitHubRepoTree, fetchRawFileContent } from "@/lib/services/github.service";
-import { googleBatchEmbed } from "@/lib/services/google-gemini.service";
+import { googleBatchEmbedWithModel, isGeminiEmbeddingRateLimitError } from "@/lib/services/google-gemini.service";
 import { selectRagFiles } from "@/lib/services/rag-file-selection.service";
 import { redis } from "@/lib/redis";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -263,11 +263,12 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
     );
 
     if (allChunks.length > 0) {
-      const embeddings = await googleBatchEmbed(allChunks.map((chunk) => chunk.content));
+      const { embeddings, model } = await googleBatchEmbedWithModel(allChunks.map((chunk) => chunk.content));
       const rowsToInsert = allChunks.map((chunk, index) => ({
         repo_url: job.repo_url,
         user_id: job.user_id,
         api_key_id: job.api_key_id,
+        embedding_model: model,
         file_path: chunk.path,
         content: chunk.content,
         embedding: embeddings[index],
@@ -301,7 +302,11 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
 
     return completedJob;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = isGeminiEmbeddingRateLimitError(err)
+      ? "Gemini embedding rate limit reached during ingestion. Please retry this repository after the quota window resets."
+      : err instanceof Error
+        ? err.message
+        : String(err);
     await updateJob(job.id, {
       status: "failed",
       error: message,

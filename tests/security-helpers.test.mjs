@@ -434,7 +434,7 @@ test("resolves Gemini embedding model defaults and overrides", () => {
   try {
     delete process.env.GOOGLE_EMBEDDING_PRIMARY;
     delete process.env.GOOGLE_EMBEDDING_FALLBACK;
-    assert.equal(getPrimaryEmbeddingModel(), ["gemini", "embedding", "002"].join("-"));
+    assert.equal(getPrimaryEmbeddingModel(), ["gemini", "embedding", "001"].join("-"));
     assert.equal(getFallbackEmbeddingModel(), ["gemini", "embedding", "001"].join("-"));
 
     process.env.GOOGLE_EMBEDDING_PRIMARY = "models/custom-primary";
@@ -442,6 +442,41 @@ test("resolves Gemini embedding model defaults and overrides", () => {
     assert.equal(getPrimaryEmbeddingModel(), "custom-primary");
     assert.equal(getFallbackEmbeddingModel(), "custom-fallback");
   } finally {
+    restoreGoogleEnv(snapshot);
+  }
+});
+
+test("supports gemini-embedding-002 as an explicitly configured fallback", async () => {
+  const snapshot = snapshotGoogleEnv();
+  const originalFetch = globalThis.fetch;
+  const originalWarn = console.warn;
+  const calls = [];
+  const { googleEmbed } = loadTsModule("lib/services/google-gemini.service.ts");
+
+  try {
+    process.env.GOOGLE_API_KEYS = "key-1";
+    process.env.GOOGLE_EMBEDDING_PRIMARY = "gemini-embedding-001";
+    process.env.GOOGLE_EMBEDDING_FALLBACK = "gemini-embedding-002";
+    console.warn = () => {};
+    globalThis.fetch = async (url) => {
+      const model = String(url).match(/models\/([^:]+):/)?.[1];
+      calls.push(model);
+
+      if (model === "gemini-embedding-001") {
+        return jsonResponse(
+          { error: { status: "RESOURCE_EXHAUSTED", message: "quota exceeded" } },
+          { status: 429, statusText: "Too Many Requests" }
+        );
+      }
+
+      return jsonResponse({ embedding: { values: [0.3, 0.4] } });
+    };
+
+    assert.deepEqual(await googleEmbed("query"), [0.3, 0.4]);
+    assert.deepEqual(calls, ["gemini-embedding-001", "gemini-embedding-002"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
     restoreGoogleEnv(snapshot);
   }
 });
@@ -494,6 +529,47 @@ test("tries Gemini embedding keys and models in the requested failover order", a
   }
 });
 
+test("dedupes identical Gemini embedding primary and fallback model attempts", async () => {
+  const snapshot = snapshotGoogleEnv();
+  const originalFetch = globalThis.fetch;
+  const originalWarn = console.warn;
+  const calls = [];
+  const { googleEmbed } = loadTsModule("lib/services/google-gemini.service.ts");
+
+  try {
+    process.env.GOOGLE_API_KEYS = "key-1,key-2";
+    process.env.GOOGLE_EMBEDDING_PRIMARY = "gemini-embedding-001";
+    process.env.GOOGLE_EMBEDDING_FALLBACK = "models/gemini-embedding-001";
+    console.warn = () => {};
+    globalThis.fetch = async (url, options) => {
+      const model = String(url).match(/models\/([^:]+):/)?.[1];
+      calls.push({
+        key: options.headers["x-goog-api-key"],
+        model,
+      });
+
+      if (calls.length === 1) {
+        return jsonResponse(
+          { error: { status: "RESOURCE_EXHAUSTED", message: "quota exceeded" } },
+          { status: 429, statusText: "Too Many Requests" }
+        );
+      }
+
+      return jsonResponse({ embedding: { values: [0.5, 0.6] } });
+    };
+
+    assert.deepEqual(await googleEmbed("query"), [0.5, 0.6]);
+    assert.deepEqual(calls, [
+      { key: "key-1", model: "gemini-embedding-001" },
+      { key: "key-2", model: "gemini-embedding-001" },
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
+    restoreGoogleEnv(snapshot);
+  }
+});
+
 test("does not rotate Gemini embedding keys for invalid or unauthorized responses", async () => {
   const snapshot = snapshotGoogleEnv();
   const originalFetch = globalThis.fetch;
@@ -520,6 +596,37 @@ test("does not rotate Gemini embedding keys for invalid or unauthorized response
       await assert.rejects(() => googleEmbed("query"), new RegExp(String(status)));
       assert.equal(callCount, 1);
     }
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
+    restoreGoogleEnv(snapshot);
+  }
+});
+
+test("classifies exhausted Gemini embedding attempts as rate limit errors", async () => {
+  const snapshot = snapshotGoogleEnv();
+  const originalFetch = globalThis.fetch;
+  const originalWarn = console.warn;
+  const { googleEmbed, isGeminiEmbeddingRateLimitError } = loadTsModule("lib/services/google-gemini.service.ts");
+
+  try {
+    process.env.GOOGLE_API_KEYS = "key-1";
+    process.env.GOOGLE_EMBEDDING_PRIMARY = "primary-model";
+    process.env.GOOGLE_EMBEDDING_FALLBACK = "fallback-model";
+    console.warn = () => {};
+    globalThis.fetch = async () =>
+      jsonResponse(
+        { error: { status: "RESOURCE_EXHAUSTED", message: "quota exceeded" } },
+        { status: 429, statusText: "Too Many Requests" }
+      );
+
+    await assert.rejects(
+      () => googleEmbed("query"),
+      (error) => {
+        assert.equal(isGeminiEmbeddingRateLimitError(error), true);
+        return true;
+      }
+    );
   } finally {
     globalThis.fetch = originalFetch;
     console.warn = originalWarn;
@@ -589,6 +696,47 @@ test("uses the matching Gemini model resource for batch embedding requests", asy
     assert.deepEqual(await googleBatchEmbed(["first", "second"]), [[1, 2], [3, 4]]);
   } finally {
     globalThis.fetch = originalFetch;
+    restoreGoogleEnv(snapshot);
+  }
+});
+
+test("keeps all batch embedding chunks on the first selected model", async () => {
+  const snapshot = snapshotGoogleEnv();
+  const originalFetch = globalThis.fetch;
+  const originalWarn = console.warn;
+  const calls = [];
+  const { googleBatchEmbedWithModel } = loadTsModule("lib/services/google-gemini.service.ts");
+
+  try {
+    process.env.GOOGLE_API_KEYS = "key-1";
+    process.env.GOOGLE_EMBEDDING_PRIMARY = "primary-model";
+    process.env.GOOGLE_EMBEDDING_FALLBACK = "fallback-model";
+    console.warn = () => {};
+    globalThis.fetch = async (url, options) => {
+      const model = String(url).match(/models\/([^:]+):/)?.[1];
+      const body = JSON.parse(options.body);
+      calls.push({ model, count: body.requests.length });
+
+      if (calls.length === 2) {
+        return jsonResponse(
+          { error: { status: "RESOURCE_EXHAUSTED", message: "quota exceeded" } },
+          { status: 429, statusText: "Too Many Requests" }
+        );
+      }
+
+      return jsonResponse({
+        embeddings: body.requests.map((_, index) => ({ values: [index, index + 1] })),
+      });
+    };
+
+    await assert.rejects(() => googleBatchEmbedWithModel(Array.from({ length: 21 }, (_, index) => `chunk ${index}`)));
+    assert.deepEqual(calls, [
+      { model: "primary-model", count: 20 },
+      { model: "primary-model", count: 1 },
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
     restoreGoogleEnv(snapshot);
   }
 });

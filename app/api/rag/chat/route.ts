@@ -5,7 +5,7 @@ import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { getJsonObject, validateChatMessages, validateGitHubRepoUrl } from "@/lib/request-validation";
 import { googleProvider } from "@/lib/services/ai.service";
 import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
-import { googleEmbed } from "@/lib/services/google-gemini.service";
+import { getPrimaryEmbeddingModel, googleEmbed, isGeminiEmbeddingRateLimitError } from "@/lib/services/google-gemini.service";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const corsOptions = {
@@ -34,6 +34,26 @@ interface MatchedChunk {
   file_path: string;
   content: string;
   similarity: number;
+}
+
+async function getRepositoryEmbeddingModel(repoUrl: string, userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("repository_chunks")
+    .select("embedding_model")
+    .eq("repo_url", repoUrl)
+    .eq("user_id", userId)
+    .not("embedding_model", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Failed to read repository embedding model, falling back to primary model:", error.message);
+  }
+
+  return typeof data?.embedding_model === "string" && data.embedding_model.trim()
+    ? data.embedding_model
+    : getPrimaryEmbeddingModel();
 }
 
 export async function POST(request: Request) {
@@ -82,7 +102,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const embedding = await googleEmbed(userQuery);
+    const embeddingModel = await getRepositoryEmbeddingModel(githubUrl, keyData.user_id);
+    const embedding = await googleEmbed(userQuery, { models: [embeddingModel] });
     const { data: matchedChunks, error: searchError } = await supabaseAdmin.rpc(
       "match_repository_chunks",
       {
@@ -91,6 +112,7 @@ export async function POST(request: Request) {
         match_count: 5,
         p_repo_url: githubUrl,
         p_user_id: keyData.user_id,
+        p_embedding_model: embeddingModel,
       }
     );
 
@@ -139,7 +161,7 @@ export async function POST(request: Request) {
     }
 
     const errMsg = err instanceof Error ? err.message : String(err);
-    const isQuotaExceeded = errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED");
+    const isQuotaExceeded = isGeminiEmbeddingRateLimitError(err) || errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED");
     const isBadRequest =
       errMsg.includes("Invalid GitHub repository URL") ||
       errMsg.includes("messages") ||
@@ -154,7 +176,7 @@ export async function POST(request: Request) {
             : "Internal server error during chat session.",
         details: errMsg,
       },
-      { status: isBadRequest ? 400 : 500, headers: corsHeaders }
+      { status: isBadRequest ? 400 : isQuotaExceeded ? 429 : 500, headers: corsHeaders }
     );
   }
 }

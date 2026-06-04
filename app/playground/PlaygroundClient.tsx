@@ -80,6 +80,22 @@ export default function PlaygroundClient({
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
+  const getFriendlySummaryStreamError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error || "");
+    const lowerMessage = message.toLowerCase();
+
+    if (
+      lowerMessage.includes("type validation failed") ||
+      lowerMessage.includes("invalid_type") ||
+      lowerMessage.includes("expected") && lowerMessage.includes("received") ||
+      lowerMessage.includes("required")
+    ) {
+      return "The AI summary stream ended before returning the expected summary object. Please retry the request.";
+    }
+
+    return message || "The summary stream did not match the expected response shape.";
+  };
+
   const {
     submit,
     object: summaryResult,
@@ -95,7 +111,7 @@ export default function PlaygroundClient({
       refreshKeys();
 
       if (error) {
-        const message = error.message || "The summary stream did not match the expected response shape.";
+        const message = getFriendlySummaryStreamError(error);
         setSummaryStatus("error");
         setSummaryIssue(message);
         setErrorMessage(message);
@@ -126,7 +142,7 @@ export default function PlaygroundClient({
       });
     },
     onError: (err: any) => {
-      const message = err.message || "Streaming failed";
+      const message = getFriendlySummaryStreamError(err);
       setSummaryStatus("error");
       setSummaryIssue(message);
       setErrorMessage(message);
@@ -338,7 +354,11 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
       setIngestStatus("error");
       
       setLogState("repo_fetch", { status: "error", responseBody: { error: errMsg } });
-      setLogState("ai_processing", { status: "error", responseBody: { error: errMsg } });
+      setLogState("ai_processing", {
+        status: "error",
+        statusText: errMsg.includes("rate limit") ? "Rate Limited" : "Failed",
+        responseBody: { error: errMsg }
+      });
       showToast("error", "Failed to ingest codebase.");
     }
   };
@@ -492,7 +512,11 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
       console.error(err);
       const errMsg = err.message || "Failed to stream answer.";
       setErrorMessage(errMsg);
-      setLogState("ai_processing", { status: "error", responseBody: { error: errMsg } });
+      setLogState("ai_processing", {
+        status: "error",
+        statusText: errMsg.includes("rate limit") ? "Rate Limited" : "Stream Error",
+        responseBody: { error: errMsg }
+      });
 
       setRagMessages(prev => {
         const updated = [...prev];
@@ -1023,7 +1047,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                   <form onSubmit={activeTab === "summary" ? handleSummarize : handleIngest} className="space-y-8">
                     <div className="grid gap-8 lg:grid-cols-2">
                       <div className="space-y-3">
-                        <div className="flex min-h-7 flex-col gap-2 px-1 sm:flex-row sm:items-end sm:justify-between">
+                        <div className="flex min-h-12 flex-col gap-2 px-1 sm:min-h-7 sm:flex-row sm:items-end sm:justify-between lg:min-h-12 xl:min-h-7">
                           <label htmlFor="api-key" className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 leading-none">
                             Secure Access Token
                           </label>
@@ -1102,7 +1126,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                       </div>
 
                       <div className="space-y-3">
-                        <div className="flex h-7 items-end px-1">
+                        <div className="flex min-h-12 items-end px-1 sm:min-h-7 lg:min-h-12 xl:min-h-7">
                           <label htmlFor="github-url" className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 leading-none">
                             GitHub Repository URL
                           </label>
