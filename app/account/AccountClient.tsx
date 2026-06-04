@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Sidebar } from "@/components/dashboard/Sidebar";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
@@ -480,32 +481,23 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f2ed] dark:bg-zinc-950 text-[#18181b] dark:text-zinc-100 selection:bg-zinc-200 dark:selection:bg-zinc-800">
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-start gap-6 p-4 sm:p-6 md:flex-row md:gap-8 md:py-12">
-        <Sidebar 
-          totalUsage={usage?.totalUsage || 0} 
-          plan={userPlan} 
-          limit={planLimit} 
-          isUnlimited={isUnlimited} 
-          alerts={alerts}
-          onUpdate={loadData}
-        />
-
-        <main className="w-full min-w-0 flex-1 space-y-8">
-          {/* Header */}
-          <div className="rounded-[28px] border border-zinc-200 bg-white/50 p-5 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/50 sm:p-8 md:rounded-[32px]">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="space-y-1">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">Identity / System Settings</p>
-                <h1 className="font-serif text-4xl font-bold tracking-tight sm:text-5xl">Account</h1>
-                <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                  Manage personal credentials, API namespaces, webhooks, and provider integrations.
-                </p>
-              </div>
-            </div>
-
-            {/* Custom Tab Switcher */}
-            <div className="mt-8 flex gap-2 overflow-x-auto border-t border-zinc-100 pt-6 scrollbar-hide dark:border-zinc-800">
+    <>
+      <DashboardShell
+        sidebar={{
+          totalUsage: usage?.totalUsage || 0,
+          plan: userPlan,
+          limit: planLimit,
+          isUnlimited,
+          alerts,
+          onUpdate: loadData,
+        }}
+      >
+          <DashboardPageHeader
+            eyebrow="Identity / System Settings"
+            title="Account"
+            description="Manage personal credentials, API namespaces, webhooks, and provider integrations."
+          >
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
               {([
                 { id: "profile", label: "Developer Profile" },
                 { id: "integrations", label: "Git Providers" },
@@ -525,7 +517,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                 </button>
               ))}
             </div>
-          </div>
+          </DashboardPageHeader>
 
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 space-y-4">
@@ -577,9 +569,9 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                         className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-5 py-4 text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-4 focus:ring-zinc-900/5 dark:focus:ring-zinc-100/5 transition-all" 
                       />
                       {orgSlug && (
-                        <div className="rounded-xl bg-zinc-50 dark:bg-zinc-950 p-3 border border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[9px] font-mono text-zinc-400 ml-1">
+                        <div className="ml-1 flex flex-col gap-1 rounded-xl border border-zinc-100 bg-zinc-50 p-3 font-mono text-[9px] text-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 sm:flex-row sm:items-center sm:justify-between">
                           <span>Custom Namespace Preview:</span>
-                          <span className="font-bold text-emerald-500 dark:text-emerald-400 select-all">https://dandi.ai/org/{orgSlug}</span>
+                          <span className="break-all font-bold text-emerald-500 select-all dark:text-emerald-400">https://dandi.ai/org/{orgSlug}</span>
                         </div>
                       )}
                     </div>
@@ -1479,8 +1471,7 @@ X-Dandi-Event: quota.warning`}
 
             </div>
           )}
-        </main>
-      </div>
+      </DashboardShell>
 
       {/* Webhook Delivery Payload Inspector Modal */}
       {inspectedLog && (
@@ -1610,6 +1601,6 @@ X-Dandi-Event: quota.warning`}
       )}
 
       <Toast toast={toast} />
-    </div>
+    </>
   );
 }

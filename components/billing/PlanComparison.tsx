@@ -13,7 +13,7 @@ export function PlanComparison({
   const [selectedInterval, setSelectedInterval] = useState<"month" | "year">(initialInterval);
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8 sm:space-y-12">
       <div className="flex flex-col items-center gap-4 px-2 text-center">
         <h3 className="font-serif text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Choose your path</h3>
         <div className="flex w-full max-w-sm items-center justify-center gap-2 rounded-full bg-zinc-100 p-1 dark:bg-zinc-800 sm:w-auto">
@@ -55,7 +55,7 @@ export function PlanComparison({
           return (
             <div 
               key={plan.id}
-              className={`group relative flex flex-col rounded-[40px] border p-10 transition-all hover:scale-[1.02] ${cardStyles}`}
+              className={`group relative flex min-w-0 flex-col rounded-[32px] border p-6 transition-all hover:scale-[1.02] sm:p-10 md:rounded-[40px] ${cardStyles}`}
             >
               {(isCurrent || plan.recommended) && (
                 <div className="mb-6 flex min-h-6 flex-wrap gap-2">
@@ -80,7 +80,7 @@ export function PlanComparison({
               <div className="mb-8 space-y-2">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">{plan.name}</h3>
                 <div className="flex items-baseline gap-1">
-                  <span className={`text-5xl font-bold tracking-tighter ${priceColor}`}>{displayPrice}</span>
+                  <span className={`text-4xl font-bold tracking-tighter sm:text-5xl ${priceColor}`}>{displayPrice}</span>
                   <span className={`text-xs font-medium uppercase tracking-widest ${labelColor}`}>/ mo</span>
                 </div>
                 {selectedInterval === "year" && plan.id !== "Hobby" && (

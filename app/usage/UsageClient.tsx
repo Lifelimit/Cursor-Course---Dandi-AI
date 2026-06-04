@@ -5,7 +5,8 @@ import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
-import { Sidebar } from "@/components/dashboard/Sidebar";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { QuotaHealthGrid } from "@/components/usage/QuotaHealthGrid";
 import { TopReposTable } from "@/components/usage/TopReposTable";
 import { AnalyticsDashboard } from "@/components/usage/AnalyticsDashboard";
@@ -137,55 +138,50 @@ export default function UsageClient({
   const showSkeleton = isLoading && !initialData;
 
   return (
-    <div className="min-h-screen bg-[#f4f2ed] dark:bg-zinc-950 text-[#18181b] dark:text-zinc-100 selection:bg-zinc-200 dark:selection:bg-zinc-800">
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-start gap-8 p-6 md:flex-row md:py-12">
-        <Sidebar 
-          totalUsage={currentData?.totalUsage || 0} 
-          plan={currentPlan} 
-          limit={currentLimit} 
-          isUnlimited={isUnlimited} 
-          alerts={alerts}
-          onUpdate={fetchUsageData}
-        />
-        
-        <main className="min-w-0 flex-1 space-y-8">
-                 {/* Header */}
-          <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 p-8 backdrop-blur-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="space-y-1">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">Intelligence / Analytics</p>
-                <div className="flex flex-wrap items-center gap-4">
-                  <h1 className="font-serif text-5xl font-bold tracking-tight">Usage Center</h1>
-                  
-                  {/* Live Telemetry Status Dot */}
-                  <div className="flex items-center gap-2.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950 px-4 py-2 shadow-sm transition-all select-none">
-                    <div className="relative flex h-2 w-2">
-                      <span className={`absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 ${isSyncing ? "animate-ping scale-150" : "animate-pulse"}`} />
-                      <span className={`relative inline-flex rounded-full h-2 w-2 ${isSyncing ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-emerald-500"}`} />
-                    </div>
-                    <span className="font-mono text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 flex items-center gap-1.5">
-                      {isSyncing ? (
-                        <span className="text-emerald-500 font-bold animate-pulse">Syncing...</span>
-                      ) : (
-                        <>
-                          Telemetry Active <span className="text-zinc-200 dark:text-zinc-800">|</span> <span className="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 tabular-nums">Synced {lastSyncedTime}</span>
-                        </>
-                      )}
-                    </span>
+    <>
+      <DashboardShell
+        sidebar={{
+          totalUsage: currentData?.totalUsage || 0,
+          plan: currentPlan,
+          limit: currentLimit,
+          isUnlimited,
+          alerts,
+          onUpdate: fetchUsageData,
+        }}
+      >
+          <DashboardPageHeader
+            eyebrow="Intelligence / Analytics"
+            title="Usage Center"
+            description="Track quota health, live telemetry, and repository usage trends."
+            rightAction={
+              <>
+                <div className="flex max-w-full items-center gap-2.5 rounded-full border border-zinc-200 bg-white/80 px-4 py-2 shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="relative flex h-2 w-2 shrink-0">
+                    <span className={`absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 ${isSyncing ? "animate-ping scale-150" : "animate-pulse"}`} />
+                    <span className={`relative inline-flex rounded-full h-2 w-2 ${isSyncing ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-emerald-500"}`} />
                   </div>
+                  <span className="flex min-w-0 items-center gap-1.5 font-mono text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                    {isSyncing ? (
+                      <span className="animate-pulse font-bold text-emerald-500">Syncing...</span>
+                    ) : (
+                      <>
+                        Telemetry Active <span className="text-zinc-200 dark:text-zinc-800">|</span> <span className="text-[8px] font-bold tabular-nums text-zinc-400 dark:text-zinc-500">Synced {lastSyncedTime}</span>
+                      </>
+                    )}
+                  </span>
                 </div>
-              </div>
-              <button
-                onClick={handleExport}
-                className="group flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-400 transition hover:bg-zinc-900 dark:hover:bg-zinc-100 hover:text-white dark:hover:text-zinc-950 shadow-sm self-start sm:self-center"
-              >
-                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
-                  <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                Export CSV
-              </button>
-            </div>
-          </div>
+                <button
+                  onClick={handleExport}
+                  className="group flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-600 shadow-sm transition hover:bg-zinc-900 hover:text-white dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-100 dark:hover:text-zinc-950"
+                >
+                  <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
+                    <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Export CSV
+                </button>
+              </>
+            }
+          />
 
           {showSkeleton ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -213,7 +209,7 @@ export default function UsageClient({
               )}
 
               {/* Tabs Switch */}
-              <div className="flex gap-6 border-b border-zinc-200 dark:border-zinc-800 pb-3">
+              <div className="flex gap-6 overflow-x-auto border-b border-zinc-200 pb-3 scrollbar-hide dark:border-zinc-800">
                 <button
                   onClick={() => setActiveTab("credentials")}
                   className={`text-[10px] font-black uppercase tracking-widest transition-all pb-1.5 border-b-2 outline-none ${
@@ -298,10 +294,9 @@ export default function UsageClient({
               )}
             </>
           )}
-        </main>
-      </div>
+      </DashboardShell>
 
       <Toast toast={toast} />
-    </div>
+    </>
   );
 }

@@ -17,13 +17,22 @@ const NAV_ITEMS = [
   { name: "Documentation", href: "/docs" },
 ];
 
-type SidebarAlert = {
+export type SidebarAlert = {
   id: string;
   keyName: string;
   pct: number;
   threshold: number;
   currentLimit: number;
   dailyTrend: { date: string, count: number }[];
+};
+
+export type SidebarProps = {
+  totalUsage?: number; 
+  plan?: string; 
+  limit?: number;
+  isUnlimited?: boolean;
+  alerts?: SidebarAlert[];
+  onUpdate?: () => void;
 };
 
 export function Sidebar({ 
@@ -33,14 +42,7 @@ export function Sidebar({
   isUnlimited = false,
   alerts = [],
   onUpdate = () => {}
-}: { 
-  totalUsage?: number; 
-  plan?: string; 
-  limit?: number;
-  isUnlimited?: boolean;
-  alerts?: SidebarAlert[];
-  onUpdate?: () => void;
-}) {
+}: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -63,7 +65,7 @@ export function Sidebar({
 
   return (
     <aside className="sticky top-3 z-[100] flex h-fit w-full flex-col gap-3 rounded-2xl border border-zinc-200 bg-white/85 p-3 shadow-lg shadow-black/5 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/85 dark:shadow-black/20 md:top-12 md:w-72 md:shrink-0 md:gap-6 md:rounded-[32px] md:bg-white/50 md:p-8 md:shadow-none md:dark:bg-zinc-900/50">
-      <div className="flex items-center justify-between gap-3 md:mb-8">
+      <div className="flex min-w-0 items-center justify-between gap-3 md:mb-8">
         <Link href="/" className="group flex shrink-0 cursor-pointer items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#18181b] dark:bg-zinc-100 text-white dark:text-zinc-900 transition-transform group-hover:scale-110">
             <span className="font-serif text-lg font-bold italic">D</span>
@@ -71,8 +73,8 @@ export function Sidebar({
           <span className="hidden font-serif text-base font-bold tracking-tight min-[420px]:inline md:inline md:text-lg">DANDI AI</span>
         </Link>
 
-        <div className="flex items-center gap-2 md:hidden">
-          <span className="hidden max-w-[150px] truncate rounded-full bg-zinc-100 px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 min-[420px]:inline-flex">
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2 md:hidden">
+          <span className="inline-flex min-w-0 max-w-[42vw] truncate rounded-full bg-zinc-100 px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 min-[420px]:max-w-[150px]">
             {activeNavItem?.name || "Menu"}
           </span>
           {user && (

@@ -15,13 +15,13 @@ export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, bil
   const pct = isUnlimited ? 0 : Math.min((usage / limit) * 100, 100);
   
   return (
-    <div className="relative overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm">
+    <div className="relative overflow-hidden rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8 md:rounded-[32px]">
       {/* Background Accent */}
       <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-emerald-500/5 blur-[80px]" />
       <div className="absolute -left-24 -bottom-24 h-64 w-64 rounded-full bg-zinc-900/5 dark:bg-zinc-100/5 blur-[80px]" />
  
-      <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-4">
+      <div className="relative z-10 flex min-w-0 flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 space-y-4">
           <div className="space-y-1">
             <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">Current Subscription</p>
             <h2 className="font-serif text-4xl font-bold tracking-tight italic text-zinc-900 dark:text-zinc-100">{plan}</h2>
@@ -55,7 +55,7 @@ export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, bil
           </div>
         </div>
  
-        <div className="w-full max-w-md space-y-4">
+        <div className="w-full min-w-0 max-w-md space-y-4">
           <div className="flex items-end justify-between">
             <div className="space-y-1">
               <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Usage this Period</p>

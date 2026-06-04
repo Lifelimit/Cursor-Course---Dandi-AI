@@ -436,18 +436,18 @@ export function AnalyticsDashboard({
       </div>
 
       {/* Main Interactive Chart Card */}
-      <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm">
-        <div className="flex items-center justify-between mb-6">
+      <div className="rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8 md:rounded-[32px]">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Historical Telemetry</p>
-            <h3 className="font-serif text-2xl font-bold tracking-tight flex items-center gap-2">
+            <h3 className="flex flex-wrap items-center gap-2 font-serif text-2xl font-bold tracking-tight">
               {metricName} 
               <span className="text-xs font-normal font-sans text-zinc-400">/ last 30 days</span>
             </h3>
           </div>
           
           {/* Chart Legend */}
-          <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+          <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: chartColor }} />
               <span>{metricName}</span>

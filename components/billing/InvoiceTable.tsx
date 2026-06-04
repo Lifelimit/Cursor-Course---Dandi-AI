@@ -35,7 +35,7 @@ const InvoiceTableSkeleton = () => (
 export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoice[]; isLoading?: boolean }) {
   if (!isLoading && (!invoices || invoices.length === 0)) {
     return (
-      <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 border-dashed bg-white dark:bg-zinc-900 p-12 text-center">
+      <div className="rounded-[28px] border border-zinc-200 border-dashed bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-900 sm:p-12 md:rounded-[32px]">
         <p className="text-sm font-medium text-zinc-400">No invoices found yet.</p>
       </div>
     );
@@ -75,7 +75,7 @@ export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoic
       )}
 
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full min-w-[560px] text-left border-collapse">
           <thead>
             <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20">
               <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400">Date</th>

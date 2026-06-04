@@ -4,7 +4,8 @@
 import { useState, useEffect, useRef } from "react";
 import { experimental_useObject } from "@ai-sdk/react";
 import { z } from "zod";
-import { Sidebar } from "@/components/dashboard/Sidebar";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useApiKeys } from "@/hooks/useApiKeys";
@@ -756,79 +757,76 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
   const isOverLimit = activeKeyPct !== null && activeKeyPct >= 100;
 
   return (
-    <div className="min-h-screen bg-[#f4f2ed] dark:bg-zinc-950 text-[#18181b] dark:text-zinc-100 selection:bg-zinc-200 dark:selection:bg-zinc-800">
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-stretch gap-8 p-6 md:flex-row md:py-12">
-        <Sidebar 
-          totalUsage={totalUsage} 
-          plan={currentPlan} 
-          limit={currentLimit} 
-          isUnlimited={isUnlimited} 
-          alerts={alerts}
-          onUpdate={async () => {
+    <>
+      <DashboardShell
+        sidebar={{
+          totalUsage,
+          plan: currentPlan,
+          limit: currentLimit,
+          isUnlimited,
+          alerts,
+          onUpdate: async () => {
             await refreshKeys();
             router.refresh();
-          }}
-        />
-        
-        <main className="min-w-0 flex-1 space-y-8">
+          },
+        }}
+      >
+          <DashboardPageHeader
+            eyebrow="Environment / Testing"
+            title="API Playground"
+            description="Validate your secure credentials and monitor live orchestration response times."
+          >
+            <div className="flex gap-8 overflow-x-auto border-b border-zinc-200 pb-3 scrollbar-hide dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("summary");
+                  setErrorMessage("");
+                }}
+                className={`shrink-0 pb-4 text-xs font-bold uppercase tracking-widest transition-all outline-none cursor-pointer ${
+                  activeTab === "summary" 
+                    ? "text-emerald-500 border-b-2 border-emerald-500 font-extrabold" 
+                    : "text-zinc-400 hover:text-zinc-650 dark:text-zinc-500 dark:hover:text-zinc-400 font-bold"
+                }`}
+              >
+                Summary Engine
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("rag");
+                  setErrorMessage("");
+                }}
+                className={`flex shrink-0 items-center gap-2 pb-4 text-xs font-bold uppercase tracking-widest transition-all outline-none cursor-pointer ${
+                  activeTab === "rag" 
+                    ? "text-emerald-500 border-b-2 border-emerald-500 font-extrabold" 
+                    : "text-zinc-400 hover:text-zinc-650 dark:text-zinc-500 dark:hover:text-zinc-400 font-bold"
+                }`}
+              >
+                Repository Chat (RAG)
+                <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-emerald-500">New</span>
+              </button>
+            </div>
+          </DashboardPageHeader>
+
           <div className="flex flex-col gap-8 md:flex-row">
             {/* Left Column (flex-1) */}
             <div className="flex-1 min-w-0 space-y-8">
-              {/* Page Header (always visible at top of Left Column) */}
-              <div className="space-y-2 select-none">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">Environment / Testing</p>
-                <h1 className="font-serif text-4xl font-bold md:text-5xl">API Playground</h1>
-                <p className="mt-4 text-sm font-medium text-zinc-550 dark:text-zinc-400">Validate your secure credentials and monitor live orchestration response times.</p>
-              </div>
-              
-              {/* Custom Tab Selector (always visible below Header) */}
-              <div className="flex border-b border-zinc-200 dark:border-zinc-800 gap-8 mb-6 select-none">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab("summary");
-                    setErrorMessage("");
-                  }}
-                  className={`pb-4 text-xs font-bold uppercase tracking-widest transition-all outline-none cursor-pointer ${
-                    activeTab === "summary" 
-                      ? "text-emerald-500 border-b-2 border-emerald-500 font-extrabold" 
-                      : "text-zinc-400 hover:text-zinc-650 dark:text-zinc-500 dark:hover:text-zinc-400 font-bold"
-                  }`}
-                >
-                  Summary Engine
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab("rag");
-                    setErrorMessage("");
-                  }}
-                  className={`pb-4 text-xs font-bold uppercase tracking-widest transition-all outline-none flex items-center gap-2 cursor-pointer ${
-                    activeTab === "rag" 
-                      ? "text-emerald-500 border-b-2 border-emerald-500 font-extrabold" 
-                      : "text-zinc-400 hover:text-zinc-650 dark:text-zinc-500 dark:hover:text-zinc-400 font-bold"
-                  }`}
-                >
-                  Repository Chat (RAG)
-                  <span className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">New</span>
-                </button>
-              </div>
-
               {/* Conditional Panel Rendering */}
               {activeTab === "rag" && ingestedRepo === githubUrl && ingestStatus === "completed" ? (
                 /* RAG Chat room box */
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                  <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm flex flex-col min-h-[500px]">
+                  <div className="flex min-h-[500px] flex-col rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8 md:rounded-[32px]">
                     {/* Header of Chat Room */}
-                    <div className="border-b border-zinc-150 dark:border-zinc-800 pb-5 mb-6 flex justify-between items-center select-none">
-                      <div className="flex items-center gap-3">
+                    <div className="mb-6 flex flex-col gap-4 border-b border-zinc-150 pb-5 select-none dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
                         <div className="h-10 w-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center font-bold font-serif text-lg">D</div>
-                        <div>
+                        <div className="min-w-0">
                           <h3 className="font-serif text-md font-bold">RAG Codebase Companion</h3>
                           <span className="text-[9px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-widest">Active Chat Session</span>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() => {
@@ -969,12 +967,12 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                   <form onSubmit={activeTab === "summary" ? handleSummarize : handleIngest} className="space-y-8">
                     <div className="grid gap-8 md:grid-cols-2">
                       <div className="space-y-3">
-                        <div className="flex h-7 items-end justify-between px-1">
+                        <div className="flex min-h-7 flex-col gap-2 px-1 sm:flex-row sm:items-end sm:justify-between">
                           <label htmlFor="api-key" className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 leading-none">
                             Secure Access Token
                           </label>
                           {apiKeys.length > 0 && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Quick Select</span>
                               <select 
                                 value={selectValue}
@@ -1276,9 +1274,8 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
               </div>
             </div>
           </div>
-        </main>
-      </div>
+      </DashboardShell>
       <Toast toast={toast} />
-    </div>
+    </>
   );
 }

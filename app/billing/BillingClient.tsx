@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { User } from "@supabase/supabase-js";
-import { Sidebar } from "@/components/dashboard/Sidebar";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { PlanHero } from "@/components/billing/PlanHero";
@@ -197,25 +198,22 @@ export default function BillingClient({
   const showSkeleton = isLoading && !initialData;
 
   return (
-    <div className="min-h-screen bg-[#f4f2ed] dark:bg-zinc-950 text-[#18181b] dark:text-zinc-100 selection:bg-zinc-200 dark:selection:bg-zinc-800">
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-start gap-8 p-6 md:flex-row md:py-12">
-        <Sidebar 
-          totalUsage={currentData?.totalUsage || 0} 
-          plan={currentPlan} 
-          limit={currentLimit} 
-          isUnlimited={isUnlimited} 
-          alerts={alerts}
-          onUpdate={fetchBillingData}
-        />
-        
-        <main className="min-w-0 flex-1 space-y-12">
-          {/* Header */}
-          <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 p-8 backdrop-blur-sm">
-            <div className="space-y-1">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">Account / Financials</p>
-              <h1 className="font-serif text-5xl font-bold tracking-tight">Billing</h1>
-            </div>
-          </div>
+    <>
+      <DashboardShell
+        sidebar={{
+          totalUsage: currentData?.totalUsage || 0,
+          plan: currentPlan,
+          limit: currentLimit,
+          isUnlimited,
+          alerts,
+          onUpdate: fetchBillingData,
+        }}
+      >
+          <DashboardPageHeader
+            eyebrow="Account / Financials"
+            title="Billing"
+            description="Manage subscription plans, invoices, and payment methods."
+          />
 
           {showSkeleton ? (
             <div className="space-y-8 animate-pulse">
@@ -236,7 +234,7 @@ export default function BillingClient({
 
               {/* Payment Methods */}
               <section className="space-y-6">
-                <div className="flex items-center justify-between px-2">
+                <div className="flex flex-col gap-3 px-2 sm:flex-row sm:items-center sm:justify-between">
                   <h3 className="font-serif text-2xl font-bold">Wallet</h3>
                   <button 
                     disabled={isLoading}
@@ -250,9 +248,9 @@ export default function BillingClient({
                     + Add Card
                   </button>
                 </div>
-                <div className="grid gap-6 lg:grid-cols-3">
+                <div className="grid min-w-0 gap-6 lg:grid-cols-3">
                   {/* Primary Card - Takes more space or visual weight */}
-                  <div className={`${currentData?.paymentMethods?.some(pm => !pm.isDefault) ? 'lg:col-span-2' : 'lg:col-span-3 max-w-4xl'} flex flex-col`}>
+                  <div className={`${currentData?.paymentMethods?.some(pm => !pm.isDefault) ? 'lg:col-span-2' : 'lg:col-span-3 max-w-4xl'} flex min-w-0 flex-col`}>
                     <div className="flex h-6 items-center px-2">
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Primary Method</p>
                     </div>
@@ -311,7 +309,7 @@ export default function BillingClient({
                         )}
                       </div>
                       
-                      <div className="relative mt-4 h-[180px] w-full" style={{ perspective: '1000px' }}>
+                      <div className="relative mt-4 h-[180px] w-full overflow-hidden" style={{ perspective: '1000px' }}>
                         {currentData.paymentMethods.filter(pm => !pm.isDefault).map((pm, idx) => {
                           const methods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
                           const length = methods.length;
@@ -364,7 +362,7 @@ export default function BillingClient({
               {/* History */}
               {/* Transaction History Section */}
               <section className="space-y-6 pb-12">
-                <div className="flex items-center justify-between px-2">
+                <div className="flex flex-col gap-2 px-2 sm:flex-row sm:items-center sm:justify-between">
                   <h3 className="font-serif text-2xl font-bold">Transaction History</h3>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Past 12 Months</p>
                 </div>
@@ -373,7 +371,7 @@ export default function BillingClient({
 
               {/* Danger Zone */}
               {currentPlan !== "Hobby" && (
-                <section className="rounded-[32px] border border-red-100 dark:border-red-950/20 bg-red-50/30 dark:bg-red-950/5 p-8 mt-12 mb-20">
+                <section className="mt-12 mb-20 rounded-[28px] border border-red-100 bg-red-50/30 p-5 dark:border-red-950/20 dark:bg-red-950/5 sm:p-8 md:rounded-[32px]">
                   <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-widest text-red-900 dark:text-red-400">Danger Zone</h3>
@@ -393,9 +391,7 @@ export default function BillingClient({
               )}
             </>
           )}
-        </main>
-      </div>
-
+      </DashboardShell>
 
       <SubscriptionModal 
         key={isModalOpen ? "open" : "closed"}
@@ -451,6 +447,6 @@ export default function BillingClient({
       )}
 
       <Toast toast={toast} />
-    </div>
+    </>
   );
 }

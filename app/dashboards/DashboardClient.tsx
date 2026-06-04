@@ -7,7 +7,8 @@ import { useApiKeys } from "@/hooks/useApiKeys";
 import { useToast } from "@/hooks/useToast";
 import { ApiKey } from "@/types/api";
 import { Toast } from "@/components/ui/Toast";
-import { Sidebar } from "@/components/dashboard/Sidebar";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { ApiKeyModal } from "@/components/dashboard/ApiKeyModal";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
@@ -177,47 +178,40 @@ export default function DashboardClient({
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f2ed] dark:bg-zinc-950 text-[#18181b] dark:text-zinc-100 selection:bg-zinc-200 dark:selection:bg-zinc-800">
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-start gap-6 p-4 sm:p-6 md:flex-row md:gap-8 md:py-12">
-        <Sidebar 
-          totalUsage={totalUsage} 
-          plan={currentPlan} 
-          limit={currentLimit} 
-          isUnlimited={isUnlimited} 
-          alerts={alerts}
-          onUpdate={async () => {
-            await refreshKeys();
-            router.refresh();
-          }}
-        />
-        
-        <main className="w-full min-w-0 flex-1">
+    <DashboardShell
+      sidebar={{
+        totalUsage,
+        plan: currentPlan,
+        limit: currentLimit,
+        isUnlimited,
+        alerts,
+        onUpdate: async () => {
+          await refreshKeys();
+          router.refresh();
+        },
+      }}
+    >
           <div className="space-y-8">
-            {/* Header Section */}
-            <div className="rounded-[28px] border border-zinc-200 bg-white/50 p-5 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/50 sm:p-8">
-              <div className="flex items-center justify-between gap-4">
+            <DashboardPageHeader
+              eyebrow={
                 <Link href="/" className="group flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white">
                   <svg viewBox="0 0 24 24" className="h-3 w-3 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor">
                     <path d="M15 18l-6-6 6-6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                   Back to Home
                 </Link>
-              </div>
-              <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="space-y-1">
-                  <h1 className="font-serif text-4xl font-bold tracking-tight sm:text-5xl">Overview</h1>
-                  {errorMessage ? (
-                    <div className="mt-2 rounded-2xl border border-red-200 bg-red-50 dark:bg-red-950/20 p-4 text-sm text-red-700 dark:text-red-400">
-                      {errorMessage}
-                    </div>
-                  ) : (
-                    <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                      System status and secure credentials management.
-                    </p>
-                  )}
-                </div>
-                
-                {/* Live Telemetry Status Dot */}
+              }
+              title="Overview"
+              description={
+                errorMessage ? (
+                  <div className="mt-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/20 dark:text-red-400">
+                    {errorMessage}
+                  </div>
+                ) : (
+                  "System status and secure credentials management."
+                )
+              }
+              rightAction={
                 <div className="flex max-w-full items-center gap-2.5 rounded-full border border-zinc-200 bg-white/80 px-4 py-2 shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-950 sm:self-center">
                   <div className="relative flex h-2 w-2">
                     <span className={`absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 ${isSyncing ? "animate-ping scale-150" : "animate-pulse"}`} />
@@ -233,8 +227,8 @@ export default function DashboardClient({
                     )}
                   </span>
                 </div>
-              </div>
-            </div>
+              }
+            />
 
             {/* Metric Tiles Row */}
             <div className="grid gap-6 md:grid-cols-3">
@@ -410,8 +404,8 @@ export default function DashboardClient({
                       <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 px-1">
                         Your Generated Plaintext API Key
                       </label>
-                      <div className="flex items-center gap-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-2 pl-6">
-                        <code className="flex-1 break-all font-mono text-xs font-bold text-zinc-800 dark:text-zinc-200 tracking-wider">
+                      <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-zinc-200 bg-white p-2 pl-4 dark:border-zinc-800 dark:bg-zinc-950 sm:pl-6">
+                        <code className="min-w-0 flex-1 break-all font-mono text-xs font-bold tracking-wider text-zinc-800 dark:text-zinc-200">
                           <DecryptingKeyText 
                             text={createdPlainKey || ""} 
                             visible={isPlainKeyVisible} 
@@ -468,8 +462,6 @@ export default function DashboardClient({
             )}
             <Toast toast={toast} />
           </div>
-        </main>
-      </div>
-    </div>
+    </DashboardShell>
   );
 }
