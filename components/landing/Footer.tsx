@@ -12,7 +12,7 @@ export function Footer() {
           </div>
           <span className="text-sm font-black tracking-tighter uppercase">Dandi AI</span>
         </Link>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300 dark:text-zinc-600">© 2026 Dandi AI. Built for the modern researcher.</p>
+        <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300 dark:text-zinc-600">© 2026 Dandi AI. Built for the modern researcher.</p>
         <div className="flex gap-6 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
           <Link href="/docs" className="hover:text-zinc-900 dark:hover:text-white transition-colors">API Docs</Link>
         </div>
