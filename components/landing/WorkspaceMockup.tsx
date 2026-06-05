@@ -1,12 +1,97 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
-const STATS_DATA = [
-  { label: "AI Summarization", val: "94%", color: "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]" },
-  { label: "Metadata Sync", val: "76%", color: "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.4)]" },
-  { label: "Edge Response", val: "12ms", color: "bg-gradient-to-r from-indigo-500 to-blue-500 shadow-[0_0_10px_rgba(99,102,241,0.4)]" },
-];
+type Service = "chat" | "ingest" | "shield";
+type Status = "idle" | "auth_check" | "redis_quota" | "database_action" | "ai_service" | "complete";
+
+interface ServiceConfig {
+  name: string;
+  endpoint: string;
+  provider: string;
+  database: string;
+  metrics: string;
+  latency: string;
+  color: string;
+  textColor: string;
+  gradient: string;
+  promptLabel: string;
+  buttonLabel: string;
+  prompt: string;
+  response: string;
+  logs: string[];
+}
+
+const SERVICES: Record<Service, ServiceConfig> = {
+  chat: {
+    name: "RAG Chat",
+    endpoint: "/api/rag/chat",
+    provider: "Gemini 3.1 Flash-Lite",
+    database: "Supabase pgvector",
+    metrics: "Upstash Redis",
+    latency: "185ms",
+    color: "bg-emerald-500",
+    textColor: "text-emerald-500 dark:text-emerald-400",
+    gradient: "from-emerald-600 to-teal-500",
+    promptLabel: "RAG Prompt",
+    buttonLabel: "Execute RAG Chat",
+    prompt: "How does Dandi handle subscription changes?",
+    response: "Subscription changes route through app/api/stripe/subscribe/route.ts. The handler builds a Stripe Subscription Schedule, postponing plan modifications until the current period end, and notifies the profile database upon period expiration.",
+    logs: [
+      "Client Request: POST /api/rag/chat",
+      "API Key Match: Verified client credentials in Supabase",
+      "Rate Limit Check: Incremented window in Upstash Redis (Pass)",
+      "Similarity Search: Querying Supabase pgvector for codebase context...",
+      "Context Found: Injected stripe-billing-flow.service.ts source code",
+      "Prompt sent to gemini-3.1-flash-lite with RAG context..."
+    ]
+  },
+  ingest: {
+    name: "Code Ingestion",
+    endpoint: "/api/rag/ingest",
+    provider: "Gemini-Embedding-001",
+    database: "Supabase pgvector",
+    metrics: "Upstash Redis",
+    latency: "410ms",
+    color: "bg-blue-500",
+    textColor: "text-blue-500 dark:text-blue-400",
+    gradient: "from-blue-600 to-cyan-500",
+    promptLabel: "Repository",
+    buttonLabel: "Ingest Repository",
+    prompt: "Lifelimit/dandi (branch: improvements)",
+    response: "Ingestion complete. Vectorized 14 TypeScript files into 48 code chunks. Calculated 768-dimension semantic embeddings using gemini-embedding-001 and indexed them into pgvector.",
+    logs: [
+      "Client Request: POST /api/rag/ingest",
+      "Security Check: Verified workspace write permissions",
+      "Upstash Redis: Allocated ingestion task worker queue",
+      "Parser: Chunking 14 repository codebase files...",
+      "Embedding Generation: Batch calling gemini-embedding-001...",
+      "Database Ingestion: Writing 48 vector indexes to Supabase pgvector"
+    ]
+  },
+  shield: {
+    name: "Key Shield",
+    endpoint: "/api/keys/validate",
+    provider: "Dandi Key Guard",
+    database: "Supabase DB",
+    metrics: "Upstash Redis",
+    latency: "12ms",
+    color: "bg-purple-500",
+    textColor: "text-purple-500 dark:text-purple-400",
+    gradient: "from-purple-600 to-indigo-500",
+    promptLabel: "API Key Header",
+    buttonLabel: "Validate Key",
+    prompt: "Authorization: Bearer dandi_sk_live_...",
+    response: "{\"status\": \"valid\", \"rate_limit\": 1000, \"remaining\": 942, \"project_id\": \"odwgzctzysvcfhopbkka\", \"tier\": \"Premium\"}",
+    logs: [
+      "Gateway Hook: Intercepted inbound request header",
+      "Upstash Redis lookup: Matching active API key hash (Cache Hit)",
+      "Checking quota limit rules for tier 'Premium'...",
+      "Upstash Redis increment: 942/1000 requests remaining",
+      "Validation payload compiled and returned to origin proxy gateway"
+    ]
+  }
+};
 
 const AVATARS = [
   { initials: "JD", name: "John Doe", role: "DevOps Lead", gradient: "from-indigo-600 to-violet-600" },
@@ -15,130 +100,303 @@ const AVATARS = [
 ];
 
 export function WorkspaceMockup() {
-  // Grounded organic ambient metrics
-  const [trafficCount, setTrafficCount] = useState(14204);
-  const [trafficHeights, setTrafficHeights] = useState([8, 14, 10, 18, 12, 16, 8]);
+  const [activeService, setActiveService] = useState<Service>("chat");
+  const [status, setStatus] = useState<Status>("idle");
+  const [credits, setCredits] = useState<number>(9.97);
+  const [liveLogs, setLiveLogs] = useState<string[]>([]);
+  const [streamedText, setStreamedText] = useState<string>("");
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Subtly vary traffic count by +/- 3 (stays ultra professional and realistic)
-      setTrafficCount(prev => {
-        const delta = Math.floor(Math.random() * 7) - 3; // -3 to +3
-        const next = prev + delta;
-        return next > 14220 ? 14210 : next < 14190 ? 14200 : next;
-      });
+  const runSimulator = async () => {
+    if (status !== "idle") return;
 
-      // Subtly update bar graph heights
-      setTrafficHeights(prev => {
-        const next = [...prev];
-        const randomIdx = Math.floor(Math.random() * next.length);
-        const delta = Math.floor(Math.random() * 5) - 2; // -2 to +2
-        let val = next[randomIdx] + delta;
-        if (val < 6) val = 8;
-        if (val > 22) val = 16;
-        next[randomIdx] = val;
-        return next;
-      });
-    }, 3000); // 3-second organic update
+    setLiveLogs([]);
+    setStreamedText("");
+    
+    const service = SERVICES[activeService];
 
-    return () => clearInterval(interval);
-  }, []);
+    // 1. Auth Check (Supabase)
+    setStatus("auth_check");
+    setLiveLogs([`[18:30:12] 🟢 ${service.logs[0]}`, `[18:30:12] 🔑 ${service.logs[1]}`]);
+    await new Promise(r => setTimeout(r, 600));
+
+    // 2. Upstash Redis Quota Check
+    setStatus("redis_quota");
+    setLiveLogs(prev => [...prev, `[18:30:12] ⚡ ${service.logs[2]}`]);
+    await new Promise(r => setTimeout(r, 600));
+
+    // 3. Database Search / Action (Supabase / pgvector)
+    setStatus("database_action");
+    setLiveLogs(prev => [...prev, `[18:30:13] 💾 ${service.logs[3]}`]);
+    await new Promise(r => setTimeout(r, 700));
+
+    if (service.logs[4]) {
+      setLiveLogs(prev => [...prev, `[18:30:13] 📝 ${service.logs[4]}`]);
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    // 4. AI Service / Router execution
+    setStatus("ai_service");
+    setLiveLogs(prev => [...prev, `[18:30:13] 🤖 Calling ${service.provider}...`, `[18:30:13] 🚀 ${service.logs[service.logs.length - 1]}`]);
+    
+    // Typewriter effect
+    let currentText = "";
+    const fullText = service.response;
+    const typingInterval = Math.max(8, Math.floor(600 / fullText.length));
+    
+    for (let i = 0; i < fullText.length; i++) {
+      currentText += fullText[i];
+      setStreamedText(currentText);
+      await new Promise(r => setTimeout(r, typingInterval));
+    }
+
+    // 5. Complete
+    setStatus("complete");
+    // Deduct standard nominal amounts representing API credits spent
+    const simulatedCost = activeService === "chat" ? 0.005 : activeService === "ingest" ? 0.020 : 0.0001;
+    setCredits(prev => Math.max(0, parseFloat((prev - simulatedCost).toFixed(4))));
+    setLiveLogs(prev => [
+      ...prev,
+      `[18:30:14] ✅ Complete. Latency: ${service.latency} | Redis & Supabase state updated.`
+    ]);
+  };
+
+  const handleReset = () => {
+    setStatus("idle");
+    setLiveLogs([]);
+    setStreamedText("");
+  };
+
+  const currentService = SERVICES[activeService];
 
   return (
     <div className="relative mt-12 block xl:mt-0 animate-in fade-in zoom-in duration-1000 delay-300 scale-90 sm:scale-100 max-w-xl mx-auto w-full">
-      <div className="relative z-10 rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 shadow-[0_32px_64px_-15px_rgba(0,0,0,0.06)] dark:shadow-none transition-all hover:scale-[1.02] hover:-rotate-1">
-        <div className="rounded-2xl bg-zinc-50/50 dark:bg-zinc-800/50 p-6">
-          <div className="mb-8 flex items-center justify-between">
-            <div className="space-y-1.5">
+      <div className="relative z-10 rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 shadow-[0_32px_64px_-15px_rgba(0,0,0,0.08)] dark:shadow-[0_32px_64px_-15px_rgba(0,0,0,0.4)] transition-all hover:scale-[1.01]">
+        
+        {/* Workspace Mockup Header */}
+        <div className="rounded-2xl bg-zinc-50/70 dark:bg-zinc-900/60 p-5 border border-zinc-100 dark:border-zinc-900">
+          <div className="mb-6 flex items-center justify-between">
+            <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Sample Workspace</p>
-                <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 relative">
+                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Workspace Gateways</p>
+                <span className="flex h-2 w-2 rounded-full bg-emerald-500 relative">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 </span>
               </div>
-              <h4 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Research Labs</h4>
+              <h4 className="text-md font-bold text-zinc-900 dark:text-zinc-100">Research Labs</h4>
             </div>
-            
-            {/* Refined Gradient Avatar Badges with Glassmorphic Tooltips */}
-            <div className="flex -space-x-2.5">
+
+            {/* Avatars */}
+            <div className="flex -space-x-2">
               {AVATARS.map((avatar, idx) => (
-                <div 
-                  key={idx} 
-                  className="group/avatar relative"
-                >
-                  <div 
-                    className={`h-8 w-8 rounded-full border-2 border-white dark:border-zinc-900 bg-gradient-to-tr ${avatar.gradient} font-mono text-[9px] font-black text-white flex items-center justify-center shadow-md select-none transition-all hover:scale-110 hover:-translate-y-1 hover:z-20 cursor-help`}
-                  >
+                <div key={idx} className="group/avatar relative cursor-help">
+                  <div className={`h-8 w-8 rounded-full border-2 border-white dark:border-zinc-950 bg-gradient-to-tr ${avatar.gradient} font-mono text-[9px] font-black text-white flex items-center justify-center shadow-sm transition-all hover:scale-110 hover:-translate-y-0.5`}>
                     {avatar.initials}
                   </div>
-                  
-                  {/* Rich Glassmorphic Tooltip */}
-                  <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 -translate-x-1/2 opacity-0 transition-all duration-300 group-hover/avatar:opacity-100 group-hover/avatar:translate-y-0 translate-y-1">
-                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 p-3 shadow-xl backdrop-blur-md text-[9px] font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100 min-w-[140px] text-center space-y-0.5">
-                      <p className="font-serif text-[10px] normal-case text-zinc-900 dark:text-white leading-none">{avatar.name}</p>
-                      <p className="text-[7px] text-zinc-400 dark:text-zinc-500 font-mono tracking-widest">{avatar.role}</p>
+                  <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 -translate-x-1/2 opacity-0 transition-all duration-200 group-hover/avatar:opacity-100 group-hover/avatar:translate-y-0 translate-y-1">
+                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 p-2 shadow-lg backdrop-blur-md text-[8px] font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100 min-w-[120px] text-center">
+                      <p className="font-serif text-[9px] normal-case text-zinc-900 dark:text-white leading-none">{avatar.name}</p>
+                      <p className="text-[6px] text-zinc-400 dark:text-zinc-500 font-mono tracking-widest mt-1">{avatar.role}</p>
                     </div>
-                    {/* Tooltip arrow */}
-                    <div className="mx-auto h-1.5 w-1.5 -translate-y-1 rotate-45 border-r border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950" />
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Progress metrics */}
-          <div className="space-y-6">
-            {STATS_DATA.map((stat) => (
-              <div key={stat.label} className="space-y-2">
-                <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest">
-                  <span className="text-zinc-400 dark:text-zinc-500">{stat.label}</span>
-                  <span className="text-zinc-900 dark:text-zinc-100">{stat.val}</span>
-                </div>
-                <div className="h-1.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800/60 overflow-hidden relative">
-                  <div 
-                    className={`h-full rounded-full transition-all duration-1000 ${stat.color}`} 
-                    style={{ width: stat.label === "Edge Response" ? "12%" : stat.val }} 
-                  />
-                  {/* Subtle continuous shine animation */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent w-1/2 -skew-x-12 animate-pulse" />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Workspace Traffic Widget */}
-          <div className="mt-10 rounded-2xl bg-zinc-900 dark:bg-zinc-950 p-5 text-white shadow-xl relative overflow-hidden group">
-            <div className="flex items-center justify-between relative z-10">
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Workspace Traffic</p>
-                </div>
-                <p className="mt-1 text-2xl font-black font-sans tabular-nums transition-all">
-                  {trafficCount.toLocaleString()}{" "}
-                  <span className="text-xs font-normal text-zinc-500">req/s</span>
-                </p>
-              </div>
+          {/* Main Grid: Control Panel + Terminal */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+            
+            {/* Control Panel (left 5 columns) */}
+            <div className="md:col-span-5 space-y-4">
               
-              {/* Sample traffic chart */}
-              <div className="flex items-end gap-1.5 h-8">
-                {trafficHeights.map((h, i) => (
-                  <div 
-                    key={i} 
-                    className="w-1.5 rounded-t-full bg-gradient-to-t from-emerald-600 to-teal-400 dark:from-emerald-500 dark:to-teal-300 transition-all duration-350 shadow-[0_0_6px_rgba(16,185,129,0.3)] hover:opacity-80 cursor-default" 
-                    style={{ height: `${h * 1.5}px` }} 
-                    title={`Node ${i + 1}: Active`}
-                  />
-                ))}
+              {/* Endpoint Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">API Service Route</label>
+                <div className="grid grid-cols-3 gap-1 p-1 bg-zinc-100 dark:bg-zinc-950 rounded-xl border border-zinc-200/40 dark:border-zinc-900">
+                  {(["chat", "ingest", "shield"] as Service[]).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => status === "idle" && setActiveService(s)}
+                      disabled={status !== "idle"}
+                      className={`py-1.5 text-[8px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                        activeService === s
+                          ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm"
+                          : "text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400"
+                      }`}
+                    >
+                      {SERVICES[s].name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sample Payload details */}
+              <div className="space-y-1">
+                <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                  {currentService.promptLabel}
+                </span>
+                <div className="text-[9px] font-mono bg-zinc-100 dark:bg-zinc-950 p-2 rounded-xl border border-zinc-200/40 dark:border-zinc-900 text-zinc-800 dark:text-zinc-300 truncate">
+                  {currentService.prompt}
+                </div>
+              </div>
+
+              {/* Architecture Info */}
+              <div className="rounded-xl bg-zinc-100/50 dark:bg-zinc-950/40 border border-zinc-200/20 dark:border-zinc-900/50 p-2.5 space-y-2">
+                <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-wider">
+                  <span className="text-zinc-400 dark:text-zinc-500">AI Model</span>
+                  <span className={`font-mono font-black ${currentService.textColor}`}>{currentService.provider}</span>
+                </div>
+                <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-wider">
+                  <span className="text-zinc-400 dark:text-zinc-500">Database</span>
+                  <span className="font-mono text-zinc-800 dark:text-zinc-200">{currentService.database}</span>
+                </div>
+                <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-wider">
+                  <span className="text-zinc-400 dark:text-zinc-500">Tracker</span>
+                  <span className="font-mono text-zinc-800 dark:text-zinc-200">{currentService.metrics}</span>
+                </div>
+                <div className="h-[1px] bg-zinc-200 dark:bg-zinc-900 my-1" />
+                <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-wider">
+                  <span className="text-zinc-500 dark:text-zinc-400">Quota Credits</span>
+                  <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">${credits.toFixed(4)}</span>
+                </div>
+              </div>
+
+              {/* Trigger Button */}
+              {status === "idle" ? (
+                <button
+                  onClick={runSimulator}
+                  className={`w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-white bg-gradient-to-r ${currentService.gradient} shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:brightness-115 transition-all`}
+                >
+                  {currentService.buttonLabel}
+                </button>
+              ) : (
+                <button
+                  onClick={handleReset}
+                  disabled={status !== "complete"}
+                  className={`w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 bg-white dark:bg-zinc-900 transition-all ${
+                    status !== "complete" ? "opacity-50 cursor-not-allowed" : "hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                  }`}
+                >
+                  {status === "complete" ? "Reset Console" : "Routing Request..."}
+                </button>
+              )}
+            </div>
+
+            {/* Terminal Console (right 7 columns) */}
+            <div className="md:col-span-7 flex flex-col h-[230px] rounded-xl bg-zinc-950 border border-zinc-800/80 p-3 overflow-hidden shadow-inner relative font-mono text-[9px] text-zinc-300">
+              
+              {/* Terminal Title Bar */}
+              <div className="flex justify-between items-center pb-2 border-b border-zinc-900 mb-2">
+                <div className="flex gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500/80" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-500/80" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500/80" />
+                </div>
+                <span className="text-[7.5px] text-zinc-500 font-bold uppercase tracking-widest">
+                  {currentService.endpoint}
+                </span>
+              </div>
+
+              {/* Terminal Logs Scroll */}
+              <div className="flex-1 overflow-y-auto space-y-1 scrollbar-thin select-none pr-1">
+                {status === "idle" ? (
+                  <div className="h-full flex flex-col justify-center items-center text-zinc-600 space-y-1">
+                    <p className="font-bold uppercase tracking-widest text-[8px]">DANDI GATEWAY ONLINE</p>
+                    <p className="text-[7.5px]">Select a route and trigger the service above.</p>
+                  </div>
+                ) : (
+                  <>
+                    {liveLogs.map((log, i) => (
+                      <p key={i} className="leading-normal text-zinc-400">
+                        {log}
+                      </p>
+                    ))}
+                    {streamedText && (
+                      <div className="mt-2 p-2 bg-zinc-900/60 rounded-lg border border-zinc-900 text-zinc-100 whitespace-pre-wrap leading-relaxed animate-in fade-in duration-300">
+                        <span className="text-emerald-400 font-bold">dandi:~$ </span>
+                        {streamedText}
+                        {status === "ai_service" && (
+                          <span className="inline-block w-1.5 h-3 ml-0.5 bg-emerald-400 animate-pulse align-middle" />
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
-            {/* Background Grid Pattern for Console vibe */}
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:10px_10px] -z-10" />
+          </div>
+        </div>
+
+        {/* Visual Pipeline Graph */}
+        <div className="mt-4 px-4 py-3 rounded-2xl bg-zinc-50/40 dark:bg-zinc-900/20 border border-zinc-100/50 dark:border-zinc-900/50 flex items-center justify-between text-[7px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 select-none">
+          
+          <div className="flex flex-col items-center gap-1">
+            <span className={`px-1.5 py-0.5 rounded-md border ${status === "idle" ? "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800" : "bg-emerald-500/10 border-emerald-500/40 text-emerald-500"}`}>Key Client</span>
+            <span className="text-[6px] text-zinc-400/80">Inbound</span>
+          </div>
+
+          <div className="flex-1 h-[2px] bg-zinc-200 dark:bg-zinc-800 relative mx-2 overflow-hidden">
+            {status !== "idle" && status !== "complete" && (
+              <div className="absolute top-0 bottom-0 w-1/3 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-shimmer-fast" />
+            )}
+          </div>
+
+          <div className="flex flex-col items-center gap-1">
+            <span className={`px-1.5 py-0.5 rounded-md border transition-all ${
+              status === "auth_check" || status === "redis_quota"
+                ? "bg-purple-500/10 border-purple-500/40 text-purple-500 scale-105"
+                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+            }`}>Upstash Redis</span>
+            <span className="text-[6px] text-zinc-400/80">Rate/Quota</span>
+          </div>
+
+          <div className="flex-1 h-[2px] bg-zinc-200 dark:bg-zinc-800 relative mx-2 overflow-hidden">
+            {(status === "database_action" || status === "ai_service" || status === "complete") && (
+              <div className="absolute top-0 bottom-0 w-1/3 bg-gradient-to-r from-transparent via-blue-400 to-transparent animate-shimmer-fast" />
+            )}
+          </div>
+
+          <div className="flex flex-col items-center gap-1">
+            <span className={`px-1.5 py-0.5 rounded-md border transition-all ${
+              status === "database_action"
+                ? "bg-blue-500/10 border-blue-500/40 text-blue-500 scale-105"
+                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+            }`}>Supabase DB</span>
+            <span className="text-[6px] text-zinc-400/80">pgvector</span>
+          </div>
+
+          <div className="flex-1 h-[2px] bg-zinc-200 dark:bg-zinc-800 relative mx-2 overflow-hidden">
+            {(status === "ai_service" || status === "complete") && (
+              <div className="absolute top-0 bottom-0 w-1/3 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-shimmer-fast" />
+            )}
+          </div>
+
+          <div className="flex flex-col items-center gap-1">
+            <span className={`px-1.5 py-0.5 rounded-md border transition-all ${
+              status === "ai_service"
+                ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-500 scale-105"
+                : status === "complete"
+                ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-500"
+                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+            }`}>Google Gemini</span>
+            <span className="text-[6px] text-zinc-400/80">AI Model</span>
           </div>
         </div>
       </div>
+
+      {/* Decorative Glow */}
+      <div className="absolute -inset-4 z-0 bg-gradient-to-tr from-blue-300/30 to-emerald-300/30 dark:from-blue-950/10 dark:to-emerald-950/10 blur-3xl opacity-60 pointer-events-none" />
       
-      {/* Enhanced Background Glow */}
-      <div className="absolute -inset-4 z-0 bg-gradient-to-tr from-blue-200/50 to-emerald-200/50 dark:from-blue-950/15 dark:to-emerald-950/15 blur-3xl opacity-60"></div>
+      {/* Custom Lasers / Shimmer Animations */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes shimmer-fast {
+          0% { transform: translateX(-150%); }
+          100% { transform: translateX(150%); }
+        }
+        .animate-shimmer-fast {
+          animation: shimmer-fast 1.2s infinite linear;
+        }
+      `}} />
     </div>
   );
 }
