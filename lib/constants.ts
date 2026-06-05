@@ -12,7 +12,7 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
   },
   Premium: {
     id: "Premium",
-    price: "$20",
+    price: "$10",
     features: ["5,000 requests / mo", "10 Active API Keys", "Advanced AI Context", "Priority Support"],
     nextBilling: "May 24, 2026",
     monthlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID,
@@ -22,7 +22,7 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
   },
   Researcher: {
     id: "Researcher",
-    price: "$99",
+    price: "$50",
     features: ["Unlimited requests / mo", "Unlimited API Keys", "Custom Branding", "Priority Support"],
     nextBilling: "May 24, 2026",
     monthlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID,
@@ -110,8 +110,8 @@ export const PLANS: Plan[] = [
   {
     id: "Premium",
     name: "The Premium",
-    price: "$20",
-    yearlyPrice: "$16",
+    price: "$10",
+    yearlyPrice: "$8",
     credits: "5,000 requests / mo",
     features: [
       "Advanced AI Context",
@@ -133,8 +133,8 @@ export const PLANS: Plan[] = [
   {
     id: "Researcher",
     name: "The Researcher",
-    price: "$99",
-    yearlyPrice: "$79",
+    price: "$50",
+    yearlyPrice: "$40",
     credits: "Unlimited requests / mo",
     features: [
       "Deep Insight Engine",
