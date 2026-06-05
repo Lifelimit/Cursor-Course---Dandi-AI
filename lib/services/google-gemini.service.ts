@@ -2,8 +2,8 @@ const EMBEDDING_DIMENSIONS = 768;
 const EMBEDDING_BATCH_SIZE = 20;
 const EMBEDDING_BATCH_DELAY_MS = 500;
 const GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const DEFAULT_PRIMARY_EMBEDDING_MODEL = ["gemini", "embedding", "001"].join("-");
-const DEFAULT_FALLBACK_EMBEDDING_MODEL = ["gemini", "embedding", "001"].join("-");
+const DEFAULT_PRIMARY_EMBEDDING_MODEL = "text-embedding-004";
+const DEFAULT_FALLBACK_EMBEDDING_MODEL = "text-embedding-004";
 
 type GeminiErrorPayload = {
   error?: {

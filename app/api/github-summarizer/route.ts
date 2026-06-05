@@ -133,11 +133,11 @@ export async function POST(request: Request) {
       const response = result.toTextStreamResponse({
         headers: {
           ...corsHeaders,
-          "x-github-metadata": JSON.stringify({
+          "x-github-metadata": Buffer.from(JSON.stringify({
             owner: keyData.name,
             repo: githubUrl,
             metadata: metadata,
-          })
+          })).toString("base64")
         }
       });
 
