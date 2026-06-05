@@ -132,6 +132,8 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">API Reference</p>
               <ul className="space-y-2 text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 <li><a href="#summarizer" className="hover:text-zinc-900 dark:hover:text-white transition">POST Summarizer</a></li>
+                <li><a href="#rag-ingest" className="hover:text-zinc-900 dark:hover:text-white transition">POST RAG Ingest</a></li>
+                <li><a href="#rag-chat" className="hover:text-zinc-900 dark:hover:text-white transition">POST RAG Chat</a></li>
                 <li><a href="#code-explorer" className="hover:text-zinc-900 dark:hover:text-white transition">Code Explorer</a></li>
                 <li><a href="#response-schema" className="hover:text-zinc-900 dark:hover:text-white transition">Response Schema</a></li>
                 <li><a href="#error-codes" className="hover:text-zinc-900 dark:hover:text-white transition">Error Handling</a></li>
@@ -327,6 +329,124 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                       <path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
+                </div>
+              </div>
+            </section>
+
+            {/* RAG Ingest Endpoint */}
+            <section id="rag-ingest" className="space-y-6 scroll-mt-28">
+              <div className="border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                <h2 className="text-xl font-bold tracking-tight">POST RAG Ingest Endpoint</h2>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="rounded bg-emerald-500 text-white dark:text-zinc-950 px-2 py-1 text-[9px] font-bold uppercase tracking-widest">POST</span>
+                <div className="group relative flex min-w-0 items-center gap-2 rounded bg-zinc-200 px-3 py-1 font-mono text-xs text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+                  <code className="min-w-0 truncate">/api/rag/ingest</code>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText("/api/rag/ingest");
+                      showToast("success", "Endpoint path copied to clipboard.");
+                    }}
+                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-white transition-opacity ml-1.5"
+                    title="Copy path"
+                    aria-label="Copy endpoint path"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor">
+                      <path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                  Submits a GitHub repository for vector embedding ingestion. Required before chatting with a repository using the RAG Chat endpoint. You can check the ingestion status by making a <code className="font-mono bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-[10px]">GET</code> request to this same endpoint with the <code className="font-mono bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-[10px]">jobId</code> query parameter.
+                </p>
+                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">JSON Body Parameters</h3>
+                <div className="overflow-x-auto max-w-full -mx-4 px-4 sm:mx-0 sm:px-0 text-left">
+                  <table className="w-full text-left border-collapse text-xs min-w-[500px]">
+                    <thead>
+                      <tr className="border-b border-zinc-200 dark:border-zinc-800 text-zinc-400">
+                        <th className="py-2">Parameter</th>
+                        <th className="py-2">Type</th>
+                        <th className="py-2">Required</th>
+                        <th className="py-2">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300">
+                        <td className="py-3 font-mono font-bold text-zinc-800 dark:text-zinc-100">githubUrl</td>
+                        <td className="py-3 font-mono text-zinc-500">string</td>
+                        <td className="py-3 font-bold text-red-500">Yes</td>
+                        <td className="py-3 text-zinc-500 leading-relaxed">
+                          The full URL of the public GitHub repository. Expected: <code className="font-mono bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-[10px]">https://github.com/owner/repo</code>.
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+
+            {/* RAG Chat Endpoint */}
+            <section id="rag-chat" className="space-y-6 scroll-mt-28">
+              <div className="border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                <h2 className="text-xl font-bold tracking-tight">POST RAG Chat Endpoint</h2>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="rounded bg-emerald-500 text-white dark:text-zinc-950 px-2 py-1 text-[9px] font-bold uppercase tracking-widest">POST</span>
+                <div className="group relative flex min-w-0 items-center gap-2 rounded bg-zinc-200 px-3 py-1 font-mono text-xs text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+                  <code className="min-w-0 truncate">/api/rag/chat</code>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText("/api/rag/chat");
+                      showToast("success", "Endpoint path copied to clipboard.");
+                    }}
+                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-white transition-opacity ml-1.5"
+                    title="Copy path"
+                    aria-label="Copy endpoint path"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor">
+                      <path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                  Chat with an ingested GitHub repository using Retrieval-Augmented Generation (RAG). Returns a streaming text response.
+                </p>
+                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">JSON Body Parameters</h3>
+                <div className="overflow-x-auto max-w-full -mx-4 px-4 sm:mx-0 sm:px-0 text-left">
+                  <table className="w-full text-left border-collapse text-xs min-w-[500px]">
+                    <thead>
+                      <tr className="border-b border-zinc-200 dark:border-zinc-800 text-zinc-400">
+                        <th className="py-2">Parameter</th>
+                        <th className="py-2">Type</th>
+                        <th className="py-2">Required</th>
+                        <th className="py-2">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300">
+                        <td className="py-3 font-mono font-bold text-zinc-800 dark:text-zinc-100">githubUrl</td>
+                        <td className="py-3 font-mono text-zinc-500">string</td>
+                        <td className="py-3 font-bold text-red-500">Yes</td>
+                        <td className="py-3 text-zinc-500 leading-relaxed">
+                          The full URL of the public GitHub repository. Expected: <code className="font-mono bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-[10px]">https://github.com/owner/repo</code>.
+                        </td>
+                      </tr>
+                      <tr className="border-b border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300">
+                        <td className="py-3 font-mono font-bold text-zinc-800 dark:text-zinc-100">messages</td>
+                        <td className="py-3 font-mono text-zinc-500">array</td>
+                        <td className="py-3 font-bold text-red-500">Yes</td>
+                        <td className="py-3 text-zinc-500 leading-relaxed">
+                          An array of message objects containing <code className="font-mono bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-[10px]">role</code> (&quot;user&quot; or &quot;assistant&quot;) and <code className="font-mono bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-[10px]">content</code> strings.
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </section>
