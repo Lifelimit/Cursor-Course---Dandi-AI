@@ -1250,6 +1250,27 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                             </button>
                           ))}
                         </div>
+                        {viewMode === "json" && summaryHasData && (
+                          <button
+                            onClick={() => {
+                              const blob = new Blob([JSON.stringify(summaryJsonData, null, 2)], { type: "application/json" });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = "summary-result.json";
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            }}
+                            className="flex items-center gap-1.5 rounded-full bg-zinc-900 dark:bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white dark:text-zinc-900 transition hover:bg-zinc-800 dark:hover:bg-zinc-200"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                              <polyline points="7 10 12 15 17 10" />
+                              <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            Export
+                          </button>
+                        )}
                       </div>
 
                       {viewMode === "visual" ? (
