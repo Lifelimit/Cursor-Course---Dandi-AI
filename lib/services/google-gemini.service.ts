@@ -2,8 +2,7 @@ const EMBEDDING_DIMENSIONS = 768;
 const EMBEDDING_BATCH_SIZE = 20;
 const EMBEDDING_BATCH_DELAY_MS = 500;
 const GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const DEFAULT_PRIMARY_EMBEDDING_MODEL = "text-embedding-004";
-const DEFAULT_FALLBACK_EMBEDDING_MODEL = "text-embedding-004";
+const DEFAULT_EMBEDDING_MODEL = "text-embedding-004";
 
 type GeminiErrorPayload = {
   error?: {
@@ -142,20 +141,15 @@ async function runWithEmbeddingFailover<T>(
     throw new Error("Google Generative AI API key is missing.");
   }
 
-  const models = options.models?.length ? uniqueValues(options.models.map((model) => normalizeModelName(model, model))) : getEmbeddingModelCandidates();
+  const models = options.models?.length ? uniqueValues(options.models.map((model) => normalizeModelName(model, model))) : [getEmbeddingModel()];
   let lastError: EmbeddingAttemptError | null = null;
 
   for (let keyIndex = 0; keyIndex < apiKeys.length; keyIndex++) {
-    const attempts = models.map((model, index) => ({
-      model,
-      kind: index === 0 ? "primary" as const : "fallback" as const,
-    }));
-
-    for (const attempt of attempts) {
+    for (const model of models) {
       try {
         return {
-          value: await request(apiKeys[keyIndex], attempt.model),
-          model: attempt.model,
+          value: await request(apiKeys[keyIndex], model),
+          model: model,
         };
       } catch (error) {
         lastError =
@@ -167,18 +161,8 @@ async function runWithEmbeddingFailover<T>(
           throw lastError;
         }
 
-        if (attempt.kind === "primary" && attempts.length > 1) {
-          console.warn("Embedding primary exhausted, trying fallback model", {
-            apiKeyIndex: keyIndex + 1,
-            status: lastError.status,
-            error: getSafeErrorLabel(
-              lastError.status,
-              { error: { status: lastError.upstreamStatus } },
-              lastError.statusText
-            ),
-          });
-        } else if ((attempt.kind !== "primary" || attempts.length === 1) && keyIndex < apiKeys.length - 1) {
-          console.warn("Embedding fallback exhausted, trying next API key", {
+        if (keyIndex < apiKeys.length - 1) {
+          console.warn("Embedding API key exhausted, trying next API key", {
             apiKeyIndex: keyIndex + 1,
             status: lastError.status,
             error: getSafeErrorLabel(
@@ -222,16 +206,8 @@ export function getGoogleApiKeys() {
   ]);
 }
 
-export function getPrimaryEmbeddingModel() {
-  return normalizeModelName(process.env.GOOGLE_EMBEDDING_PRIMARY, DEFAULT_PRIMARY_EMBEDDING_MODEL);
-}
-
-export function getFallbackEmbeddingModel() {
-  return normalizeModelName(process.env.GOOGLE_EMBEDDING_FALLBACK, DEFAULT_FALLBACK_EMBEDDING_MODEL);
-}
-
-export function getEmbeddingModelCandidates() {
-  return uniqueValues([getPrimaryEmbeddingModel(), getFallbackEmbeddingModel()]);
+export function getEmbeddingModel() {
+  return normalizeModelName(process.env.GOOGLE_EMBEDDING_MODEL, DEFAULT_EMBEDDING_MODEL);
 }
 
 export function isGeminiEmbeddingRateLimitError(error: unknown): boolean {
@@ -274,7 +250,7 @@ export async function googleBatchEmbedWithModel(values: string[], options: Embed
   model: string;
 }> {
   if (values.length === 0) {
-    return { embeddings: [], model: getPrimaryEmbeddingModel() };
+    return { embeddings: [], model: getEmbeddingModel() };
   }
 
   const batches: string[][] = [];
@@ -316,7 +292,7 @@ export async function googleBatchEmbedWithModel(values: string[], options: Embed
 
   return {
     embeddings: embeddingsResults.flat(),
-    model: selectedModel || getPrimaryEmbeddingModel(),
+    model: selectedModel || getEmbeddingModel(),
   };
 }
 
