@@ -4,6 +4,7 @@ export interface SidebarAlert {
   pct: number;
   threshold: number;
   currentLimit: number;
+  usageCount: number;
   dailyTrend: { date: string; count: number }[];
 }
 
@@ -32,6 +33,7 @@ export function computeSidebarAlerts(keys: AlertableKey[]): SidebarAlert[] {
         pct, 
         threshold: k.alert_threshold!,
         currentLimit: k.monthly_limit || 1000,
+        usageCount: k.usage_count,
         dailyTrend: k.dailyTrend || []
       };
     })

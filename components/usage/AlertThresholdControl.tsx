@@ -19,7 +19,15 @@ export function AlertThresholdControl({
   limit, 
   onUpdate 
 }: Props) {
-  const [threshold, setThreshold] = useState<number>(initialThreshold ?? 80);
+  const isSmallLimit = limit !== null && limit <= 20;
+
+  const roundedInitialThreshold = initialThreshold !== null && initialThreshold !== undefined
+    ? (isSmallLimit
+        ? Math.round(Math.max(1, Math.round((initialThreshold / 100) * limit)) / limit * 100)
+        : Math.round(initialThreshold / 5) * 5)
+    : 80;
+
+  const [threshold, setThreshold] = useState<number>(roundedInitialThreshold);
   const [channels, setChannels] = useState<string[]>(initialChannels);
   const [phone, setPhone] = useState<string>(initialPhone);
   const [isSaving, setIsSaving] = useState(false);
@@ -54,9 +62,15 @@ export function AlertThresholdControl({
   };
 
   const handleThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseInt(e.target.value);
-    setThreshold(val);
-    debounceSave({ threshold: val });
+    const val = parseInt(e.target.value, 10);
+    if (isSmallLimit && limit !== null) {
+      const newPct = Math.round((val / limit) * 100);
+      setThreshold(newPct);
+      debounceSave({ threshold: newPct });
+    } else {
+      setThreshold(val);
+      debounceSave({ threshold: val });
+    }
   };
 
   const toggleChannel = (channel: string) => {
@@ -75,12 +89,18 @@ export function AlertThresholdControl({
 
   if (limit === null) return null;
 
-  const triggerCount = Math.floor((threshold / 100) * limit);
+  const sliderValue = isSmallLimit
+    ? Math.max(1, Math.round((threshold / 100) * limit))
+    : threshold;
+
+  const triggerCount = isSmallLimit
+    ? sliderValue
+    : Math.floor((threshold / 100) * limit);
 
   return (
     <div className="space-y-6 mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
           <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">
             Usage Alert Threshold
           </label>
@@ -92,9 +112,10 @@ export function AlertThresholdControl({
         <div className="flex items-center gap-4">
           <input
             type="range"
-            min="1"
-            max="100"
-            value={threshold}
+            min={isSmallLimit ? 1 : 5}
+            max={isSmallLimit ? limit : 100}
+            step={isSmallLimit ? 1 : 5}
+            value={sliderValue}
             onChange={handleThresholdChange}
             className="h-1 flex-1 cursor-pointer appearance-none rounded-lg bg-zinc-100 dark:bg-zinc-800 accent-zinc-900 dark:accent-zinc-100 focus:outline-none"
           />
@@ -106,12 +127,12 @@ export function AlertThresholdControl({
 
       <div className="space-y-3">
         <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Alert Me Via</p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="flex flex-wrap gap-2">
           {['email', 'phone', 'in-page'].map((channel) => (
             <button
               key={channel}
               onClick={() => toggleChannel(channel)}
-              className={`rounded-xl border px-3 py-2 text-[8px] font-black uppercase tracking-widest transition-all ${
+              className={`flex-1 min-w-[70px] rounded-xl border px-2 py-2 sm:px-3 text-[8px] font-black uppercase tracking-widest transition-all ${
                 channels.includes(channel)
                   ? 'border-zinc-900 dark:border-zinc-100 bg-[#18181b] dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-lg shadow-zinc-900/10'
                   : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-700'

@@ -870,9 +870,10 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
             <div className="flex gap-8 overflow-x-auto border-b border-zinc-200 pb-3 scrollbar-hide dark:border-zinc-800">
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
                   setActiveTab("summary");
                   setErrorMessage("");
+                  e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
                 }}
                 className={`shrink-0 pb-4 text-xs font-bold uppercase tracking-widest transition-all outline-none cursor-pointer ${
                   activeTab === "summary" 
@@ -884,9 +885,10 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
               </button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
                   setActiveTab("rag");
                   setErrorMessage("");
+                  e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
                 }}
                 className={`flex shrink-0 items-center gap-2 pb-4 text-xs font-bold uppercase tracking-widest transition-all outline-none cursor-pointer ${
                   activeTab === "rag" 
@@ -895,7 +897,6 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                 }`}
               >
                 Repository Chat (RAG)
-                <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-emerald-500">New</span>
               </button>
             </div>
           </DashboardPageHeader>

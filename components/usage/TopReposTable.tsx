@@ -10,7 +10,7 @@ export function TopReposTable({ data, title = "Most Analyzed Repositories" }: { 
   const maxCount = data[0].count;
 
   return (
-    <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm h-full">
+    <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-sm h-full">
       <h3 className="font-serif text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-6">{title}</h3>
       <div className="space-y-4">
         {data.map((repo, i) => (
@@ -31,7 +31,7 @@ export function TopReposTable({ data, title = "Most Analyzed Repositories" }: { 
                   {repo.repo_url.replace("https://github.com/", "")}
                 </a>
               </div>
-              <span className="text-[10px] font-bold tabular-nums text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800 px-2 py-1 rounded-md border border-zinc-100 dark:border-zinc-700 shadow-sm">
+              <span className="text-[10px] font-bold tabular-nums text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800 px-2 py-1 rounded-md border border-zinc-100 dark:border-zinc-700 shadow-sm shrink-0">
                 {repo.count.toLocaleString()}
               </span>
             </div>

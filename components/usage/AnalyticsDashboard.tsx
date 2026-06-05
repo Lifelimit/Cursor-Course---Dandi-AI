@@ -233,7 +233,7 @@ export function AnalyticsDashboard({
       
       {/* Selector and Filter Header */}
       <div className="relative z-40 flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-6 backdrop-blur-sm shadow-sm">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Resource Context</span>
           <div ref={dropdownRef} className="relative select-none z-30">
             {/* Trigger Button */}
@@ -242,7 +242,7 @@ export function AnalyticsDashboard({
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="flex items-center gap-2 text-xs font-bold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100 px-4.5 py-2.5 rounded-xl transition duration-200 cursor-pointer shadow-sm hover:shadow active:scale-98 border border-zinc-300/20 dark:border-zinc-700/20"
             >
-              <span>
+              <span className="truncate max-w-[150px] sm:max-w-[200px]">
                 {selectedKeyId === "all"
                   ? "All Combined Keys"
                   : keys.find(k => k.id === selectedKeyId)?.name || "Select Key"}
@@ -349,7 +349,7 @@ export function AnalyticsDashboard({
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         
         {/* Metric 1: Requests */}
-        <div className="group relative rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm transition hover:shadow-md">
+        <div className="group relative rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-sm transition hover:shadow-md">
           <div className="flex items-center justify-between mb-4">
             <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Aggregate Requests</span>
             <div className="rounded-xl bg-emerald-500/10 p-2 text-emerald-500">
@@ -368,7 +368,7 @@ export function AnalyticsDashboard({
         </div>
 
         {/* Metric 2: Average Latency */}
-        <div className="group relative rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm transition hover:shadow-md">
+        <div className="group relative rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-sm transition hover:shadow-md">
           <div className="flex items-center justify-between mb-4">
             <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Average Latency</span>
             <div className={`rounded-xl p-2 ${
@@ -398,7 +398,7 @@ export function AnalyticsDashboard({
         </div>
 
         {/* Metric 3: Success Rate */}
-        <div className="group relative rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm transition hover:shadow-md">
+        <div className="group relative rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-sm transition hover:shadow-md">
           <div className="flex items-center justify-between mb-4">
             <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Service Health</span>
             <div className="rounded-xl bg-blue-500/10 p-2 text-blue-500">
@@ -417,7 +417,7 @@ export function AnalyticsDashboard({
         </div>
 
         {/* Metric 4: Estimated Value Generated */}
-        <div className="group relative rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm transition hover:shadow-md">
+        <div className="group relative rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-sm transition hover:shadow-md">
           <div className="flex items-center justify-between mb-4">
             <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Estimated Value</span>
             <div className="rounded-xl bg-amber-500/10 p-2 text-amber-500 animate-pulse">
@@ -468,7 +468,7 @@ export function AnalyticsDashboard({
             <div
               className="absolute z-[40] pointer-events-none rounded-2xl bg-zinc-950/95 dark:bg-white/95 text-white dark:text-zinc-950 p-4 shadow-xl border border-zinc-800 dark:border-zinc-200 -translate-x-1/2 -translate-y-[calc(100%+16px)] transition-all ease-out duration-150 backdrop-blur-sm"
               style={{
-                left: `${(hoverCoords.x / chartWidth) * 100}%`,
+                left: `clamp(15%, ${(hoverCoords.x / chartWidth) * 100}%, 85%)`,
                 top: `${(hoverCoords.y / chartHeight) * 100}%`,
               }}
             >
@@ -701,7 +701,7 @@ export function AnalyticsDashboard({
       <div className="grid gap-8 lg:grid-cols-3">
         
         {/* Value Prop Insight Card */}
-        <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#18181b] p-8 text-white shadow-xl flex flex-col justify-between">
+        <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#18181b] p-6 sm:p-8 text-white shadow-xl flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-6">
               <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-[8px] font-black text-emerald-400 tracking-widest uppercase">INSIGHT</span>
@@ -719,7 +719,7 @@ export function AnalyticsDashboard({
         </div>
 
         {/* Global Repository Popularity */}
-        <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm lg:col-span-2">
+        <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-sm lg:col-span-2">
           <div className="flex items-center justify-between mb-6">
             <div className="space-y-1">
               <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Popularity Analytics</p>

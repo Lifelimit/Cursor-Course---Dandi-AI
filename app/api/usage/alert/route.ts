@@ -31,6 +31,40 @@ export async function PATCH(request: Request) {
       await assertCanActivateKeys(userId, plan, [keyId]);
     }
 
+    // Fetch existing API key data for guardrail validation
+    const { data: keyData, error: fetchError } = await supabaseAdmin
+      .from("api_keys")
+      .select("monthly_limit, alert_threshold, usage_count")
+      .eq("id", keyId)
+      .eq("user_id", userId)
+      .single();
+
+    if (fetchError || !keyData) {
+      return NextResponse.json({ error: "API key not found." }, { status: 404 });
+    }
+
+    // Enforce guardrail: monthlyLimit must be strictly greater than current usage count
+    if (settings.monthlyLimit !== undefined && settings.monthlyLimit !== null) {
+      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+      let usageCount = keyData.usage_count || 0;
+      try {
+        const { redis } = await import("@/lib/redis");
+        const redisUsage = await redis.get<number>(`usage:key:${keyId}:${currentMonth}`);
+        if (redisUsage !== null) {
+          usageCount = redisUsage;
+        }
+      } catch (err) {
+        console.warn("⚠️ Redis read failed in usage alert PATCH:", err);
+      }
+
+      if (settings.monthlyLimit <= usageCount) {
+        return NextResponse.json(
+          { error: `New monthly limit must be strictly greater than the current usage of ${usageCount} credits.` },
+          { status: 400 }
+        );
+      }
+    }
+
     // Build update object dynamically
     const updateData: Record<string, unknown> = {};
     if (settings.alertThreshold !== undefined) updateData.alert_threshold = settings.alertThreshold;

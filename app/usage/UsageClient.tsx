@@ -155,33 +155,82 @@ export default function UsageClient({
             description="Track quota health, live telemetry, and repository usage trends."
             rightAction={
               <>
-                <div className="flex max-w-full items-center gap-2.5 rounded-full border border-zinc-200 bg-white/80 px-4 py-2 shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="flex max-w-[200px] sm:max-w-full items-center gap-2.5 rounded-full border border-zinc-200 bg-white/80 px-3 sm:px-4 py-2 shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-950">
                   <div className="relative flex h-2 w-2 shrink-0">
                     <span className={`absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 ${isSyncing ? "animate-ping scale-150" : "animate-pulse"}`} />
                     <span className={`relative inline-flex rounded-full h-2 w-2 ${isSyncing ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-emerald-500"}`} />
                   </div>
-                  <span className="flex min-w-0 items-center gap-1.5 font-mono text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                  <span className="flex min-w-0 items-center gap-1.5 font-mono text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 truncate">
                     {isSyncing ? (
-                      <span className="animate-pulse font-bold text-emerald-500">Syncing...</span>
+                      <span className="animate-pulse font-bold text-emerald-500 truncate">Syncing...</span>
                     ) : (
                       <>
-                        Telemetry Active <span className="text-zinc-200 dark:text-zinc-800">|</span> <span className="text-[8px] font-bold tabular-nums text-zinc-400 dark:text-zinc-500">Synced {lastSyncedTime}</span>
+                        <span className="hidden sm:inline">Telemetry Active</span>
+                        <span className="inline sm:hidden">Active</span>
+                        <span className="text-zinc-200 dark:text-zinc-800 shrink-0">|</span> 
+                        <span className="text-[8px] font-bold tabular-nums text-zinc-400 dark:text-zinc-500 shrink-0">Synced {lastSyncedTime}</span>
                       </>
                     )}
                   </span>
                 </div>
                 <button
                   onClick={handleExport}
-                  className="group flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-600 shadow-sm transition hover:bg-zinc-900 hover:text-white dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-100 dark:hover:text-zinc-950"
+                  className="group flex shrink-0 items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 sm:px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-600 shadow-sm transition hover:bg-zinc-900 hover:text-white dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-100 dark:hover:text-zinc-950 cursor-pointer"
                 >
-                  <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
+                  <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0" fill="none" stroke="currentColor">
                     <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  Export CSV
+                  <span className="hidden sm:inline">Export CSV</span>
+                  <span className="inline sm:hidden">Export</span>
                 </button>
               </>
             }
-          />
+          >
+            {/* Tabs Switch */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-8 overflow-x-auto scrollbar-hide">
+              <div className="flex gap-8 overflow-x-auto scrollbar-hide">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    setActiveTab("credentials");
+                    e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                  }}
+                  className={`shrink-0 pb-4 text-xs font-bold uppercase tracking-widest transition-all outline-none cursor-pointer ${
+                    activeTab === "credentials"
+                      ? "text-emerald-500 border-b-2 border-emerald-500 font-extrabold"
+                      : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-400 font-bold"
+                  }`}
+                >
+                  Active Credentials
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    setActiveTab("analytics");
+                    e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                  }}
+                  className={`shrink-0 pb-4 text-xs font-bold uppercase tracking-widest transition-all outline-none cursor-pointer ${
+                    activeTab === "analytics"
+                      ? "text-emerald-500 border-b-2 border-emerald-500 font-extrabold"
+                      : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-400 font-bold"
+                  }`}
+                >
+                  Analytics & Trends
+                </button>
+              </div>
+
+              {currentData?.resetDate && (
+                <div className="flex shrink-0 items-center gap-2 rounded-full bg-zinc-100 dark:bg-zinc-800/50 px-3 py-1.5 mb-3 sm:mb-4">
+                  <svg viewBox="0 0 24 24" className="h-3 w-3 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                    Resets {new Date(currentData.resetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                </div>
+              )}
+            </div>
+          </DashboardPageHeader>
 
           {showSkeleton ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -190,50 +239,11 @@ export default function UsageClient({
               ))}
             </div>
           ) : (
-            <>
-              {/* Reset Info */}
-              {currentData?.resetDate && (
-                <div className="flex items-center gap-3 rounded-2xl bg-zinc-900 px-6 py-4 text-white shadow-xl">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                      <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Next Quota Reset</p>
-                    <p className="text-xs font-medium">
-                      {new Date(currentData.resetDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Tabs Switch */}
-              <div className="flex gap-6 overflow-x-auto border-b border-zinc-200 pb-3 scrollbar-hide dark:border-zinc-800">
-                <button
-                  onClick={() => setActiveTab("credentials")}
-                  className={`text-[10px] font-black uppercase tracking-widest transition-all pb-1.5 border-b-2 outline-none ${
-                    activeTab === "credentials"
-                      ? "text-zinc-900 dark:text-white border-zinc-900 dark:border-zinc-100"
-                      : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 border-transparent"
-                  }`}
-                >
-                  Active Credentials
-                </button>
-                <button
-                  onClick={() => setActiveTab("analytics")}
-                  className={`text-[10px] font-black uppercase tracking-widest transition-all pb-1.5 border-b-2 outline-none ${
-                    activeTab === "analytics"
-                      ? "text-zinc-900 dark:text-white border-zinc-900 dark:border-zinc-100"
-                      : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 border-transparent"
-                  }`}
-                >
-                  Analytics & Trends
-                </button>
-              </div>
+            <div className="space-y-8">
+              {/* Reset Info moved to Header */}
 
               {activeTab === "credentials" ? (
-                <>
+                <div className="space-y-8 animate-in fade-in duration-500">
                   {/* Quota Health Grid */}
                   {currentData?.keys && currentData.keys.length > 0 ? (
                     <QuotaHealthGrid keys={currentData.keys} onUpdate={() => fetchUsageData(true)} />
@@ -251,7 +261,7 @@ export default function UsageClient({
                     <TopReposTable data={currentData?.globalTopRepos || []} />
                     
                     <div className="flex flex-col gap-8">
-                      <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 shadow-sm">
+                      <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-sm">
                         <h3 className="font-serif text-xl font-bold mb-4">Usage Philosophy</h3>
                         <p className="text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
                           We track repository summaries to help you optimize your intelligent credits. 
@@ -265,7 +275,7 @@ export default function UsageClient({
                         </div>
                       </div>
 
-                      <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#18181b] dark:bg-zinc-900/50 p-8 text-white shadow-xl">
+                      <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#18181b] dark:bg-zinc-900/50 p-6 sm:p-8 text-white shadow-xl">
                         <div className="flex items-center justify-between mb-4">
                           <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">Tier Status</p>
                           <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[8px] font-black text-emerald-400">OPTIMIZED</span>
@@ -280,7 +290,7 @@ export default function UsageClient({
                       </div>
                     </div>
                   </div>
-                </>
+                </div>
               ) : (
                 /* Analytics & Trends Tab */
                 <AnalyticsDashboard
@@ -292,7 +302,7 @@ export default function UsageClient({
                   onUpdate={fetchUsageData}
                 />
               )}
-            </>
+            </div>
           )}
       </DashboardShell>
 

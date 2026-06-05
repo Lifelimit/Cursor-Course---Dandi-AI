@@ -58,6 +58,28 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
 
   if (!isOpen) return null;
 
+  const currentLimit = hasUsageLimit && monthlyLimit.trim() ? Number.parseInt(monthlyLimit.trim(), 10) : null;
+  const isSmallLimit = currentLimit !== null && !isNaN(currentLimit) && currentLimit <= 20;
+  const thresholdPct = Number(alertThreshold) || 80;
+
+  const minRequests = isSmallLimit ? Math.max(1, Math.ceil(0.5 * currentLimit)) : 50;
+  const maxRequests = isSmallLimit ? currentLimit : 100;
+  const stepRequests = isSmallLimit ? 1 : 5;
+
+  const sliderValue = isSmallLimit
+    ? Math.max(minRequests, Math.round((thresholdPct / 100) * currentLimit))
+    : thresholdPct;
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = Number(e.target.value);
+    if (isSmallLimit && currentLimit) {
+      const pct = Math.round((val / currentLimit) * 100);
+      setAlertThreshold(String(pct));
+    } else {
+      setAlertThreshold(String(val));
+    }
+  };
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSubmitting) return;
@@ -70,6 +92,13 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
 
     const parsedLimit = hasUsageLimit && monthlyLimit.trim() ? Number.parseInt(monthlyLimit.trim(), 10) : null;
     const parsedThreshold = Number.parseInt(alertThreshold, 10);
+
+    if (isEditing && initialData && parsedLimit !== null) {
+      if (parsedLimit <= initialData.usage_count) {
+        setErrorMessage(`New monthly limit must be strictly greater than the current usage of ${initialData.usage_count} credits.`);
+        return;
+      }
+    }
 
     setIsSubmitting(true);
     const result = await onSubmit({
@@ -195,15 +224,17 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
               <div className="rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-zinc-600 dark:text-zinc-300">Threshold Alert</span>
-                  <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">{alertThreshold}%</span>
+                  <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">
+                    {alertThreshold}% {currentLimit !== null && !isNaN(currentLimit) && `(${isSmallLimit ? sliderValue : Math.floor((thresholdPct / 100) * currentLimit)} req)`}
+                  </span>
                 </div>
                 <input 
                   type="range" 
-                  min="50" 
-                  max="100" 
-                  step="5"
-                  value={alertThreshold}
-                  onChange={(e) => setAlertThreshold(e.target.value)}
+                  min={minRequests} 
+                  max={maxRequests} 
+                  step={stepRequests}
+                  value={sliderValue}
+                  onChange={handleSliderChange}
                   className="w-full accent-zinc-900 dark:accent-zinc-100"
                 />
                 <div className="flex gap-2">

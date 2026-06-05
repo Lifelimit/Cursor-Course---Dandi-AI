@@ -92,6 +92,9 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   // Tab State
   const [activeTab, setActiveTab] = useState<"profile" | "integrations" | "webhooks" | "security">("profile");
   const [accessView, setAccessView] = useState<"api" | "browser">("api");
+  const [showAllTerminalApi, setShowAllTerminalApi] = useState(false);
+  const [showAllTerminalBrowser, setShowAllTerminalBrowser] = useState(false);
+  const [showAllWebhookLogs, setShowAllWebhookLogs] = useState(false);
 
   // Profile Form State
   const [fullName, setFullName] = useState("");
@@ -506,7 +509,10 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
               ] as const).map(tab => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={(e) => {
+                    setActiveTab(tab.id);
+                    e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                  }}
                   className={`shrink-0 rounded-full px-5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 dark:focus-visible:ring-zinc-100 dark:focus-visible:ring-offset-zinc-950 ${
                     activeTab === tab.id
                       ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-md"
@@ -952,58 +958,69 @@ X-Dandi-Event: quota.warning`}
                           No webhook delivery logs recorded yet. Configure URL and trigger a test to start tracking.
                         </div>
                       ) : (
-                        webhookLogs.map((log) => {
-                          const isSuccess = log.status >= 200 && log.status < 300;
-                          const dateStr = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                          return (
-                            <div key={log.id} className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
-                                  isSuccess
-                                    ? "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/30 dark:bg-emerald-950/30 dark:text-emerald-400"
-                                    : "border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-900/30 dark:bg-rose-950/30 dark:text-rose-400"
-                                }`}>
-                                  <span className={`h-1 w-1 rounded-full ${isSuccess ? "bg-emerald-500" : "bg-rose-500"}`} />
-                                  {log.status} {isSuccess ? "OK" : "Error"}
-                                </span>
-                                <span className="font-mono text-[10px] font-bold text-zinc-400 dark:text-zinc-500">{dateStr}</span>
-                              </div>
-
-                              <div className="space-y-3">
-                                <div className="space-y-1">
-                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Method & URL</p>
-                                  <p className="break-all font-mono text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
-                                    <span className="mr-1.5 font-bold text-zinc-700 dark:text-zinc-300">POST</span>
-                                    {log.url}
-                                  </p>
+                        <>
+                          {webhookLogs.slice(0, showAllWebhookLogs ? undefined : 3).map((log) => {
+                            const isSuccess = log.status >= 200 && log.status < 300;
+                            const dateStr = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                            return (
+                              <div key={log.id} className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
+                                    isSuccess
+                                      ? "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/30 dark:bg-emerald-950/30 dark:text-emerald-400"
+                                      : "border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-900/30 dark:bg-rose-950/30 dark:text-rose-400"
+                                  }`}>
+                                    <span className={`h-1 w-1 rounded-full ${isSuccess ? "bg-emerald-500" : "bg-rose-500"}`} />
+                                    {log.status} {isSuccess ? "OK" : "Error"}
+                                  </span>
+                                  <span className="font-mono text-[10px] font-bold text-zinc-400 dark:text-zinc-500">{dateStr}</span>
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
+
+                                <div className="space-y-3">
                                   <div className="space-y-1">
-                                    <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Event</p>
-                                    <span className="inline-flex rounded-md border border-zinc-200 bg-zinc-100 px-2 py-0.5 font-mono text-[10px] font-bold text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-                                      {log.event}
-                                    </span>
+                                    <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Method & URL</p>
+                                    <p className="break-all font-mono text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
+                                      <span className="mr-1.5 font-bold text-zinc-700 dark:text-zinc-300">POST</span>
+                                      {log.url}
+                                    </p>
                                   </div>
-                                  <div className="space-y-1">
-                                    <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Latency</p>
-                                    <p className="font-mono text-xs font-bold text-zinc-500 dark:text-zinc-400">{log.latency}ms</p>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                      <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Event</p>
+                                      <span className="inline-flex rounded-md border border-zinc-200 bg-zinc-100 px-2 py-0.5 font-mono text-[10px] font-bold text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                                        {log.event}
+                                      </span>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Latency</p>
+                                      <p className="font-mono text-xs font-bold text-zinc-500 dark:text-zinc-400">{log.latency}ms</p>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setInspectedLog(log);
-                                  setModalActiveTab("request");
-                                }}
-                                className="w-full rounded-full border border-zinc-200 bg-zinc-100 px-3.5 py-2 text-[8px] font-black uppercase tracking-widest text-zinc-600 shadow-sm transition-all hover:bg-zinc-900 hover:text-white active:scale-[0.97] dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-100 dark:hover:text-zinc-950"
-                              >
-                                Inspect Payload
-                              </button>
-                            </div>
-                          );
-                        })
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setInspectedLog(log);
+                                    setModalActiveTab("request");
+                                  }}
+                                  className="w-full rounded-full border border-zinc-200 bg-zinc-100 px-3.5 py-2 text-[8px] font-black uppercase tracking-widest text-zinc-600 shadow-sm transition-all hover:bg-zinc-900 hover:text-white active:scale-[0.97] dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-100 dark:hover:text-zinc-950"
+                                >
+                                  Inspect Payload
+                                </button>
+                              </div>
+                            );
+                          })}
+                          {webhookLogs.length > 3 && (
+                            <button
+                              type="button"
+                              onClick={() => setShowAllWebhookLogs(!showAllWebhookLogs)}
+                              className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors shadow-sm cursor-pointer active:scale-[0.99]"
+                            >
+                              {showAllWebhookLogs ? "View Less" : `View More (${webhookLogs.length - 3} more)`}
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
 
@@ -1123,7 +1140,10 @@ X-Dandi-Event: quota.warning`}
                       <div className="flex w-full gap-2 overflow-x-auto rounded-2xl bg-zinc-100 p-1 dark:bg-zinc-950/80 sm:w-auto sm:rounded-full">
                         <button
                           type="button"
-                          onClick={() => setAccessView("api")}
+                          onClick={(e) => {
+                            setAccessView("api");
+                            e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                          }}
                           className={`whitespace-nowrap rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all ${
                             accessView === "api"
                               ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-100"
@@ -1134,7 +1154,10 @@ X-Dandi-Event: quota.warning`}
                         </button>
                         <button
                           type="button"
-                          onClick={() => setAccessView("browser")}
+                          onClick={(e) => {
+                            setAccessView("browser");
+                            e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                          }}
                           className={`whitespace-nowrap rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all ${
                             accessView === "browser"
                               ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-100"
@@ -1162,101 +1185,126 @@ X-Dandi-Event: quota.warning`}
                         </span>
                       </div>
                     </div>
-
                     <div className="space-y-3 md:hidden">
-                      {accessView === "api" && apiAccessEnvironments.map((environment) => (
-                        <div key={environment.id} className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1 space-y-1">
-                              <p className="break-words font-bold text-zinc-800 dark:text-zinc-200">{environment.label}</p>
-                              {environment.detail && (
-                                <p className="break-words text-[10px] font-medium text-zinc-400 dark:text-zinc-500">{environment.detail}</p>
-                              )}
-                            </div>
-                            <div className="flex shrink-0 flex-col items-end gap-1.5">
-                              <span className={`rounded-full px-2 py-0.5 text-[7px] font-black uppercase tracking-widest ${
-                                environment.kind === "api_key"
-                                  ? "bg-indigo-50 text-indigo-500 dark:bg-indigo-950/30 dark:text-indigo-400"
-                                  : "bg-zinc-100 text-zinc-400 dark:bg-zinc-900"
-                              }`}>
-                                {environment.kind === "api_key" ? "API Key" : "API Request"}
-                              </span>
-                              <span className={`rounded-full px-2 py-0.5 text-[7px] font-black uppercase tracking-widest ${
-                                environment.revocable
-                                  ? "bg-rose-50 text-rose-500 ring-1 ring-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:ring-rose-900/30"
-                                  : "bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800"
-                              }`}>
-                                {environment.revocable ? "Revocable" : "Telemetry"}
-                              </span>
-                            </div>
-                          </div>
+                      {accessView === "api" && (
+                        <>
+                          {apiAccessEnvironments.slice(0, showAllTerminalApi ? undefined : 3).map((environment) => (
+                            <div key={environment.id} className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1 space-y-1">
+                                  <p className="break-words font-bold text-zinc-800 dark:text-zinc-200">{environment.label}</p>
+                                  {environment.detail && (
+                                    <p className="break-words text-[10px] font-medium text-zinc-400 dark:text-zinc-500">{environment.detail}</p>
+                                  )}
+                                </div>
+                                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                  <span className={`rounded-full px-2 py-0.5 text-[7px] font-black uppercase tracking-widest ${
+                                    environment.kind === "api_key"
+                                      ? "bg-indigo-50 text-indigo-500 dark:bg-indigo-950/30 dark:text-indigo-400"
+                                      : "bg-zinc-100 text-zinc-400 dark:bg-zinc-900"
+                                  }`}>
+                                    {environment.kind === "api_key" ? "API Key" : "API Request"}
+                                  </span>
+                                  <span className={`rounded-full px-2 py-0.5 text-[7px] font-black uppercase tracking-widest ${
+                                    environment.revocable
+                                      ? "bg-rose-50 text-rose-500 ring-1 ring-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:ring-rose-900/30"
+                                      : "bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800"
+                                  }`}>
+                                    {environment.revocable ? "Revocable" : "Telemetry"}
+                                  </span>
+                                </div>
+                              </div>
 
-                          <div className="grid grid-cols-2 gap-3 text-xs">
-                            <div className="space-y-1">
-                              <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">IP</p>
-                              <p className="break-all font-mono text-zinc-500">{environment.ip || "Unknown"}</p>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Location</p>
-                              <p className="text-zinc-500">{environment.location || "Unknown"}</p>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Last Seen</p>
-                              <p className="font-bold text-zinc-400">{environment.telemetryAge || "No telemetry"}</p>
-                            </div>
-                          </div>
+                              <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div className="space-y-1">
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">IP</p>
+                                  <p className="break-all font-mono text-zinc-500">{environment.ip || "Unknown"}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Location</p>
+                                  <p className="text-zinc-500">{environment.location || "Unknown"}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Last Seen</p>
+                                  <p className="font-bold text-zinc-400">{environment.telemetryAge || "No telemetry"}</p>
+                                </div>
+                              </div>
 
-                          <div className="border-t border-zinc-100 pt-3 dark:border-zinc-800">
-                            {environment.revocable ? (
-                              <button
-                                type="button"
-                                onClick={() => handleRevokeEnvironment(environment)}
-                                className="w-full rounded-xl border border-rose-200 bg-transparent px-4 py-3 text-[9px] font-black uppercase tracking-widest text-rose-500 transition-all hover:bg-rose-50 hover:text-rose-600 active:scale-[0.98] dark:border-rose-900/40 dark:hover:bg-rose-950/20"
-                                title="Disable the API key behind this environment"
-                              >
-                                Revoke Access
-                              </button>
-                            ) : (
-                              <p className="text-center text-[8px] font-black uppercase tracking-widest text-zinc-400">
-                                Telemetry only · No revocable credential
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                              <div className="border-t border-zinc-100 pt-3 dark:border-zinc-800">
+                                {environment.revocable ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRevokeEnvironment(environment)}
+                                    className="w-full rounded-xl border border-rose-200 bg-transparent px-4 py-3 text-[9px] font-black uppercase tracking-widest text-rose-500 transition-all hover:bg-rose-50 hover:text-rose-600 active:scale-[0.98] dark:border-rose-900/40 dark:hover:bg-rose-950/20"
+                                    title="Disable the API key behind this environment"
+                                  >
+                                    Revoke Access
+                                  </button>
+                                ) : (
+                                  <p className="text-center text-[8px] font-black uppercase tracking-widest text-zinc-400">
+                                    Telemetry only · No revocable credential
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          {apiAccessEnvironments.length > 3 && (
+                            <button
+                              type="button"
+                              onClick={() => setShowAllTerminalApi(!showAllTerminalApi)}
+                              className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors shadow-sm cursor-pointer active:scale-[0.99]"
+                            >
+                              {showAllTerminalApi ? "View Less" : `View More (${apiAccessEnvironments.length - 3} more)`}
+                            </button>
+                          )}
+                        </>
+                      )}
 
-                      {accessView === "browser" && browserEnvironments.map((environment) => (
-                        <div key={environment.id} className="space-y-4 rounded-2xl border border-emerald-100 bg-emerald-500/[0.02] p-4 dark:border-emerald-950/40 dark:bg-emerald-950/[0.04]">
-                          <div className="space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="break-words font-bold text-emerald-600 dark:text-emerald-400">{environment.label}</p>
-                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">Current Session</span>
-                            </div>
-                            {environment.detail && (
-                              <p className="break-words text-[10px] font-medium text-zinc-400 dark:text-zinc-500">{environment.detail}</p>
-                            )}
-                          </div>
+                      {accessView === "browser" && (
+                        <>
+                          {browserEnvironments.slice(0, showAllTerminalBrowser ? undefined : 3).map((environment) => (
+                            <div key={environment.id} className="space-y-4 rounded-2xl border border-emerald-100 bg-emerald-500/[0.02] p-4 dark:border-emerald-950/40 dark:bg-emerald-950/[0.04]">
+                              <div className="space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="break-words font-bold text-emerald-600 dark:text-emerald-400">{environment.label}</p>
+                                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">Current Session</span>
+                                </div>
+                                {environment.detail && (
+                                  <p className="break-words text-[10px] font-medium text-zinc-400 dark:text-zinc-500">{environment.detail}</p>
+                                )}
+                              </div>
 
-                          <div className="grid grid-cols-2 gap-3 text-xs">
-                            <div className="space-y-1">
-                              <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">IP</p>
-                              <p className="break-all font-mono text-zinc-500">{environment.ip || "Unknown"}</p>
+                              <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div className="space-y-1">
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">IP</p>
+                                  <p className="break-all font-mono text-zinc-500">{environment.ip || "Unknown"}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Location</p>
+                                  <p className="text-zinc-500">{environment.location || "Unknown"}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Status</p>
+                                  <p className="font-bold text-zinc-400">{environment.telemetryAge || "No telemetry"}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Action</p>
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Active Root</p>
+                                </div>
+                              </div>
                             </div>
-                            <div className="space-y-1">
-                              <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Location</p>
-                              <p className="text-zinc-500">{environment.location || "Unknown"}</p>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Status</p>
-                              <p className="font-bold text-zinc-400">{environment.telemetryAge || "No telemetry"}</p>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Action</p>
-                              <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Active Root</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                          ))}
+                          {browserEnvironments.length > 3 && (
+                            <button
+                              type="button"
+                              onClick={() => setShowAllTerminalBrowser(!showAllTerminalBrowser)}
+                              className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors shadow-sm cursor-pointer active:scale-[0.99]"
+                            >
+                              {showAllTerminalBrowser ? "View Less" : `View More (${browserEnvironments.length - 3} more)`}
+                            </button>
+                          )}
+                        </>
+                      )}
 
                       {accessView === "api" && apiAccessEnvironments.length === 0 && (
                         <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-center text-xs font-semibold text-zinc-400 dark:border-zinc-800 dark:bg-zinc-950">

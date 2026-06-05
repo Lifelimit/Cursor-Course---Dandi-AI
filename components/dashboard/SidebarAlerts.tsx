@@ -11,6 +11,7 @@ type Alert = {
   pct: number;
   threshold: number;
   currentLimit: number;
+  usageCount: number;
   dailyTrend: { date: string, count: number }[];
 };
 
@@ -62,6 +63,10 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
           const isWarning = alert.pct >= 80 && alert.pct < 95;
           const isPeeking = peekingKey === alert.id;
           const isFlying = flyoutKey === alert.id;
+          const parsedNewLimit = parseInt(newLimit.replace(/,/g, ''), 10);
+          const isInvalidMaxed = isMaxed && parsedNewLimit <= alert.currentLimit;
+          const isBelowUsage = parsedNewLimit <= alert.usageCount;
+          const isSubmitDisabled = isUpdating || isNaN(parsedNewLimit) || parsedNewLimit <= 0 || isInvalidMaxed || isBelowUsage;
           
           const dotColor = isMaxed ? 'bg-red-600 animate-pulse' :
                           isCritical ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 
@@ -74,7 +79,7 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
               <div 
                 className={`relative z-10 block rounded-2xl border bg-white dark:bg-zinc-900/60 p-3 transition-all duration-500 ${
                   isMaxed ? 'border-red-200 dark:border-red-900/50 shadow-lg shadow-red-50/50 dark:shadow-none' : 'border-zinc-100 dark:border-zinc-800'
-                } ${isFlying ? 'translate-x-[-20px] opacity-40 grayscale' : ''}`}
+                } ${isFlying ? 'md:translate-x-[-20px] md:opacity-40 md:grayscale' : ''}`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColor}`} />
@@ -94,7 +99,7 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                         }}
                         className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:underline transition-all active:scale-95"
                       >
-                        + Increase
+                        {isFlying ? 'Cancel' : '+ Increase'}
                       </button>
                     </div>
                   </div>
@@ -124,14 +129,7 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                 <div className={`md:hidden overflow-hidden transition-all duration-500 ease-in-out ${isFlying ? 'mt-4 max-h-64 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
                   <div className="space-y-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-widest">Increase Monthly Limit</span>
-                      <button 
-                        type="button"
-                        onClick={() => setFlyoutKey(null)} 
-                        className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
-                      >
-                        Cancel
-                      </button>
+                      <span className="text-[9px] font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-widest">New Monthly Limit</span>
                     </div>
                     <div className="relative">
                       <input 
@@ -143,26 +141,32 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                           setNewLimit(val);
                         }}
                         placeholder="500"
-                        className="w-full rounded-xl border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 px-3.5 py-3 text-lg font-bold text-zinc-900 dark:text-zinc-100 focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none transition-all"
+                        className="w-full rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-4 font-serif text-2xl font-bold text-zinc-900 dark:text-zinc-100 focus:border-zinc-900 dark:focus:border-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:outline-none transition-all"
                       />
-                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[8px] font-black text-zinc-400 uppercase">Credits</span>
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black text-zinc-400 uppercase">Credits</span>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <p className="px-1 text-[8px] font-medium text-zinc-500 dark:text-zinc-500 italic">
+                      <p className="px-1 text-[8px] font-medium text-zinc-500 dark:text-zinc-400 italic">
                         Current: {alert.currentLimit.toLocaleString()}
                       </p>
-                      {isMaxed && parseInt(newLimit.replace(/,/g, ''), 10) <= alert.currentLimit && (
+                      {isInvalidMaxed && (
                         <p className="px-1 text-[8px] font-bold text-red-500">
                           Must be greater than current limit when quota is reached.
+                        </p>
+                      )}
+                      {!isInvalidMaxed && isBelowUsage && newLimit !== "" && (
+                        <p className="px-1 text-[8px] font-bold text-red-500">
+                          Must be strictly greater than current usage ({alert.usageCount} credits).
                         </p>
                       )}
                     </div>
                     <button 
                       onClick={() => handleIncrease(alert)}
-                      disabled={isUpdating || (isMaxed && parseInt(newLimit.replace(/,/g, ''), 10) <= alert.currentLimit)}
-                      className="w-full rounded-xl bg-zinc-900 dark:bg-zinc-100 py-3 text-[9px] font-black uppercase tracking-wider text-white dark:text-zinc-900 transition-all active:scale-[0.98] disabled:opacity-50"
+                      disabled={isSubmitDisabled}
+                      className="group relative w-full overflow-hidden rounded-2xl bg-[#18181b] dark:bg-zinc-100 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white dark:text-zinc-900 shadow-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                     >
-                      {isUpdating ? 'Synchronizing...' : 'Update Quota'}
+                      <span className="relative z-10">{isUpdating ? 'Synchronizing...' : 'Update Quota'}</span>
+                      <div className="absolute inset-0 z-0 bg-gradient-to-r from-emerald-600 to-teal-600 opacity-0 transition-opacity group-hover:opacity-10" />
                     </button>
                   </div>
                 </div>
@@ -227,9 +231,14 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                       <p className="px-1 text-[8px] font-medium text-zinc-400 italic">
                         Current: {alert.currentLimit.toLocaleString()}
                       </p>
-                      {isMaxed && parseInt(newLimit.replace(/,/g, ''), 10) <= alert.currentLimit && (
+                      {isInvalidMaxed && (
                         <p className="px-1 text-[8px] font-bold text-red-500">
                           Must be greater than current limit when quota is reached.
+                        </p>
+                      )}
+                      {!isInvalidMaxed && isBelowUsage && newLimit !== "" && (
+                        <p className="px-1 text-[8px] font-bold text-red-500">
+                          Must be strictly greater than current usage ({alert.usageCount} credits).
                         </p>
                       )}
                     </div>
@@ -237,7 +246,7 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
 
                   <button 
                     onClick={() => handleIncrease(alert)}
-                    disabled={isUpdating || (isMaxed && parseInt(newLimit.replace(/,/g, ''), 10) <= alert.currentLimit)}
+                    disabled={isSubmitDisabled}
                     className="group relative w-full overflow-hidden rounded-2xl bg-[#18181b] dark:bg-zinc-100 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white dark:text-zinc-900 shadow-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                   >
                     <span className="relative z-10">{isUpdating ? 'Synchronizing...' : 'Update Quota'}</span>

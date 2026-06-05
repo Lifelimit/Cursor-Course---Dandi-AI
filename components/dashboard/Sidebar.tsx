@@ -23,6 +23,7 @@ export type SidebarAlert = {
   pct: number;
   threshold: number;
   currentLimit: number;
+  usageCount: number;
   dailyTrend: { date: string, count: number }[];
 };
 
@@ -208,11 +209,11 @@ export function Sidebar({
         </div>
       </nav>
 
-      <div className="hidden md:block">
+      <div className={`${isMobileNavOpen ? "block px-1 pb-2" : "hidden"} md:block`}>
         <SidebarAlerts alerts={alerts} onUpdate={onUpdate} />
       </div>
 
-      <div className="hidden md:block mt-6 rounded-2xl bg-zinc-900 dark:bg-zinc-900/50 border border-transparent dark:border-zinc-800 p-5 text-white shadow-xl">
+      <div className={`${isMobileNavOpen ? "block mx-1 mb-2 mt-4" : "hidden"} md:block md:mt-6 md:mx-0 md:mb-0 rounded-2xl bg-zinc-900 dark:bg-zinc-900/50 border border-transparent dark:border-zinc-800 p-5 text-white shadow-xl`}>
         <div className="flex justify-between items-center">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 italic">{plan}</p>
           <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
