@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
 import { fetchGitHubReadme, fetchGitHubMetadata } from "@/lib/services/github.service";
-import { generateGithubSummary } from "@/lib/services/ai.service";
+import { streamGithubSummary } from "@/lib/services/ai.service";
 import { Ratelimit } from "@upstash/ratelimit";
 import { redis } from "@/lib/redis";
 import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOriginAllowed } from "@/lib/cors";
@@ -126,11 +126,11 @@ export async function POST(request: Request) {
 
     // 5. Generate AI Summary Stream
     try {
-      const summary = await generateGithubSummary(readmeContent);
+      const result = await streamGithubSummary(readmeContent);
       const latencyMs = Date.now() - startTime;
       await incrementKeyUsage(keyData, githubUrl, latencyMs, "success", request);
 
-      return NextResponse.json(summary, {
+      const response = result.toTextStreamResponse({
         headers: {
           ...corsHeaders,
           "x-github-metadata": JSON.stringify({
@@ -140,6 +140,8 @@ export async function POST(request: Request) {
           })
         }
       });
+
+      return response;
     } catch (aiErr) {
       console.error("AI Error:", aiErr);
       const latencyMs = Date.now() - startTime;

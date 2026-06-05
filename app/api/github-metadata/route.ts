@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchGitHubMetadata } from "@/lib/services/github.service";
-import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
+import { validateApiKey } from "@/lib/services/api-key.service";
 import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { validateGitHubRepoUrl } from "@/lib/request-validation";
 import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOriginAllowed } from "@/lib/cors";
@@ -36,23 +36,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "API key is required" }, { status: 401, headers: corsHeaders });
   }
 
-  let keyData;
   try {
-    keyData = await validateApiKey(apiKey);
+    await validateApiKey(apiKey);
   } catch (keyError) {
     return NextResponse.json({ error: (keyError as Error).message }, { status: 401, headers: corsHeaders });
   }
 
-  const startTime = Date.now();
-
   try {
     const metadata = await fetchGitHubMetadata(githubUrl);
-    const latencyMs = Date.now() - startTime;
-    await incrementKeyUsage(keyData, githubUrl, latencyMs, "success", request);
     return NextResponse.json(metadata, { headers: corsHeaders });
   } catch (err) {
-    const latencyMs = Date.now() - startTime;
-    await incrementKeyUsage(keyData, githubUrl, latencyMs, "error", request);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err) },
       { status: 500, headers: corsHeaders }
