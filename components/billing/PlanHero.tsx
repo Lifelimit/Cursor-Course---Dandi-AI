@@ -10,16 +10,29 @@ type PlanHeroProps = {
   isUnlimited?: boolean;
   billingInterval?: "month" | "year";
   customerBalance?: number | null;
+  scheduledPlan?: string | null;
+  scheduledPlanDate?: string | null;
 };
 
-export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, billingInterval = "month", customerBalance }: PlanHeroProps) {
+export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, billingInterval = "month", customerBalance, scheduledPlan, scheduledPlanDate }: PlanHeroProps) {
   const pct = isUnlimited ? 0 : Math.min((usage / limit) * 100, 100);
   
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8 md:rounded-[32px]">
+    <div className="relative overflow-hidden rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8 md:rounded-[32px] flex flex-col gap-6">
       {/* Background Accent */}
       <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-emerald-500/5 blur-[80px]" />
       <div className="absolute -left-24 -bottom-24 h-64 w-64 rounded-full bg-zinc-900/5 dark:bg-zinc-100/5 blur-[80px]" />
+
+      {scheduledPlan && scheduledPlan !== plan && (
+        <div className="relative z-10 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 dark:border-blue-900/30 dark:bg-blue-900/10 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">Scheduled Plan Change</p>
+            <p className="mt-1 text-sm font-medium text-blue-900 dark:text-blue-100">
+              Your subscription will switch to <strong>{scheduledPlan}</strong> on {scheduledPlanDate ? new Date(scheduledPlanDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'the end of your billing cycle'}.
+            </p>
+          </div>
+        </div>
+      )}
  
       <div className="relative z-10 flex min-w-0 flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 space-y-4">

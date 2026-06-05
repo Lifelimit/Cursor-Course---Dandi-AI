@@ -53,7 +53,7 @@ export async function GET() {
       userEmail
         ? supabaseAdmin
             .from("profiles")
-            .select("plan, billing_next_date, billing_interval, stripe_customer_id, stripe_subscription_id")
+            .select("plan, billing_next_date, billing_interval, stripe_customer_id, stripe_subscription_id, stripe_scheduled_plan, stripe_scheduled_plan_date")
             .eq("email", userEmail)
             .single()
         : Promise.resolve({ data: null }),
@@ -287,7 +287,9 @@ export async function GET() {
       nextInvoiceDate,
       paymentMethods,
       customerBalance,
-      dailyAnalytics
+      dailyAnalytics,
+      scheduledPlan: profileData?.stripe_scheduled_plan || null,
+      scheduledPlanDate: profileData?.stripe_scheduled_plan_date || null
     });
   } catch (err) {
     console.error("❌ Usage API: Critical failure:", err);

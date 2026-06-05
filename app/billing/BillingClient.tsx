@@ -33,6 +33,8 @@ type BillingData = {
   }[];
   paymentMethods: { id: string; brand: string; last4: string; expiry: string; isDefault: boolean }[] | null;
   customerBalance?: number | null;
+  scheduledPlan?: string | null;
+  scheduledPlanDate?: string | null;
 };
 
 
@@ -232,6 +234,8 @@ export default function BillingClient({
                 isUnlimited={isUnlimited}
                 billingInterval={billingInterval}
                 customerBalance={currentData?.customerBalance ?? null}
+                scheduledPlan={currentData?.scheduledPlan}
+                scheduledPlanDate={currentData?.scheduledPlanDate}
               />
 
               {/* Payment Methods */}

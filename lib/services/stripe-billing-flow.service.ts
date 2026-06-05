@@ -45,9 +45,12 @@ export function buildSubscriptionProfilePayload(input: {
     payment_method_expiry?: string | null;
   };
   billingDetails?: Record<string, unknown>;
+  scheduledPlan?: string | null;
+  scheduledPlanDate?: string | null;
   now?: Date;
 }) {
   const periodEnd =
+    input.subscription.items?.data?.[0]?.current_period_end ||
     (input.subscription as unknown as { current_period_end?: number }).current_period_end ||
     (input.subscription as unknown as { billing_cycle_anchor?: number }).billing_cycle_anchor;
   const renewalDate = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
@@ -69,6 +72,13 @@ export function buildSubscriptionProfilePayload(input: {
     updatePayload.billing_country = typeof input.billingDetails.country === "string" ? input.billingDetails.country : null;
   }
 
+  if (input.scheduledPlan !== undefined) {
+    updatePayload.stripe_scheduled_plan = input.scheduledPlan;
+  }
+  if (input.scheduledPlanDate !== undefined) {
+    updatePayload.stripe_scheduled_plan_date = input.scheduledPlanDate;
+  }
+
   Object.keys(updatePayload).forEach((key) => updatePayload[key] === undefined && delete updatePayload[key]);
   return updatePayload;
 }
@@ -81,7 +91,9 @@ export function buildWebhookSubscriptionUpdatePayload(input: {
   paymentMethodDetails?: PaymentMethodDetails | null;
   now?: Date;
 }) {
-  const periodEnd = (input.subscription as unknown as { current_period_end?: number }).current_period_end;
+  const periodEnd =
+    input.subscription.items?.data?.[0]?.current_period_end ||
+    (input.subscription as unknown as { current_period_end?: number }).current_period_end;
   const renewalDate = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
   const interval =
     input.verifiedPlan?.interval ??
@@ -101,6 +113,11 @@ export function buildWebhookSubscriptionUpdatePayload(input: {
     payment_method_expiry: input.paymentMethodDetails?.expiry,
     billing_next_date: renewalDate,
   };
+
+  if (!input.subscription.schedule) {
+    updatePayload.stripe_scheduled_plan = null;
+    updatePayload.stripe_scheduled_plan_date = null;
+  }
 
   Object.keys(updatePayload).forEach((key) => updatePayload[key] === undefined && delete updatePayload[key]);
   return updatePayload;

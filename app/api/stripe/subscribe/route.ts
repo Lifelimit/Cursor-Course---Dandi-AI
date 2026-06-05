@@ -3,10 +3,11 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { resolvePaidPlanRequest } from "@/lib/billing-catalog";
+import { resolvePaidPlanRequest, getPlanForSubscription } from "@/lib/billing-catalog";
 import { getJsonObject, validatePaymentMethodId } from "@/lib/request-validation";
 import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
 import { buildSubscriptionProfilePayload, resolveSubscriptionPaymentState } from "@/lib/services/stripe-billing-flow.service";
+import { sendPlanChangeScheduledEmail } from "@/lib/services/email.service";
 
 export async function POST(req: Request) {
   try {
@@ -60,24 +61,104 @@ export async function POST(req: Request) {
 
     const activeSubscription = subscriptions.data.find(
       (sub) => sub.status === "active" || sub.status === "trialing" || sub.status === "incomplete"
-    );
+    ) as Stripe.Subscription & {
+      current_period_start: number;
+      current_period_end: number;
+      schedule?: string | Stripe.SubscriptionSchedule | null;
+    };
 
     let subscription: Stripe.Subscription;
+    let isScheduled = false;
+    let effectiveDateStr = "";
+    let currentPlanName = "";
+    let newPlanName = "";
 
     if (activeSubscription) {
-      // UPGRADE / CHANGE SUBSCRIPTION
-      const subItemId = activeSubscription.items.data[0].id;
-      subscription = await stripe.subscriptions.update(activeSubscription.id, {
-        items: [{ id: subItemId, price: planRequest.priceId }],
-        proration_behavior: "always_invoice",
-        payment_behavior: "pending_if_incomplete",
-        expand: ["latest_invoice.payment_intent"],
-        metadata: {
-          userId: user.id,
-          userEmail: user.email,
-          planId: planRequest.planId,
-        },
+      // UPGRADE / CHANGE SUBSCRIPTION (END-OF-TERM BILLING)
+      const currentPriceId = activeSubscription.items.data[0].price.id;
+      const currentQuantity = activeSubscription.items.data[0].quantity ?? 1;
+
+      // Create or retrieve Subscription Schedule
+      let schedule: Stripe.SubscriptionSchedule;
+      if (activeSubscription.schedule) {
+        schedule = await stripe.subscriptionSchedules.retrieve(activeSubscription.schedule as string);
+      } else {
+        schedule = await stripe.subscriptionSchedules.create({
+          from_subscription: activeSubscription.id,
+        });
+      }
+
+      // 1. Get the existing phases from the schedule
+      const existingPhases = schedule.phases.map((phase) => ({
+        start_date: phase.start_date,
+        end_date: phase.end_date,
+        items: phase.items.map((item) => ({
+          price: item.price as string,
+          quantity: item.quantity,
+        })),
+      }));
+
+      const nowEpoch = Math.floor(Date.now() / 1000);
+      const activePhase = existingPhases.find(
+        (phase) => phase.start_date <= nowEpoch && phase.end_date > nowEpoch
+      ) || existingPhases[0];
+
+      let phasesToUpdate = [];
+      if (activePhase) {
+        phasesToUpdate = [
+          {
+            start_date: activePhase.start_date,
+            end_date: activePhase.end_date,
+            items: activePhase.items,
+          },
+          {
+            start_date: activePhase.end_date,
+            items: [{ price: planRequest.priceId }],
+          },
+        ];
+      } else {
+        const currentPeriodStart =
+          activeSubscription.items.data[0].current_period_start ||
+          activeSubscription.current_period_start ||
+          activeSubscription.billing_cycle_anchor;
+        const currentPeriodEnd =
+          activeSubscription.items.data[0].current_period_end ||
+          activeSubscription.current_period_end;
+
+        phasesToUpdate = [
+          {
+            start_date: currentPeriodStart,
+            end_date: currentPeriodEnd,
+            items: [{ price: currentPriceId, quantity: currentQuantity }],
+          },
+          {
+            start_date: currentPeriodEnd,
+            items: [{ price: planRequest.priceId }],
+          },
+        ];
+      }
+
+      await stripe.subscriptionSchedules.update(schedule.id, {
+        phases: phasesToUpdate,
+        end_behavior: "release",
       });
+
+      // Retrieve the updated subscription details to return
+      subscription = await stripe.subscriptions.retrieve(activeSubscription.id);
+
+      // Setup details for email confirmation
+      isScheduled = true;
+      const effectiveDateNum =
+        activeSubscription.items.data[0].current_period_end ||
+        activeSubscription.current_period_end;
+      effectiveDateStr = new Date(effectiveDateNum * 1000).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+      const currentPlan = getPlanForSubscription(activeSubscription);
+      currentPlanName = currentPlan ? `${currentPlan.planId} (${currentPlan.interval})` : "Current Plan";
+      newPlanName = `${planRequest.planId} (${planRequest.interval})`;
     } else {
       // NEW SUBSCRIPTION
       subscription = await stripe.subscriptions.create({
@@ -141,11 +222,17 @@ export async function POST(req: Request) {
       }
     }
 
+    const activePlanRequest = activeSubscription
+      ? (getPlanForSubscription(activeSubscription) || planRequest)
+      : planRequest;
+
     const updatePayload = buildSubscriptionProfilePayload({
-      planRequest,
+      planRequest: activePlanRequest,
       subscription,
       paymentMethodDetails: pmDetails,
       billingDetails: body.billingDetails && typeof body.billingDetails === "object" ? billingDetails : undefined,
+      scheduledPlan: isScheduled ? planRequest.planId : null,
+      scheduledPlanDate: isScheduled && effectiveDateStr ? new Date(effectiveDateStr).toISOString() : null,
     });
 
     // Update profiles table
@@ -165,6 +252,13 @@ export async function POST(req: Request) {
     if (authError) {
       console.error("❌ Subscribe: Failed to update auth metadata:", authError.message);
       throw new Error(`Auth metadata update failed: ${authError.message}`);
+    }
+
+    if (isScheduled && user.email) {
+      // Send the scheduled change confirmation email asynchronously
+      sendPlanChangeScheduledEmail(user.email, currentPlanName, newPlanName, effectiveDateStr).catch((err) => {
+        console.error("Failed to send plan change email:", err);
+      });
     }
 
     return NextResponse.json({ success: true, subscription });
