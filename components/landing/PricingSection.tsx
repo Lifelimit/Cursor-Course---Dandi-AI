@@ -135,7 +135,7 @@ export function PricingSection({
           </div>
 
           {/* Volume Calculator Slider */}
-          <div className="mx-auto max-w-xl mt-12 p-6 md:p-8 rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 backdrop-blur-sm shadow-md space-y-6">
+          <div className="mx-auto max-w-xl mt-12 p-4 sm:p-6 md:p-8 rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 backdrop-blur-sm shadow-md space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1 text-left">
                 <p className="text-[9px] font-black uppercase tracking-[0.25em] text-zinc-400 dark:text-zinc-500">Volume Estimator</p>
@@ -158,7 +158,7 @@ export function PricingSection({
                 onChange={(e) => setSliderIndex(parseInt(e.target.value))}
                 className="w-full h-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 accent-zinc-900 dark:accent-zinc-100 cursor-pointer"
               />
-              <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 px-1">
+              <div className="flex justify-between text-[8px] sm:text-[9px] font-bold uppercase tracking-wider sm:tracking-widest text-zinc-400 dark:text-zinc-500 px-1">
                 {SLIDER_STEPS.map((step, idx) => (
                   <button 
                     key={idx}
@@ -185,7 +185,7 @@ export function PricingSection({
           </div>
         </div>
 
-        <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-3">
+        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-3">
           {PLANS.map((plan) => {
             const isCurrent = currentPlanId === plan.id;
             const isUpgrade = currentPlan && plan.level > currentPlan.level;
@@ -215,7 +215,7 @@ export function PricingSection({
             return (
               <div 
                 key={plan.id}
-                className={`group relative flex flex-col rounded-[40px] border p-10 transition-all hover:scale-[1.02] ${containerClass}`}
+                className={`group relative flex flex-col rounded-[40px] border p-6 sm:p-10 transition-all hover:scale-[1.02] ${containerClass}`}
               >
                 {(isCurrent || isRecommendedByVolume || plan.recommended) && (
                   <div className="mb-6 flex min-h-6 flex-wrap gap-2">
