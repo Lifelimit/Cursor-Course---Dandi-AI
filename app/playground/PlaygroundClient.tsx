@@ -824,7 +824,17 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
   const summaryHasData = Boolean(summaryResult?.summary?.trim() || summaryFacts.length > 0);
   const summaryStreamMessage = streamError?.message || summaryIssue;
   const summaryJsonData = summaryHasData
-    ? summaryResult
+    ? {
+        success: true,
+        message: `Successfully summarized ${githubUrl || "repository"}`,
+        data: {
+          owner: activeKeyData?.name || "API Key Owner",
+          repo: githubUrl || "",
+          metadata: repoMetadata || {},
+          summary: summaryResult?.summary || "",
+          cool_facts: summaryFacts
+        }
+      }
     : {
         status: summaryStatus,
         message: summaryStatus === "empty" ? "No summary was returned." : summaryStreamMessage || "Awaiting summary stream.",
