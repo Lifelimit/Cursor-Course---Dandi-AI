@@ -16,16 +16,16 @@ export function PlanComparison({
     <div className="space-y-8 sm:space-y-12">
       <div className="flex flex-col items-center gap-4 px-2 text-center">
         <h3 className="font-serif text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Choose your path</h3>
-        <div className="flex w-full max-w-sm items-center justify-center gap-2 rounded-full bg-zinc-100 p-1 dark:bg-zinc-800 sm:w-auto">
+        <div className="flex w-full max-w-sm items-stretch justify-center gap-2 rounded-full bg-zinc-100 p-1 dark:bg-zinc-800 sm:w-auto">
           <button 
             onClick={() => setSelectedInterval("month")}
-            className={`flex-1 rounded-full px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all sm:flex-none ${selectedInterval === "month" ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm" : "text-zinc-400 dark:text-zinc-500"}`}
+            className={`flex-1 rounded-full px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all sm:flex-none flex items-center justify-center whitespace-nowrap ${selectedInterval === "month" ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm" : "text-zinc-400 dark:text-zinc-500"}`}
           >
             Monthly
           </button>
           <button 
             onClick={() => setSelectedInterval("year")}
-            className={`flex-1 rounded-full px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all sm:flex-none ${selectedInterval === "year" ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm" : "text-zinc-400 dark:text-zinc-500"}`}
+            className={`flex-1 rounded-full px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all sm:flex-none flex items-center justify-center whitespace-nowrap ${selectedInterval === "year" ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm" : "text-zinc-400 dark:text-zinc-500"}`}
           >
             Annual (-20%)
           </button>
