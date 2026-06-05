@@ -176,10 +176,10 @@ export function WorkspaceMockup() {
           <div className="mb-6 flex items-center justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Workspace Gateways</p>
-                <span className="flex h-2 w-2 rounded-full bg-emerald-500 relative">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-500 relative shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 </span>
+                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Workspace Gateways</p>
               </div>
               <h4 className="text-md font-bold text-zinc-900 dark:text-zinc-100">Research Labs</h4>
             </div>
@@ -211,7 +211,7 @@ export function WorkspaceMockup() {
               {/* Endpoint Selector */}
               <div className="space-y-1.5">
                 <label className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">API Service Route</label>
-                <div className="grid grid-cols-3 gap-1 p-1 bg-zinc-100 dark:bg-zinc-950 rounded-xl border border-zinc-200/40 dark:border-zinc-900">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 p-1 bg-zinc-100 dark:bg-zinc-950 rounded-xl border border-zinc-200/40 dark:border-zinc-900">
                   {(["chat", "ingest", "shield"] as Service[]).map((s) => (
                     <button
                       key={s}
