@@ -154,9 +154,9 @@ export function FeatureGrid() {
         <p className="mx-auto max-w-md text-zinc-500 dark:text-zinc-400 md:mx-0">Every component of Dandi is built with a singular focus on performance and reliability.</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-6 h-auto">
+      <div className="grid gap-6 lg:grid-cols-6 h-auto">
         {/* Bento Item 1: Click to Orchestrate (Now Interactive!) */}
-        <div className="group relative col-span-full md:col-span-3 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 md:p-10 transition-all hover:border-zinc-400 dark:hover:border-zinc-700 min-h-[480px] flex flex-col justify-between shadow-sm dark:shadow-none">
+        <div className="group relative col-span-full lg:col-span-3 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 md:p-10 transition-all hover:border-zinc-400 dark:hover:border-zinc-700 min-h-[480px] flex flex-col justify-between shadow-sm dark:shadow-none">
           <div className="relative z-10 space-y-5">
             <div className="flex items-center gap-4">
               <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30">
@@ -175,7 +175,7 @@ export function FeatureGrid() {
             </p>
 
             {/* Selector and Trigger Control */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <div className="flex flex-col lg:flex-row gap-3 pt-2">
               <div ref={dropdownRef} className="relative flex-1 select-none z-30">
                 <button
                   type="button"
@@ -248,7 +248,7 @@ export function FeatureGrid() {
 
             {/* Output Screen Terminal */}
             {(logs.length > 0 || showResult) && (
-              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-950 dark:bg-zinc-950/80 p-5 font-mono text-[10px] leading-relaxed shadow-inner">
+              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-950 dark:bg-zinc-950/80 p-4 sm:p-5 font-mono text-[10px] leading-relaxed shadow-inner">
                 {/* Simulated Header */}
                 <div className="flex items-center gap-1.5 pb-3 border-b border-zinc-800 mb-3 text-zinc-600">
                   <span className="h-2 w-2 rounded-full bg-zinc-700" />
@@ -270,7 +270,7 @@ export function FeatureGrid() {
                 {showResult && (
                   <div className="pt-2 animate-in fade-in duration-500 space-y-4">
                     {/* Multi Column Stats Grid */}
-                    <div className="grid grid-cols-4 gap-2 bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 text-center">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 text-center">
                       <div>
                         <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">Stars</p>
                         <p className="text-[10px] text-emerald-400 font-bold mt-0.5">{currentRepoInfo.stars}</p>
@@ -341,26 +341,58 @@ export function FeatureGrid() {
           <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-emerald-50/50 dark:bg-emerald-950/10 transition-transform group-hover:scale-150 -z-10"></div>
         </div>
 
-        {/* Bento Item 2: Metadata at Scale */}
-        <div className="group relative col-span-full md:col-span-3 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#18181b] dark:bg-zinc-900 p-10 text-white transition-all hover:border-zinc-700 min-h-[300px] flex flex-col justify-between shadow-2xl">
-          <div className="relative z-10 space-y-4 max-w-[280px]">
-            <h3 className="text-2xl font-bold italic font-serif">Metadata at Scale</h3>
-            <p className="text-sm leading-relaxed text-zinc-400 dark:text-zinc-300">Track stars, forks, license types, and version tags across your entire ecosystem with zero configuration.</p>
+        {/* Bento Item 2: Active Quota Shield */}
+        <div className="group relative col-span-full lg:col-span-3 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#18181b] dark:bg-zinc-900 p-6 sm:p-10 text-white transition-all hover:border-zinc-700 min-h-[300px] flex flex-col justify-between shadow-2xl">
+          <div className="relative z-10 space-y-4 w-full lg:max-w-[calc(100%-260px)]">
+            <h3 className="text-2xl font-bold italic font-serif">Active Quota Shield</h3>
+            <p className="text-sm leading-relaxed text-zinc-400 dark:text-zinc-300">Set custom alert thresholds and trigger instant notifications dynamically before your LLM credits run dry.</p>
+            
+            {/* Real alert channels tag list */}
+            <div className="flex flex-wrap gap-2 pt-2 select-none">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/50 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
+                Email Dispatch
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/50 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
+                In-Page Alerts
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/50 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
+                SMS Logs
+              </span>
+            </div>
           </div>
           
-          {/* Animated Chips Stream */}
-          <div className="absolute top-8 -right-4 md:right-4 bottom-0 w-[200px] flex flex-col gap-3 opacity-40 group-hover:opacity-100 transition-opacity duration-700 select-none pointer-events-none">
-            <div className="animate-pulse bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-mono px-3 py-1.5 rounded-xl self-end translate-x-4">
-              &#123; &quot;stars&quot;: &quot;+1.2k&quot; &#125;
+          {/* Floating Glassmorphic Alert Box (Relative on mobile/tablet, absolute on lg desktop screens) */}
+          <div className="relative lg:absolute lg:bottom-8 lg:right-6 w-full lg:w-[240px] mt-6 lg:mt-0 rounded-2xl border border-amber-500/20 bg-zinc-950/80 p-4 shadow-xl backdrop-blur-md transition-all duration-500 select-none pointer-events-none group-hover:scale-105 group-hover:border-amber-500/40 opacity-60 group-hover:opacity-100 mx-auto">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-amber-500 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
+              </span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-amber-500">80% Quota Alert</span>
             </div>
-            <div className="animate-pulse delay-75 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] font-mono px-3 py-1.5 rounded-xl self-center -translate-x-2">
-              [v15.0.0] released
+            
+            <div className="space-y-2">
+              <p className="text-[7.5px] font-mono text-zinc-500 truncate">KEY: dandi_sk_live_8f0a21...</p>
+              <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
+                <div className="h-full bg-amber-500 rounded-full w-4/5 animate-pulse" />
+              </div>
+              <div className="flex justify-between text-[7px] font-bold text-zinc-400">
+                <span>Usage: 4,000 reqs</span>
+                <span>Limit: 5,000 reqs</span>
+              </div>
             </div>
-            <div className="animate-pulse delay-150 bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[9px] font-mono px-3 py-1.5 rounded-xl self-start translate-x-6">
-              &#123; &quot;license&quot;: &quot;MIT&quot; &#125;
-            </div>
-            <div className="animate-pulse delay-300 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[9px] font-mono px-3 py-1.5 rounded-xl self-end -translate-x-4">
-              [Push] main branch
+
+            <div className="mt-3 pt-2 border-t border-zinc-900/60 flex items-center justify-between text-[7.5px] font-bold text-zinc-500">
+              <span>Notification:</span>
+              <span className="text-emerald-400 flex items-center gap-1 font-sans">
+                <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3">
+                  <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Email Sent
+              </span>
             </div>
           </div>
           
@@ -368,13 +400,13 @@ export function FeatureGrid() {
         </div>
 
         {/* Bento Item 3 (Large): Live Playground */}
-        <div className="group relative col-span-full md:col-span-4 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 md:p-10 transition-all hover:border-zinc-400 dark:hover:border-zinc-700 min-h-[300px] shadow-sm dark:shadow-none flex flex-col md:flex-row gap-6 md:items-center">
-          <div className="space-y-4 md:w-5/12 relative z-10">
+        <div className="group relative col-span-full lg:col-span-4 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 md:p-10 transition-all hover:border-zinc-400 dark:hover:border-zinc-700 min-h-[300px] shadow-sm dark:shadow-none flex flex-col lg:flex-row gap-6 lg:items-center">
+          <div className="space-y-4 lg:w-5/12 relative z-10">
             <h3 className="text-2xl font-bold">Live Playground</h3>
             <p className="text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">Test your orchestration before you ship. Monitor latency, inspect raw JSON responses, and generate snippets instantly.</p>
           </div>
           
-          <div className="md:w-7/12 relative mt-4 md:mt-0 h-full">
+          <div className="lg:w-7/12 relative mt-4 lg:mt-0 h-full">
             {/* Mock IDE */}
             <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-[#fbfaf9] dark:bg-zinc-950 shadow-xl overflow-hidden flex flex-col h-[200px] relative transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-2xl">
               <div className="flex items-center px-4 py-2 bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 gap-1.5">
@@ -385,14 +417,17 @@ export function FeatureGrid() {
               </div>
               <div className="flex-1 flex font-mono text-[9px] overflow-hidden">
                 {/* Left Pane: Code */}
-                <div className="w-1/2 p-4 border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300">
-                  <div className="text-emerald-500 dark:text-emerald-400">import</div> &#123; Dandi &#125; <div className="text-emerald-500 dark:text-emerald-400 inline">from</div> &quot;@dandi/sdk&quot;;<br/><br/>
-                  <div className="text-blue-500 dark:text-blue-400 inline">const</div> client = <div className="text-blue-500 dark:text-blue-400 inline">new</div> Dandi();<br/><br/>
-                  <div className="opacity-50 group-hover:opacity-100 transition-opacity delay-100">
-                    <div className="text-emerald-500 dark:text-emerald-400 inline">await</div> client.analyze(&#123;<br/>
-                    &nbsp;&nbsp;repo: &quot;vercel/next.js&quot;<br/>
-                    &#125;);
-                  </div>
+                <div className="w-1/2 p-3.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 select-none overflow-y-auto">
+                  <span className="text-blue-500 dark:text-blue-400">const</span> res = <span className="text-blue-500 dark:text-blue-400">await</span> fetch(<br/>
+                  &nbsp;&nbsp;&quot;/api/github-summarizer&quot;,<br/>
+                  &nbsp;&nbsp;&#123;<br/>
+                  &nbsp;&nbsp;&nbsp;&nbsp;method: &quot;POST&quot;,<br/>
+                  &nbsp;&nbsp;&nbsp;&nbsp;headers: &#123; &quot;x-api-key&quot;: key &#125;,<br/>
+                  &nbsp;&nbsp;&nbsp;&nbsp;body: JSON.stringify(&#123;<br/>
+                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;githubUrl: &quot;...&quot;<br/>
+                  &nbsp;&nbsp;&nbsp;&nbsp;&#125;)<br/>
+                  &nbsp;&nbsp;&#125;<br/>
+                  );
                 </div>
                 {/* Right Pane: Output */}
                 <div className="w-1/2 p-4 bg-zinc-50 dark:bg-[#111] text-zinc-500 dark:text-zinc-400 relative">
@@ -413,7 +448,7 @@ export function FeatureGrid() {
         </div>
 
         {/* Bento Item 4: API Developer First */}
-        <div className="group relative col-span-full md:col-span-2 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#efebe2] dark:bg-zinc-900/50 p-10 transition-all hover:border-zinc-400 dark:hover:border-zinc-700 min-h-[300px] flex flex-col justify-between shadow-sm dark:shadow-none">
+        <div className="group relative col-span-full lg:col-span-2 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#efebe2] dark:bg-zinc-900/50 p-6 sm:p-10 transition-all hover:border-zinc-400 dark:hover:border-zinc-700 min-h-[300px] flex flex-col justify-between shadow-sm dark:shadow-none">
           <div className="relative z-10 space-y-2 text-left">
             <p className="text-5xl font-black italic font-serif tracking-tighter text-zinc-900 dark:text-zinc-100">API</p>
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">Developer First</p>
@@ -426,8 +461,10 @@ export function FeatureGrid() {
                 <div className="h-2 w-2 rounded-full bg-zinc-700" />
                 <div className="h-2 w-2 rounded-full bg-zinc-700" />
               </div>
-              <p className="font-mono text-[10px]">
-                <span className="text-emerald-400">~</span> <span className="text-zinc-300">yarn add</span> @dandi/sdk<span className="animate-pulse">_</span>
+              <p className="font-mono text-[9px] leading-relaxed break-all select-none">
+                <span className="text-emerald-400">~</span> <span className="text-zinc-300">curl -X POST</span> https://dandi.ai/api/github-summarizer \<br/>
+                &nbsp;&nbsp;-H <span className="text-zinc-400">&quot;x-api-key: dandi_sk_...&quot;</span> \<br/>
+                &nbsp;&nbsp;-d <span className="text-zinc-400">&#39;&#123;&quot;githubUrl&quot;:&quot;...&quot;&#125;&#39;</span><span className="animate-pulse">_</span>
               </p>
             </div>
           </div>

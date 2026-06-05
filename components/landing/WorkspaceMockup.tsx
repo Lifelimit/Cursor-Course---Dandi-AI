@@ -102,7 +102,7 @@ const AVATARS = [
 export function WorkspaceMockup() {
   const [activeService, setActiveService] = useState<Service>("chat");
   const [status, setStatus] = useState<Status>("idle");
-  const [credits, setCredits] = useState<number>(9.97);
+  const [quotaRemaining, setQuotaRemaining] = useState<number>(4124);
   const [liveLogs, setLiveLogs] = useState<string[]>([]);
   const [streamedText, setStreamedText] = useState<string>("");
 
@@ -151,9 +151,8 @@ export function WorkspaceMockup() {
 
     // 5. Complete
     setStatus("complete");
-    // Deduct standard nominal amounts representing API credits spent
-    const simulatedCost = activeService === "chat" ? 0.005 : activeService === "ingest" ? 0.020 : 0.0001;
-    setCredits(prev => Math.max(0, parseFloat((prev - simulatedCost).toFixed(4))));
+    // Deduct request quota count spent
+    setQuotaRemaining(prev => Math.max(0, prev - 1));
     setLiveLogs(prev => [
       ...prev,
       `[18:30:14] ✅ Complete. Latency: ${service.latency} | Redis & Supabase state updated.`
@@ -204,10 +203,10 @@ export function WorkspaceMockup() {
           </div>
 
           {/* Main Grid: Control Panel + Terminal */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             
             {/* Control Panel (left 5 columns) */}
-            <div className="md:col-span-5 space-y-4">
+            <div className="lg:col-span-5 space-y-4">
               
               {/* Endpoint Selector */}
               <div className="space-y-1.5">
@@ -254,10 +253,18 @@ export function WorkspaceMockup() {
                   <span className="text-zinc-400 dark:text-zinc-500">Tracker</span>
                   <span className="font-mono text-zinc-800 dark:text-zinc-200">{currentService.metrics}</span>
                 </div>
+                <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-wider">
+                  <span className="text-zinc-400 dark:text-zinc-500">Usage Cost</span>
+                  <span className="font-mono text-zinc-800 dark:text-zinc-200">1 request</span>
+                </div>
                 <div className="h-[1px] bg-zinc-200 dark:bg-zinc-900 my-1" />
                 <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-wider">
-                  <span className="text-zinc-500 dark:text-zinc-400">Quota Credits</span>
-                  <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">${credits.toFixed(4)}</span>
+                  <span className="text-zinc-500 dark:text-zinc-400">Quota Remaining</span>
+                  <span className="font-mono font-bold text-zinc-800 dark:text-zinc-250">{quotaRemaining.toLocaleString()} / 5,000 reqs</span>
+                </div>
+                <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-wider">
+                  <span className="text-zinc-500 dark:text-zinc-400">Stripe Credit</span>
+                  <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">$12.50</span>
                 </div>
               </div>
 
@@ -283,7 +290,7 @@ export function WorkspaceMockup() {
             </div>
 
             {/* Terminal Console (right 7 columns) */}
-            <div className="md:col-span-7 flex flex-col h-[230px] rounded-xl bg-zinc-950 border border-zinc-800/80 p-3 overflow-hidden shadow-inner relative font-mono text-[9px] text-zinc-300">
+            <div className="lg:col-span-7 flex flex-col h-[230px] rounded-xl bg-zinc-950 border border-zinc-800/80 p-3 overflow-hidden shadow-inner relative font-mono text-[9px] text-zinc-300">
               
               {/* Terminal Title Bar */}
               <div className="flex justify-between items-center pb-2 border-b border-zinc-900 mb-2">
@@ -331,7 +338,7 @@ export function WorkspaceMockup() {
         <div className="mt-4 px-4 py-3 rounded-2xl bg-zinc-50/40 dark:bg-zinc-900/20 border border-zinc-100/50 dark:border-zinc-900/50 flex items-center justify-between text-[7px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 select-none">
           
           <div className="flex flex-col items-center gap-1">
-            <span className={`px-1.5 py-0.5 rounded-md border ${status === "idle" ? "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800" : "bg-emerald-500/10 border-emerald-500/40 text-emerald-500"}`}>Key Client</span>
+            <span className={`px-1.5 py-0.5 rounded-md border ${status === "idle" ? "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800" : "bg-emerald-500/10 border-emerald-500/40 text-emerald-500"}`}><span className="hidden sm:inline">Key </span>Client</span>
             <span className="text-[6px] text-zinc-400/80">Inbound</span>
           </div>
 
@@ -346,7 +353,7 @@ export function WorkspaceMockup() {
               status === "auth_check" || status === "redis_quota"
                 ? "bg-purple-500/10 border-purple-500/40 text-purple-500 scale-105"
                 : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
-            }`}>Upstash Redis</span>
+            }`}><span className="hidden sm:inline">Upstash </span>Redis</span>
             <span className="text-[6px] text-zinc-400/80">Rate/Quota</span>
           </div>
 
@@ -361,7 +368,7 @@ export function WorkspaceMockup() {
               status === "database_action"
                 ? "bg-blue-500/10 border-blue-500/40 text-blue-500 scale-105"
                 : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
-            }`}>Supabase DB</span>
+            }`}>Supabase<span className="hidden sm:inline"> DB</span></span>
             <span className="text-[6px] text-zinc-400/80">pgvector</span>
           </div>
 
@@ -378,14 +385,14 @@ export function WorkspaceMockup() {
                 : status === "complete"
                 ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-500"
                 : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
-            }`}>Google Gemini</span>
+            }`}><span className="hidden sm:inline">Google </span>Gemini</span>
             <span className="text-[6px] text-zinc-400/80">AI Model</span>
           </div>
         </div>
       </div>
 
-      {/* Decorative Glow */}
-      <div className="absolute -inset-4 z-0 bg-gradient-to-tr from-blue-300/30 to-emerald-300/30 dark:from-blue-950/10 dark:to-emerald-950/10 blur-3xl opacity-60 pointer-events-none" />
+      {/* Decorative Glow - Neutrally toned to blend with the page color */}
+      <div className="absolute -inset-10 z-0 bg-gradient-to-tr from-zinc-200/20 to-zinc-100/10 dark:from-zinc-900/20 dark:to-zinc-900/5 blur-3xl opacity-70 pointer-events-none" />
       
       {/* Custom Lasers / Shimmer Animations */}
       <style dangerouslySetInnerHTML={{ __html: `
