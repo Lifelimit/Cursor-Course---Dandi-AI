@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Sidebar } from "@/components/dashboard/Sidebar";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { useApiKeys } from "@/hooks/useApiKeys";
@@ -150,29 +150,25 @@ export default function ProtectedClient({ initialSession }: { initialSession: Se
   const { monthlyLimit: currentLimit, isUnlimited } = getPlanLimits(currentPlan);
 
   return (
-    <div className="min-h-screen bg-[#f4f2ed] dark:bg-zinc-950 text-[#18181b] dark:text-zinc-100 selection:bg-zinc-200 dark:selection:bg-zinc-800">
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-stretch gap-8 p-6 md:flex-row md:py-12">
-        <Sidebar 
-          totalUsage={totalUsage} 
-          plan={currentPlan} 
-          limit={currentLimit} 
-          isUnlimited={isUnlimited} 
-        />
-        
-        <main className="min-w-0 flex-1">
-          <Suspense fallback={
-            <div className="flex-1 rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 p-8 backdrop-blur-sm">
-              <div className="animate-pulse space-y-4">
-                <div className="h-8 w-48 bg-zinc-200 dark:bg-zinc-800 rounded-full"></div>
-                <div className="h-32 w-full bg-zinc-100 dark:bg-zinc-800/50 rounded-[24px]"></div>
-              </div>
-            </div>
-          }>
-            <ProtectedContent />
-          </Suspense>
-        </main>
-      </div>
+    <DashboardShell
+      sidebar={{
+        totalUsage,
+        plan: currentPlan,
+        limit: currentLimit,
+        isUnlimited,
+      }}
+    >
+      <Suspense fallback={
+        <div className="flex-1 rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 p-8 backdrop-blur-sm">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 w-48 bg-zinc-200 dark:bg-zinc-800 rounded-full"></div>
+            <div className="h-32 w-full bg-zinc-100 dark:bg-zinc-800/50 rounded-[24px]"></div>
+          </div>
+        </div>
+      }>
+        <ProtectedContent />
+      </Suspense>
       <Toast toast={toast} />
-    </div>
+    </DashboardShell>
   );
 }

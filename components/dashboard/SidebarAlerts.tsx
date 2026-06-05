@@ -119,11 +119,58 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                     <UsageSparkline data={alert.dailyTrend} color={isMaxed ? "#ef4444" : isWarning ? "#fbbf24" : "#10b981"} />
                   </div>
                 </div>
+
+                {/* Mobile Inline Quota Increase Form */}
+                <div className={`md:hidden overflow-hidden transition-all duration-500 ease-in-out ${isFlying ? 'mt-4 max-h-64 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+                  <div className="space-y-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-widest">Increase Monthly Limit</span>
+                      <button 
+                        type="button"
+                        onClick={() => setFlyoutKey(null)} 
+                        className="text-[10px] font-bold text-zinc-400 dark:text-zinc-550 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        inputMode="numeric"
+                        value={newLimit}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '');
+                          setNewLimit(val);
+                        }}
+                        placeholder="500"
+                        className="w-full rounded-xl border border-zinc-250 dark:border-zinc-850 bg-zinc-50 dark:bg-zinc-950 px-3.5 py-3 text-lg font-bold text-zinc-900 dark:text-zinc-100 focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none transition-all"
+                      />
+                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[8px] font-black text-zinc-400 uppercase">Credits</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <p className="px-1 text-[8px] font-medium text-zinc-455 dark:text-zinc-500 italic">
+                        Current: {alert.currentLimit.toLocaleString()}
+                      </p>
+                      {isMaxed && parseInt(newLimit.replace(/,/g, ''), 10) <= alert.currentLimit && (
+                        <p className="px-1 text-[8px] font-bold text-red-500">
+                          Must be greater than current limit when quota is reached.
+                        </p>
+                      )}
+                    </div>
+                    <button 
+                      onClick={() => handleIncrease(alert)}
+                      disabled={isUpdating || (isMaxed && parseInt(newLimit.replace(/,/g, ''), 10) <= alert.currentLimit)}
+                      className="w-full rounded-xl bg-zinc-900 dark:bg-zinc-100 py-3 text-[9px] font-black uppercase tracking-wider text-white dark:text-zinc-900 transition-all active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {isUpdating ? 'Synchronizing...' : 'Update Quota'}
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* Horizontal Flyout Increase Form - Seamless Extension with Elastic Growth */}
+              {/* Horizontal Flyout Increase Form - Desktop Only */}
               <div 
-                className={`absolute left-full top-1/2 z-[110] -translate-y-1/2 flex items-center transition-all duration-500 origin-left ${
+                className={`hidden md:flex absolute left-full top-1/2 z-[110] -translate-y-1/2 items-center transition-all duration-500 origin-left ${
                   isFlying 
                     ? 'translate-x-3 opacity-100 scale-100 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]' 
                     : '-translate-x-4 opacity-0 scale-0 pointer-events-none ease-[cubic-bezier(0.6,-0.28,0.735,0.045)]'

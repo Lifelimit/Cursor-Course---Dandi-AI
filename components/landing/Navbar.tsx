@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,8 +9,21 @@ import { Session } from "@supabase/supabase-js";
 
 export function Navbar({ session }: { session: Session | null }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+
+  useEffect(() => {
+    if (!isProfileOpen) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".profile-trigger") && !target.closest(".profile-popover")) {
+        setIsProfileOpen(false);
+      }
+    };
+    document.addEventListener("click", handleOutsideClick);
+    return () => document.removeEventListener("click", handleOutsideClick);
+  }, [isProfileOpen]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -45,7 +58,13 @@ export function Navbar({ session }: { session: Session | null }) {
                 <Link href="/dashboards" className="rounded-full bg-zinc-900 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-zinc-900/10 transition-all hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:shadow-none dark:hover:bg-zinc-200">
                   Dashboard
                 </Link>
-                <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className="profile-trigger flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-zinc-100 cursor-pointer"
+                  aria-expanded={isProfileOpen}
+                  aria-label="User Profile menu"
+                >
                   {userImage ? (
                     <Image src={userImage} alt="Avatar" width={34} height={34} className="h-9 w-9 rounded-full border border-zinc-200 shadow-sm dark:border-zinc-800" referrerPolicy="no-referrer" unoptimized />
                   ) : (
@@ -53,7 +72,7 @@ export function Navbar({ session }: { session: Session | null }) {
                       {userInitial}
                     </div>
                   )}
-                </div>
+                </button>
                 <button
                   onClick={handleSignOut}
                   className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-rose-900/50 dark:hover:bg-rose-950/20 dark:hover:text-rose-400"
@@ -83,17 +102,28 @@ export function Navbar({ session }: { session: Session | null }) {
             )}
           </div>
           {session && (
-            userImage ? (
-              <Image src={userImage} alt="Avatar" width={28} height={28} className="h-7 w-7 rounded-full border border-zinc-200 shadow-sm dark:border-zinc-800 md:hidden" referrerPolicy="no-referrer" unoptimized />
-            ) : (
-              <div className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 text-[10px] font-black uppercase text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-300 md:hidden">
-                {userInitial}
-              </div>
-            )
+            <button
+              type="button"
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              className="profile-trigger flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-zinc-100 md:hidden cursor-pointer"
+              aria-expanded={isProfileOpen}
+              aria-label="User Profile menu"
+            >
+              {userImage ? (
+                <Image src={userImage} alt="Avatar" width={28} height={28} className="h-7 w-7 rounded-full border border-zinc-200 shadow-sm dark:border-zinc-800" referrerPolicy="no-referrer" unoptimized />
+              ) : (
+                <div className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 text-[10px] font-black uppercase text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
+                  {userInitial}
+                </div>
+              )}
+            </button>
           )}
           <button
             type="button"
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={() => {
+              setIsOpen(!isOpen);
+              setIsProfileOpen(false);
+            }}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 transition-all hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 md:hidden"
             aria-controls="homepage-mobile-nav"
             aria-expanded={isOpen}
@@ -110,20 +140,41 @@ export function Navbar({ session }: { session: Session | null }) {
               </svg>
             )}
           </button>
-          {session && (
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-rose-900/50 dark:hover:bg-rose-950/20 dark:hover:text-rose-400 md:hidden"
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          )}
-        </div>
+        {/* Profile Popover */}
+        {isProfileOpen && session && (
+          <div className="profile-popover absolute right-3 top-[calc(100%+8px)] z-[100] w-64 rounded-2xl border border-zinc-200 bg-white/95 p-4 shadow-xl backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/85 dark:shadow-black/20 animate-in fade-in slide-in-from-top-2 duration-250">
+            <div className="space-y-3">
+              <div className="border-b border-zinc-100 pb-2.5 dark:border-zinc-800">
+                <p className="truncate text-xs font-black uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
+                  {session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "Developer"}
+                </p>
+                <p className="truncate text-[10px] text-zinc-450 dark:text-zinc-500 font-mono lowercase mt-0.5">
+                  {session.user.email}
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                <Link
+                  onClick={() => setIsProfileOpen(false)}
+                  href="/dashboards"
+                  className="rounded-lg px-3 py-2 transition hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white"
+                >
+                  Dashboard
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileOpen(false);
+                    handleSignOut();
+                  }}
+                  className="rounded-lg px-3 py-2 text-left text-rose-500 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20 dark:hover:text-rose-455 cursor-pointer"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
       </div>
 
       {/* Mobile Menu */}

@@ -428,7 +428,7 @@ export function FeatureGrid() {
           
           <div className="lg:w-7/12 relative mt-4 lg:mt-0 h-full">
             {/* Mock IDE */}
-            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-[#fbfaf9] dark:bg-zinc-950 shadow-xl overflow-hidden flex flex-col h-[200px] relative transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-2xl">
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-[#fbfaf9] dark:bg-zinc-950 shadow-xl overflow-hidden flex flex-col h-[215px] sm:h-[200px] relative transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-2xl">
               <div className="flex items-center justify-between px-4 py-2 bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
                 <div className="flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-red-400"></span>
@@ -495,7 +495,7 @@ export function FeatureGrid() {
               
               <div className="flex-1 flex font-mono text-[9px] overflow-hidden">
                 {/* Left Pane: Code */}
-                <div className={`w-full sm:w-1/2 p-3.5 sm:border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 select-none overflow-y-auto ${playgroundTab === "request" ? "block" : "hidden sm:block"}`}>
+                <div className={`w-full sm:w-1/2 p-3 sm:p-3.5 sm:border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 overflow-y-auto ${playgroundTab === "request" ? "block" : "hidden sm:block"}`}>
                   <span className="text-blue-500 dark:text-blue-400">const</span> res = <span className="text-blue-500 dark:text-blue-400">await</span> fetch(<br/>
                   &nbsp;&nbsp;&quot;/api/github-summarizer&quot;,<br/>
                   &nbsp;&nbsp;&#123;<br/>
@@ -508,7 +508,7 @@ export function FeatureGrid() {
                   );
                 </div>
                 {/* Right Pane: Output */}
-                <div className={`w-full sm:w-1/2 p-4 bg-zinc-50 dark:bg-[#111] text-zinc-500 dark:text-zinc-400 relative ${playgroundTab === "response" ? "block" : "hidden sm:block"}`}>
+                <div className={`w-full sm:w-1/2 p-3 sm:p-4 bg-zinc-50 dark:bg-[#111] text-zinc-500 dark:text-zinc-400 relative ${playgroundTab === "response" ? "block" : "hidden sm:block"}`}>
                   {playgroundState === "idle" && (
                     <div className="absolute inset-0 flex flex-col justify-center items-center gap-1.5 p-4 text-center select-none bg-zinc-50 dark:bg-[#111] animate-in fade-in duration-300">
                       <button 
@@ -565,7 +565,7 @@ export function FeatureGrid() {
                 <div className="h-2 w-2 rounded-full bg-zinc-700" />
                 <div className="h-2 w-2 rounded-full bg-zinc-700" />
               </div>
-              <p className="font-mono text-[9px] leading-relaxed break-all select-none">
+              <p className="font-mono text-[9px] leading-relaxed break-all">
                 <span className="text-emerald-400">~</span> <span className="text-zinc-300">curl -X POST</span> https://dandi.ai/api/github-summarizer \<br/>
                 &nbsp;&nbsp;-H <span className="text-zinc-400">&quot;x-api-key: dandi_sk_...&quot;</span> \<br/>
                 &nbsp;&nbsp;-d <span className="text-zinc-400">&#39;&#123;&quot;githubUrl&quot;:&quot;...&quot;&#125;&#39;</span><span className="animate-pulse">_</span>
