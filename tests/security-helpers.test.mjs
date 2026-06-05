@@ -433,7 +433,7 @@ test("resolves Gemini embedding model defaults and overrides", () => {
 
   try {
     delete process.env.GOOGLE_EMBEDDING_MODEL;
-    assert.equal(getEmbeddingModel(), "text-embedding-004");
+    assert.equal(getEmbeddingModel(), "gemini-embedding-001");
 
     process.env.GOOGLE_EMBEDDING_MODEL = "models/custom-model";
     assert.equal(getEmbeddingModel(), "custom-model");
