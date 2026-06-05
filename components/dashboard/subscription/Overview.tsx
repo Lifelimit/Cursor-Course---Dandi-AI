@@ -4,6 +4,7 @@ import { PlanDetail, BillingDetails } from "@/types";
 type OverviewProps = {
   planName: string;
   currentPlan: PlanDetail;
+  nextBillingDate?: string | null;
   formValues: BillingDetails;
   cardData: BillingDetails & { number: string; brand: string };
   isLoading: boolean;
@@ -16,6 +17,7 @@ type OverviewProps = {
 export function Overview({
   planName,
   currentPlan,
+  nextBillingDate,
   formValues,
   cardData,
   isLoading,
@@ -52,7 +54,11 @@ export function Overview({
                 <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Renewal</p>
               </div>
               <div>
-                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{currentPlan.nextBilling}</p>
+                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                  {nextBillingDate 
+                    ? new Date(nextBillingDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                    : currentPlan.nextBilling}
+                </p>
                 <p className="text-[10px] text-zinc-400 dark:text-zinc-500 italic mt-1">Next charge date</p>
               </div>
             </div>

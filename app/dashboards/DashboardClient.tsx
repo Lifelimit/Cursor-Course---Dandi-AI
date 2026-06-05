@@ -290,7 +290,7 @@ export default function DashboardClient({
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                         </span>
                         <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 italic">
-                          Next Reset: {resetDate ? new Date(resetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "May 24"}
+                          Next Reset: {resetDate ? new Date(resetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
                       </div>
                     </div>

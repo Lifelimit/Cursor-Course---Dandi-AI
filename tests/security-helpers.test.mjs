@@ -748,3 +748,62 @@ test("keeps all batch embedding chunks on the first selected model", async () =>
     restoreGoogleEnv(snapshot);
   }
 });
+
+test("calculates quota reset dates correctly for Hobby and paid subscription tiers", () => {
+  const { calculateResetDate } = loadTsModule("lib/services/server-data.service.ts");
+
+  const now = new Date("2026-06-05T12:00:00.000Z");
+
+  // 1. Hobby Plan (null nextInvoiceDate) -> resets on 1st of next month
+  const hobbyReset = calculateResetDate(null, now);
+  const hobbyResDate = new Date(hobbyReset);
+  assert.equal(hobbyResDate.getDate(), 1);
+  assert.equal(hobbyResDate.getMonth(), (now.getMonth() + 1) % 12);
+  // Let's assert on the exact UTC components or just construct a new Date to match
+  const expectedHobby = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  assert.equal(hobbyReset, expectedHobby.toISOString());
+
+  // 2. Paid monthly plan, future date -> resets on the invoice date
+  const futureMonthlyReset = calculateResetDate("2026-06-24T00:00:00.000Z", now);
+  assert.equal(futureMonthlyReset, "2026-06-24T00:00:00.000Z");
+
+  // 3. Paid plan with stale/past billing date (e.g. May 24, 2026) -> resets on next monthly anniversary (June 24, 2026)
+  const staleMonthlyReset = calculateResetDate("2026-05-24T00:00:00.000Z", now);
+  const resDate = new Date(staleMonthlyReset);
+  assert.equal(resDate.getDate(), 24);
+  assert.equal(resDate.getMonth(), 5); // June is 5 (0-indexed)
+  assert.equal(resDate.getFullYear(), 2026);
+
+  // 4. Yearly plan, future date (e.g. June 24, 2027) -> resets on next monthly anniversary (June 24, 2026)
+  const yearlyReset = calculateResetDate("2027-06-24T00:00:00.000Z", now);
+  const yearlyResDate = new Date(yearlyReset);
+  assert.equal(yearlyResDate.getDate(), 24);
+  assert.equal(yearlyResDate.getMonth(), 5); // June is 5
+  assert.equal(yearlyResDate.getFullYear(), 2026);
+});
+
+test("calculates next invoice dates correctly for different subscription plans", () => {
+  const { calculateNextInvoiceDate } = loadTsModule("lib/services/server-data.service.ts");
+
+  const now = new Date("2026-06-05T12:00:00.000Z");
+
+  // 1. Hobby Plan (null) -> null
+  assert.equal(calculateNextInvoiceDate(null, null, now), null);
+
+  // 2. Future invoice date -> unchanged
+  assert.equal(calculateNextInvoiceDate("2026-06-24T00:00:00.000Z", "month", now), "2026-06-24T00:00:00.000Z");
+
+  // 3. Stale monthly invoice date (e.g. May 24, 2026) -> rolls over to June 24, 2026
+  const staleMonthly = calculateNextInvoiceDate("2026-05-24T00:00:00.000Z", "month", now);
+  const monthlyResDate = new Date(staleMonthly);
+  assert.equal(monthlyResDate.getDate(), 24);
+  assert.equal(monthlyResDate.getMonth(), 5); // June
+  assert.equal(monthlyResDate.getFullYear(), 2026);
+
+  // 4. Stale yearly invoice date (e.g. May 24, 2026) -> rolls over to May 24, 2027
+  const staleYearly = calculateNextInvoiceDate("2026-05-24T00:00:00.000Z", "year", now);
+  const yearlyResDate = new Date(staleYearly);
+  assert.equal(yearlyResDate.getDate(), 24);
+  assert.equal(yearlyResDate.getMonth(), 4); // May
+  assert.equal(yearlyResDate.getFullYear(), 2027);
+});

@@ -5,6 +5,7 @@ import { stripe } from "@/lib/stripe";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 import { resolvePlan } from "@/lib/constants";
 import { redis } from "@/lib/redis";
+import { calculateResetDate, calculateNextInvoiceDate } from "@/lib/services/server-data.service";
 
 interface UsageLog {
   status: string;
@@ -52,7 +53,7 @@ export async function GET() {
       userEmail
         ? supabaseAdmin
             .from("profiles")
-            .select("plan, billing_next_date, stripe_customer_id, stripe_subscription_id")
+            .select("plan, billing_next_date, billing_interval, stripe_customer_id, stripe_subscription_id")
             .eq("email", userEmail)
             .single()
         : Promise.resolve({ data: null }),
@@ -245,27 +246,11 @@ export async function GET() {
       nextInvoiceDate = profileData.billing_next_date;
     }
 
-    if (nextInvoiceDate) {
-      try {
-        const nextBilling = new Date(nextInvoiceDate);
-        const now = new Date();
-        
-        if (nextBilling.getTime() - now.getTime() > 32 * 24 * 60 * 60 * 1000) {
-          const resetDay = nextBilling.getDate();
-          let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
-          if (nextReset <= now) {
-            nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
-          }
-          resetDate = nextReset.toISOString();
-        } else {
-          resetDate = nextInvoiceDate;
-        }
-      } catch {
-        // Date calculation failed, fallback handled by null resetDate
-      }
-    }
+    nextInvoiceDate = calculateNextInvoiceDate(nextInvoiceDate, profileData?.billing_interval || null, now);
+    resetDate = calculateResetDate(nextInvoiceDate, now);
 
     let paymentMethods: { id: string; brand: string; last4: string; expiry: string; isDefault: boolean }[] = [];
+    let customerBalance = 0;
     if (profileData?.stripe_customer_id) {
       try {
         const methods = await stripe.paymentMethods.list({
@@ -277,6 +262,7 @@ export async function GET() {
         const customer = await stripe.customers.retrieve(profileData.stripe_customer_id) as unknown as Record<string, unknown>;
         const invoiceSettings = customer.invoice_settings as Record<string, unknown> | undefined;
         const defaultMethodId = invoiceSettings?.default_payment_method as string | undefined;
+        customerBalance = (customer.balance as number) || 0;
 
         paymentMethods = methods.data.map((pm, idx) => ({
           id: pm.id,
@@ -300,6 +286,7 @@ export async function GET() {
       resetDate,
       nextInvoiceDate,
       paymentMethods,
+      customerBalance,
       dailyAnalytics
     });
   } catch (err) {

@@ -9,9 +9,10 @@ type PlanHeroProps = {
   nextBillingDate: string | null;
   isUnlimited?: boolean;
   billingInterval?: "month" | "year";
+  customerBalance?: number | null;
 };
 
-export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, billingInterval = "month" }: PlanHeroProps) {
+export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, billingInterval = "month", customerBalance }: PlanHeroProps) {
   const pct = isUnlimited ? 0 : Math.min((usage / limit) * 100, 100);
   
   return (
@@ -52,6 +53,18 @@ export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, bil
                 {nextBillingDate ? new Date(nextBillingDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A'}
               </p>
             </div>
+
+            {typeof customerBalance === "number" && customerBalance < 0 && (
+              <div className="rounded-2xl border border-emerald-100 dark:border-emerald-950/50 bg-emerald-50/50 dark:bg-emerald-950/20 px-4 py-2">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Available Credit</p>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-355">
+                    ${(Math.abs(customerBalance) / 100).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
  

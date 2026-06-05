@@ -32,6 +32,7 @@ type BillingData = {
     dailyTrend?: { date: string; count: number }[];
   }[];
   paymentMethods: { id: string; brand: string; last4: string; expiry: string; isDefault: boolean }[] | null;
+  customerBalance?: number | null;
 };
 
 
@@ -230,6 +231,7 @@ export default function BillingClient({
                 nextBillingDate={currentData?.nextInvoiceDate ?? null}
                 isUnlimited={isUnlimited}
                 billingInterval={billingInterval}
+                customerBalance={currentData?.customerBalance ?? null}
               />
 
               {/* Payment Methods */}

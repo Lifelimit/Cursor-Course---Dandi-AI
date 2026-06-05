@@ -156,7 +156,7 @@ export async function getServerUsageData() {
     // 1. Fetch user profile to get plan, Stripe details, and calculate limits
     const { data: profile } = await supabase
       .from("profiles")
-      .select("plan, billing_next_date, stripe_customer_id, stripe_subscription_id")
+      .select("plan, billing_next_date, billing_interval, stripe_customer_id, stripe_subscription_id")
       .eq("id", userId)
       .single();
 
@@ -255,25 +255,8 @@ export async function getServerUsageData() {
       nextInvoiceDate = profile.billing_next_date;
     }
 
-    if (nextInvoiceDate) {
-      try {
-        const nextBilling = new Date(nextInvoiceDate);
-        const now = new Date();
-        
-        if (nextBilling.getTime() - now.getTime() > 32 * 24 * 60 * 60 * 1000) {
-          const resetDay = nextBilling.getDate();
-          let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
-          if (nextReset <= now) {
-            nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
-          }
-          resetDate = nextReset.toISOString();
-        } else {
-          resetDate = nextInvoiceDate;
-        }
-      } catch {
-        resetDate = nextInvoiceDate;
-      }
-    }
+    nextInvoiceDate = calculateNextInvoiceDate(nextInvoiceDate, profile?.billing_interval || null, now);
+    resetDate = calculateResetDate(nextInvoiceDate, now);
 
     // 8. Fetch payment methods
     let paymentMethods: {
@@ -283,6 +266,7 @@ export async function getServerUsageData() {
       expiry: string;
       isDefault: boolean;
     }[] = [];
+    let customerBalance = 0;
     if (stripeCustomerId) {
       try {
         const methods = await stripe.paymentMethods.list({
@@ -293,6 +277,7 @@ export async function getServerUsageData() {
         const customer = await stripe.customers.retrieve(stripeCustomerId);
         if (customer && !customer.deleted) {
           const defaultMethodId = customer.invoice_settings?.default_payment_method;
+          customerBalance = customer.balance || 0;
 
           paymentMethods = methods.data.map((pm, idx) => ({
             id: pm.id,
@@ -317,7 +302,8 @@ export async function getServerUsageData() {
       resetDate,
       nextInvoiceDate,
       paymentMethods,
-      stripeCustomerId
+      stripeCustomerId,
+      customerBalance
     };
   } catch (err) {
     console.error("getServerUsageData error:", err);
@@ -371,5 +357,72 @@ async function selfHealBillingDate(
     }
   } catch (err) {
     console.warn("⚠️ Failed to self-heal next billing date via Stripe in server-data helper:", err);
+  }
+}
+
+/**
+ * Calculates the next quota reset date based on the user's subscription next billing/invoice date and the current time.
+ */
+export function calculateResetDate(nextInvoiceDate: string | null, now: Date): string {
+  if (nextInvoiceDate) {
+    try {
+      const nextBilling = new Date(nextInvoiceDate);
+      
+      if (nextBilling <= now) {
+        // Billing date is in the past (stale), calculate next occurrence of that billing day
+        const resetDay = nextBilling.getDate();
+        let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
+        if (nextReset <= now) {
+          nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
+        }
+        return nextReset.toISOString();
+      } else if (nextBilling.getTime() - now.getTime() > 32 * 24 * 60 * 60 * 1000) {
+        // Billing date is more than 32 days in the future (yearly plans), reset monthly
+        const resetDay = nextBilling.getDate();
+        let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
+        if (nextReset <= now) {
+          nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
+        }
+        return nextReset.toISOString();
+      } else {
+        // Billing date is monthly and in the future
+        return nextInvoiceDate;
+      }
+    } catch {
+      return nextInvoiceDate;
+    }
+  } else {
+    // For Hobby/Free plans, or when billing date is missing, reset on 1st of next month
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return nextMonth.toISOString();
+  }
+}
+
+/**
+ * Calculates the next invoice date based on the user's subscription next billing/invoice date, interval, and current time.
+ */
+export function calculateNextInvoiceDate(nextInvoiceDate: string | null, billingInterval: string | null, now: Date): string | null {
+  if (!nextInvoiceDate) return null;
+  try {
+    const nextBilling = new Date(nextInvoiceDate);
+    if (nextBilling <= now) {
+      const resetDay = nextBilling.getDate();
+      if (billingInterval === "year") {
+        const nextInvoice = new Date(nextBilling);
+        while (nextInvoice <= now) {
+          nextInvoice.setFullYear(nextInvoice.getFullYear() + 1);
+        }
+        return nextInvoice.toISOString();
+      } else {
+        let nextInvoice = new Date(now.getFullYear(), now.getMonth(), resetDay);
+        if (nextInvoice <= now) {
+          nextInvoice = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
+        }
+        return nextInvoice.toISOString();
+      }
+    }
+    return nextInvoiceDate;
+  } catch {
+    return nextInvoiceDate;
   }
 }

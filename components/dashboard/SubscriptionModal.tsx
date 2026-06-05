@@ -715,6 +715,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
             <Overview 
               planName={planName}
               currentPlan={currentPlan}
+              nextBillingDate={nextBillingDate}
               formValues={formValues}
               cardData={cardData}
               isLoading={isLoading}
