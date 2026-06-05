@@ -65,6 +65,26 @@ export function FeatureGrid() {
   const typewriterTimer = useRef<NodeJS.Timeout | null>(null);
   const timeoutIds = useRef<NodeJS.Timeout[]>([]);
 
+  // Interactive Live Playground Simulator States & Actions
+  const [playgroundState, setPlaygroundState] = useState<"idle" | "running" | "completed">("idle");
+  const [playgroundTab, setPlaygroundTab] = useState<"request" | "response">("request");
+
+  const runPlaygroundSimulator = () => {
+    if (playgroundState !== "idle") return;
+    setPlaygroundState("running");
+    setPlaygroundTab("response");
+
+    const tPlay = setTimeout(() => {
+      setPlaygroundState("completed");
+    }, 900);
+    timeoutIds.current.push(tPlay);
+  };
+
+  const resetPlaygroundSimulator = () => {
+    setPlaygroundState("idle");
+    setPlaygroundTab("request");
+  };
+
   // Click outside to close custom feature repository dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -409,15 +429,73 @@ export function FeatureGrid() {
           <div className="lg:w-7/12 relative mt-4 lg:mt-0 h-full">
             {/* Mock IDE */}
             <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-[#fbfaf9] dark:bg-zinc-950 shadow-xl overflow-hidden flex flex-col h-[200px] relative transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-2xl">
-              <div className="flex items-center px-4 py-2 bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-red-400"></span>
-                <span className="h-2 w-2 rounded-full bg-amber-400"></span>
-                <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
-                <span className="ml-2 text-[9px] font-mono text-zinc-400 uppercase tracking-widest">playground.ts</span>
+              <div className="flex items-center justify-between px-4 py-2 bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-red-400"></span>
+                  <span className="h-2 w-2 rounded-full bg-amber-400"></span>
+                  <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+                  
+                  {/* File title on desktop, tabs on mobile */}
+                  <span className="hidden sm:inline ml-2 text-[9px] font-mono text-zinc-400 uppercase tracking-widest">playground.ts</span>
+                  
+                  {/* Mobile tabs selector */}
+                  <div className="flex sm:hidden ml-3 bg-zinc-200 dark:bg-zinc-950 rounded-lg p-0.5 border border-zinc-300/40 dark:border-zinc-900 select-none">
+                    <button
+                      onClick={() => setPlaygroundTab("request")}
+                      className={`px-2 py-0.5 text-[8px] font-bold uppercase rounded-md transition cursor-pointer ${
+                        playgroundTab === "request"
+                          ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-xs"
+                          : "text-zinc-450 dark:text-zinc-650"
+                      }`}
+                    >
+                      Req
+                    </button>
+                    <button
+                      onClick={() => setPlaygroundTab("response")}
+                      className={`px-2 py-0.5 text-[8px] font-bold uppercase rounded-md transition cursor-pointer ${
+                        playgroundTab === "response"
+                          ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-xs"
+                          : "text-zinc-450 dark:text-zinc-650"
+                      }`}
+                    >
+                      Res
+                    </button>
+                  </div>
+                </div>
+
+                {/* Run / Reset Trigger Action */}
+                <div className="flex items-center gap-2">
+                  {playgroundState === "idle" && (
+                    <button
+                      onClick={runPlaygroundSimulator}
+                      className="cursor-pointer px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-sm active:scale-95 transition"
+                    >
+                      Run
+                    </button>
+                  )}
+                  {playgroundState === "running" && (
+                    <button
+                      disabled
+                      className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-zinc-400 bg-zinc-200 dark:bg-zinc-850 dark:text-zinc-650 rounded-lg flex items-center gap-1 select-none"
+                    >
+                      <span className="h-1.5 w-1.5 animate-spin rounded-full border border-zinc-400 border-t-zinc-600 dark:border-t-zinc-300" />
+                      Run
+                    </button>
+                  )}
+                  {playgroundState === "completed" && (
+                    <button
+                      onClick={resetPlaygroundSimulator}
+                      className="cursor-pointer px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-zinc-800 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-900 active:scale-95 transition"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
               </div>
+              
               <div className="flex-1 flex font-mono text-[9px] overflow-hidden">
                 {/* Left Pane: Code */}
-                <div className="w-1/2 p-3.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 select-none overflow-y-auto">
+                <div className={`w-full sm:w-1/2 p-3.5 sm:border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 select-none overflow-y-auto ${playgroundTab === "request" ? "block" : "hidden sm:block"}`}>
                   <span className="text-blue-500 dark:text-blue-400">const</span> res = <span className="text-blue-500 dark:text-blue-400">await</span> fetch(<br/>
                   &nbsp;&nbsp;&quot;/api/github-summarizer&quot;,<br/>
                   &nbsp;&nbsp;&#123;<br/>
@@ -430,17 +508,43 @@ export function FeatureGrid() {
                   );
                 </div>
                 {/* Right Pane: Output */}
-                <div className="w-1/2 p-4 bg-zinc-50 dark:bg-[#111] text-zinc-500 dark:text-zinc-400 relative">
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/50 dark:to-zinc-950/80 z-10" />
-                  <div className="opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 delay-300">
-                    &#123;<br/>
-                    &nbsp;&nbsp;&quot;status&quot;: 200,<br/>
-                    &nbsp;&nbsp;&quot;data&quot;: &#123;<br/>
-                    &nbsp;&nbsp;&nbsp;&nbsp;&quot;stars&quot;: &quot;120.4K&quot;,<br/>
-                    &nbsp;&nbsp;&nbsp;&nbsp;&quot;license&quot;: &quot;MIT&quot;<br/>
-                    &nbsp;&nbsp;&#125;<br/>
-                    &#125;
-                  </div>
+                <div className={`w-full sm:w-1/2 p-4 bg-zinc-50 dark:bg-[#111] text-zinc-500 dark:text-zinc-400 relative ${playgroundTab === "response" ? "block" : "hidden sm:block"}`}>
+                  {playgroundState === "idle" && (
+                    <div className="absolute inset-0 flex flex-col justify-center items-center gap-1.5 p-4 text-center select-none bg-zinc-50 dark:bg-[#111] animate-in fade-in duration-300">
+                      <button 
+                        onClick={runPlaygroundSimulator}
+                        className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20 active:scale-95 transition-all shadow-xs"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-3 w-3 fill-current ml-0.5">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </button>
+                      <p className="text-[7.5px] font-bold uppercase tracking-widest text-zinc-455 dark:text-zinc-650">Ready to Send Request</p>
+                      <p className="text-[6.5px] text-zinc-400/70 max-w-[120px] leading-relaxed">Click Run to execute fetch and see response payload.</p>
+                    </div>
+                  )}
+
+                  {playgroundState === "running" && (
+                    <div className="absolute inset-0 flex flex-col justify-center items-center gap-1.5 p-4 text-center select-none bg-zinc-50 dark:bg-[#111] animate-in fade-in duration-300">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-200 dark:border-zinc-800 border-t-emerald-500" />
+                      <p className="text-[7.5px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-600 animate-pulse mt-1">Executing fetch...</p>
+                    </div>
+                  )}
+
+                  {playgroundState === "completed" && (
+                    <div className="animate-in slide-in-from-bottom-2 fade-in duration-500">
+                      &#123;<br/>
+                      &nbsp;&nbsp;&quot;status&quot;: 200,<br/>
+                      &nbsp;&nbsp;&quot;data&quot;: &#123;<br/>
+                      &nbsp;&nbsp;&nbsp;&nbsp;&quot;stars&quot;: &quot;120.4K&quot;,<br/>
+                      &nbsp;&nbsp;&nbsp;&nbsp;&quot;license&quot;: &quot;MIT&quot;<br/>
+                      &nbsp;&nbsp;&#125;<br/>
+                      &#125;
+                    </div>
+                  )}
+                  
+                  {/* Subtle decorative bottom gradient */}
+                  <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-zinc-50/80 to-transparent dark:from-[#111]/80 dark:to-transparent pointer-events-none z-10" />
                 </div>
               </div>
             </div>
