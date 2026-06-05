@@ -156,7 +156,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
       </div>
 
       {/* Telemetry Progress Stepper Track */}
-      <div className="relative overflow-hidden border-b border-zinc-850 bg-zinc-950 px-3 py-6 select-none sm:px-6 md:py-8">
+      <div className="relative overflow-hidden border-b border-zinc-800 bg-zinc-950 px-3 py-6 select-none sm:px-6 md:py-8">
         {/* Style Block for custom animations */}
         <style dangerouslySetInnerHTML={{__html: `
           @keyframes pulse-flow {

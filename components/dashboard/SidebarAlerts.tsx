@@ -128,7 +128,7 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                       <button 
                         type="button"
                         onClick={() => setFlyoutKey(null)} 
-                        className="text-[10px] font-bold text-zinc-400 dark:text-zinc-550 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
+                        className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
                       >
                         Cancel
                       </button>
@@ -143,12 +143,12 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                           setNewLimit(val);
                         }}
                         placeholder="500"
-                        className="w-full rounded-xl border border-zinc-250 dark:border-zinc-850 bg-zinc-50 dark:bg-zinc-950 px-3.5 py-3 text-lg font-bold text-zinc-900 dark:text-zinc-100 focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none transition-all"
+                        className="w-full rounded-xl border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 px-3.5 py-3 text-lg font-bold text-zinc-900 dark:text-zinc-100 focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none transition-all"
                       />
                       <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[8px] font-black text-zinc-400 uppercase">Credits</span>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <p className="px-1 text-[8px] font-medium text-zinc-455 dark:text-zinc-500 italic">
+                      <p className="px-1 text-[8px] font-medium text-zinc-500 dark:text-zinc-500 italic">
                         Current: {alert.currentLimit.toLocaleString()}
                       </p>
                       {isMaxed && parseInt(newLimit.replace(/,/g, ''), 10) <= alert.currentLimit && (

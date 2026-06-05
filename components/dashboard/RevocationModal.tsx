@@ -65,7 +65,7 @@ export function RevocationModal({
               </svg>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-black uppercase tracking-wider text-red-800 dark:text-red-350">Irreversible Action Warning</p>
+              <p className="text-xs font-black uppercase tracking-wider text-red-800 dark:text-red-300">Irreversible Action Warning</p>
               <p className="text-[11px] font-medium text-red-600 dark:text-red-400 leading-relaxed">
                 All connected applications and pipelines using this API token will immediately begin throwing <span className="font-bold font-mono">401 Unauthorized</span> response codes. Existing logs will be archived but the token cannot be restored.
               </p>

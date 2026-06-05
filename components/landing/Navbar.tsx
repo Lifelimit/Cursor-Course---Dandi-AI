@@ -148,7 +148,7 @@ export function Navbar({ session }: { session: Session | null }) {
                 <p className="truncate text-xs font-black uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
                   {session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "Developer"}
                 </p>
-                <p className="truncate text-[10px] text-zinc-450 dark:text-zinc-500 font-mono lowercase mt-0.5">
+                <p className="truncate text-[10px] text-zinc-400 dark:text-zinc-500 font-mono lowercase mt-0.5">
                   {session.user.email}
                 </p>
               </div>
@@ -166,7 +166,7 @@ export function Navbar({ session }: { session: Session | null }) {
                     setIsProfileOpen(false);
                     handleSignOut();
                   }}
-                  className="rounded-lg px-3 py-2 text-left text-rose-500 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20 dark:hover:text-rose-455 cursor-pointer"
+                  className="rounded-lg px-3 py-2 text-left text-rose-500 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20 dark:hover:text-rose-400 cursor-pointer"
                 >
                   Sign Out
                 </button>

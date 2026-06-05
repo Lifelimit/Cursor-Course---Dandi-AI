@@ -586,7 +586,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                   navigator.clipboard.writeText(code.trim());
                   showToast("success", "Code snippet copied!");
                 }}
-                className="text-zinc-500 hover:text-zinc-350 transition-colors"
+                className="text-zinc-500 hover:text-zinc-300 transition-colors"
               >
                 Copy
               </button>
@@ -877,7 +877,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                 className={`shrink-0 pb-4 text-xs font-bold uppercase tracking-widest transition-all outline-none cursor-pointer ${
                   activeTab === "summary" 
                     ? "text-emerald-500 border-b-2 border-emerald-500 font-extrabold" 
-                    : "text-zinc-400 hover:text-zinc-650 dark:text-zinc-500 dark:hover:text-zinc-400 font-bold"
+                    : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-400 font-bold"
                 }`}
               >
                 Summary Engine
@@ -891,7 +891,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                 className={`flex shrink-0 items-center gap-2 pb-4 text-xs font-bold uppercase tracking-widest transition-all outline-none cursor-pointer ${
                   activeTab === "rag" 
                     ? "text-emerald-500 border-b-2 border-emerald-500 font-extrabold" 
-                    : "text-zinc-400 hover:text-zinc-650 dark:text-zinc-500 dark:hover:text-zinc-400 font-bold"
+                    : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-400 font-bold"
                 }`}
               >
                 Repository Chat (RAG)
@@ -909,7 +909,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
                   <div className="flex min-h-[500px] flex-col rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8 md:rounded-[32px]">
                     {/* Header of Chat Room */}
-                    <div className="mb-6 flex flex-col gap-4 border-b border-zinc-150 pb-5 select-none dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="mb-6 flex flex-col gap-4 border-b border-zinc-200 pb-5 select-none dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="h-10 w-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center font-bold font-serif text-lg">D</div>
                         <div className="min-w-0">
@@ -924,7 +924,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                             setIngestStatus("idle");
                             setIngestedRepo(null);
                           }}
-                          className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-650 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 rounded-lg cursor-pointer"
+                          className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 rounded-lg cursor-pointer"
                         >
                           Change Repo
                         </button>
@@ -946,7 +946,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                               }
                             ]);
                           }}
-                          className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-650 dark:text-zinc-500 dark:hover:text-zinc-305 transition-colors border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 rounded-lg cursor-pointer"
+                          className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 rounded-lg cursor-pointer"
                         >
                           Clear History
                         </button>
@@ -967,7 +967,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                           <div 
                             className={`rounded-2xl px-5 py-3.5 text-sm font-medium leading-relaxed ${
                               msg.role === "user" 
-                                ? "bg-zinc-150 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/40 text-zinc-900 dark:text-zinc-100 max-w-[80%]" 
+                                ? "bg-zinc-200 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/40 text-zinc-900 dark:text-zinc-100 max-w-[80%]" 
                                 : "bg-emerald-50/50 dark:bg-emerald-950/10 border border-emerald-100/50 dark:border-emerald-950/20 text-zinc-800 dark:text-zinc-300 max-w-[90%]"
                             }`}
                           >
@@ -975,7 +975,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
 
                             {/* Sources Badge matched */}
                             {msg.role === "assistant" && msg.sources && msg.sources.length > 0 && (
-                              <div className="mt-4 pt-3 border-t border-zinc-200/60 dark:border-zinc-850/60 flex flex-wrap gap-2 items-center">
+                              <div className="mt-4 pt-3 border-t border-zinc-200/60 dark:border-zinc-800/60 flex flex-wrap gap-2 items-center">
                                 <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none">Sources Matched:</span>
                                 {msg.sources.map((src, sIdx) => (
                                   <span 
@@ -1027,7 +1027,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                     )}
 
                     {/* Chat Input form */}
-                    <form onSubmit={handleChatSubmit} className="flex gap-3 pt-3 border-t border-zinc-150 dark:border-zinc-800">
+                    <form onSubmit={handleChatSubmit} className="flex gap-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
                       <input
                         type="text"
                         value={chatInput}
@@ -1110,9 +1110,9 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                             <div className="flex items-center gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-2.5">
                               <div className="flex flex-1 flex-col gap-1">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-550">{k.name}</span>
+                                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{k.name}</span>
                                   <span className={`text-[9px] font-bold tabular-nums ${
-                                    isOver ? "text-red-500" : pct !== null && pct >= 70 ? "text-amber-500" : "text-zinc-550 dark:text-zinc-400"
+                                    isOver ? "text-red-500" : pct !== null && pct >= 70 ? "text-amber-500" : "text-zinc-500 dark:text-zinc-400"
                                   }`}>
                                     {k.usage_count.toLocaleString()} / {k.monthly_limit ? k.monthly_limit.toLocaleString() : "∞"} requests
                                   </span>
@@ -1253,7 +1253,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                               key={mode}
                               onClick={() => setViewMode(mode)}
                               className={`text-[10px] font-bold uppercase tracking-widest transition-colors cursor-pointer ${
-                                viewMode === mode ? "text-emerald-500 underline underline-offset-8 decoration-2" : "text-zinc-400 hover:text-zinc-650 dark:text-zinc-500 dark:hover:text-zinc-400"
+                                viewMode === mode ? "text-emerald-500 underline underline-offset-8 decoration-2" : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-400"
                               }`}
                             >
                               {mode} Results
@@ -1311,7 +1311,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                                       <span>{repoMetadata.license}</span>
                                     </div>
                                     <div className="flex items-center gap-1.5 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 select-none">
-                                      <span className="text-emerald-550 dark:text-emerald-400 font-serif lowercase italic">v</span>
+                                      <span className="text-emerald-500 dark:text-emerald-400 font-serif lowercase italic">v</span>
                                       <span>{repoMetadata.version}</span>
                                     </div>
                                   </>

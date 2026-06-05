@@ -445,7 +445,7 @@ export function FeatureGrid() {
                       className={`px-2 py-0.5 text-[8px] font-bold uppercase rounded-md transition cursor-pointer ${
                         playgroundTab === "request"
                           ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-xs"
-                          : "text-zinc-450 dark:text-zinc-650"
+                          : "text-zinc-400 dark:text-zinc-600"
                       }`}
                     >
                       Req
@@ -455,7 +455,7 @@ export function FeatureGrid() {
                       className={`px-2 py-0.5 text-[8px] font-bold uppercase rounded-md transition cursor-pointer ${
                         playgroundTab === "response"
                           ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-xs"
-                          : "text-zinc-450 dark:text-zinc-650"
+                          : "text-zinc-400 dark:text-zinc-600"
                       }`}
                     >
                       Res
@@ -476,7 +476,7 @@ export function FeatureGrid() {
                   {playgroundState === "running" && (
                     <button
                       disabled
-                      className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-zinc-400 bg-zinc-200 dark:bg-zinc-850 dark:text-zinc-650 rounded-lg flex items-center gap-1 select-none"
+                      className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-zinc-400 bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 rounded-lg flex items-center gap-1 select-none"
                     >
                       <span className="h-1.5 w-1.5 animate-spin rounded-full border border-zinc-400 border-t-zinc-600 dark:border-t-zinc-300" />
                       Run
@@ -519,7 +519,7 @@ export function FeatureGrid() {
                           <path d="M8 5v14l11-7z" />
                         </svg>
                       </button>
-                      <p className="text-[7.5px] font-bold uppercase tracking-widest text-zinc-455 dark:text-zinc-650">Ready to Send Request</p>
+                      <p className="text-[7.5px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Ready to Send Request</p>
                       <p className="text-[6.5px] text-zinc-400/70 max-w-[120px] leading-relaxed">Click Run to execute fetch and see response payload.</p>
                     </div>
                   )}

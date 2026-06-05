@@ -222,7 +222,7 @@ export default function DashboardClient({
                       <span className="text-emerald-500 font-bold animate-pulse">Syncing Telemetry...</span>
                     ) : (
                       <>
-                        Telemetry Active <span className="text-zinc-250 dark:text-zinc-750">|</span> <span className="text-[8px] font-bold text-zinc-400 tabular-nums">Synced {lastSyncedTime}</span>
+                        Telemetry Active <span className="text-zinc-200 dark:text-zinc-800">|</span> <span className="text-[8px] font-bold text-zinc-400 tabular-nums">Synced {lastSyncedTime}</span>
                       </>
                     )}
                   </span>

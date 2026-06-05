@@ -735,12 +735,12 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                                 placeholder="Search repositories..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="flex-1 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-white dark:bg-zinc-950 px-4 py-3 text-xs outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
+                                className="flex-1 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-xs outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
                               />
                             </div>
 
                             {/* Repos list checkboxes */}
-                            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-850 bg-white dark:bg-zinc-950/40 divide-y divide-zinc-100 dark:divide-zinc-900 max-h-[180px] overflow-y-auto scrollbar-hide">
+                            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/40 divide-y divide-zinc-100 dark:divide-zinc-900 max-h-[180px] overflow-y-auto scrollbar-hide">
                               {[
                                 "dandi-ai/summarizer-sdk",
                                 "my-username/nextjs-boilerplate",
@@ -781,10 +781,10 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                             {/* Selected tags list */}
                             {selectedRepos.length > 0 && (
                               <div className="space-y-1.5 ml-1 pt-2">
-                                <span className="text-[8px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-widest block">Currently Selected Repositories</span>
+                                <span className="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Currently Selected Repositories</span>
                                 <div className="flex flex-wrap gap-1.5">
                                   {selectedRepos.map(repo => (
-                                    <span key={repo} className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md">
+                                    <span key={repo} className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md">
                                       {repo}
                                       <button 
                                         type="button"
@@ -1011,7 +1011,7 @@ X-Dandi-Event: quota.warning`}
                       <div className="overflow-x-auto">
                         <table className="min-w-[760px] w-full border-collapse text-left font-sans text-xs">
                           <thead>
-                            <tr className="border-b border-zinc-150 dark:border-zinc-850 bg-zinc-50/50 dark:bg-zinc-900/30 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none">
+                            <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none">
                               <th className="px-6 py-4">Status</th>
                               <th className="px-6 py-4">Method & URL</th>
                               <th className="px-6 py-4">Event Type</th>
@@ -1274,7 +1274,7 @@ X-Dandi-Event: quota.warning`}
                       <div className="overflow-x-auto">
                         <table className="min-w-[760px] w-full border-collapse text-left font-sans text-xs">
                           <thead>
-                            <tr className="border-b border-zinc-150 dark:border-zinc-850 bg-zinc-50/50 dark:bg-zinc-900/30 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none">
+                            <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none">
                               {accessView === "api" ? (
                                 <>
                                   <th className="px-6 py-4">Access</th>
@@ -1376,7 +1376,7 @@ X-Dandi-Event: quota.warning`}
                   </div>
 
                   {/* Real Security Controls: Password Update & Email Relocation */}
-                  <div className="mt-8 grid gap-5 border-t border-zinc-150 pt-8 dark:border-zinc-850 md:mt-10 md:grid-cols-2 md:gap-8 md:pt-10">
+                  <div className="mt-8 grid gap-5 border-t border-zinc-200 pt-8 dark:border-zinc-800 md:mt-10 md:grid-cols-2 md:gap-8 md:pt-10">
                     
                     {/* Password Update Form Card */}
                     <div className="flex flex-col justify-between space-y-6 rounded-3xl border border-zinc-200 bg-zinc-50/20 p-4 dark:border-zinc-800 dark:bg-zinc-950/10 sm:p-6">
@@ -1494,7 +1494,7 @@ X-Dandi-Event: quota.warning`}
                   }`}>
                     {inspectedLog.status} {inspectedLog.status >= 200 && inspectedLog.status < 300 ? "OK" : "Error"}
                   </span>
-                  <span className="font-mono text-[9px] text-zinc-400 dark:text-zinc-550 uppercase tracking-widest">{inspectedLog.event}</span>
+                  <span className="font-mono text-[9px] text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">{inspectedLog.event}</span>
                 </div>
                 <h3 className="font-serif text-xl font-bold mt-1.5">Webhook Dispatch Audit</h3>
                 <p className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 break-all">{inspectedLog.url}</p>
@@ -1537,13 +1537,13 @@ X-Dandi-Event: quota.warning`}
               {modalActiveTab === "request" ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-widest">HTTP POST Request Payload JSON</span>
+                    <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">HTTP POST Request Payload JSON</span>
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(JSON.stringify(inspectedLog.requestBody, null, 2));
                         showToast("success", "Request payload copied to clipboard.");
                       }}
-                      className="inline-flex items-center gap-1.5 text-[9px] font-bold text-zinc-650 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                      className="inline-flex items-center gap-1.5 text-[9px] font-bold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
                       aria-label="Copy request payload"
                     >
                       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">

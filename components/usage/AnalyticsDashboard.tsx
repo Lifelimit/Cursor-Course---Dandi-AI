@@ -240,7 +240,7 @@ export function AnalyticsDashboard({
             <button
               type="button"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center gap-2 text-xs font-bold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100 px-4.5 py-2.5 rounded-xl transition duration-200 cursor-pointer shadow-sm hover:shadow active:scale-98 border border-zinc-250/20 dark:border-zinc-700/20"
+              className="flex items-center gap-2 text-xs font-bold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100 px-4.5 py-2.5 rounded-xl transition duration-200 cursor-pointer shadow-sm hover:shadow active:scale-98 border border-zinc-300/20 dark:border-zinc-700/20"
             >
               <span>
                 {selectedKeyId === "all"
@@ -278,7 +278,7 @@ export function AnalyticsDashboard({
                 className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer ${
                   selectedKeyId === "all"
                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    : "text-zinc-700 dark:text-zinc-350 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+                    : "text-zinc-700 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
                 }`}
               >
                 <span>All Combined Keys</span>
@@ -305,12 +305,12 @@ export function AnalyticsDashboard({
                       className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer ${
                         isSelected
                           ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                          : "text-zinc-700 dark:text-zinc-350 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+                          : "text-zinc-700 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
                       }`}
                     >
                       <div className="flex flex-col gap-0.5">
                         <span className="truncate max-w-[170px]">{k.name}</span>
-                        <span className="text-[9px] font-medium text-zinc-450 dark:text-zinc-500 uppercase tracking-widest">{k.usage_count.toLocaleString()} requests</span>
+                        <span className="text-[9px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">{k.usage_count.toLocaleString()} requests</span>
                       </div>
                       {isSelected && (
                         <svg viewBox="0 0 24 24" className="h-4 w-4 text-emerald-500 animate-in zoom-in duration-200" fill="none" stroke="currentColor" strokeWidth="3">

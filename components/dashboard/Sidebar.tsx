@@ -213,13 +213,24 @@ export function Sidebar({
       </div>
 
       <div className="hidden md:block mt-6 rounded-2xl bg-zinc-900 dark:bg-zinc-900/50 border border-transparent dark:border-zinc-800 p-5 text-white shadow-xl">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 italic">{plan}</p>
-        <div className="mt-4 h-1 w-full rounded-full bg-zinc-800">
+        <div className="flex justify-between items-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 italic">{plan}</p>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+            {isUnlimited ? "Unlimited" : `${Math.round(Math.min((totalUsage / limit) * 100, 100))}%`}
+          </span>
+        </div>
+        <div className="mt-3.5 h-1.5 w-full rounded-full bg-zinc-800 dark:bg-zinc-950/50">
           <div 
             className="h-full rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-all duration-500" 
             style={{ width: `${isUnlimited ? 100 : Math.min((totalUsage / limit) * 100, 100)}%` }}
           ></div>
         </div>
+        {!isUnlimited && (
+          <div className="mt-3 flex justify-between items-center text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+            <span className="tabular-nums">{totalUsage.toLocaleString()} reqs</span>
+            <span className="text-zinc-600 dark:text-zinc-500">/ {limit.toLocaleString()} max</span>
+          </div>
+        )}
       </div>
     </aside>
   );

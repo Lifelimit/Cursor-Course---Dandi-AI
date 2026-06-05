@@ -260,7 +260,7 @@ export function WorkspaceMockup() {
                 <div className="h-[1px] bg-zinc-200 dark:bg-zinc-900 my-1" />
                 <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-wider">
                   <span className="text-zinc-500 dark:text-zinc-400">Quota Remaining</span>
-                  <span className="font-mono font-bold text-zinc-800 dark:text-zinc-250">{quotaRemaining.toLocaleString()} / 5,000 reqs</span>
+                  <span className="font-mono font-bold text-zinc-800 dark:text-zinc-300">{quotaRemaining.toLocaleString()} / 5,000 reqs</span>
                 </div>
                 <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-wider">
                   <span className="text-zinc-500 dark:text-zinc-400">Stripe Credit</span>
