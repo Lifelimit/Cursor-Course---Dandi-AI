@@ -690,7 +690,7 @@ test("uses the matching Gemini model resource for batch embedding requests", asy
       assert.equal(body.requests.length, 2);
       assert(body.requests.every((request) => request.model === "models/primary-model"));
       assert(body.requests.every((request) => request.embedContentConfig?.outputDimensionality === 768));
-      assert(body.requests.every((request) => request.outputDimensionality === undefined));
+      assert(body.requests.every((request) => request.outputDimensionality === 768));
       return jsonResponse({ embeddings: [{ values: [1, 2] }, { values: [3, 4] }] });
     };
 
@@ -715,7 +715,7 @@ test("uses EmbedContentConfig dimensionality for single Gemini embedding request
       assert.equal(model, "gemini-embedding-001");
       assert.equal(body.model, "models/gemini-embedding-001");
       assert.equal(body.embedContentConfig.outputDimensionality, 768);
-      assert.equal(body.outputDimensionality, undefined);
+      assert.equal(body.outputDimensionality, 768);
       return jsonResponse({ embedding: { values: [0.7, 0.8] } });
     };
 

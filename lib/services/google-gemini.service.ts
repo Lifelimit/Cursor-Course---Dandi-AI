@@ -257,6 +257,7 @@ export async function googleEmbed(value: string, options: EmbeddingRequestOption
         model: getModelResourceName(model),
         content: { parts: [{ text: value }] },
         embedContentConfig: getEmbeddingConfig(),
+        outputDimensionality: EMBEDDING_DIMENSIONS,
       },
       "embedContent"
     );
@@ -295,6 +296,7 @@ export async function googleBatchEmbedWithModel(values: string[], options: Embed
             model: modelResourceName,
             content: { parts: [{ text }] },
             embedContentConfig: getEmbeddingConfig(),
+            outputDimensionality: EMBEDDING_DIMENSIONS,
           })),
         },
         "batchEmbedContents"
