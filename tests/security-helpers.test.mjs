@@ -429,24 +429,20 @@ test("resolves Gemini keys from GOOGLE_API_KEYS before legacy keys", () => {
 
 test("resolves Gemini embedding model defaults and overrides", () => {
   const snapshot = snapshotGoogleEnv();
-  const { getFallbackEmbeddingModel, getPrimaryEmbeddingModel } = loadTsModule("lib/services/google-gemini.service.ts");
+  const { getEmbeddingModel } = loadTsModule("lib/services/google-gemini.service.ts");
 
   try {
-    delete process.env.GOOGLE_EMBEDDING_PRIMARY;
-    delete process.env.GOOGLE_EMBEDDING_FALLBACK;
-    assert.equal(getPrimaryEmbeddingModel(), ["gemini", "embedding", "001"].join("-"));
-    assert.equal(getFallbackEmbeddingModel(), ["gemini", "embedding", "001"].join("-"));
+    delete process.env.GOOGLE_EMBEDDING_MODEL;
+    assert.equal(getEmbeddingModel(), "text-embedding-004");
 
-    process.env.GOOGLE_EMBEDDING_PRIMARY = "models/custom-primary";
-    process.env.GOOGLE_EMBEDDING_FALLBACK = "custom-fallback";
-    assert.equal(getPrimaryEmbeddingModel(), "custom-primary");
-    assert.equal(getFallbackEmbeddingModel(), "custom-fallback");
+    process.env.GOOGLE_EMBEDDING_MODEL = "models/custom-model";
+    assert.equal(getEmbeddingModel(), "custom-model");
   } finally {
     restoreGoogleEnv(snapshot);
   }
 });
 
-test("supports gemini-embedding-002 as an explicitly configured fallback", async () => {
+test("supports explicit model list options", async () => {
   const snapshot = snapshotGoogleEnv();
   const originalFetch = globalThis.fetch;
   const originalWarn = console.warn;
@@ -455,8 +451,6 @@ test("supports gemini-embedding-002 as an explicitly configured fallback", async
 
   try {
     process.env.GOOGLE_API_KEYS = "key-1";
-    process.env.GOOGLE_EMBEDDING_PRIMARY = "gemini-embedding-001";
-    process.env.GOOGLE_EMBEDDING_FALLBACK = "gemini-embedding-002";
     console.warn = () => {};
     globalThis.fetch = async (url) => {
       const model = String(url).match(/models\/([^:]+):/)?.[1];
@@ -472,7 +466,7 @@ test("supports gemini-embedding-002 as an explicitly configured fallback", async
       return jsonResponse({ embedding: { values: [0.3, 0.4] } });
     };
 
-    assert.deepEqual(await googleEmbed("query"), [0.3, 0.4]);
+    assert.deepEqual(await googleEmbed("query", { models: ["gemini-embedding-001", "gemini-embedding-002"] }), [0.3, 0.4]);
     assert.deepEqual(calls, ["gemini-embedding-001", "gemini-embedding-002"]);
   } finally {
     globalThis.fetch = originalFetch;
@@ -481,7 +475,7 @@ test("supports gemini-embedding-002 as an explicitly configured fallback", async
   }
 });
 
-test("tries Gemini embedding keys and models in the requested failover order", async () => {
+test("tries Gemini embedding keys in the failover order for the configured model", async () => {
   const snapshot = snapshotGoogleEnv();
   const originalFetch = globalThis.fetch;
   const originalWarn = console.warn;
@@ -491,8 +485,7 @@ test("tries Gemini embedding keys and models in the requested failover order", a
 
   try {
     process.env.GOOGLE_API_KEYS = "key-1,key-2,key-3";
-    process.env.GOOGLE_EMBEDDING_PRIMARY = "primary-model";
-    process.env.GOOGLE_EMBEDDING_FALLBACK = "fallback-model";
+    process.env.GOOGLE_EMBEDDING_MODEL = "configured-model";
     console.warn = (...args) => warnings.push(args);
     globalThis.fetch = async (url, options) => {
       const model = String(url).match(/models\/([^:]+):/)?.[1];
@@ -501,7 +494,7 @@ test("tries Gemini embedding keys and models in the requested failover order", a
         model,
       });
 
-      if (calls.length < 6) {
+      if (calls.length < 3) {
         return jsonResponse(
           { error: { status: "RESOURCE_EXHAUSTED", message: "quota exceeded" } },
           { status: 429, statusText: "Too Many Requests" }
@@ -513,15 +506,11 @@ test("tries Gemini embedding keys and models in the requested failover order", a
 
     assert.deepEqual(await googleEmbed("query"), [0.1, 0.2]);
     assert.deepEqual(calls, [
-      { key: "key-1", model: "primary-model" },
-      { key: "key-1", model: "fallback-model" },
-      { key: "key-2", model: "primary-model" },
-      { key: "key-2", model: "fallback-model" },
-      { key: "key-3", model: "primary-model" },
-      { key: "key-3", model: "fallback-model" },
+      { key: "key-1", model: "configured-model" },
+      { key: "key-2", model: "configured-model" },
+      { key: "key-3", model: "configured-model" },
     ]);
-    assert(warnings.some((warning) => warning[0] === "Moving from API key #1 to API key #2"));
-    assert(warnings.some((warning) => warning[0] === "Embedding primary exhausted, trying fallback model"));
+    assert(warnings.some((warning) => warning[0].includes("Moving from API key #1 to API key #2")));
   } finally {
     globalThis.fetch = originalFetch;
     console.warn = originalWarn;
@@ -529,7 +518,7 @@ test("tries Gemini embedding keys and models in the requested failover order", a
   }
 });
 
-test("dedupes identical Gemini embedding primary and fallback model attempts", async () => {
+test("dedupes identical Gemini embedding model option attempts", async () => {
   const snapshot = snapshotGoogleEnv();
   const originalFetch = globalThis.fetch;
   const originalWarn = console.warn;
@@ -538,8 +527,6 @@ test("dedupes identical Gemini embedding primary and fallback model attempts", a
 
   try {
     process.env.GOOGLE_API_KEYS = "key-1,key-2";
-    process.env.GOOGLE_EMBEDDING_PRIMARY = "gemini-embedding-001";
-    process.env.GOOGLE_EMBEDDING_FALLBACK = "models/gemini-embedding-001";
     console.warn = () => {};
     globalThis.fetch = async (url, options) => {
       const model = String(url).match(/models\/([^:]+):/)?.[1];
@@ -558,7 +545,7 @@ test("dedupes identical Gemini embedding primary and fallback model attempts", a
       return jsonResponse({ embedding: { values: [0.5, 0.6] } });
     };
 
-    assert.deepEqual(await googleEmbed("query"), [0.5, 0.6]);
+    assert.deepEqual(await googleEmbed("query", { models: ["gemini-embedding-001", "models/gemini-embedding-001"] }), [0.5, 0.6]);
     assert.deepEqual(calls, [
       { key: "key-1", model: "gemini-embedding-001" },
       { key: "key-2", model: "gemini-embedding-001" },
@@ -578,8 +565,7 @@ test("does not rotate Gemini embedding keys for invalid or unauthorized response
 
   try {
     process.env.GOOGLE_API_KEYS = "key-1,key-2,key-3";
-    process.env.GOOGLE_EMBEDDING_PRIMARY = "primary-model";
-    process.env.GOOGLE_EMBEDDING_FALLBACK = "fallback-model";
+    process.env.GOOGLE_EMBEDDING_MODEL = "configured-model";
     console.warn = () => {};
 
     for (const [status, upstreamStatus] of [
@@ -611,13 +597,12 @@ test("classifies exhausted Gemini embedding attempts as rate limit errors", asyn
 
   try {
     process.env.GOOGLE_API_KEYS = "key-1";
-    process.env.GOOGLE_EMBEDDING_PRIMARY = "primary-model";
-    process.env.GOOGLE_EMBEDDING_FALLBACK = "fallback-model";
+    process.env.GOOGLE_EMBEDDING_MODEL = "primary-model";
     console.warn = () => {};
     globalThis.fetch = async () =>
       jsonResponse(
-        { error: { status: "RESOURCE_EXHAUSTED", message: "quota exceeded" } },
-        { status: 429, statusText: "Too Many Requests" }
+         { error: { status: "RESOURCE_EXHAUSTED", message: "quota exceeded" } },
+         { status: 429, statusText: "Too Many Requests" }
       );
 
     await assert.rejects(
@@ -642,8 +627,7 @@ test("reports sanitized Gemini embedding exhaustion details", async () => {
 
   try {
     process.env.GOOGLE_API_KEYS = "secret-key";
-    process.env.GOOGLE_EMBEDDING_PRIMARY = "primary-model";
-    process.env.GOOGLE_EMBEDDING_FALLBACK = "fallback-model";
+    process.env.GOOGLE_EMBEDDING_MODEL = "primary-model";
     console.warn = () => {};
     globalThis.fetch = async () =>
       jsonResponse(
@@ -681,8 +665,7 @@ test("uses the matching Gemini model resource for batch embedding requests", asy
 
   try {
     process.env.GOOGLE_API_KEYS = "key-1";
-    process.env.GOOGLE_EMBEDDING_PRIMARY = "primary-model";
-    process.env.GOOGLE_EMBEDDING_FALLBACK = "fallback-model";
+    process.env.GOOGLE_EMBEDDING_MODEL = "primary-model";
     globalThis.fetch = async (url, options) => {
       const model = String(url).match(/models\/([^:]+):/)?.[1];
       const body = JSON.parse(options.body);
@@ -708,7 +691,7 @@ test("uses EmbedContentConfig dimensionality for single Gemini embedding request
 
   try {
     process.env.GOOGLE_API_KEYS = "key-1";
-    process.env.GOOGLE_EMBEDDING_PRIMARY = "gemini-embedding-001";
+    process.env.GOOGLE_EMBEDDING_MODEL = "gemini-embedding-001";
     globalThis.fetch = async (url, options) => {
       const model = String(url).match(/models\/([^:]+):/)?.[1];
       const body = JSON.parse(options.body);
@@ -735,8 +718,7 @@ test("keeps all batch embedding chunks on the first selected model", async () =>
 
   try {
     process.env.GOOGLE_API_KEYS = "key-1";
-    process.env.GOOGLE_EMBEDDING_PRIMARY = "primary-model";
-    process.env.GOOGLE_EMBEDDING_FALLBACK = "fallback-model";
+    process.env.GOOGLE_EMBEDDING_MODEL = "primary-model";
     console.warn = () => {};
     globalThis.fetch = async (url, options) => {
       const model = String(url).match(/models\/([^:]+):/)?.[1];

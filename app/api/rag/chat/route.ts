@@ -5,7 +5,7 @@ import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { getJsonObject, validateChatMessages, validateGitHubRepoUrl } from "@/lib/request-validation";
 import { googleProvider } from "@/lib/services/ai.service";
 import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
-import { getPrimaryEmbeddingModel, googleEmbed, isGeminiEmbeddingRateLimitError } from "@/lib/services/google-gemini.service";
+import { getEmbeddingModel, googleEmbed, isGeminiEmbeddingRateLimitError } from "@/lib/services/google-gemini.service";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const corsOptions = {
@@ -53,7 +53,7 @@ async function getRepositoryEmbeddingModel(repoUrl: string, userId: string) {
 
   return typeof data?.embedding_model === "string" && data.embedding_model.trim()
     ? data.embedding_model
-    : getPrimaryEmbeddingModel();
+    : getEmbeddingModel();
 }
 
 export async function POST(request: Request) {
