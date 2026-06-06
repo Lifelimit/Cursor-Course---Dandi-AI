@@ -17,23 +17,22 @@ Do not use this skill for pure brainstorming, planning-only requests, or audit-o
 
 ## Workflow
 
-1. Read `AGENTS.md` and the shared docs needed for the requested scope.
-2. Apply shared rules from `docs/PROJECT_RULES.md` without restating them in the response.
-3. Inspect `package.json` before naming validation commands.
-4. Inspect the smallest useful set of files before editing. Prefer `rg` and targeted file reads.
-5. Make scoped edits that satisfy the user request. Keep unrelated refactors, formatting churn, and speculative cleanup out of the change.
-6. Run the narrowest meaningful validation using scripts that exist in `package.json`.
-7. If validation cannot run, report the exact blocker and what remains unverified.
+1. Read `AGENTS.md`.
+2. Read `docs/DOMAIN_MAP.md` before broad exploration.
+3. Read only docs relevant to the task; use `docs/PROJECT_RULES.md` and focused guardrail docs by reference.
+4. Use targeted search before broad file reads. Avoid scanning unrelated product areas.
+5. Inspect `package.json` only when commands or dependencies are relevant.
+6. Make scoped edits that satisfy the user request. Keep unrelated refactors, formatting churn, and speculative cleanup out of the change.
+7. Stop and report if the task expands beyond scope or hits a guardrail stop condition.
+8. Run the narrowest meaningful validation using scripts that exist in `package.json` when validation is relevant.
+9. If validation cannot run, report the exact blocker and what remains unverified.
 
 ## Implementation Rules
 
 - Use existing project conventions before introducing new patterns.
 - Prefer local helpers, types, and components over new abstractions.
 - Delete code only when it is clearly obsolete because of the requested change.
-- Add tests when behavior is non-trivial, shared, or regression-prone.
-- For Supabase or auth changes, use `@supabase/ssr`, preserve native RLS assumptions, keep `supabaseAdmin` server-only, and do not introduce NextAuth.
-- For Stripe webhook work, preserve server-to-server trust boundaries and avoid leaking billing secrets.
-- For Upstash Redis or usage-counter work, account for hot-counter consistency and rate-limit behavior already represented in the project.
+- Use the focused docs listed in `AGENTS.md` instead of repeating their rules here or in final responses.
 - Use `/protected` only when the task involves the hidden auth-gated API key validation route.
 - For frontend changes, verify responsive behavior and avoid layout shifts, overlapping text, and decorative complexity that does not serve the workflow.
 

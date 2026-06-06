@@ -20,12 +20,15 @@ Do not edit files, stage changes, create commits, or run destructive commands un
 ## Workflow
 
 1. Read `AGENTS.md`.
-2. Read relevant shared docs in `docs/`, especially `docs/PROJECT_RULES.md` and `docs/ARCHITECTURE.md`.
-3. Define the audit scope from the user request. If no scope is given, inspect the current diff first, then broaden only as needed.
-4. Use the audit lenses in `docs/PROJECT_RULES.md` for the review.
-5. Prioritize findings by severity and likelihood. Report only actionable issues with evidence.
-6. Include file and line references for every code finding when possible.
-7. Mention important test gaps and unverified areas even when no defects are found.
+2. Read `docs/DOMAIN_MAP.md` before broad exploration.
+3. Read only docs relevant to the audit scope; use focused guardrail docs as lenses by reference.
+4. Use targeted search before broad file reads. Avoid scanning unrelated product areas.
+5. Inspect `package.json` only when validation commands, scripts, or dependencies are relevant.
+6. Define the audit scope from the user request. If no scope is given, inspect the current diff first, then broaden only as needed.
+7. Stop and report if the audit expands beyond scope.
+8. Prioritize findings by severity and likelihood. Report only actionable issues with evidence.
+9. Include file and line references for every code finding when possible.
+10. Mention important test gaps and unverified areas without repeating full project rules.
 
 ## Severity
 

@@ -15,23 +15,25 @@ Use this skill for requests that ask for a plan, roadmap, staged checklist, impl
 
 ## Constraints
 
-Do not edit files, generate migrations, stage changes, or commit. Use shared rules from `docs/PROJECT_RULES.md` without copying them into the plan.
+Do not edit files, generate migrations, stage changes, or commit. Use shared docs by reference; do not copy long rule blocks into the plan.
 
 ## Workflow
 
-1. Read `AGENTS.md` and only the shared docs needed for the requested scope.
-2. Identify the target outcome, constraints, dependencies, and risk areas.
-3. Inspect relevant files enough to anchor the plan in the real project.
-4. Break the work into small phases that produce useful checkpoints.
-5. Define acceptance criteria and validation for each phase.
-6. Generate execution prompts when the user wants handoff-ready tasks.
-7. Use the planning template in `docs/PROJECT_RULES.md` for larger plans.
+1. Read `AGENTS.md`.
+2. Read `docs/DOMAIN_MAP.md` before broad exploration.
+3. Read only docs relevant to the requested scope.
+4. Use targeted search before broad file reads. Avoid scanning unrelated product areas.
+5. Inspect `package.json` only when commands or dependencies are relevant.
+6. Identify the target outcome, constraints, dependencies, and risk areas.
+7. Inspect relevant files enough to anchor the plan in the real project.
+8. Break the work into small phases with acceptance criteria and validation.
+9. Stop and report if the requested work expands beyond scope.
+10. Generate execution prompts when the user wants handoff-ready tasks.
 
 ## Planning Rules
 
 - Prefer incremental phases that keep Dandi's dashboard, billing, usage, and playground flows usable.
-- For Supabase work, plan around `@supabase/ssr`, native RLS, and server-only `supabaseAdmin`; do not propose NextAuth.
-- For Stripe webhook, Upstash Redis, API key, or usage-counter work, include the relevant trust boundary and failure-mode checks.
+- Use the focused docs listed in `AGENTS.md` instead of restating their rules.
 - Put schema, auth, RLS, and migration work before UI work when data boundaries are involved.
 - Put discovery or audit phases before implementation when unknowns are high.
 - Mark tasks that require user decisions.

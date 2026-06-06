@@ -5,15 +5,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
 <!-- END:nextjs-agent-rules -->
 
 # Project Rules
-- Shared project knowledge lives in `docs/`. Start with `docs/PROJECT_RULES.md`, then use `docs/ARCHITECTURE.md`, `docs/PRODUCT_VISION.md`, and `docs/ROADMAP.md` when the task needs product or system context.
-- Always use **Yarn** (`yarn`) for package management and script execution. Do not use `npm`, `pnpm`, or package-manager substitutions.
-- Inspect `package.json` before naming validation commands. Detailed validation guidance lives in `docs/PROJECT_RULES.md`.
+- Start here, then use `docs/DOMAIN_MAP.md` before broad repo exploration.
+- Shared rules live in `docs/PROJECT_RULES.md`; focused guardrails live in `docs/ARCHITECTURE_BOUNDARIES.md`, `docs/ROUTE_HANDLER_RULES.md`, `docs/SECURITY_RLS_CHECKLIST.md`, `docs/AI_RAG_GUARDRAILS.md`, and `docs/TESTING_POLICY.md`.
+- Durable architecture, security, dependency, and workflow decisions belong in `docs/decisions/`.
+- Use **Yarn** (`yarn`) only. Inspect `package.json` only when commands or dependencies are relevant.
 - Before pushing to GitHub, always run `yarn lint` and `yarn typecheck`. Do not push if either command fails; fix the issue first or explicitly report the blocker.
-- Keep agent behavior separated:
-  - Codex-specific skills live in `.codex/skills/`.
-  - Antigravity-specific rules and skills live in `.agents/`.
-  - Shared knowledge and reusable checklists live in `docs/`.
+- Keep Codex behavior in `.codex/skills/`, Antigravity behavior in `.agents/`, and shared knowledge in `docs/`.
 - Use the workflow boundary `Brainstorm -> Plan -> Execute -> Audit`. Brainstorm, plan, and audit are read-only by default. Execute is the only implementation workflow.
+- Stop and ask before broad architecture moves, dependency changes, auth/RLS trust changes, service-role expansion, destructive migrations, or unsafe AI/RAG data exposure.
 
 ## Hidden Routes
 - `/protected` — Auth-gated Vault page for API key validation testing. Not linked from any UI navigation. Access by URL only.

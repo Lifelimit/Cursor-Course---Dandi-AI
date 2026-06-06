@@ -24,10 +24,11 @@ Act as the project architect and thinking partner. Explore the shape of the solu
 
 1. Clarify the goal, users, constraints, and non-goals if they are unclear.
 2. Use `docs/PROJECT_RULES.md`, `docs/ARCHITECTURE.md`, `docs/PRODUCT_VISION.md`, and `docs/ROADMAP.md` as shared context when relevant.
-3. Map two to four viable approaches when meaningful.
-4. Include tradeoffs, failure modes, security impact, and migration cost.
-5. Recommend one approach once there is enough context.
-6. Identify what should be planned, prototyped, audited, or executed next.
+3. Use `docs/DOMAIN_MAP.md` before broad exploration, and use focused docs listed in `AGENTS.md` by reference.
+4. Map two to four viable approaches when meaningful.
+5. Include tradeoffs, failure modes, security impact, and migration cost.
+6. Recommend one approach once there is enough context.
+7. Identify what should be planned, prototyped, audited, or executed next.
 
 ## Output
 
