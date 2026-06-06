@@ -102,7 +102,8 @@ const AVATARS = [
 export function WorkspaceMockup() {
   const [activeService, setActiveService] = useState<Service>("chat");
   const [status, setStatus] = useState<Status>("idle");
-  const [quotaRemaining, setQuotaRemaining] = useState<number>(4124);
+  const [ingestQuotaRemaining, setIngestQuotaRemaining] = useState<number>(4124);
+  const [shieldQuotaRemaining, setShieldQuotaRemaining] = useState<number>(842);
   const [liveLogs, setLiveLogs] = useState<string[]>([]);
   const [streamedText, setStreamedText] = useState<string>("");
 
@@ -152,7 +153,11 @@ export function WorkspaceMockup() {
     // 5. Complete
     setStatus("complete");
     // Deduct request quota count spent
-    setQuotaRemaining(prev => Math.max(0, prev - 1));
+    if (activeService === "ingest") {
+      setIngestQuotaRemaining(prev => Math.max(0, prev - 1));
+    } else if (activeService === "shield") {
+      setShieldQuotaRemaining(prev => Math.max(0, prev - 1));
+    }
     setLiveLogs(prev => [
       ...prev,
       `[18:30:14] ✅ Complete. Latency: ${service.latency} | Redis & Supabase state updated.`
@@ -168,7 +173,7 @@ export function WorkspaceMockup() {
   const currentService = SERVICES[activeService];
 
   return (
-    <div className="relative mt-12 block xl:mt-0 animate-in fade-in zoom-in duration-1000 delay-300 scale-90 sm:scale-100 max-w-xl mx-auto w-full">
+    <div className="relative mt-6 block xl:mt-0 animate-in fade-in zoom-in duration-1000 delay-300 max-w-xl mx-auto w-full">
       <div className="relative z-10 rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 shadow-[0_32px_64px_-15px_rgba(0,0,0,0.08)] dark:shadow-[0_32px_64px_-15px_rgba(0,0,0,0.4)] transition-all hover:scale-[1.01]">
         
         {/* Workspace Mockup Header */}
@@ -209,23 +214,58 @@ export function WorkspaceMockup() {
             <div className="lg:col-span-5 space-y-4">
               
               {/* Endpoint Selector */}
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">API Service Route</label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 p-1 bg-zinc-100 dark:bg-zinc-950 rounded-xl border border-zinc-200/40 dark:border-zinc-900">
-                  {(["chat", "ingest", "shield"] as Service[]).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => status === "idle" && setActiveService(s)}
-                      disabled={status !== "idle"}
-                      className={`py-1.5 text-[8px] font-black uppercase tracking-wider rounded-lg transition-all ${
-                        activeService === s
-                          ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm"
-                          : "text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400"
-                      }`}
-                    >
-                      {SERVICES[s].name}
-                    </button>
-                  ))}
+                <div className="flex flex-col gap-2">
+                  {(["chat", "ingest", "shield"] as Service[]).map((s) => {
+                    const svc = SERVICES[s];
+                    const isSelected = activeService === s;
+                    let activeStyles = "";
+                    if (isSelected) {
+                      if (s === "chat") {
+                        activeStyles = "bg-emerald-500/10 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 dark:border-emerald-500/20 shadow-[0_2px_8px_-2px_rgba(16,185,129,0.12)]";
+                      } else if (s === "ingest") {
+                        activeStyles = "bg-blue-500/10 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border-blue-500/30 dark:border-blue-500/20 shadow-[0_2px_8px_-2px_rgba(59,130,246,0.12)]";
+                      } else {
+                        activeStyles = "bg-purple-500/10 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 border-purple-500/30 dark:border-purple-500/20 shadow-[0_2px_8px_-2px_rgba(168,85,247,0.12)]";
+                      }
+                    } else {
+                      activeStyles = "bg-zinc-50/50 dark:bg-zinc-900/40 text-zinc-500 dark:text-zinc-400 border-zinc-100 dark:border-zinc-900/60 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-white dark:hover:bg-zinc-900/80 hover:border-zinc-200 dark:hover:border-zinc-800";
+                    }
+                    
+                    const isDisabled = status !== "idle";
+                    
+                    return (
+                      <button
+                        key={s}
+                        onClick={() => !isDisabled && setActiveService(s)}
+                        disabled={isDisabled}
+                        className={`group flex items-center justify-between gap-3 w-full px-3 py-2 rounded-xl border text-left font-sans transition-all cursor-pointer ${activeStyles} ${
+                          isDisabled ? "opacity-50 cursor-not-allowed" : "active:scale-[0.99]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {/* Bullet / Status dot */}
+                          <span className="relative flex h-2 w-2 rounded-full shrink-0">
+                            {isSelected && (
+                              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${svc.color} opacity-75`}></span>
+                            )}
+                            <span className={`relative inline-flex rounded-full h-2 w-2 ${svc.color}`}></span>
+                          </span>
+                          
+                          <div className="min-w-0">
+                            <p className="text-[9px] font-black uppercase tracking-wider leading-none">{svc.name}</p>
+                            <p className="text-[7.5px] font-mono opacity-50 tracking-tight mt-1">{svc.endpoint}</p>
+                          </div>
+                        </div>
+                        
+                        {/* Micro indicator arrow */}
+                        <svg viewBox="0 0 24 24" className={`h-2.5 w-2.5 transition-all duration-300 ${isSelected ? "translate-x-0 opacity-80" : "opacity-0 translate-x-[-4px]"}`} fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -260,11 +300,23 @@ export function WorkspaceMockup() {
                 <div className="h-[1px] bg-zinc-200 dark:bg-zinc-900 my-1" />
                 <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-wider">
                   <span className="text-zinc-500 dark:text-zinc-400">Quota Remaining</span>
-                  <span className="font-mono font-bold text-zinc-800 dark:text-zinc-300">{quotaRemaining.toLocaleString()} / 5,000 reqs</span>
+                  <span className="font-mono font-bold text-zinc-800 dark:text-zinc-300">
+                    {activeService === "chat" 
+                      ? "Unlimited" 
+                      : activeService === "ingest" 
+                      ? `${ingestQuotaRemaining.toLocaleString()} / 5,000 reqs` 
+                      : `${shieldQuotaRemaining.toLocaleString()} / 1,000 reqs`}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-wider">
-                  <span className="text-zinc-500 dark:text-zinc-400">Stripe Credit</span>
-                  <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">$12.50</span>
+                  <span className="text-zinc-500 dark:text-zinc-400">Stripe Billing</span>
+                  <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
+                    {activeService === "chat"
+                      ? "$50.00 / mo"
+                      : activeService === "ingest"
+                      ? "$10.00 / mo"
+                      : "$0.00 / mo"}
+                  </span>
                 </div>
               </div>
 

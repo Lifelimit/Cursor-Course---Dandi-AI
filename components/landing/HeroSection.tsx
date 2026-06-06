@@ -6,8 +6,8 @@ export function HeroSection({ session }: { session: Session | null }) {
 
 
   return (
-    <header className="relative mx-auto max-w-7xl px-4 pt-20 pb-16 md:px-6 md:pt-56 md:pb-40 overflow-hidden">
-      <div className="grid items-center gap-16 xl:grid-cols-2 xl:gap-24">
+    <header className="relative mx-auto max-w-7xl px-4 pt-24 pb-8 md:px-6 md:pt-56 md:pb-40 overflow-hidden">
+      <div className="grid items-center gap-8 xl:grid-cols-2 xl:gap-24">
         
         {/* Left Intro Text Section */}
         <div className="space-y-8 animate-in fade-in slide-in-from-left-8 duration-1000 ease-out max-w-2xl mx-auto xl:mx-0 text-center xl:text-left">
@@ -28,7 +28,7 @@ export function HeroSection({ session }: { session: Session | null }) {
             The high-performance API layer for summarizing codebases, tracking metadata, and distilling repository insights in seconds.
           </p>
           
-          <div className="flex flex-col gap-4 sm:flex-row justify-center xl:justify-start">
+          <div className="flex flex-col gap-4 sm:flex-row justify-center xl:justify-start max-w-xs sm:max-w-none mx-auto xl:mx-0 w-full">
             {session ? (
               <Link href="/dashboards" className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-full bg-[#18181b] dark:bg-zinc-100 px-6 py-4 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-white dark:text-zinc-950 shadow-2xl transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200 sm:w-auto md:px-10 md:py-5">
                 <span className="relative z-10">Go to Dashboard</span>

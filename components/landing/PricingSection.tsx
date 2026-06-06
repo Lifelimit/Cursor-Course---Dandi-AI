@@ -111,7 +111,7 @@ export function PricingSection({
   };
 
   return (
-    <section id="pricing" className="bg-white/50 dark:bg-zinc-900/50 py-24 md:py-40 backdrop-blur-sm border-y border-zinc-200 dark:border-zinc-800">
+    <section id="pricing" className="bg-white/50 dark:bg-zinc-900/50 py-12 md:py-40 backdrop-blur-sm border-y border-zinc-200 dark:border-zinc-800">
       <div className="mx-auto max-w-7xl px-6">
         <div className="mb-20 text-center space-y-8">
           <div className="space-y-4">
@@ -120,17 +120,23 @@ export function PricingSection({
           </div>
 
           {/* Billing Toggle */}
-          <div className="flex items-center justify-center gap-4">
-            <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "month" ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500"}`}>Monthly</span>
-            <button 
-              onClick={() => setBillingInterval(billingInterval === "month" ? "year" : "month")}
-              className="relative h-6 w-12 rounded-full bg-zinc-200 dark:bg-zinc-800 p-1 transition-colors hover:bg-zinc-300 dark:hover:bg-zinc-700"
-            >
-              <div className={`h-4 w-4 rounded-full bg-white dark:bg-zinc-100 shadow-sm transition-transform ${billingInterval === "year" ? "translate-x-6" : "translate-x-0"}`} />
-            </button>
-            <div className="flex items-center gap-2">
+          <div className="flex items-start justify-center gap-4">
+            <div className="flex flex-col items-center gap-1.5">
+              <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "month" ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500"}`}>Monthly</span>
+              <span className="invisible text-[8px] px-1.5 py-0.5 select-none">20% OFF</span>
+            </div>
+            <div className="flex flex-col items-center gap-1.5">
+              <button 
+                onClick={() => setBillingInterval(billingInterval === "month" ? "year" : "month")}
+                className="relative h-6 w-12 rounded-full bg-zinc-200 dark:bg-zinc-800 p-1 transition-colors hover:bg-zinc-300 dark:hover:bg-zinc-700 cursor-pointer"
+              >
+                <div className={`h-4 w-4 rounded-full bg-white dark:bg-zinc-100 shadow-sm transition-transform ${billingInterval === "year" ? "translate-x-6" : "translate-x-0"}`} />
+              </button>
+              <span className="invisible text-[8px] px-1.5 py-0.5 select-none">20% OFF</span>
+            </div>
+            <div className="flex flex-col items-center gap-1.5">
               <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "year" ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500"}`}>Annual</span>
-              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/30 px-2.5 py-1 text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">20% OFF</span>
+              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/30 px-1.5 py-0.5 text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">20% OFF</span>
             </div>
           </div>
 

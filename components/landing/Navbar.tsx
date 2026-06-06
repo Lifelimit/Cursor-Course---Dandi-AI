@@ -188,12 +188,6 @@ export function Navbar({ session }: { session: Session | null }) {
             {session ? (
               <>
                 <Link onClick={() => setIsOpen(false)} href="/dashboards" className="rounded-xl bg-zinc-900 px-4 py-3 text-white dark:bg-zinc-100 dark:text-zinc-950">Dashboard</Link>
-                <div className="flex flex-col gap-0.5 rounded-xl border border-zinc-100 px-4 py-3 dark:border-zinc-800">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100">
-                    {session.user.user_metadata?.full_name || session.user.email?.split('@')[0]}
-                  </span>
-                  <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 lowercase">{session.user.email}</span>
-                </div>
                 <button 
                   onClick={handleSignOut}
                   className="rounded-xl px-4 py-3 text-left text-rose-500 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20"

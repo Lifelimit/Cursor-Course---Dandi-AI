@@ -48,7 +48,7 @@ export default function LandingClient({ initialSession }: { initialSession: Sess
 
       {/* Final CTA - Personalized depending on session state */}
       {session ? (
-        <section className="mx-auto max-w-7xl px-6 py-24 md:py-48 text-center">
+        <section className="mx-auto max-w-7xl px-6 py-12 md:py-48 text-center">
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
             <h2 className="font-serif text-3xl sm:text-5xl font-bold md:text-8xl leading-tight">
               Welcome back, <span className="text-zinc-400 italic">{firstName}</span>!<br />
@@ -66,7 +66,7 @@ export default function LandingClient({ initialSession }: { initialSession: Sess
           </div>
         </section>
       ) : (
-        <section className="mx-auto max-w-7xl px-6 py-24 md:py-48 text-center">
+        <section className="mx-auto max-w-7xl px-6 py-12 md:py-48 text-center">
           <div className="space-y-10">
             <h2 className="font-serif text-3xl sm:text-5xl font-bold md:text-8xl">Ready to <br /> orchestrate?</h2>
             <Link href="/signup" className="mx-auto flex w-fit items-center justify-center gap-3 rounded-full bg-[#18181b] dark:bg-zinc-100 px-8 sm:px-12 py-4 sm:py-6 text-xs sm:text-sm font-bold uppercase tracking-[0.3em] text-white dark:text-zinc-950 shadow-2xl transition-all hover:scale-105 hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-95">

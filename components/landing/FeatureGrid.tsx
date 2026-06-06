@@ -168,7 +168,7 @@ export function FeatureGrid() {
   const currentRepoInfo = REPO_DATA[selectedRepo];
 
   return (
-    <section id="features" className="mx-auto max-w-7xl px-6 py-24 md:py-40">
+    <section id="features" className="mx-auto max-w-7xl px-6 py-12 md:py-40">
       <div className="mb-20 space-y-4 text-center md:text-left">
         <h2 className="font-serif text-4xl font-bold md:text-6xl">Architected for <br /> the next generation.</h2>
         <p className="mx-auto max-w-md text-zinc-500 dark:text-zinc-400 md:mx-0">Every component of Dandi is built with a singular focus on performance and reliability.</p>
