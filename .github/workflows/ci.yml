@@ -13,10 +13,10 @@ jobs:
     steps:
     - uses: actions/checkout@v5
 
-    - name: Use Node.js 20
+    - name: Use Node.js 24
       uses: actions/setup-node@v6
       with:
-        node-version: 20
+        node-version: 24
         cache: 'yarn'
 
     - name: Install dependencies
@@ -60,4 +60,3 @@ jobs:
         DEMO_API_KEY: "sk_live_demo_key_dandi_2026"
         NEXT_PUBLIC_DEMO_API_KEY: "sk_live_demo_key_dandi_2026"
         API_KEY_HMAC_SECRET: "mock-hmac-secret-key-32-chars-for-ci-pipeline-pass"
-

@@ -49,6 +49,7 @@ export function Sidebar({
   const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const userInitial = user?.email?.[0]?.toUpperCase() || "U";
   const activeNavItem = NAV_ITEMS.find((item) => item.href === pathname);
   const activeMobileLabel = activeNavItem?.mobileName || "Menu";
@@ -58,6 +59,20 @@ export function Sidebar({
       setUser(user);
     });
   }, [supabase.auth]);
+
+  useEffect(() => {
+    if (!isProfileOpen) return;
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".dashboard-profile-trigger") && !target.closest(".dashboard-profile-popover")) {
+        setIsProfileOpen(false);
+      }
+    };
+
+    document.addEventListener("click", handleOutsideClick);
+    return () => document.removeEventListener("click", handleOutsideClick);
+  }, [isProfileOpen]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -83,25 +98,39 @@ export function Sidebar({
             {activeMobileLabel}
           </span>
           {user && (
-            user.user_metadata?.avatar_url ? (
-              <Image
-                src={user.user_metadata.avatar_url}
-                alt="Avatar"
-                width={28}
-                height={28}
-                className="hidden h-7 w-7 rounded-full border border-zinc-200 shadow-sm dark:border-zinc-800 min-[360px]:block"
-                referrerPolicy="no-referrer"
-                unoptimized
-              />
-            ) : (
-              <div className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 text-[10px] font-black uppercase text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-300 min-[360px]:flex">
-                {userInitial}
-              </div>
-            )
+            <button
+              type="button"
+              onClick={() => {
+                setIsProfileOpen((isOpen) => !isOpen);
+                setIsMobileNavOpen(false);
+              }}
+              className="dashboard-profile-trigger block shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-zinc-100 cursor-pointer"
+              aria-expanded={isProfileOpen}
+              aria-label="User Profile menu"
+            >
+              {user.user_metadata?.avatar_url ? (
+                <Image
+                  src={user.user_metadata.avatar_url}
+                  alt="Avatar"
+                  width={28}
+                  height={28}
+                  className="h-7 w-7 rounded-full border border-zinc-200 shadow-sm dark:border-zinc-800"
+                  referrerPolicy="no-referrer"
+                  unoptimized
+                />
+              ) : (
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 text-[10px] font-black uppercase text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
+                  {userInitial}
+                </span>
+              )}
+            </button>
           )}
           <button
             type="button"
-            onClick={() => setIsMobileNavOpen((isOpen) => !isOpen)}
+            onClick={() => {
+              setIsMobileNavOpen((isOpen) => !isOpen);
+              setIsProfileOpen(false);
+            }}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 transition-all hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
             aria-controls="dashboard-mobile-nav"
             aria-expanded={isMobileNavOpen}
@@ -131,6 +160,40 @@ export function Sidebar({
           </button>
         </div>
       </div>
+
+      {isProfileOpen && user && (
+        <div className="dashboard-profile-popover absolute right-3 top-[calc(100%+8px)] z-[110] w-64 rounded-2xl border border-zinc-200 bg-white/95 p-4 shadow-xl backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/90 dark:shadow-black/20 animate-in fade-in slide-in-from-top-2 duration-250 md:hidden">
+          <div className="space-y-3">
+            <div className="border-b border-zinc-100 pb-2.5 dark:border-zinc-800">
+              <p className="truncate text-xs font-black uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
+                {user.user_metadata?.full_name || user.email?.split("@")[0] || "Developer"}
+              </p>
+              <p className="mt-0.5 truncate font-mono text-[10px] lowercase text-zinc-400 dark:text-zinc-500">
+                {user.email}
+              </p>
+            </div>
+            <div className="flex flex-col gap-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+              <Link
+                onClick={() => setIsProfileOpen(false)}
+                href="/account"
+                className="rounded-lg px-3 py-2 transition hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white"
+              >
+                Account
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProfileOpen(false);
+                  handleSignOut();
+                }}
+                className="rounded-lg px-3 py-2 text-left text-rose-500 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20 dark:hover:text-rose-400 cursor-pointer"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <nav
         id="dashboard-mobile-nav"
