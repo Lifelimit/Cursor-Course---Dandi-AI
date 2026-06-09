@@ -1,3 +1,11 @@
+export type DailyUsageTrend = {
+  date: string;
+  count: number;
+  success: number;
+  error: number;
+  avgLatency: number;
+};
+
 export type ApiKey = {
   id: string;
   name: string;
@@ -10,7 +18,7 @@ export type ApiKey = {
   alert_threshold: number | null;
   alert_channels: string[] | null;
   alert_phone: string | null;
-  dailyTrend?: { date: string; count: number }[];
+  dailyTrend?: DailyUsageTrend[];
 };
 
 export type ApiKeyApiResponse = {
@@ -25,7 +33,7 @@ export type ApiKeyApiResponse = {
   alert_threshold: number | null;
   alert_channels: string[] | null;
   alert_phone: string | null;
-  dailyTrend?: { date: string; count: number }[];
+  dailyTrend?: DailyUsageTrend[];
 };
 
 export function formatDate(date: Date) {

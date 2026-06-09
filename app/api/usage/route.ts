@@ -16,6 +16,53 @@ interface UsageLog {
   repo_url?: string;
 }
 
+function getUsageLogDate(log: UsageLog) {
+  return log.usedAt.split("T")[0];
+}
+
+function summarizeDailyLogs(date: string, logs: UsageLog[]) {
+  const dayLogs = logs.filter((l: UsageLog) => getUsageLogDate(l) === date);
+  const successCount = dayLogs.filter((l: UsageLog) => l.status === "success").length;
+  const errorCount = dayLogs.length - successCount;
+  const totalLatency = dayLogs.reduce((acc: number, l: UsageLog) => acc + (l.latencyMs || 0), 0);
+  const avgLatency = dayLogs.length > 0 ? Math.round(totalLatency / dayLogs.length) : 0;
+
+  return {
+    date,
+    count: successCount,
+    success: successCount,
+    error: errorCount,
+    avgLatency
+  };
+}
+
+function reconcileDailyTrendToUsage(
+  dailyTrend: ReturnType<typeof summarizeDailyLogs>[],
+  usageCount: number
+) {
+  const totalSuccess = dailyTrend.reduce((acc, day) => acc + day.success, 0);
+  if (totalSuccess === usageCount) return dailyTrend;
+
+  if (totalSuccess === 0) {
+    if (usageCount === 0 || dailyTrend.length === 0) return dailyTrend;
+    return dailyTrend.map((day, index) => {
+      if (index !== dailyTrend.length - 1) return day;
+      return { ...day, count: usageCount, success: usageCount };
+    });
+  }
+
+  let remainingSuccess = usageCount;
+  return dailyTrend
+    .slice()
+    .reverse()
+    .map(day => {
+      const success = Math.min(day.success, remainingSuccess);
+      remainingSuccess -= success;
+      return { ...day, count: success, success };
+    })
+    .reverse();
+}
+
 function parseUsageLogs(rawLogs: unknown[]): UsageLog[] {
   return rawLogs.flatMap((log): UsageLog[] => {
     try {
@@ -131,16 +178,10 @@ export async function GET() {
       const actualUsage = keyUsageCounts[index] || 0;
       
       // Daily trend
-      const trendMap = keyLogs.reduce((acc: Record<string, number>, log: UsageLog) => {
-        const date = log.usedAt.split("T")[0];
-        acc[date] = (acc[date] || 0) + 1;
-        return acc;
-      }, {});
-
-      const dailyTrend = dates.map(date => ({
-        date,
-        count: trendMap[date] || 0
-      }));
+      const dailyTrend = reconcileDailyTrendToUsage(
+        dates.map(date => summarizeDailyLogs(date, keyLogs)),
+        actualUsage
+      );
 
       // Top repos for this key
       const repoMap = keyLogs.reduce((acc: Record<string, number>, log: UsageLog) => {
@@ -184,20 +225,7 @@ export async function GET() {
 
     // Global Daily Trends (requests, latency, success, error) over the last 30 days
     const dailyAnalytics = dates.map(date => {
-      const dayLogs = (logs || []).filter((l: UsageLog) => l.usedAt.split("T")[0] === date);
-      const count = dayLogs.length;
-      const successCount = dayLogs.filter((l: UsageLog) => l.status === "success").length;
-      const errorCount = count - successCount;
-      const totalLatency = dayLogs.reduce((acc: number, l: UsageLog) => acc + (l.latencyMs || 0), 0);
-      const avgLatency = count > 0 ? Math.round(totalLatency / count) : 0;
-
-      return {
-        date,
-        count,
-        success: successCount,
-        error: errorCount,
-        avgLatency
-      };
+      return summarizeDailyLogs(date, logs || []);
     });
 
     // 7. Calculate billing / quota reset dates

@@ -18,7 +18,7 @@ type KeyData = {
   monthly_limit: number | null;
   is_active: boolean;
   pct: number;
-  dailyTrend: { date: string; count: number }[];
+  dailyTrend: DailyData[];
 };
 
 type AnalyticsDashboardProps = {
@@ -86,19 +86,8 @@ export function AnalyticsDashboard({
     const matchedKey = keys.find(k => k.id === selectedKeyId);
     if (!matchedKey) return [];
 
-    // Map selected key dailyTrend to DailyData structure
-    return matchedKey.dailyTrend.map(point => {
-      // Find matching entry in global list to preserve latency/success if possible
-      const globalMatch = (dailyAnalytics || []).find(g => g.date === point.date);
-      return {
-        date: point.date,
-        count: point.count,
-        success: point.count, // assume success in lack of per-key metadata
-        error: 0,
-        avgLatency: globalMatch?.avgLatency || globalAvgLatency || 0,
-      };
-    });
-  }, [selectedKeyId, keys, dailyAnalytics, globalAvgLatency]);
+    return matchedKey.dailyTrend;
+  }, [selectedKeyId, keys, dailyAnalytics]);
 
   // Global Performance Summaries
   const currentTotalRequests = useMemo(() => {
@@ -112,11 +101,11 @@ export function AnalyticsDashboard({
   }, [dataset, selectedKeyId, globalAvgLatency]);
 
   const currentSuccessRate = useMemo(() => {
-    if (selectedKeyId !== "all") return 100; // Single key success rate fallback
-    const totalCount = dataset.reduce((acc, curr) => acc + curr.count, 0);
-    if (totalCount === 0) return globalSuccessRate || 100;
     const totalSuccess = dataset.reduce((acc, curr) => acc + curr.success, 0);
-    return Number(((totalSuccess / totalCount) * 100).toFixed(1));
+    const totalErrors = dataset.reduce((acc, curr) => acc + curr.error, 0);
+    const totalAttempts = totalSuccess + totalErrors;
+    if (totalAttempts === 0) return selectedKeyId === "all" ? globalSuccessRate || 100 : 100;
+    return Number(((totalSuccess / totalAttempts) * 100).toFixed(1));
   }, [dataset, selectedKeyId, globalSuccessRate]);
 
   // SaaS ROI metric: value generated (savings)
@@ -362,7 +351,7 @@ export function AnalyticsDashboard({
             {currentTotalRequests.toLocaleString()}
           </h4>
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-            Hot Telemetry logs (30d)
+            Billable requests (30d)
           </p>
           <div className="absolute bottom-0 left-8 right-8 h-1 bg-gradient-to-r from-emerald-500/50 to-emerald-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-full" />
         </div>

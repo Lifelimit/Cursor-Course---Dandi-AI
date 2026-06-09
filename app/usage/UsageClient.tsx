@@ -27,7 +27,13 @@ type UsageData = {
     alert_channels: string[] | null;
     alert_phone: string | null;
     pct: number;
-    dailyTrend: { date: string; count: number }[];
+    dailyTrend: {
+      date: string;
+      count: number;
+      success: number;
+      error: number;
+      avgLatency: number;
+    }[];
   }[];
   globalTopRepos: { repo_url: string; count: number }[];
   resetDate: string | null;

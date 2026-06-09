@@ -36,6 +36,53 @@ function parseRedisUsageLogs(rawLogs: unknown[]): RedisUsageLog[] {
   });
 }
 
+function getUsageLogDate(log: RedisUsageLog) {
+  return log.usedAt.split("T")[0];
+}
+
+function summarizeDailyLogs(date: string, logs: RedisUsageLog[]) {
+  const dayLogs = logs.filter(log => getUsageLogDate(log) === date);
+  const successCount = dayLogs.filter(log => log.status === "success").length;
+  const errorCount = dayLogs.length - successCount;
+  const totalLatency = dayLogs.reduce((acc, log) => acc + (log.latencyMs || 0), 0);
+  const avgLatency = dayLogs.length > 0 ? Math.round(totalLatency / dayLogs.length) : 0;
+
+  return {
+    date,
+    count: successCount,
+    success: successCount,
+    error: errorCount,
+    avgLatency
+  };
+}
+
+function reconcileDailyTrendToUsage(
+  dailyTrend: ReturnType<typeof summarizeDailyLogs>[],
+  usageCount: number
+) {
+  const totalSuccess = dailyTrend.reduce((acc, day) => acc + day.success, 0);
+  if (totalSuccess === usageCount) return dailyTrend;
+
+  if (totalSuccess === 0) {
+    if (usageCount === 0 || dailyTrend.length === 0) return dailyTrend;
+    return dailyTrend.map((day, index) => {
+      if (index !== dailyTrend.length - 1) return day;
+      return { ...day, count: usageCount, success: usageCount };
+    });
+  }
+
+  let remainingSuccess = usageCount;
+  return dailyTrend
+    .slice()
+    .reverse()
+    .map(day => {
+      const success = Math.min(day.success, remainingSuccess);
+      remainingSuccess -= success;
+      return { ...day, count: success, success };
+    })
+    .reverse();
+}
+
 async function getDisplayUsageCounts(keys: { id: string }[], currentMonth: string): Promise<number[]> {
   if (keys.length === 0) return [];
 
@@ -116,16 +163,10 @@ export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], p
       const limit = k.monthly_limit ?? monthlyLimit;
       const keyLogs = (logs || []).filter(l => l.keyId === k.id);
       
-      const trendMap = keyLogs.reduce((acc: Record<string, number>, log) => {
-        const date = log.usedAt.split("T")[0];
-        acc[date] = (acc[date] || 0) + 1;
-        return acc;
-      }, {});
-
-      const dailyTrend = dates.map(date => ({
-        date,
-        count: trendMap[date] || 0
-      }));
+      const dailyTrend = reconcileDailyTrendToUsage(
+        dates.map(date => summarizeDailyLogs(date, keyLogs)),
+        actualKeyUsage
+      );
 
       return {
         ...k,
@@ -196,20 +237,12 @@ export async function getServerUsageData() {
     const processedKeys = (keys || []).map((key, index) => {
       const keyLogs = (logs || []).filter(l => l.keyId === key.id);
       
-      // Daily trend from Redis logs
-      const trendMap = keyLogs.reduce((acc: Record<string, number>, log) => {
-        const date = log.usedAt.split("T")[0];
-        acc[date] = (acc[date] || 0) + 1;
-        return acc;
-      }, {});
-
-      const dailyTrend = dates.map(date => ({
-        date,
-        count: trendMap[date] || 0
-      }));
-
       const actualKeyUsage = keyUsageCounts[index] || 0;
       const limit = key.monthly_limit ?? monthlyLimit;
+      const dailyTrend = reconcileDailyTrendToUsage(
+        dates.map(date => summarizeDailyLogs(date, keyLogs)),
+        actualKeyUsage
+      );
 
       return {
         ...key,
@@ -239,6 +272,8 @@ export async function getServerUsageData() {
       .map(([repo_url, count]) => ({ repo_url, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
+
+    const dailyAnalytics = dates.map(date => summarizeDailyLogs(date, logs || []));
 
     // 7. Calculate billing dates
     let resetDate = null;
@@ -303,7 +338,8 @@ export async function getServerUsageData() {
       nextInvoiceDate,
       paymentMethods,
       stripeCustomerId,
-      customerBalance
+      customerBalance,
+      dailyAnalytics
     };
   } catch (err) {
     console.error("getServerUsageData error:", err);
