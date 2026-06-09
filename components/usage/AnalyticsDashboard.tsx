@@ -123,6 +123,8 @@ export function AnalyticsDashboard({
 
   const chartInnerWidth = chartWidth - paddingLeft - paddingRight;
   const chartInnerHeight = chartHeight - paddingTop - paddingBottom;
+  const reliabilitySuccessColor = "#10b981";
+  const reliabilityErrorColor = "#ef4444";
 
   // Maximum value for dynamic scale
   const maxMetricValue = useMemo(() => {
@@ -133,7 +135,7 @@ export function AnalyticsDashboard({
     } else if (metricView === "latency") {
       values = dataset.map(d => d.avgLatency);
     } else {
-      values = dataset.map(d => Math.max(d.success, d.error));
+      values = dataset.map(d => d.success + d.error);
     }
     const maxVal = Math.max(...values, 5);
     return Math.ceil(maxVal * 1.15); // Add 15% headroom
@@ -211,7 +213,7 @@ export function AnalyticsDashboard({
   const chartColor = {
     requests: "#10b981", // Emerald
     latency: "#8b5cf6", // Violet
-    reliability: "#3b82f6", // Indigo
+    reliability: reliabilitySuccessColor,
   }[metricView];
 
   // Grid line values
@@ -443,7 +445,7 @@ export function AnalyticsDashboard({
             </div>
             {metricView === "reliability" && (
               <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-red-400" />
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: reliabilityErrorColor }} />
                 <span>Errors</span>
               </div>
             )}
@@ -623,7 +625,7 @@ export function AnalyticsDashboard({
                           y={successY}
                           width={barWidth}
                           height={successHeight}
-                          fill="#10b981"
+                          fill={reliabilitySuccessColor}
                           rx="1.5"
                           className="opacity-80 hover:opacity-100 transition-opacity"
                         />
@@ -635,7 +637,7 @@ export function AnalyticsDashboard({
                           y={errorY}
                           width={barWidth}
                           height={errorHeight}
-                          fill="#ef4444"
+                          fill={reliabilityErrorColor}
                           rx="1.5"
                           className="opacity-90 hover:opacity-100 transition-opacity"
                         />
