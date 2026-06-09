@@ -106,11 +106,11 @@ export default function UsageClient({
       fetchUsageData(false);
     }, initialData ? 1000 : 0);
 
-    // Poll every 10 seconds to keep analytics hot and live
+    // Poll every 20 seconds to keep analytics hot without making the header feel busy.
     const pollingInterval = setInterval(() => {
       fetchUsageData(true);
       syncCount = 0;
-    }, 10000);
+    }, 20000);
 
     // Track relative delta time every 2 seconds
     const syncTimeInterval = setInterval(() => {
@@ -161,23 +161,21 @@ export default function UsageClient({
             description="Track quota health, live telemetry, and repository usage trends."
             rightAction={
               <>
-                <div className="flex max-w-[200px] sm:max-w-full items-center gap-2.5 rounded-full border border-zinc-200 bg-white/80 px-3 sm:px-4 py-2 shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-950">
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white/80 shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-950"
+                  title={isSyncing ? "Syncing telemetry" : `Telemetry synced ${lastSyncedTime}`}
+                  aria-label={isSyncing ? "Syncing telemetry" : `Telemetry synced ${lastSyncedTime}`}
+                >
                   <div className="relative flex h-2 w-2 shrink-0">
-                    <span className={`absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 ${isSyncing ? "animate-ping scale-150" : "animate-pulse"}`} />
-                    <span className={`relative inline-flex rounded-full h-2 w-2 ${isSyncing ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-emerald-500"}`} />
-                  </div>
-                  <span className="flex min-w-0 items-center gap-1.5 font-mono text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 truncate">
-                    {isSyncing ? (
-                      <span className="animate-pulse font-bold text-emerald-500 truncate">Syncing...</span>
-                    ) : (
-                      <>
-                        <span className="hidden sm:inline">Telemetry Active</span>
-                        <span className="inline sm:hidden">Active</span>
-                        <span className="text-zinc-200 dark:text-zinc-800 shrink-0">|</span> 
-                        <span className="text-[8px] font-bold tabular-nums text-zinc-400 dark:text-zinc-500 shrink-0">Synced {lastSyncedTime}</span>
-                      </>
+                    {isSyncing && (
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 scale-150" />
                     )}
-                  </span>
+                    <span className={`relative inline-flex h-2 w-2 rounded-full transition-all ${
+                      isSyncing
+                        ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"
+                        : "bg-emerald-500"
+                    }`} />
+                  </div>
                 </div>
                 <button
                   onClick={handleExport}
