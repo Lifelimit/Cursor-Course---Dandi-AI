@@ -65,7 +65,6 @@ export default function UsageClient({
   const { toast, showToast } = useToast();
 
   const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncedTime, setLastSyncedTime] = useState<string>("Just now");
 
   const fetchUsageData = useCallback(async (background = false) => {
     try {
@@ -82,9 +81,6 @@ export default function UsageClient({
       }
       setData(json);
       isHydrated.current = false;
-      if (background) {
-        setLastSyncedTime("Just now");
-      }
     } catch (err) {
       console.error("Usage Fetch Error:", err);
       if (!background) {
@@ -99,8 +95,6 @@ export default function UsageClient({
   }, [showToast]);
 
   useEffect(() => {
-    let syncCount = 0;
-    
     // Setup initial paint refresh delay
     const initialTimer = setTimeout(() => {
       fetchUsageData(false);
@@ -109,23 +103,11 @@ export default function UsageClient({
     // Poll every 20 seconds to keep analytics hot without making the header feel busy.
     const pollingInterval = setInterval(() => {
       fetchUsageData(true);
-      syncCount = 0;
     }, 20000);
-
-    // Track relative delta time every 2 seconds
-    const syncTimeInterval = setInterval(() => {
-      syncCount += 2;
-      if (syncCount === 0) {
-        setLastSyncedTime("Just now");
-      } else {
-        setLastSyncedTime(`${syncCount}s ago`);
-      }
-    }, 2000);
 
     return () => {
       clearTimeout(initialTimer);
       clearInterval(pollingInterval);
-      clearInterval(syncTimeInterval);
     };
   }, [fetchUsageData, initialData]);
 
@@ -163,8 +145,7 @@ export default function UsageClient({
               <>
                 <div
                   className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white/80 shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-950"
-                  title={isSyncing ? "Syncing telemetry" : `Telemetry synced ${lastSyncedTime}`}
-                  aria-label={isSyncing ? "Syncing telemetry" : `Telemetry synced ${lastSyncedTime}`}
+                  aria-label="Telemetry sync status"
                 >
                   <div className="relative flex h-2 w-2 shrink-0">
                     {isSyncing && (
