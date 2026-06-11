@@ -125,7 +125,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
           const color = isExhausted ? "#ef4444" : isCritical ? "#ef4444" : isWarning ? "#fbbf24" : "#10b981";
           
           const alertStyles = isExhausted
-            ? 'border-red-400 ring-4 ring-red-50 shadow-xl shadow-red-100/50 animate-pulse'
+            ? 'border-red-400 ring-4 ring-red-50 shadow-xl shadow-red-100/50'
             : isCritical 
               ? 'border-red-200 ring-2 ring-red-50 shadow-red-100/20' 
               : isWarning 
@@ -226,7 +226,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                   </div>
                   {isExhausted ? (
                     <p className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-600 animate-ping" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-red-600 animate-pulse" />
                       Service Interrupted
                     </p>
                   ) : (
@@ -246,7 +246,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                       </svg>
                     </button>
                   )}
-                  <div className="relative h-12 w-12 shrink-0">
+                  <div className={`relative h-12 w-12 shrink-0 ${isExhausted ? "animate-pulse" : ""}`}>
                     <svg className="h-full w-full" viewBox="0 0 36 36">
                       <circle cx="18" cy="18" r="16" fill="none" className="stroke-zinc-50 dark:stroke-zinc-800" strokeWidth="3" />
                       <circle
