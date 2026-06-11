@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useApiKeys } from "@/hooks/useApiKeys";
@@ -41,10 +41,9 @@ export default function DashboardClient({
   
   const fetcher = (url: string) => fetch(url).then(res => res.json());
   const { data: usageData, isValidating } = useSWR('/api/usage', fetcher, { 
-    refreshInterval: 10000 
+    refreshInterval: 20000 
   });
 
-  const [lastSyncedTime, setLastSyncedTime] = useState<string>("Just now");
   const totalUsage = usageData?.totalUsage ?? apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
 
   const realtimePlan = usageData?.plan || null;
@@ -56,24 +55,6 @@ export default function DashboardClient({
   // Dynamic Tier Logic - Using the most recent session data available
   const currentPlan = realtimePlan || initialPlan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
   const { monthlyLimit: currentLimit, isUnlimited } = getPlanLimits(currentPlan);
-
-  // Handle mock UI timer for "last synced" display. Resets when usageData updates.
-  useEffect(() => {
-    const resetTimer = setTimeout(() => {
-      setLastSyncedTime("Just now");
-    }, 0);
-    
-    let syncCount = 0;
-    const syncTimeInterval = setInterval(() => {
-      syncCount += 2;
-      setLastSyncedTime(`${syncCount}s ago`);
-    }, 2000);
-
-    return () => {
-      clearTimeout(resetTimer);
-      clearInterval(syncTimeInterval);
-    };
-  }, [usageData]);
 
   const alerts = computeSidebarAlerts(usageData?.keys || apiKeys);
 
@@ -212,20 +193,20 @@ export default function DashboardClient({
                 )
               }
               rightAction={
-                <div className="flex max-w-full items-center gap-2.5 rounded-full border border-zinc-200 bg-white/80 px-4 py-2 shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-950 sm:self-center">
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white/80 shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-950 sm:self-center"
+                  aria-label="Telemetry sync status"
+                >
                   <div className="relative flex h-2 w-2">
-                    <span className={`absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 ${isSyncing ? "animate-ping scale-150" : "animate-pulse"}`} />
-                    <span className={`relative inline-flex rounded-full h-2 w-2 ${isSyncing ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-emerald-500"}`} />
-                  </div>
-                  <span className="flex min-w-0 items-center gap-1.5 font-mono text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none">
-                    {isSyncing ? (
-                      <span className="text-emerald-500 font-bold animate-pulse">Syncing Telemetry...</span>
-                    ) : (
-                      <>
-                        Telemetry Active <span className="text-zinc-200 dark:text-zinc-800">|</span> <span className="text-[8px] font-bold text-zinc-400 tabular-nums">Synced {lastSyncedTime}</span>
-                      </>
+                    {isSyncing && (
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 scale-150" />
                     )}
-                  </span>
+                    <span className={`relative inline-flex h-2 w-2 rounded-full transition-all ${
+                      isSyncing
+                        ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"
+                        : "bg-emerald-500"
+                    }`} />
+                  </div>
                 </div>
               }
             />
