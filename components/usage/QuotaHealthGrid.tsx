@@ -125,7 +125,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
           const color = isExhausted ? "#ef4444" : isCritical ? "#ef4444" : isWarning ? "#fbbf24" : "#10b981";
           
           const alertStyles = isExhausted
-            ? 'border-red-400 ring-4 ring-red-50 shadow-xl shadow-red-100/50'
+            ? 'border-red-400 ring-2 ring-red-500/25 shadow-[0_14px_34px_rgba(239,68,68,0.16)] dark:shadow-[0_14px_34px_rgba(0,0,0,0.35)]'
             : isCritical 
               ? 'border-red-200 ring-2 ring-red-50 shadow-red-100/20' 
               : isWarning 
