@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
 import { UsageSparkline } from "./UsageSparkline";
 import { AlertThresholdControl } from "./AlertThresholdControl";
 
@@ -24,6 +23,10 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [updatingKeyId, setUpdatingKeyId] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<{ keyId: string; message: string } | null>(null);
+  const [limitEditorKeyId, setLimitEditorKeyId] = useState<string | null>(null);
+  const [newLimit, setNewLimit] = useState<string>("");
+  const [updatingLimitKeyId, setUpdatingLimitKeyId] = useState<string | null>(null);
+  const [limitError, setLimitError] = useState<{ keyId: string; message: string } | null>(null);
   const activeKeys = keys.filter(k => k.is_active);
   const deadKeys = keys.filter(k => !k.is_active);
 
@@ -68,6 +71,49 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
     }
   };
 
+  const handleIncreaseLimit = async (key: KeyData) => {
+    const parsedLimit = parseInt(newLimit.replace(/,/g, ""), 10);
+    const currentLimit = key.monthly_limit ?? 0;
+    const minimumLimit = Math.max(currentLimit, key.usage_count);
+
+    if (isNaN(parsedLimit) || parsedLimit <= minimumLimit) {
+      setLimitError({
+        keyId: key.id,
+        message: `Enter a limit greater than ${minimumLimit.toLocaleString()} credits.`,
+      });
+      return;
+    }
+
+    setUpdatingLimitKeyId(key.id);
+    setLimitError(null);
+    try {
+      const res = await fetch("/api/usage/alert", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyId: key.id, monthlyLimit: parsedLimit })
+      });
+      const payload = await res.json();
+      if (res.ok) {
+        setLimitEditorKeyId(null);
+        setNewLimit("");
+        await onUpdate();
+        return;
+      }
+      setLimitError({
+        keyId: key.id,
+        message: payload?.error || "Failed to update monthly limit.",
+      });
+    } catch (err) {
+      console.error(err);
+      setLimitError({
+        keyId: key.id,
+        message: "Network error while updating monthly limit.",
+      });
+    } finally {
+      setUpdatingLimitKeyId(null);
+    }
+  };
+
   return (
     <div className="space-y-16">
       {/* Active Keys Section */}
@@ -91,6 +137,14 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
             : 0;
           const remaining = key.monthly_limit ? key.monthly_limit - key.usage_count : 0;
           const daysLeft = avgDaily > 0 ? Math.floor(remaining / avgDaily) : null;
+          const suggestedLimit = Math.max(
+            key.usage_count + 1,
+            key.monthly_limit ? Math.ceil(key.monthly_limit * 1.25) : key.usage_count + 100
+          );
+          const isLimitEditorOpen = limitEditorKeyId === key.id;
+          const parsedNewLimit = parseInt(newLimit.replace(/,/g, ""), 10);
+          const minimumLimit = Math.max(key.monthly_limit ?? 0, key.usage_count);
+          const isLimitSubmitDisabled = updatingLimitKeyId === key.id || isNaN(parsedNewLimit) || parsedNewLimit <= minimumLimit;
 
           return (
           <div 
@@ -234,24 +288,104 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
               </div>
 
               {isExhausted ? (
-                <div className="mt-6 space-y-4 rounded-2xl bg-red-50/50 p-4 border border-red-100 animate-in fade-in zoom-in-95 duration-500">
-                  <div className="grid grid-cols-2 gap-2">
-                    <Link 
-                      href="/billing"
-                      className="flex items-center justify-center rounded-xl bg-red-600 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-white hover:bg-red-700"
+                <div className="mt-6 space-y-4 rounded-3xl border border-red-500/30 bg-zinc-950/70 p-4 shadow-inner shadow-black/20 animate-in fade-in zoom-in-95 duration-500">
+                  <div className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500/15 text-red-400">
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                        <path d="M12 8v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-red-300">
+                        Limit reached
+                      </p>
+                      <p className="mt-1 text-xs font-medium leading-relaxed text-zinc-300">
+                        Requests for this key are paused until you raise the limit or disable the key.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLimitEditorKeyId(isLimitEditorOpen ? null : key.id);
+                        setNewLimit("");
+                        setLimitError(null);
+                      }}
+                      className="flex min-h-11 items-center justify-center rounded-2xl bg-red-600 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-red-950/30 transition hover:bg-red-500 active:scale-95"
                     >
-                      Increase Limit
-                    </Link>
+                      {isLimitEditorOpen ? "Cancel Increase" : "Increase Limit"}
+                    </button>
                     <button 
                       onClick={() => setConfirmingKillId(key.id)}
-                      className="flex items-center justify-center rounded-xl border border-red-200 dark:border-red-950/50 bg-white dark:bg-zinc-900 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 truncate"
+                      className="flex min-h-11 items-center justify-center rounded-2xl border border-red-500/30 bg-zinc-900 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-300 transition hover:border-red-400 hover:bg-red-950/40 active:scale-95"
                     >
                       Kill Switch
                     </button>
                   </div>
+
+                  {isLimitEditorOpen && (
+                    <div className="space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-zinc-300">
+                            New monthly limit
+                          </p>
+                          <p className="mt-1 text-[10px] font-medium text-zinc-500">
+                            Current {key.monthly_limit?.toLocaleString() ?? "∞"} · Used {key.usage_count.toLocaleString()}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewLimit(String(suggestedLimit));
+                            setLimitError(null);
+                          }}
+                          className="shrink-0 rounded-full border border-zinc-700 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-zinc-400 transition hover:border-red-500/40 hover:text-red-300"
+                        >
+                          Suggest
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={newLimit}
+                          onChange={(event) => {
+                            setNewLimit(event.target.value.replace(/[^0-9]/g, ""));
+                            setLimitError(null);
+                          }}
+                          placeholder={suggestedLimit.toLocaleString()}
+                          className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 pr-20 font-serif text-2xl font-bold text-zinc-100 outline-none transition focus:border-red-500/50"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black uppercase tracking-widest text-zinc-500">
+                          Credits
+                        </span>
+                      </div>
+                      {limitError?.keyId === key.id ? (
+                        <p className="text-[10px] font-bold leading-relaxed text-red-300">
+                          {limitError.message}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] font-medium leading-relaxed text-zinc-500">
+                          Must be greater than {minimumLimit.toLocaleString()} credits to resume service.
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleIncreaseLimit(key)}
+                        disabled={isLimitSubmitDisabled}
+                        className="w-full rounded-2xl bg-zinc-100 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition hover:bg-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        {updatingLimitKeyId === key.id ? "Updating..." : "Update Limit"}
+                      </button>
+                    </div>
+                  )}
+
                   <button 
                     onClick={() => setConfirmingDeleteId(key.id)}
-                    className="w-full text-center text-[8px] font-black uppercase tracking-widest text-zinc-400 hover:text-red-600 transition-colors pt-2"
+                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/70 px-4 py-3 text-center text-[9px] font-black uppercase tracking-widest text-zinc-500 transition-colors hover:border-red-500/40 hover:text-red-300"
                   >
                     Remove Permanently
                   </button>
