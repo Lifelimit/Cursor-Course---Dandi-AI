@@ -6,6 +6,7 @@ type ApiKeyModalProps = {
   isOpen: boolean;
   onClose: () => void;
   initialData: ApiKey | null;
+  planMonthlyLimit: number | null;
   onSubmit: (data: { 
     name: string; 
     keyType: "development" | "production"; 
@@ -16,7 +17,7 @@ type ApiKeyModalProps = {
   }) => Promise<{ success: boolean; error?: string }>;
 };
 
-export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyModalProps) {
+export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, onSubmit }: ApiKeyModalProps) {
   const [keyName, setKeyName] = useState("");
   const [keyType, setKeyType] = useState<"development" | "production">("development");
   const [hasUsageLimit, setHasUsageLimit] = useState(false);
@@ -59,6 +60,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
   if (!isOpen) return null;
 
   const minimumMonthlyLimit = isEditing && initialData ? initialData.usage_count + 1 : 1;
+  const maximumMonthlyLimit = planMonthlyLimit;
   const currentLimit = hasUsageLimit && monthlyLimit.trim() ? Number.parseInt(monthlyLimit.trim(), 10) : null;
   const isSmallLimit = currentLimit !== null && !isNaN(currentLimit) && currentLimit <= 20;
   const thresholdPct = Number(alertThreshold) || 80;
@@ -91,13 +93,15 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
     const parsedValue = Number.parseInt(nextValue, 10);
     if (Number.isNaN(parsedValue)) return;
 
-    setMonthlyLimit(String(Math.max(minimumMonthlyLimit, parsedValue)));
+    const minimumClamped = Math.max(minimumMonthlyLimit, parsedValue);
+    setMonthlyLimit(String(maximumMonthlyLimit === null ? minimumClamped : Math.min(maximumMonthlyLimit, minimumClamped)));
   };
 
   const handleMonthlyLimitBlur = () => {
     if (!hasUsageLimit) return;
     const parsedValue = Number.parseInt(monthlyLimit, 10);
-    setMonthlyLimit(String(Number.isNaN(parsedValue) ? minimumMonthlyLimit : Math.max(minimumMonthlyLimit, parsedValue)));
+    const minimumClamped = Number.isNaN(parsedValue) ? minimumMonthlyLimit : Math.max(minimumMonthlyLimit, parsedValue);
+    setMonthlyLimit(String(maximumMonthlyLimit === null ? minimumClamped : Math.min(maximumMonthlyLimit, minimumClamped)));
   };
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -115,6 +119,11 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
 
     if (hasUsageLimit && (parsedLimit === null || Number.isNaN(parsedLimit) || parsedLimit < minimumMonthlyLimit)) {
       setErrorMessage(`Monthly limit must be at least ${minimumMonthlyLimit.toLocaleString()} credits.`);
+      return;
+    }
+
+    if (hasUsageLimit && parsedLimit !== null && maximumMonthlyLimit !== null && parsedLimit > maximumMonthlyLimit) {
+      setErrorMessage(`Monthly limit cannot exceed your plan maximum of ${maximumMonthlyLimit.toLocaleString()} credits.`);
       return;
     }
 
@@ -244,6 +253,9 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
                   />
                   <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Requests</span>
                 </div>
+                <p className="text-[9px] font-bold leading-relaxed text-zinc-400 dark:text-zinc-500">
+                  Allowed range: {minimumMonthlyLimit.toLocaleString()} - {maximumMonthlyLimit === null ? "unlimited" : maximumMonthlyLimit.toLocaleString()} credits
+                </p>
               </div>
             </div>
 

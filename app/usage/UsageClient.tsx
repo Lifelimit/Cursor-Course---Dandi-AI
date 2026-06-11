@@ -231,7 +231,11 @@ export default function UsageClient({
                 <div className="space-y-8 animate-in fade-in duration-500">
                   {/* Quota Health Grid */}
                   {currentData?.keys && currentData.keys.length > 0 ? (
-                    <QuotaHealthGrid keys={currentData.keys} onUpdate={() => fetchUsageData(true)} />
+                    <QuotaHealthGrid
+                      keys={currentData.keys}
+                      planMonthlyLimit={isUnlimited ? null : currentLimit}
+                      onUpdate={() => fetchUsageData(true)}
+                    />
                   ) : (
                     <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 border-dashed p-12 text-center bg-white/30 dark:bg-zinc-900/10">
                       <p className="text-sm font-medium text-zinc-400 dark:text-zinc-500">No active API keys found for tracking.</p>

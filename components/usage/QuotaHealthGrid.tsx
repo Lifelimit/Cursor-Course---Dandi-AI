@@ -19,7 +19,15 @@ type KeyData = {
   dailyTrend: { date: string, count: number }[];
 };
 
-export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate: () => Promise<void> }) {
+export function QuotaHealthGrid({ 
+  keys, 
+  planMonthlyLimit,
+  onUpdate 
+}: { 
+  keys: KeyData[];
+  planMonthlyLimit: number | null;
+  onUpdate: () => Promise<void>;
+}) {
   const [confirmingKillId, setConfirmingKillId] = useState<string | null>(null);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [updatingKeyId, setUpdatingKeyId] = useState<string | null>(null);
@@ -85,6 +93,14 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
       return;
     }
 
+    if (planMonthlyLimit !== null && parsedLimit > planMonthlyLimit) {
+      setLimitError({
+        keyId: key.id,
+        message: `Limit cannot exceed your plan maximum of ${planMonthlyLimit.toLocaleString()} credits.`,
+      });
+      return;
+    }
+
     setUpdatingLimitKeyId(key.id);
     setLimitError(null);
     try {
@@ -142,10 +158,15 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
             key.usage_count + 1,
             key.monthly_limit ? Math.ceil(key.monthly_limit * 1.25) : key.usage_count + 100
           );
+          const minimumLimit = Math.max(key.monthly_limit ?? 0, key.usage_count);
+          const cappedSuggestedLimit = planMonthlyLimit === null
+            ? suggestedLimit
+            : Math.min(planMonthlyLimit, Math.max(minimumLimit + 1, suggestedLimit));
           const isLimitEditorOpen = limitEditorKeyId === key.id;
           const parsedNewLimit = parseInt(newLimit.replace(/,/g, ""), 10);
-          const minimumLimit = Math.max(key.monthly_limit ?? 0, key.usage_count);
-          const isLimitSubmitDisabled = updatingLimitKeyId === key.id || isNaN(parsedNewLimit) || parsedNewLimit <= minimumLimit;
+          const isAbovePlanLimit = planMonthlyLimit !== null && parsedNewLimit > planMonthlyLimit;
+          const hasPlanHeadroom = planMonthlyLimit === null || minimumLimit < planMonthlyLimit;
+          const isLimitSubmitDisabled = !hasPlanHeadroom || updatingLimitKeyId === key.id || isNaN(parsedNewLimit) || parsedNewLimit <= minimumLimit || isAbovePlanLimit;
 
           return (
           <div 
@@ -340,9 +361,10 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                         <button
                           type="button"
                           onClick={() => {
-                            setNewLimit(String(suggestedLimit));
+                            setNewLimit(String(cappedSuggestedLimit));
                             setLimitError(null);
                           }}
+                          disabled={!hasPlanHeadroom}
                           className="shrink-0 rounded-full border border-zinc-700 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-zinc-400 transition hover:border-red-500/40 hover:text-red-300"
                         >
                           Suggest
@@ -354,10 +376,19 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                           inputMode="numeric"
                           value={newLimit}
                           onChange={(event) => {
-                            setNewLimit(event.target.value.replace(/[^0-9]/g, ""));
+                            const digits = event.target.value.replace(/[^0-9]/g, "");
+                            if (!digits) {
+                              setNewLimit("");
+                              setLimitError(null);
+                              return;
+                            }
+                            const parsed = parseInt(digits, 10);
+                            const capped = planMonthlyLimit === null ? parsed : Math.min(parsed, planMonthlyLimit);
+                            setNewLimit(String(capped));
                             setLimitError(null);
                           }}
-                          placeholder={suggestedLimit.toLocaleString()}
+                          disabled={!hasPlanHeadroom}
+                          placeholder={cappedSuggestedLimit.toLocaleString()}
                           className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 pr-20 font-serif text-2xl font-bold text-zinc-100 outline-none transition focus:border-red-500/50"
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black uppercase tracking-widest text-zinc-500">
@@ -370,7 +401,9 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
                         </p>
                       ) : (
                         <p className="text-[10px] font-medium leading-relaxed text-zinc-500">
-                          Must be greater than {minimumLimit.toLocaleString()} credits to resume service.
+                          {hasPlanHeadroom
+                            ? `Allowed range: ${(minimumLimit + 1).toLocaleString()} - ${planMonthlyLimit === null ? "unlimited" : planMonthlyLimit.toLocaleString()} credits.`
+                            : "This key is already at your plan maximum. Upgrade the account plan to raise it further."}
                         </p>
                       )}
                       <button

@@ -338,6 +338,7 @@ export default function DashboardClient({
               isOpen={isModalOpen}
               onClose={() => setIsModalOpen(false)}
               initialData={editingKey}
+              planMonthlyLimit={isUnlimited ? null : currentLimit}
               onSubmit={handleModalSubmit}
             />
             <RevocationModal

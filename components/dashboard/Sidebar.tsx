@@ -273,7 +273,11 @@ export function Sidebar({
       </nav>
 
       <div className={`${isMobileNavOpen ? "block px-1 pb-2" : "hidden"} md:block`}>
-        <SidebarAlerts alerts={alerts} onUpdate={onUpdate} />
+        <SidebarAlerts
+          alerts={alerts}
+          planMonthlyLimit={isUnlimited ? null : limit}
+          onUpdate={onUpdate}
+        />
       </div>
 
       <div className={`${isMobileNavOpen ? "block mx-1 mb-2 mt-4" : "hidden"} md:block md:mt-6 md:mx-0 md:mb-0 rounded-2xl bg-zinc-900 dark:bg-zinc-900/50 border border-transparent dark:border-zinc-800 p-5 text-white shadow-xl`}>

@@ -15,7 +15,15 @@ type Alert = {
   dailyTrend: { date: string, count: number }[];
 };
 
-export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate: () => void }) {
+export function SidebarAlerts({ 
+  alerts, 
+  planMonthlyLimit,
+  onUpdate 
+}: { 
+  alerts: Alert[];
+  planMonthlyLimit: number | null;
+  onUpdate: () => void;
+}) {
   const [peekingKey, setPeekingKey] = React.useState<string | null>(null);
   const [flyoutKey, setFlyoutKey] = React.useState<string | null>(null);
   const [newLimit, setNewLimit] = React.useState<string>("");
@@ -29,6 +37,7 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
     const parsedLimit = parseInt(newLimit.replace(/,/g, ''), 10);
     if (isNaN(parsedLimit) || parsedLimit <= 0) return;
     if (alert.pct >= 100 && parsedLimit <= alert.currentLimit) return;
+    if (planMonthlyLimit !== null && parsedLimit > planMonthlyLimit) return;
     setIsUpdating(true);
     try {
       const res = await fetch("/api/usage/alert", {
@@ -66,7 +75,23 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
           const parsedNewLimit = parseInt(newLimit.replace(/,/g, ''), 10);
           const isInvalidMaxed = isMaxed && parsedNewLimit <= alert.currentLimit;
           const isBelowUsage = parsedNewLimit <= alert.usageCount;
-          const isSubmitDisabled = isUpdating || isNaN(parsedNewLimit) || parsedNewLimit <= 0 || isInvalidMaxed || isBelowUsage;
+          const isAbovePlanLimit = planMonthlyLimit !== null && parsedNewLimit > planMonthlyLimit;
+          const minimumLimit = Math.max(alert.currentLimit, alert.usageCount);
+          const hasPlanHeadroom = planMonthlyLimit === null || minimumLimit < planMonthlyLimit;
+          const isSubmitDisabled = !hasPlanHeadroom || isUpdating || isNaN(parsedNewLimit) || parsedNewLimit <= 0 || isInvalidMaxed || isBelowUsage || isAbovePlanLimit;
+          const handleNewLimitChange = (value: string) => {
+            const digits = value.replace(/[^0-9]/g, '');
+            if (!digits) {
+              setNewLimit("");
+              return;
+            }
+            const parsed = parseInt(digits, 10);
+            const capped = planMonthlyLimit === null ? parsed : Math.min(parsed, planMonthlyLimit);
+            setNewLimit(String(capped));
+          };
+          const limitGuidance = hasPlanHeadroom
+            ? `Allowed: ${(minimumLimit + 1).toLocaleString()} - ${planMonthlyLimit === null ? "unlimited" : planMonthlyLimit.toLocaleString()} credits.`
+            : "This key is already at your plan maximum. Upgrade the account plan to raise it further.";
           
           const dotColor = isMaxed ? 'bg-red-600 animate-pulse' :
                           isCritical ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 
@@ -136,10 +161,8 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                         type="text" 
                         inputMode="numeric"
                         value={newLimit}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^0-9]/g, '');
-                          setNewLimit(val);
-                        }}
+                        onChange={(e) => handleNewLimitChange(e.target.value)}
+                        disabled={!hasPlanHeadroom}
                         placeholder="500"
                         className="w-full rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-4 font-serif text-2xl font-bold text-zinc-900 dark:text-zinc-100 focus:border-zinc-900 dark:focus:border-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:outline-none transition-all"
                       />
@@ -157,6 +180,16 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                       {!isInvalidMaxed && isBelowUsage && newLimit !== "" && (
                         <p className="px-1 text-[8px] font-bold text-red-500">
                           Must be strictly greater than current usage ({alert.usageCount} credits).
+                        </p>
+                      )}
+                      {!isInvalidMaxed && !isBelowUsage && isAbovePlanLimit && (
+                        <p className="px-1 text-[8px] font-bold text-red-500">
+                          Cannot exceed your plan maximum of {planMonthlyLimit?.toLocaleString()} credits.
+                        </p>
+                      )}
+                      {!isInvalidMaxed && !isBelowUsage && !isAbovePlanLimit && (
+                        <p className="px-1 text-[8px] font-medium text-zinc-500 dark:text-zinc-400 italic">
+                          {limitGuidance}
                         </p>
                       )}
                     </div>
@@ -218,10 +251,8 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                         type="text" 
                         inputMode="numeric"
                         value={newLimit}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^0-9]/g, '');
-                          setNewLimit(val);
-                        }}
+                        onChange={(e) => handleNewLimitChange(e.target.value)}
+                        disabled={!hasPlanHeadroom}
                         placeholder="500"
                         className="w-full rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800 px-4 py-4 font-serif text-2xl font-bold text-zinc-900 dark:text-zinc-100 focus:border-zinc-900 dark:focus:border-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:outline-none transition-all"
                       />
@@ -239,6 +270,16 @@ export function SidebarAlerts({ alerts, onUpdate }: { alerts: Alert[], onUpdate:
                       {!isInvalidMaxed && isBelowUsage && newLimit !== "" && (
                         <p className="px-1 text-[8px] font-bold text-red-500">
                           Must be strictly greater than current usage ({alert.usageCount} credits).
+                        </p>
+                      )}
+                      {!isInvalidMaxed && !isBelowUsage && isAbovePlanLimit && (
+                        <p className="px-1 text-[8px] font-bold text-red-500">
+                          Cannot exceed your plan maximum of {planMonthlyLimit?.toLocaleString()} credits.
+                        </p>
+                      )}
+                      {!isInvalidMaxed && !isBelowUsage && !isAbovePlanLimit && (
+                        <p className="px-1 text-[8px] font-medium text-zinc-400 italic">
+                          {limitGuidance}
                         </p>
                       )}
                     </div>
