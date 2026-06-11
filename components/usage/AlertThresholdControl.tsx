@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { getEffectiveAlertThresholdPct } from "@/lib/alerts";
 
 type Props = {
   keyId: string;
@@ -23,7 +24,7 @@ export function AlertThresholdControl({
 
   const roundedInitialThreshold = initialThreshold !== null && initialThreshold !== undefined
     ? (isSmallLimit
-        ? Math.round(Math.max(1, Math.round((initialThreshold / 100) * limit)) / limit * 100)
+        ? getEffectiveAlertThresholdPct(limit, initialThreshold) ?? initialThreshold
         : Math.round(initialThreshold / 5) * 5)
     : 80;
 

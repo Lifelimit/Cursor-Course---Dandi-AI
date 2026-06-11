@@ -58,6 +58,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
 
   if (!isOpen) return null;
 
+  const minimumMonthlyLimit = isEditing && initialData ? initialData.usage_count + 1 : 1;
   const currentLimit = hasUsageLimit && monthlyLimit.trim() ? Number.parseInt(monthlyLimit.trim(), 10) : null;
   const isSmallLimit = currentLimit !== null && !isNaN(currentLimit) && currentLimit <= 20;
   const thresholdPct = Number(alertThreshold) || 80;
@@ -80,6 +81,25 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
     }
   };
 
+  const handleMonthlyLimitChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextValue = event.target.value;
+    if (nextValue.trim() === "") {
+      setMonthlyLimit("");
+      return;
+    }
+
+    const parsedValue = Number.parseInt(nextValue, 10);
+    if (Number.isNaN(parsedValue)) return;
+
+    setMonthlyLimit(String(Math.max(minimumMonthlyLimit, parsedValue)));
+  };
+
+  const handleMonthlyLimitBlur = () => {
+    if (!hasUsageLimit) return;
+    const parsedValue = Number.parseInt(monthlyLimit, 10);
+    setMonthlyLimit(String(Number.isNaN(parsedValue) ? minimumMonthlyLimit : Math.max(minimumMonthlyLimit, parsedValue)));
+  };
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSubmitting) return;
@@ -92,6 +112,11 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
 
     const parsedLimit = hasUsageLimit && monthlyLimit.trim() ? Number.parseInt(monthlyLimit.trim(), 10) : null;
     const parsedThreshold = Number.parseInt(alertThreshold, 10);
+
+    if (hasUsageLimit && (parsedLimit === null || Number.isNaN(parsedLimit) || parsedLimit < minimumMonthlyLimit)) {
+      setErrorMessage(`Monthly limit must be at least ${minimumMonthlyLimit.toLocaleString()} credits.`);
+      return;
+    }
 
     if (isEditing && initialData && parsedLimit !== null) {
       if (parsedLimit <= initialData.usage_count) {
@@ -209,12 +234,15 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
                 <div className="relative">
                   <input
                     type="number"
+                    min={minimumMonthlyLimit}
+                    step={1}
                     value={monthlyLimit}
-                    onChange={(event) => setMonthlyLimit(event.target.value)}
+                    onChange={handleMonthlyLimitChange}
+                    onBlur={handleMonthlyLimitBlur}
                     disabled={!hasUsageLimit}
-                    className="h-12 w-full rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800 px-4 text-sm font-bold text-zinc-900 dark:text-zinc-100 tabular-nums outline-none transition focus:border-zinc-900 dark:focus:border-zinc-100 disabled:opacity-40"
+                    className="h-12 w-full rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800 px-4 pr-32 text-sm font-bold text-zinc-900 dark:text-zinc-100 tabular-nums outline-none transition focus:border-zinc-900 dark:focus:border-zinc-100 disabled:opacity-40"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Requests</span>
+                  <span className="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2 text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Requests</span>
                 </div>
               </div>
             </div>

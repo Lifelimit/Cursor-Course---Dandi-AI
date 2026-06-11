@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { UsageSparkline } from "./UsageSparkline";
 import { AlertThresholdControl } from "./AlertThresholdControl";
+import { hasCrossedAlertThreshold } from "@/lib/alerts";
 
 type KeyData = {
   id: string;
@@ -34,7 +35,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
   const sortedActive = [...activeKeys].sort((a, b) => {
     const getRank = (k: KeyData) => {
       if (k.pct >= 100) return 0;
-      if (k.alert_threshold !== null && k.pct >= k.alert_threshold) return 1;
+      if (hasCrossedAlertThreshold(k)) return 1;
       if (k.pct >= 70) return 2;
       return 3;
     };
@@ -121,7 +122,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
         {sortedActive.map((key) => {
           const isExhausted = key.pct >= 100;
           const isCritical = key.pct >= 95;
-          const isWarning = key.alert_threshold !== null && key.pct >= key.alert_threshold;
+          const isWarning = hasCrossedAlertThreshold(key);
           const color = isExhausted ? "#ef4444" : isCritical ? "#ef4444" : isWarning ? "#fbbf24" : "#10b981";
           
           const alertStyles = isExhausted
@@ -393,6 +394,7 @@ export function QuotaHealthGrid({ keys, onUpdate }: { keys: KeyData[], onUpdate:
               ) : (
                 <div className="mt-6">
                   <AlertThresholdControl 
+                    key={`${key.id}:${key.monthly_limit ?? "unlimited"}:${key.alert_threshold ?? "none"}:${(key.alert_channels || []).join("|")}:${key.alert_phone || ""}`}
                     keyId={key.id} 
                     initialThreshold={key.alert_threshold}
                     initialChannels={key.alert_channels || ['in-page']}
