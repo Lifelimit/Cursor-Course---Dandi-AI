@@ -82,7 +82,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
   };
 
   const handleMonthlyLimitChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextValue = event.target.value;
+    const nextValue = event.target.value.replace(/[^0-9]/g, "");
     if (nextValue.trim() === "") {
       setMonthlyLimit("");
       return;
@@ -233,16 +233,16 @@ export function ApiKeyModal({ isOpen, onClose, initialData, onSubmit }: ApiKeyMo
                 </label>
                 <div className="relative">
                   <input
-                    type="number"
-                    min={minimumMonthlyLimit}
-                    step={1}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={monthlyLimit}
                     onChange={handleMonthlyLimitChange}
                     onBlur={handleMonthlyLimitBlur}
                     disabled={!hasUsageLimit}
-                    className="h-12 w-full rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800 px-4 pr-32 text-sm font-bold text-zinc-900 dark:text-zinc-100 tabular-nums outline-none transition focus:border-zinc-900 dark:focus:border-zinc-100 disabled:opacity-40"
+                    className="h-12 w-full rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800 px-4 pr-28 text-sm font-bold text-zinc-900 dark:text-zinc-100 tabular-nums outline-none transition focus:border-zinc-900 dark:focus:border-zinc-100 disabled:opacity-40"
                   />
-                  <span className="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2 text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Requests</span>
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Requests</span>
                 </div>
               </div>
             </div>
