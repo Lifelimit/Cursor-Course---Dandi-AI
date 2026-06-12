@@ -10,6 +10,7 @@ import { Toast } from "@/components/ui/Toast";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { ApiKeyModal } from "@/components/dashboard/ApiKeyModal";
+import { CommandPanel, StatusPill } from "@/components/command";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
@@ -194,19 +195,19 @@ export default function DashboardClient({
               }
               rightAction={
                 <div
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white/80 shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-950 sm:self-center"
-                  aria-label="Telemetry sync status"
+                  className={`inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-950/20 px-3.5 py-1.5 text-[9px] font-bold font-mono uppercase tracking-[0.18em] text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.08)] backdrop-blur-md transition-all sm:self-center ${
+                    isSyncing ? "border-emerald-400/40 shadow-[0_0_15px_rgba(52,211,153,0.18)]" : ""
+                  }`}
+                  aria-label="All systems operational"
+                  title={isSyncing ? "Telemetry refresh in progress" : "All systems operational"}
                 >
-                  <div className="relative flex h-2 w-2">
+                  <span className="relative flex h-1.5 w-1.5 shrink-0">
                     {isSyncing && (
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 scale-150" />
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                     )}
-                    <span className={`relative inline-flex h-2 w-2 rounded-full transition-all ${
-                      isSyncing
-                        ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"
-                        : "bg-emerald-500"
-                    }`} />
-                  </div>
+                    <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isSyncing ? "bg-emerald-300" : "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"}`} />
+                  </span>
+                  <span>ALL SYSTEMS OPERATIONAL</span>
                 </div>
               }
             />
@@ -214,47 +215,178 @@ export default function DashboardClient({
             {/* Metric Tiles Row */}
             <div className="grid gap-6 md:grid-cols-3">
               {[
-                { label: "Avg. Latency", value: avgLatency > 0 ? `${avgLatency}ms` : "--", icon: "M13 10V3L4 14h7v7l9-11h-7z", color: "text-amber-500", bg: "bg-amber-50" },
-                { label: "Success Rate", value: `${successRate.toFixed(1)}%`, icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", color: "text-emerald-500", bg: "bg-emerald-50" },
-                { label: "Active Keys", value: apiKeys.length.toString(), icon: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z", color: "text-blue-500", bg: "bg-blue-50" }
-              ].map((m, i) => (
-                <div key={i} className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm transition-all hover:shadow-md">
-                  <div className="flex items-center gap-4">
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${m.bg} dark:bg-zinc-950/50 ${m.color}`}>
-                      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
-                        <path d={m.icon} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                {
+                  label: "Avg. Latency",
+                  value: avgLatency > 0 ? `${avgLatency}ms` : "--",
+                  icon: "M13 10V3L4 14h7v7l9-11h-7z",
+                  tone: "amber",
+                  trend: "↗ 12%",
+                  spark: [36, 38, 42, 50, 43, 39, 36, 40, 31, 39, 47, 45, 53, 44, 38, 47, 35, 37, 49, 44, 39, 48, 58],
+                },
+                {
+                  label: "Success Rate",
+                  value: `${successRate.toFixed(1)}%`,
+                  icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
+                  tone: "emerald",
+                  trend: "↗ 5%",
+                  spark: [34, 34, 43, 35, 37, 35, 41, 43, 49, 45, 53, 46, 42, 48, 41, 34, 45, 53, 45, 39, 36, 46, 57],
+                },
+                {
+                  label: "Active Keys",
+                  value: apiKeys.length.toString(),
+                  icon: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z",
+                  tone: "blue",
+                  trend: "− 0%",
+                  spark: [35, 37, 43, 35, 31, 40, 32, 41, 34, 45, 51, 43, 40, 46, 33, 43, 36, 33, 31, 41, 40, 50, 55],
+                },
+              ].map((m) => {
+                const accentText =
+                  m.tone === "amber"
+                    ? "text-amber-400"
+                    : m.tone === "blue"
+                    ? "text-blue-400"
+                    : "text-emerald-400";
+
+                const accentBg =
+                  m.tone === "amber"
+                    ? "bg-amber-500/5"
+                    : m.tone === "blue"
+                    ? "bg-blue-500/5"
+                    : "bg-emerald-500/5";
+
+                const accentBorder =
+                  m.tone === "amber"
+                    ? "border-amber-500/20 animate-pulse-slow"
+                    : m.tone === "blue"
+                    ? "border-blue-500/20"
+                    : "border-emerald-500/20";
+
+                const glowColor =
+                  m.tone === "amber"
+                    ? "bg-amber-400/5"
+                    : m.tone === "blue"
+                    ? "bg-blue-400/5"
+                    : "bg-emerald-400/5";
+
+                return (
+                  <div
+                    key={m.label}
+                    className="group relative flex min-w-0 flex-col overflow-hidden rounded-[24px] border border-white/5 bg-slate-950/40 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.34)] backdrop-blur-xl transition-all hover:border-white/10 sm:p-5 md:min-h-48"
+                    style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
+                  >
+                    {/* Subtle Glow decoration */}
+                    <div
+                      aria-hidden="true"
+                      className={`pointer-events-none absolute -right-14 -top-20 h-36 w-36 rounded-full blur-3xl opacity-60 ${glowColor}`}
+                    />
+                    
+                    {/* Upper row: icon, name+value, trend pill */}
+                    <div className="relative flex min-w-0 items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div
+                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border bg-white/[0.015] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] ${accentBorder} ${accentText}`}
+                        >
+                          <svg viewBox="0 0 24 24" className="h-6.5 w-6.5" fill="none" stroke="currentColor">
+                            <path d={m.icon} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                        <div className="min-w-0 leading-normal">
+                          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 font-sans">
+                            {m.label}
+                          </p>
+                          <p className="text-2xl font-bold tracking-tight text-white font-sans mt-0.5 tabular-nums">
+                            {m.value}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`inline-flex shrink-0 items-center rounded-lg border px-2 py-1 text-[10px] font-bold font-mono tracking-wide tabular-nums ${accentBorder} ${accentBg} ${accentText} shadow-[0_0_10px_rgba(0,0,0,0.2)]`}
+                      >
+                        {m.trend}
+                      </span>
+                    </div>
+
+                    {/* Bottom row: Sparkline */}
+                    <div className="relative mt-6 h-12 w-full overflow-hidden md:mt-auto md:pt-4">
+                      <svg viewBox="0 0 220 40" preserveAspectRatio="none" className="h-full w-full">
+                        <defs>
+                          <linearGradient id={`metric-fill-${m.tone}`} x1="0" x2="0" y1="0" y2="1">
+                            <stop offset="0%" stopColor="currentColor" stopOpacity="0.18" />
+                            <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+                          </linearGradient>
+                        </defs>
+                        <polygon
+                          points={`0,40 ${m.spark
+                            .map((point, index) => `${index * 10},${35 - point / 2.3}`)
+                            .join(" ")} 220,40`}
+                          className={
+                            m.tone === "amber"
+                              ? "fill-amber-500/10 text-amber-500"
+                              : m.tone === "blue"
+                              ? "fill-blue-500/10 text-blue-500"
+                              : "fill-emerald-500/10 text-emerald-500"
+                          }
+                        />
+                        <polyline
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          points={m.spark
+                            .map((point, index) => `${index * 10},${35 - point / 2.3}`)
+                            .join(" ")}
+                          className={
+                            m.tone === "amber"
+                              ? "text-amber-500 drop-shadow-[0_0_6px_rgba(245,158,11,0.3)]"
+                              : m.tone === "blue"
+                              ? "text-blue-500 drop-shadow-[0_0_6px_rgba(59,130,246,0.3)]"
+                              : "text-emerald-500 drop-shadow-[0_0_6px_rgba(16,185,129,0.3)]"
+                          }
+                        />
+                        <circle
+                          cx="220"
+                          cy={35 - m.spark[m.spark.length - 1] / 2.3}
+                          r="3"
+                          fill="currentColor"
+                          className={
+                            m.tone === "amber"
+                              ? "text-amber-400 drop-shadow-[0_0_6px_rgba(245,158,11,0.8)]"
+                              : m.tone === "blue"
+                              ? "text-blue-400 drop-shadow-[0_0_6px_rgba(59,130,246,0.8)]"
+                              : "text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.8)]"
+                          }
+                        />
                       </svg>
                     </div>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">{m.label}</p>
-                      <p className="text-2xl font-black tabular-nums">{m.value}</p>
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Plan Status Card */}
-            <div className="group relative overflow-hidden rounded-[32px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8 md:rounded-[40px] md:p-10">
+            <CommandPanel padding="none" className="group relative overflow-hidden p-5 sm:p-8 md:p-10">
               {/* Background Glow Decoration */}
-              <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-emerald-50/50 dark:bg-emerald-950/10 blur-3xl transition-all group-hover:bg-emerald-100/50 dark:group-hover:bg-emerald-900/10" />
+              <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl transition-all group-hover:bg-emerald-400/15" />
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/50 to-transparent" />
               
               <div className="relative flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
                 <div className="flex-1 space-y-8">
                   <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">Current Strategic Tier</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-300/80">Current Strategic Tier</p>
                       <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-                        <h2 className="font-serif text-4xl font-bold italic tracking-tight sm:text-5xl">{currentPlan}</h2>
+                        <h2 className="font-serif text-4xl font-bold italic tracking-tight text-white sm:text-5xl">{currentPlan}</h2>
                         {isUnlimited && (
-                          <span className="rounded-full bg-zinc-900 dark:bg-zinc-100 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-950 shadow-lg shadow-zinc-900/10 dark:shadow-none">Unlimited</span>
+                          <StatusPill tone="success" compact>Unlimited</StatusPill>
                         )}
                       </div>
                     </div>
                     
                     <button 
                       onClick={() => router.push("/billing")}
-                      className="w-full rounded-full border border-zinc-200 bg-white px-8 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-all hover:border-zinc-900 hover:text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-500 dark:hover:border-zinc-100 dark:hover:text-zinc-100 sm:w-auto"
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-8 py-3 text-[10px] font-black uppercase tracking-widest text-slate-300 transition-all hover:border-emerald-300/30 hover:text-emerald-200 sm:w-auto"
                     >
                       Management
                     </button>
@@ -270,20 +402,20 @@ export default function DashboardClient({
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                         </span>
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 italic">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-emerald-300">
                           Next Reset: {resetDate ? new Date(resetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
                       </div>
                     </div>
                     
-                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-zinc-50 dark:bg-zinc-950">
+                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-white/10">
                       <div 
-                        className="h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all duration-1000 ease-out" 
+                        className="h-full bg-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.35)] transition-all duration-1000 ease-out" 
                         style={{ width: `${isUnlimited ? 100 : Math.min((totalUsage / currentLimit) * 100, 100)}%` }}
                       ></div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                    <div className="flex items-center justify-between gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                       <span>0 Units</span>
                       <span>Target Limit: {isUnlimited ? "∞" : currentLimit.toLocaleString()} Units</span>
                     </div>
@@ -291,32 +423,35 @@ export default function DashboardClient({
                 </div>
 
                 {/* Simulated Usage Pulse Visual */}
-                <div className="hidden h-32 w-48 shrink-0 items-center justify-center rounded-3xl bg-zinc-50 dark:bg-zinc-950 p-6 md:flex border border-zinc-100/50 dark:border-zinc-800/50">
+                <div className="hidden h-32 w-48 shrink-0 items-center justify-center rounded-3xl border border-emerald-300/15 bg-slate-950/70 p-6 md:flex">
                   <div className="flex items-end gap-1 h-full w-full">
                     {[35, 65, 45, 85, 55, 75, 40, 90, 60, 80].map((h, i) => (
                       <div 
                         key={i} 
-                        className="flex-1 rounded-t-sm bg-emerald-500/20 dark:bg-emerald-500/10 transition-all hover:bg-emerald-500"
+                        className="flex-1 rounded-t-sm bg-emerald-400/20 transition-all hover:bg-emerald-300"
                         style={{ height: `${h}%` }}
                       />
                     ))}
                   </div>
                 </div>
               </div>
-            </div>
+            </CommandPanel>
 
             {/* Keys Section */}
-            <section className="rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8 md:rounded-[32px]">
+            <CommandPanel padding="none" className="p-5 sm:p-8">
               <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="font-serif text-2xl font-bold">Encrypted Keys</h2>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Credential Vault</p>
+                  <h2 className="mt-1 font-serif text-2xl font-bold text-white">Encrypted Keys</h2>
+                </div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="rounded-full bg-zinc-50 dark:bg-zinc-950 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 border border-zinc-100 dark:border-zinc-800">
+                  <span className="rounded-full border border-emerald-300/15 bg-emerald-300/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-200">
                     {apiKeys.length} Records
                   </span>
                   <button
                     type="button"
                     onClick={handleOpenCreateModal}
-                    className="rounded-full bg-zinc-900 px-5 py-2 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-zinc-900/10 transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:shadow-none dark:hover:bg-zinc-200"
+                    className="rounded-2xl bg-emerald-400 px-5 py-2 text-[10px] font-black uppercase tracking-widest text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.18)] transition hover:bg-emerald-300"
                   >
                     New Key
                   </button>
@@ -332,7 +467,7 @@ export default function DashboardClient({
                 currentPlan={currentPlan}
                 onOpenCreateModal={handleOpenCreateModal}
               />
-            </section>
+            </CommandPanel>
 
             <ApiKeyModal
               isOpen={isModalOpen}

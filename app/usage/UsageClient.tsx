@@ -10,6 +10,7 @@ import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader"
 import { QuotaHealthGrid } from "@/components/usage/QuotaHealthGrid";
 import { TopReposTable } from "@/components/usage/TopReposTable";
 import { AnalyticsDashboard } from "@/components/usage/AnalyticsDashboard";
+import { CommandPanel, StatusPill, TabsBar } from "@/components/command";
 
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
@@ -143,24 +144,12 @@ export default function UsageClient({
             description="Track quota health, live telemetry, and repository usage trends."
             rightAction={
               <>
-                <div
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white/80 shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-950"
-                  aria-label="Telemetry sync status"
-                >
-                  <div className="relative flex h-2 w-2 shrink-0">
-                    {isSyncing && (
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 scale-150" />
-                    )}
-                    <span className={`relative inline-flex h-2 w-2 rounded-full transition-all ${
-                      isSyncing
-                        ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"
-                        : "bg-emerald-500"
-                    }`} />
-                  </div>
-                </div>
+                <StatusPill tone={isSyncing ? "warning" : "success"} pulse={isSyncing}>
+                  {isSyncing ? "Syncing Telemetry" : "Telemetry Online"}
+                </StatusPill>
                 <button
                   onClick={handleExport}
-                  className="group flex shrink-0 items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 sm:px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-600 shadow-sm transition hover:bg-zinc-900 hover:text-white dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-100 dark:hover:text-zinc-950 cursor-pointer"
+                  className="group flex shrink-0 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-300 shadow-sm transition hover:border-emerald-300/30 hover:text-emerald-200 sm:px-6 cursor-pointer"
                 >
                   <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0" fill="none" stroke="currentColor">
                     <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -172,44 +161,23 @@ export default function UsageClient({
             }
           >
             {/* Tabs Switch */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-8 overflow-x-auto scrollbar-hide">
-              <div className="flex gap-8 overflow-x-auto scrollbar-hide">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    setActiveTab("credentials");
-                    e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-                  }}
-                  className={`shrink-0 pb-4 text-xs font-bold uppercase tracking-widest transition-all outline-none cursor-pointer ${
-                    activeTab === "credentials"
-                      ? "text-emerald-500 border-b-2 border-emerald-500 font-extrabold"
-                      : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-400 font-bold"
-                  }`}
-                >
-                  Active Credentials
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    setActiveTab("analytics");
-                    e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-                  }}
-                  className={`shrink-0 pb-4 text-xs font-bold uppercase tracking-widest transition-all outline-none cursor-pointer ${
-                    activeTab === "analytics"
-                      ? "text-emerald-500 border-b-2 border-emerald-500 font-extrabold"
-                      : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-400 font-bold"
-                  }`}
-                >
-                  Analytics & Trends
-                </button>
-              </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-8">
+              <TabsBar
+                tabs={[
+                  { id: "credentials", label: "Active Credentials" },
+                  { id: "analytics", label: "Analytics & Trends" },
+                ]}
+                activeId={activeTab}
+                onChange={(id) => setActiveTab(id as "credentials" | "analytics")}
+                variant="pills"
+              />
 
               {currentData?.resetDate && (
-                <div className="flex shrink-0 items-center gap-2 rounded-full bg-zinc-100 dark:bg-zinc-800/50 px-3 py-1.5 mb-3 sm:mb-4">
+                <div className="flex shrink-0 items-center gap-2 rounded-full border border-emerald-300/15 bg-emerald-300/10 px-3 py-1.5 mb-3 sm:mb-4">
                   <svg viewBox="0 0 24 24" className="h-3 w-3 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-emerald-200">
                     Resets {new Date(currentData.resetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </span>
                 </div>
@@ -237,12 +205,12 @@ export default function UsageClient({
                       onUpdate={() => fetchUsageData(true)}
                     />
                   ) : (
-                    <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 border-dashed p-12 text-center bg-white/30 dark:bg-zinc-900/10">
-                      <p className="text-sm font-medium text-zinc-400 dark:text-zinc-500">No active API keys found for tracking.</p>
-                      <Link href="/dashboards" className="mt-4 inline-block text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 hover:underline">
+                    <CommandPanel className="border-dashed p-12 text-center">
+                      <p className="text-sm font-medium text-slate-400">No active API keys found for tracking.</p>
+                      <Link href="/dashboards" className="mt-4 inline-block text-[10px] font-black uppercase tracking-widest text-emerald-300 hover:underline">
                         Create your first key →
                       </Link>
-                    </div>
+                    </CommandPanel>
                   )}
 
                   {/* Bottom Section */}
@@ -250,21 +218,21 @@ export default function UsageClient({
                     <TopReposTable data={currentData?.globalTopRepos || []} />
                     
                     <div className="flex flex-col gap-8">
-                      <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-sm">
-                        <h3 className="font-serif text-xl font-bold mb-4">Usage Philosophy</h3>
-                        <p className="text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+                      <CommandPanel className="p-6 sm:p-8">
+                        <h3 className="font-serif text-xl font-bold mb-4 text-white">Usage Philosophy</h3>
+                        <p className="text-sm leading-relaxed text-slate-400">
                           We track repository summaries to help you optimize your intelligent credits. 
                           Credits are consumed only on successful AI generation.
                         </p>
                         <div className="mt-6 flex items-center gap-4">
-                          <div className="h-px flex-1 bg-zinc-100 dark:bg-zinc-800" />
-                          <Link href="/playground" className="text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 hover:underline">
+                          <div className="h-px flex-1 bg-white/10" />
+                          <Link href="/playground" className="text-[10px] font-black uppercase tracking-widest text-emerald-300 hover:underline">
                             Launch Playground
                           </Link>
                         </div>
-                      </div>
+                      </CommandPanel>
 
-                      <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#18181b] dark:bg-zinc-900/50 p-6 sm:p-8 text-white shadow-xl">
+                      <CommandPanel className="p-6 text-white sm:p-8">
                         <div className="flex items-center justify-between mb-4">
                           <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">Tier Status</p>
                           <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[8px] font-black text-emerald-400">OPTIMIZED</span>
@@ -276,7 +244,7 @@ export default function UsageClient({
                         >
                           View Plans
                         </Link>
-                      </div>
+                      </CommandPanel>
                     </div>
                   </div>
                 </div>

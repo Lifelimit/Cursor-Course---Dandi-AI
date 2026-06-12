@@ -99,13 +99,13 @@ export function AlertThresholdControl({
     : Math.floor((threshold / 100) * limit);
 
   return (
-    <div className="space-y-6 mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+    <div className="space-y-6 mt-4 pt-4 border-t border-white/10">
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
-          <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+          <label className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
             Usage Alert Threshold
           </label>
-          <span className={`text-[9px] font-black tabular-nums ${threshold >= 90 ? 'text-red-500' : 'text-zinc-900 dark:text-zinc-100'}`}>
+          <span className={`text-[9px] font-black tabular-nums ${threshold >= 90 ? 'text-red-400' : 'text-slate-100'}`}>
             {threshold}% ({triggerCount.toLocaleString()} req)
           </span>
         </div>
@@ -118,16 +118,16 @@ export function AlertThresholdControl({
             step={isSmallLimit ? 1 : 5}
             value={sliderValue}
             onChange={handleThresholdChange}
-            className="h-1 flex-1 cursor-pointer appearance-none rounded-lg bg-zinc-100 dark:bg-zinc-800 accent-zinc-900 dark:accent-zinc-100 focus:outline-none"
+            className="h-1 flex-1 cursor-pointer appearance-none rounded-lg bg-white/10 accent-emerald-300 focus:outline-none"
           />
           {isSaving && (
-            <div className="h-2 w-2 animate-spin rounded-full border border-zinc-200 dark:border-zinc-700 border-t-zinc-900 dark:border-t-zinc-100" />
+            <div className="h-2 w-2 animate-spin rounded-full border border-white/20 border-t-emerald-300" />
           )}
         </div>
       </div>
 
       <div className="space-y-3">
-        <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Alert Me Via</p>
+        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Alert Me Via</p>
         <div className="flex flex-wrap gap-2">
           {['email', 'phone', 'in-page'].map((channel) => (
             <button
@@ -135,8 +135,8 @@ export function AlertThresholdControl({
               onClick={() => toggleChannel(channel)}
               className={`flex-1 min-w-[70px] rounded-xl border px-2 py-2 sm:px-3 text-[8px] font-black uppercase tracking-widest transition-all ${
                 channels.includes(channel)
-                  ? 'border-zinc-900 dark:border-zinc-100 bg-[#18181b] dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-lg shadow-zinc-900/10'
-                  : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-700'
+                  ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-200 shadow-lg shadow-emerald-900/10'
+                  : 'border-white/10 bg-slate-950/60 text-slate-500 hover:border-white/20 hover:text-slate-300'
               }`}
             >
               {channel}
@@ -147,18 +147,18 @@ export function AlertThresholdControl({
 
       {channels.includes('phone') && (
         <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
-          <p className="text-[8px] font-bold uppercase tracking-widest text-zinc-400">Phone Number</p>
+          <p className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Phone Number</p>
           <input
             type="tel"
             placeholder="+1 (555) 000-0000"
             value={phone}
             onChange={handlePhoneChange}
-            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30 px-3 py-2 text-xs outline-none focus:border-zinc-900 dark:focus:border-zinc-100 text-zinc-900 dark:text-zinc-100 transition-colors"
+            className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-slate-100 outline-none transition-colors focus:border-emerald-300/40"
           />
         </div>
       )}
       
-      <p className="text-[8px] text-zinc-400 italic leading-relaxed">
+      <p className="text-[8px] text-slate-500 italic leading-relaxed">
         {channels.includes('in-page') && "• Persistent banners will appear in the playground when exceeded. "}
         {channels.includes('email') && "• Email notifications will be sent to your account. "}
         {channels.includes('phone') && "• SMS alerts will be triggered if available."}

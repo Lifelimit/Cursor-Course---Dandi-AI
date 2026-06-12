@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ApiKey } from "@/types/api";
 import { EditIcon, TrashIcon } from "../icons";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { CommandPanel, LiveIndicator, ScrollFrame, StatusPill } from "@/components/command";
 
 type ApiKeyTableProps = {
   apiKeys: ApiKey[];
@@ -50,18 +51,18 @@ const ApiKeyTableSkeleton = () => (
 );
 
 const QuickStartEmptyState = ({ onOpenCreateModal }: { onOpenCreateModal: () => void }) => (
-  <div className="rounded-[40px] border border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-900/40 p-10 md:p-12 text-center backdrop-blur-sm shadow-sm space-y-10 animate-in fade-in duration-500">
+  <CommandPanel className="space-y-10 p-10 text-center animate-in fade-in duration-500 md:p-12" tone="elevated">
     <div className="space-y-4 max-w-xl mx-auto">
-      <div className="inline-flex h-16 w-16 items-center justify-center rounded-[24px] bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xl shadow-zinc-950/20 dark:shadow-none">
+      <div className="inline-flex h-16 w-16 items-center justify-center rounded-[24px] border border-emerald-300/20 bg-emerald-300/10 text-emerald-300 shadow-[0_0_40px_rgba(52,211,153,0.12)]">
         <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
           <path d="M7 11V7a5 5 0 0110 0v4" />
         </svg>
       </div>
-      <h3 className="font-serif text-3xl font-bold tracking-tight italic text-zinc-900 dark:text-zinc-100">
+      <h3 className="font-serif text-3xl font-bold tracking-tight italic text-white">
         No active credentials.
       </h3>
-      <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 leading-relaxed">
+      <p className="text-xs font-semibold text-slate-400 leading-relaxed">
         To start using our secure API endpoints, model registry, and developer playground, you&apos;ll need to generate a secure access token.
       </p>
     </div>
@@ -90,21 +91,20 @@ const QuickStartEmptyState = ({ onOpenCreateModal }: { onOpenCreateModal: () => 
       ].map((card, idx) => (
         <div 
           key={idx} 
-          className="group relative rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-md dark:hover:shadow-none hover:border-zinc-300 dark:hover:border-zinc-700"
+          className="group relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 p-6 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-emerald-300/20"
         >
-          {/* Subtle gradient border highlight on hover */}
-          <div className="absolute inset-0 -z-10 rounded-3xl bg-gradient-to-br from-indigo-500/5 via-transparent to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-emerald-300/10 blur-3xl opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
           
           <div className="flex items-center justify-between mb-4">
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{card.step}</span>
-            <div className="text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
+            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300/80">{card.step}</span>
+            <div className="text-slate-500 transition-colors group-hover:text-emerald-300">
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d={card.icon} strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
           </div>
-          <h4 className="text-xs font-black text-zinc-800 dark:text-zinc-200 tracking-tight uppercase mb-1">{card.title}</h4>
-          <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 leading-relaxed">{card.desc}</p>
+          <h4 className="text-xs font-black text-white tracking-tight uppercase mb-1">{card.title}</h4>
+          <p className="text-[11px] font-medium text-slate-400 leading-relaxed">{card.desc}</p>
         </div>
       ))}
     </div>
@@ -122,7 +122,7 @@ const QuickStartEmptyState = ({ onOpenCreateModal }: { onOpenCreateModal: () => 
         Create API Key
       </PrimaryButton>
     </div>
-  </div>
+  </CommandPanel>
 );
 
 export function ApiKeyTable({
@@ -238,7 +238,7 @@ export function ApiKeyTable({
       {/* Search & Control Bar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
-          <svg viewBox="0 0 24 24" className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" fill="none" stroke="currentColor">
+          <svg viewBox="0 0 24 24" className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor">
             <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <input 
@@ -246,26 +246,29 @@ export function ApiKeyTable({
             placeholder="Search keys by name or signature..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 px-11 py-3 text-xs outline-none transition-all focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-4 focus:ring-zinc-900/5 dark:focus:ring-zinc-100/5 placeholder:text-zinc-400 dark:text-zinc-100"
+            className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-11 py-3 text-xs text-slate-100 outline-none transition-all placeholder:text-slate-500 focus:border-emerald-300/40 focus:ring-4 focus:ring-emerald-300/10"
           />
         </div>
         <div className="flex items-center gap-3 px-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{filteredKeys.length} matches</span>
+          <StatusPill tone="success" pulse compact>
+            {filteredKeys.length} matches
+          </StatusPill>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm dark:shadow-none animate-in fade-in duration-300">
+      <CommandPanel padding="none" className="animate-in fade-in duration-300">
+        <ScrollFrame axis="x" minWidth="800px" label="Credential vault table">
         <table className="w-full min-w-[800px] border-collapse text-left text-sm table-fixed">
-          <thead className="bg-zinc-50/50 dark:bg-zinc-800/30 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-            <tr className="border-b border-zinc-100 dark:border-zinc-800">
-              <th className="px-8 py-5 w-[22%]">Credential Name</th>
-              <th className="px-4 py-5 w-[12%]">Security Tier</th>
-              <th className="px-4 py-5 w-[18%]">Usage Activity</th>
-              <th className="px-4 py-5 w-[33%]">Key Signature</th>
-              <th className="px-4 py-5 text-center w-[15%]">Actions</th>
+          <thead className="bg-white/[0.03] text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+            <tr className="border-b border-white/10">
+              <th className="px-8 py-5 w-[22%]">Credential</th>
+              <th className="px-4 py-5 w-[12%]">Tier</th>
+              <th className="px-4 py-5 w-[18%]">Telemetry</th>
+              <th className="px-4 py-5 w-[33%]">Signature</th>
+              <th className="px-4 py-5 text-center w-[15%]">Control</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-50 dark:divide-zinc-800/50">
+          <tbody className="divide-y divide-white/5">
             {isLoading ? (
               <ApiKeyTableSkeleton />
             ) : filteredKeys.length === 0 ? (
@@ -289,30 +292,21 @@ export function ApiKeyTable({
               return (
                 <React.Fragment key={key.id}>
                 <tr
-                  className={`group transition-all ${!key.is_active ? "bg-zinc-50/50 dark:bg-zinc-800/20 opacity-60 cursor-pointer" : "hover:bg-zinc-50/30 dark:hover:bg-zinc-800/10"}`}
+                  className={`group transition-all ${!key.is_active ? "cursor-pointer bg-amber-400/5 opacity-70" : "hover:bg-emerald-300/[0.035]"}`}
                   onClick={!key.is_active ? () => setPromptedKeyId(promptedKeyId === key.id ? null : key.id) : undefined}
                 >
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-3">
-                      <div className="relative flex h-2 w-2 shrink-0">
-                        {key.is_active ? (
-                          <>
-                            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${intensityColor.split(' ')[0].replace('bg-', 'bg-')} opacity-75`}></span>
-                            <span className={`relative inline-flex rounded-full h-2 w-2 ${intensityColor.split(' ')[0]}`}></span>
-                          </>
-                        ) : (
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
-                        )}
-                      </div>
-                      <span className={`font-medium tracking-tight ${!key.is_active ? "text-zinc-400" : "text-zinc-900 dark:text-zinc-100"}`}>{key.name}</span>
+                      <LiveIndicator active={key.is_active} tone={key.is_active ? "success" : "warning"} />
+                      <span className={`font-semibold tracking-tight ${!key.is_active ? "text-slate-500" : "text-slate-100"}`}>{key.name}</span>
                     </div>
                   </td>
                   
                   <td className="px-4 py-5">
                     {key.type === "production" ? (
-                      <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/30 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30">Prod</span>
+                      <StatusPill tone="info" compact>Prod</StatusPill>
                     ) : (
-                      <span className="rounded-full bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/30">Dev</span>
+                      <StatusPill tone="warning" compact>Dev</StatusPill>
                     )}
                   </td>
 
@@ -320,10 +314,10 @@ export function ApiKeyTable({
                     <div className="flex items-center gap-4">
                       <div className="flex-1 space-y-1.5">
                         <div className="flex items-center justify-between text-[10px] font-bold tabular-nums">
-                          <span className={!key.is_active ? "text-zinc-300" : "text-zinc-900 dark:text-zinc-100"}>{key.usage_count.toLocaleString()}</span>
-                          <span className="text-zinc-300 dark:text-zinc-600">/ {key.monthly_limit ?? "∞"}</span>
+                          <span className={!key.is_active ? "text-slate-600" : "text-slate-100"}>{key.usage_count.toLocaleString()}</span>
+                          <span className="text-slate-600">/ {key.monthly_limit ?? "∞"}</span>
                         </div>
-                        <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                        <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
                           <div 
                             className={`h-full transition-all duration-500 ${intensityColor}`}
                             style={{ width: `${usagePercent}%` }}
@@ -342,7 +336,7 @@ export function ApiKeyTable({
 
                 <td className="px-4 py-5">
                   <div className="flex items-center gap-2.5">
-                    <code className={`font-mono text-[11px] tracking-tight ${!key.is_active ? "text-zinc-300" : "text-zinc-500 dark:text-zinc-400"}`}>
+                    <code className={`rounded-lg border border-white/10 bg-slate-950/70 px-2 py-1 font-mono text-[11px] tracking-tight ${!key.is_active ? "text-slate-600" : "text-slate-400"}`}>
                       {maskApiKey(key.key_value)}
                     </code>
                     {key.is_active && (
@@ -352,7 +346,7 @@ export function ApiKeyTable({
                           e.stopPropagation();
                           setSecurityPromptKeyId(securityPromptKeyId === key.id ? null : key.id);
                         }}
-                        className="inline-flex items-center gap-1 rounded bg-zinc-50 dark:bg-zinc-800 border border-zinc-200/60 dark:border-zinc-700/60 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-800 active:scale-95 transition-all cursor-pointer"
+                        className="inline-flex items-center gap-1 rounded-lg border border-emerald-300/15 bg-emerald-300/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-300/80 transition-all hover:border-emerald-300/35 hover:bg-emerald-300/15 hover:text-emerald-200 active:scale-95 cursor-pointer"
                         title="Securely Hashed (HMAC-SHA256) - Click to view cryptographic security explanation"
                       >
                         <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3">
@@ -370,7 +364,7 @@ export function ApiKeyTable({
                     <button
                       onClick={(e) => { e.stopPropagation(); onEdit(key); }}
                       type="button"
-                      className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 active:scale-95"
+                      className="rounded-xl p-2 text-slate-500 transition hover:bg-white/10 hover:text-white active:scale-95"
                       title="Edit Configuration"
                     >
                       <EditIcon className="h-4.5 w-4.5" />
@@ -378,7 +372,7 @@ export function ApiKeyTable({
                     <button
                       onClick={(e) => { e.stopPropagation(); onDelete(key); }}
                       type="button"
-                      className="rounded-xl p-2 text-zinc-400 transition hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-500 dark:hover:text-red-400 active:scale-95"
+                      className="rounded-xl p-2 text-slate-500 transition hover:bg-rose-400/10 hover:text-rose-300 active:scale-95"
                       title="Revoke Credential"
                     >
                       <TrashIcon className="h-4.5 w-4.5" />
@@ -387,21 +381,21 @@ export function ApiKeyTable({
                 </td>
               </tr>
             {securityPromptKeyId === key.id && (
-              <tr className="border-b border-indigo-100 dark:border-indigo-900 bg-indigo-50/50 dark:bg-indigo-950/30">
+              <tr className="border-b border-cyan-300/10 bg-cyan-300/5">
                 <td colSpan={5} className="px-5 py-4">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 mt-0.5">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-300 mt-0.5">
                         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
                           <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-xs font-bold text-indigo-950 dark:text-indigo-100 flex items-center gap-2">
+                        <p className="text-xs font-bold text-cyan-100 flex items-center gap-2">
                           Secure Cryptographic Credential
-                          <span className="rounded-full bg-indigo-100 dark:bg-indigo-900 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">HMAC-SHA256</span>
+                          <StatusPill tone="info" compact>HMAC-SHA256</StatusPill>
                         </p>
-                        <p className="text-xs text-indigo-800 dark:text-indigo-300 leading-relaxed max-w-3xl">
+                        <p className="text-xs text-cyan-100/70 leading-relaxed max-w-3xl">
                           For your absolute security, existing keys are cryptographically hashed and cannot be recovered or revealed. 
                           If you lost this key, please revoke it and generate a new one.
                         </p>
@@ -411,7 +405,7 @@ export function ApiKeyTable({
                       <button
                         type="button"
                         onClick={() => setSecurityPromptKeyId(null)}
-                        className="rounded-full border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-zinc-900 px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 transition hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                        className="rounded-full border border-cyan-300/20 bg-slate-950 px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-cyan-300 transition hover:bg-cyan-300/10"
                       >
                         Dismiss
                       </button>
@@ -421,7 +415,7 @@ export function ApiKeyTable({
                           setSecurityPromptKeyId(null);
                           onDelete(key, { replace: true });
                         }}
-                        className="rounded-full bg-indigo-600 dark:bg-indigo-500 px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-white dark:text-zinc-950 transition hover:bg-indigo-700 dark:hover:bg-indigo-400"
+                        className="rounded-full bg-cyan-300 px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-950 transition hover:bg-cyan-200"
                       >
                         Revoke & Replace
                       </button>
@@ -431,7 +425,7 @@ export function ApiKeyTable({
               </tr>
             )}
             {!key.is_active && promptedKeyId === key.id && (
-              <tr className="border-b border-amber-100 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/20">
+              <tr className="border-b border-amber-300/15 bg-amber-300/5">
                 <td colSpan={5} className="px-5 py-3">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2.5">
@@ -440,7 +434,7 @@ export function ApiKeyTable({
                           <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </div>
-                      <p className={`text-xs font-medium ${isHobby ? "text-amber-800 dark:text-amber-300" : "text-emerald-800 dark:text-emerald-300"}`}>
+                      <p className={`text-xs font-medium ${isHobby ? "text-amber-200" : "text-emerald-200"}`}>
                         <span className="font-bold">{key.name}</span> is disabled — {isHobby ? "it was deactivated when you downgraded to Hobby. Upgrade your plan to re-enable it." : "you can manually re-enable it or increase your limit to resume service."}
                       </p>
                     </div>
@@ -463,7 +457,8 @@ export function ApiKeyTable({
             })}
           </tbody>
         </table>
-      </div>
+        </ScrollFrame>
+      </CommandPanel>
     </div>
   );
 }

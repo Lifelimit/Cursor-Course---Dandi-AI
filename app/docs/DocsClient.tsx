@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Session } from "@supabase/supabase-js";
 import { Navbar } from "@/components/landing/Navbar";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { Footer } from "@/components/landing/Footer";
+import { CodeWindow, CommandPanel, ScrollFrame } from "@/components/command";
 
 const getCodeExamples = (apiBaseUrl: string) => {
   const endpoint = `${apiBaseUrl}/api/github-summarizer`;
@@ -81,6 +82,19 @@ func main() {
 
 
 type CodeExampleTab = "curl" | "javascript" | "python" | "go";
+
+function DocsTableSurface({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <CommandPanel
+      padding="none"
+      className="overflow-hidden [&_table]:w-full [&_thead_tr]:border-white/10 [&_thead_tr]:bg-white/[0.03] [&_th]:px-4 [&_th]:py-3 [&_th]:text-[10px] [&_th]:font-black [&_th]:uppercase [&_th]:tracking-widest [&_th]:text-slate-400 [&_td]:px-4 [&_td]:py-3 [&_tbody_tr]:border-white/5 [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-emerald-300/[0.03]"
+    >
+      <ScrollFrame axis="x" minWidth="500px" label={label}>
+        {children}
+      </ScrollFrame>
+    </CommandPanel>
+  );
+}
 
 export default function DocsClient({ initialSession }: { initialSession: Session | null }) {
   const { toast, showToast } = useToast();
@@ -241,7 +255,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
 
               <div className="space-y-4">
                 <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">Request Headers</h3>
-                <div className="overflow-x-auto max-w-full -mx-4 px-4 sm:mx-0 sm:px-0">
+                <DocsTableSurface label="Summarizer request headers">
                   <table className="w-full text-left border-collapse text-xs min-w-[500px]">
                     <thead>
                       <tr className="border-b border-zinc-200 dark:border-zinc-800 text-zinc-400">
@@ -281,12 +295,12 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                       </tr>
                     </tbody>
                   </table>
-                </div>
+                </DocsTableSurface>
               </div>
 
               <div className="space-y-4">
                 <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">JSON Body Parameters</h3>
-                <div className="overflow-x-auto max-w-full -mx-4 px-4 sm:mx-0 sm:px-0 text-left">
+                <DocsTableSurface label="Summarizer JSON body parameters">
                   <table className="w-full text-left border-collapse text-xs min-w-[500px]">
                     <thead>
                       <tr className="border-b border-zinc-200 dark:border-zinc-800 text-zinc-400">
@@ -307,29 +321,32 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                       </tr>
                     </tbody>
                   </table>
-                </div>
+                </DocsTableSurface>
                 
                 {/* Example JSON payload */}
-                <div className="group relative flex min-w-0 flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 font-mono text-xs dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:items-center sm:justify-between">
-                  <pre className="overflow-x-auto text-zinc-700 dark:text-zinc-300">
+                <CodeWindow
+                  title="request-body"
+                  language="json"
+                  actions={
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(JSON.stringify({ githubUrl: "https://github.com/facebook/react" }, null, 2));
+                        showToast("success", "Request body JSON copied.");
+                      }}
+                      className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-slate-400 transition-all hover:border-emerald-300/30 hover:text-emerald-200"
+                      title="Copy request body"
+                      aria-label="Copy request body JSON"
+                    >
+                      Copy
+                    </button>
+                  }
+                >
+                  <pre className="min-w-max p-4 font-mono text-xs leading-relaxed text-slate-300">
 {`{
   "githubUrl": "https://github.com/facebook/react"
 }`}
                   </pre>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(JSON.stringify({ githubUrl: "https://github.com/facebook/react" }, null, 2));
-                      showToast("success", "Request body JSON copied.");
-                    }}
-                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-white transition-opacity"
-                    title="Copy request body"
-                    aria-label="Copy request body JSON"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                      <path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                </div>
+                </CodeWindow>
               </div>
             </section>
 
@@ -363,7 +380,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                   Submits a GitHub repository for vector embedding ingestion. Required before chatting with a repository using the RAG Chat endpoint. You can check the ingestion status by making a <code className="font-mono bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-[10px]">GET</code> request to this same endpoint with the <code className="font-mono bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-[10px]">jobId</code> query parameter.
                 </p>
                 <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">JSON Body Parameters</h3>
-                <div className="overflow-x-auto max-w-full -mx-4 px-4 sm:mx-0 sm:px-0 text-left">
+                <DocsTableSurface label="RAG ingest JSON body parameters">
                   <table className="w-full text-left border-collapse text-xs min-w-[500px]">
                     <thead>
                       <tr className="border-b border-zinc-200 dark:border-zinc-800 text-zinc-400">
@@ -384,7 +401,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                       </tr>
                     </tbody>
                   </table>
-                </div>
+                </DocsTableSurface>
               </div>
             </section>
 
@@ -418,7 +435,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                   Chat with an ingested GitHub repository using Retrieval-Augmented Generation (RAG). Returns a streaming text response.
                 </p>
                 <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">JSON Body Parameters</h3>
-                <div className="overflow-x-auto max-w-full -mx-4 px-4 sm:mx-0 sm:px-0 text-left">
+                <DocsTableSurface label="RAG chat JSON body parameters">
                   <table className="w-full text-left border-collapse text-xs min-w-[500px]">
                     <thead>
                       <tr className="border-b border-zinc-200 dark:border-zinc-800 text-zinc-400">
@@ -447,7 +464,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                       </tr>
                     </tbody>
                   </table>
-                </div>
+                </DocsTableSurface>
               </div>
             </section>
 
@@ -460,66 +477,75 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                 View integration code snippets in your language of choice:
               </p>
 
-              {/* Code Tab buttons */}
-              <div 
-                className="flex overflow-x-auto border-b border-zinc-200 text-xs font-bold uppercase tracking-wider scrollbar-hide dark:border-zinc-800"
-                role="tablist"
-                aria-label="Code examples in different languages"
-              >
-                {(Object.keys(codeExamples) as CodeExampleTab[]).map((tab) => (
+              <CodeWindow
+                title="integration-explorer"
+                language={activeTab}
+                actions={
                   <button
-                    key={tab}
-                    role="tab"
-                    id={`tab-${tab}`}
-                    aria-selected={activeTab === tab}
-                    aria-controls={`tabpanel-${tab}`}
-                    tabIndex={activeTab === tab ? 0 : -1}
-                    onClick={() => { setActiveTab(tab); setIsCopied(false); }}
-                    onKeyDown={(e) => {
-                      const tabs = Object.keys(codeExamples) as CodeExampleTab[];
-                      const currentIndex = tabs.indexOf(tab);
-                      let nextIndex = currentIndex;
-                      if (e.key === "ArrowRight") {
-                        nextIndex = (currentIndex + 1) % tabs.length;
-                      } else if (e.key === "ArrowLeft") {
-                        nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-                      }
-                      if (nextIndex !== currentIndex) {
-                        const nextTab = tabs[nextIndex];
-                        setActiveTab(nextTab);
-                        setIsCopied(false);
-                        document.getElementById(`tab-${nextTab}`)?.focus();
-                      }
-                    }}
-                    className={`-mb-[2px] shrink-0 rounded-t-lg border-b-2 px-5 py-3 transition focus:outline-none focus-visible:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-900 dark:focus-visible:bg-zinc-800 dark:focus-visible:ring-zinc-100 ${
-                      activeTab === tab
-                        ? "border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-white"
-                        : "border-transparent text-zinc-400 hover:text-zinc-700"
-                    }`}
+                    onClick={copyToClipboard}
+                    className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-slate-400 transition-all hover:border-emerald-300/30 hover:text-emerald-200"
                   >
-                    {tab}
+                    {isCopied ? "Copied!" : "Copy"}
                   </button>
-                ))}
-              </div>
-
-              {/* Code container */}
-              <div 
+                }
+                maxHeight="32rem"
+              >
+                <div
+                  className="border-b border-white/10 bg-white/[0.02] px-4 py-3"
+                  role="tablist"
+                  aria-label="Code examples in different languages"
+                >
+                  <ScrollFrame axis="x" label="Docs code example tabs">
+                    <div className="flex min-w-max gap-2">
+                      {(Object.keys(codeExamples) as CodeExampleTab[]).map((tab) => (
+                        <button
+                          key={tab}
+                          role="tab"
+                          id={`tab-${tab}`}
+                          aria-selected={activeTab === tab}
+                          aria-controls={`tabpanel-${tab}`}
+                          tabIndex={activeTab === tab ? 0 : -1}
+                          onClick={() => { setActiveTab(tab); setIsCopied(false); }}
+                          onKeyDown={(e) => {
+                            const tabs = Object.keys(codeExamples) as CodeExampleTab[];
+                            const currentIndex = tabs.indexOf(tab);
+                            let nextIndex = currentIndex;
+                            if (e.key === "ArrowRight") {
+                              nextIndex = (currentIndex + 1) % tabs.length;
+                            } else if (e.key === "ArrowLeft") {
+                              nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+                            }
+                            if (nextIndex !== currentIndex) {
+                              const nextTab = tabs[nextIndex];
+                              setActiveTab(nextTab);
+                              setIsCopied(false);
+                              document.getElementById(`tab-${nextTab}`)?.focus();
+                            }
+                          }}
+                          className={`shrink-0 rounded-xl border px-4 py-2 text-[10px] font-black uppercase tracking-widest transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/40 ${
+                            activeTab === tab
+                              ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-300"
+                              : "border-white/10 bg-slate-950/60 text-slate-500 hover:text-slate-300"
+                          }`}
+                        >
+                          {tab}
+                        </button>
+                      ))}
+                    </div>
+                  </ScrollFrame>
+                </div>
+                <div
                 role="tabpanel"
                 id={`tabpanel-${activeTab}`}
                 aria-labelledby={`tab-${activeTab}`}
                 tabIndex={0}
-                className="relative max-w-full overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-4 shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:p-6"
+                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
-                <button
-                  onClick={copyToClipboard}
-                  className="absolute top-4 right-4 rounded-xl border border-zinc-800 hover:border-zinc-500 bg-zinc-900 hover:bg-zinc-900 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-all"
-                >
-                  {isCopied ? "Copied!" : "Copy"}
-                </button>
-                <pre className="font-mono text-[10px] md:text-[11px] leading-relaxed text-zinc-300 whitespace-pre text-left">
+                <pre className="min-w-max p-4 text-left font-mono text-[10px] leading-relaxed text-slate-300 md:text-[11px]">
                   <code>{codeExamples[activeTab]}</code>
                 </pre>
-              </div>
+                </div>
+              </CodeWindow>
             </section>
 
             {/* Response Schema Viewer */}
@@ -532,39 +558,45 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               </p>
 
               {/* Collapsible JSON Tree */}
-              <div className="group relative overflow-x-auto rounded-2xl border border-zinc-200 bg-zinc-950 p-4 text-left font-mono text-[10px] leading-relaxed text-zinc-300 shadow-lg dark:border-zinc-800 sm:p-6 md:text-[11px]">
-                <button 
-                  onClick={() => {
-                    const fullResponse = {
-                      success: true,
-                      message: "Successfully summarized https://github.com/facebook/react",
-                      data: {
-                        owner: "API Key Owner",
-                        repo: "https://github.com/facebook/react",
-                        metadata: {
-                          stars: 225402,
-                          license: "MIT",
-                          version: "v18.3.1",
-                          forks: 45102,
-                          description: "The library for web and native user interfaces"
-                        },
-                        summary: "React is an open-source front-end JavaScript library...",
-                        cool_facts: [
-                          "React was originally created by Jordan Walke.",
-                          "Introduced the concept of Virtual DOM for fast updates.",
-                          "Serves as the foundation for React Native cross-platform apps."
-                        ]
-                      }
-                    };
-                    navigator.clipboard.writeText(JSON.stringify(fullResponse, null, 2));
-                    showToast("success", "Response schema example copied.");
-                  }}
-                  className="absolute top-4 right-4 rounded-xl border border-zinc-800 hover:border-zinc-500 bg-zinc-900 hover:bg-zinc-900 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
-                  aria-label="Copy response JSON example"
-                >
-                  Copy JSON
-                </button>
-                <div className="space-y-1">
+              <CodeWindow
+                title="response-schema"
+                language="json"
+                maxHeight="34rem"
+                actions={
+                  <button
+                    onClick={() => {
+                      const fullResponse = {
+                        success: true,
+                        message: "Successfully summarized https://github.com/facebook/react",
+                        data: {
+                          owner: "API Key Owner",
+                          repo: "https://github.com/facebook/react",
+                          metadata: {
+                            stars: 225402,
+                            license: "MIT",
+                            version: "v18.3.1",
+                            forks: 45102,
+                            description: "The library for web and native user interfaces"
+                          },
+                          summary: "React is an open-source front-end JavaScript library...",
+                          cool_facts: [
+                            "React was originally created by Jordan Walke.",
+                            "Introduced the concept of Virtual DOM for fast updates.",
+                            "Serves as the foundation for React Native cross-platform apps."
+                          ]
+                        }
+                      };
+                      navigator.clipboard.writeText(JSON.stringify(fullResponse, null, 2));
+                      showToast("success", "Response schema example copied.");
+                    }}
+                    className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-slate-400 transition-all hover:border-emerald-300/30 hover:text-emerald-200"
+                    aria-label="Copy response JSON example"
+                  >
+                    Copy JSON
+                  </button>
+                }
+              >
+                <div className="min-w-max space-y-1 p-4 text-left font-mono text-[10px] leading-relaxed text-slate-300 sm:p-6 md:text-[11px]">
                   <div>{"{"}</div>
                   
                   <div className="pl-4">
@@ -643,7 +675,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                   </div>
                   <div>{"}"}</div>
                 </div>
-              </div>
+              </CodeWindow>
             </section>
 
             {/* Errors Section */}
@@ -656,7 +688,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               </p>
 
               <div className="space-y-6">
-                <div className="overflow-x-auto max-w-full -mx-4 px-4 sm:mx-0 sm:px-0">
+                <DocsTableSurface label="API error handling reference">
                   <table className="w-full text-left border-collapse text-xs min-w-[500px]">
                     <thead>
                       <tr className="border-b border-zinc-200 dark:border-zinc-800 text-zinc-400">
@@ -693,7 +725,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                       </tr>
                     </tbody>
                   </table>
-                </div>
+                </DocsTableSurface>
               </div>
             </section>
 

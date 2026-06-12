@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 import { splitAccountEnvironments } from "@/lib/account-environments";
+import { CommandPanel, MockTerminal, ScrollFrame, TabsBar } from "@/components/command";
 
 type ProfileData = {
   fullName: string;
@@ -500,29 +501,17 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
             title="Account"
             description="Manage personal credentials, API namespaces, webhooks, and provider integrations."
           >
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-              {([
+            <TabsBar
+              tabs={[
                 { id: "profile", label: "Developer Profile" },
                 { id: "integrations", label: "Git Providers" },
                 { id: "webhooks", label: "Alert Webhooks" },
-                { id: "security", label: "Security & Sessions" }
-              ] as const).map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={(e) => {
-                    setActiveTab(tab.id);
-                    e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-                  }}
-                  className={`shrink-0 rounded-full px-5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 dark:focus-visible:ring-zinc-100 dark:focus-visible:ring-offset-zinc-950 ${
-                    activeTab === tab.id
-                      ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-md"
-                      : "text-zinc-400 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+                { id: "security", label: "Security & Sessions" },
+              ]}
+              activeId={activeTab}
+              onChange={(id) => setActiveTab(id as typeof activeTab)}
+              variant="pills"
+            />
           </DashboardPageHeader>
 
           {isLoading ? (
@@ -535,10 +524,10 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
               
               {/* TAB 1: Profile Details */}
               {activeTab === "profile" && (
-                <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 md:p-10 shadow-sm space-y-8">
+                <CommandPanel className="space-y-8 p-8 md:p-10">
                   <div className="space-y-1">
-                    <h3 className="font-serif text-2xl font-bold">Developer Identity</h3>
-                    <p className="text-sm text-zinc-400">Configure personal tags and custom API slugs.</p>
+                    <h3 className="font-serif text-2xl font-bold text-white">Developer Identity</h3>
+                    <p className="text-sm text-slate-400">Configure personal tags and custom API slugs.</p>
                   </div>
 
                   <form onSubmit={handleSaveProfile} className="space-y-6 max-w-xl">
@@ -590,15 +579,15 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                       {isSavingProfile ? "Saving Details..." : "Save Profile Details"}
                     </button>
                   </form>
-                </div>
+                </CommandPanel>
               )}
 
               {/* TAB 2: Git Provider Integrations */}
               {activeTab === "integrations" && (
-                <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 md:p-10 shadow-sm space-y-8">
+                <CommandPanel className="space-y-8 p-8 md:p-10">
                   <div className="space-y-1">
-                    <h3 className="font-serif text-2xl font-bold">External Provider Connections</h3>
-                    <p className="text-sm text-zinc-400">Manage OAuth linkage for repository distillations.</p>
+                    <h3 className="font-serif text-2xl font-bold text-white">External Provider Connections</h3>
+                    <p className="text-sm text-slate-400">Manage OAuth linkage for repository distillations.</p>
                   </div>
 
                   <div className="grid gap-6 md:grid-cols-2 max-w-4xl">
@@ -813,15 +802,15 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                       </div>
                     </div>
                   )}
-                </div>
+                </CommandPanel>
               )}
 
               {/* TAB 3: Developer Webhooks */}
               {activeTab === "webhooks" && (
-                <div className="space-y-8 rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8 md:space-y-10 md:rounded-[32px] md:p-10">
+                <CommandPanel className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
                   <div className="space-y-1">
-                    <h3 className="font-serif text-xl font-bold sm:text-2xl">Real-time Webhook Relays</h3>
-                    <p className="text-sm text-zinc-400">Deploy account notifications and telemetry alerts directly to your remote servers.</p>
+                    <h3 className="font-serif text-xl font-bold text-white sm:text-2xl">Real-time Webhook Relays</h3>
+                    <p className="text-sm text-slate-400">Deploy account notifications and telemetry alerts directly to your remote servers.</p>
                   </div>
 
                   <form onSubmit={handleSaveWebhook} className="max-w-xl space-y-6">
@@ -885,7 +874,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                         <div className="flex flex-1 flex-col justify-between rounded-2xl border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-950/20 sm:p-6">
                           <div className="space-y-3">
                             <h5 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Example payload headers</h5>
-                            <pre className="font-mono text-[9px] text-zinc-500 bg-zinc-100 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-900 leading-relaxed overflow-x-auto">
+                            <pre className="font-mono text-[9px] text-slate-400 bg-slate-950 p-4 rounded-xl border border-white/10 leading-relaxed overflow-x-auto">
 {`POST /hooks/dandi HTTP/1.1
 Host: your-api-endpoint.com
 Content-Type: application/json
@@ -905,15 +894,8 @@ X-Dandi-Event: quota.warning`}
                         </div>
 
                         {/* Interactive Terminal Screen Log */}
-                        <div className="flex min-h-[220px] flex-1 flex-col justify-between rounded-2xl border border-zinc-800 bg-[#09090b] p-4 shadow-xl sm:p-6">
+                        <MockTerminal title="webhook-logger" status={isTestingWebhook ? "running" : testerLogs.length > 0 ? "success" : "idle"} maxHeight="220px" className="flex-1">
                           <div className="space-y-3 font-mono text-[10px]">
-                            <div className="flex items-center gap-1.5 border-b border-zinc-800 pb-2.5">
-                              <span className="h-2 w-2 rounded-full bg-rose-500" />
-                              <span className="h-2 w-2 rounded-full bg-amber-500" />
-                              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                              <span className="ml-2 font-mono text-[8px] text-zinc-600 uppercase tracking-wider">webhook-logger</span>
-                            </div>
-
                             <div className="space-y-1.5 scrollbar-hide max-h-[140px] overflow-y-auto">
                               {testerLogs.length === 0 ? (
                                 <p className="text-zinc-600 italic">Console idle. Awaiting test trigger dispatch...</p>
@@ -940,7 +922,7 @@ X-Dandi-Event: quota.warning`}
                               Dispatched Event Transit Active
                             </div>
                           )}
-                        </div>
+                        </MockTerminal>
                       </div>
                     </div>
                   )}
@@ -1024,8 +1006,8 @@ X-Dandi-Event: quota.warning`}
                       )}
                     </div>
 
-                    <div className="hidden max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 md:block">
-                      <div className="overflow-x-auto">
+                    <div className="hidden md:block">
+                      <ScrollFrame axis="x" minWidth="760px" label="Webhook delivery logs">
                         <table className="min-w-[760px] w-full border-collapse text-left font-sans text-xs">
                           <thead>
                             <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none">
@@ -1092,18 +1074,18 @@ X-Dandi-Event: quota.warning`}
                             )}
                           </tbody>
                         </table>
-                      </div>
+                      </ScrollFrame>
                     </div>
                   </div>
-                </div>
+                </CommandPanel>
               )}
 
               {/* TAB 4: Security & Session Log */}
               {activeTab === "security" && (
-                <div className="space-y-8 rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8 md:space-y-10 md:rounded-[32px] md:p-10">
+                <CommandPanel className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
                   <div className="space-y-1">
-                    <h3 className="font-serif text-xl font-bold sm:text-2xl">Identity Protections & Session Audits</h3>
-                    <p className="text-sm text-zinc-400">Configure access mechanics and audit real-time terminal entry logs.</p>
+                    <h3 className="font-serif text-xl font-bold text-white sm:text-2xl">Identity Protections & Session Audits</h3>
+                    <p className="text-sm text-slate-400">Configure access mechanics and audit real-time terminal entry logs.</p>
                   </div>
 
                   {/* Auth Preference toggle */}
@@ -1318,8 +1300,8 @@ X-Dandi-Event: quota.warning`}
                       )}
                     </div>
 
-                    <div className="hidden max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 md:block">
-                      <div className="overflow-x-auto">
+                    <div className="hidden md:block">
+                      <ScrollFrame axis="x" minWidth="760px" label="Developer terminal access table">
                         <table className="min-w-[760px] w-full border-collapse text-left font-sans text-xs">
                           <thead>
                             <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none">
@@ -1419,7 +1401,7 @@ X-Dandi-Event: quota.warning`}
                             )}
                           </tbody>
                         </table>
-                      </div>
+                      </ScrollFrame>
                     </div>
                   </div>
 
@@ -1514,7 +1496,7 @@ X-Dandi-Event: quota.warning`}
                     </div>
 
                   </div>
-                </div>
+                </CommandPanel>
               )}
 
             </div>

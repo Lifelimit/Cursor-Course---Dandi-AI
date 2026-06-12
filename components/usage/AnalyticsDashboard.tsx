@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import { CommandPanel, MetricCard, ScrollFrame, StatusPill } from "@/components/command";
 
 type DailyData = {
   date: string;
@@ -223,7 +224,7 @@ export function AnalyticsDashboard({
     <div className="space-y-8 animate-in fade-in duration-500">
       
       {/* Selector and Filter Header */}
-      <div className="relative z-40 flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 p-6 backdrop-blur-sm shadow-sm">
+      <CommandPanel className="relative z-40 flex flex-col justify-between gap-4 p-6 md:flex-row md:items-center">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Resource Context</span>
           <div ref={dropdownRef} className="relative select-none z-30">
@@ -231,7 +232,7 @@ export function AnalyticsDashboard({
             <button
               type="button"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center gap-2 text-xs font-bold bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100 px-4.5 py-2.5 rounded-xl transition duration-200 cursor-pointer shadow-sm hover:shadow active:scale-98 border border-zinc-300/20 dark:border-zinc-700/20"
+              className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/70 px-4.5 py-2.5 text-xs font-bold text-slate-100 shadow-sm transition duration-200 hover:border-emerald-300/25 active:scale-98 cursor-pointer"
             >
               <span className="truncate max-w-[150px] sm:max-w-[200px]">
                 {selectedKeyId === "all"
@@ -253,7 +254,7 @@ export function AnalyticsDashboard({
 
             {/* Dropdown Menu Options */}
             <div
-              className={`absolute left-0 mt-2 w-64 rounded-2xl bg-white/95 dark:bg-zinc-900/95 border border-zinc-200/80 dark:border-zinc-800/80 p-2 shadow-xl backdrop-blur-md transition-all duration-355 origin-top-left transform ${
+              className={`absolute left-0 mt-2 w-64 rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-xl backdrop-blur-md transition-all duration-355 origin-top-left transform ${
                 isDropdownOpen
                   ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
                   : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
@@ -268,8 +269,8 @@ export function AnalyticsDashboard({
                 }}
                 className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer ${
                   selectedKeyId === "all"
-                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    : "text-zinc-700 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+                    ? "bg-emerald-500/10 text-emerald-300"
+                    : "text-slate-400 hover:bg-white/5 hover:text-slate-100"
                 }`}
               >
                 <span>All Combined Keys</span>
@@ -295,8 +296,8 @@ export function AnalyticsDashboard({
                       }}
                       className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer ${
                         isSelected
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                          : "text-zinc-700 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+                          ? "bg-emerald-500/10 text-emerald-300"
+                          : "text-slate-400 hover:bg-white/5 hover:text-slate-100"
                       }`}
                     >
                       <div className="flex flex-col gap-0.5">
@@ -326,119 +327,76 @@ export function AnalyticsDashboard({
               }}
               className={`rounded-full px-4.5 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
                 metricView === view
-                  ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-md scale-102"
-                  : "bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-800"
+                  ? "bg-emerald-300 text-slate-950 shadow-md scale-102"
+                  : "border border-white/10 bg-slate-950/60 text-slate-400 hover:text-slate-100"
               }`}
             >
               {view === "requests" ? "Requests" : view === "latency" ? "Latency" : "Reliability"}
             </button>
           ))}
         </div>
-      </div>
+      </CommandPanel>
 
       {/* Telemetry Overview Cards */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         
         {/* Metric 1: Requests */}
-        <div className="group relative rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-sm transition hover:shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Aggregate Requests</span>
-            <div className="rounded-xl bg-emerald-500/10 p-2 text-emerald-500">
+        <MetricCard
+          label="Aggregate Requests"
+          value={currentTotalRequests.toLocaleString()}
+          detail="Billable requests (30d)"
+          tone="success"
+          icon={
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
                 <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-            </div>
-          </div>
-          <h4 className="font-serif text-3xl font-bold tracking-tight mb-2">
-            {currentTotalRequests.toLocaleString()}
-          </h4>
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-            Billable requests (30d)
-          </p>
-          <div className="absolute bottom-0 left-8 right-8 h-1 bg-gradient-to-r from-emerald-500/50 to-emerald-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-full" />
-        </div>
+          }
+        />
 
         {/* Metric 2: Average Latency */}
-        <div className="group relative rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-sm transition hover:shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Average Latency</span>
-            <div className={`rounded-xl p-2 ${
-              currentAvgLatency < 250 ? "bg-emerald-500/10 text-emerald-500" : currentAvgLatency < 500 ? "bg-amber-500/10 text-amber-500" : "bg-red-500/10 text-red-500"
-            }`}>
+        <MetricCard
+          label="Average Latency"
+          value={<>{currentAvgLatency}<span className="ml-1 text-xs font-normal font-sans text-slate-500">ms</span></>}
+          detail={currentAvgLatency === 0 ? "No telemetry" : currentAvgLatency < 250 ? "Excellent response" : currentAvgLatency < 500 ? "Good speed" : "Delayed"}
+          tone={currentAvgLatency < 250 ? "success" : currentAvgLatency < 500 ? "warning" : "danger"}
+          icon={
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
                 <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-            </div>
-          </div>
-          <h4 className="font-serif text-3xl font-bold tracking-tight mb-2 flex items-baseline gap-1">
-            {currentAvgLatency}
-            <span className="text-xs font-normal font-sans text-zinc-400">ms</span>
-          </h4>
-          <span className={`text-[8px] font-black uppercase tracking-widest ${
-            currentAvgLatency === 0 
-              ? "text-zinc-400"
-              : currentAvgLatency < 250 
-                ? "text-emerald-500" 
-                : currentAvgLatency < 500 
-                  ? "text-amber-500" 
-                  : "text-red-500"
-          }`}>
-            {currentAvgLatency === 0 ? "No Telemetry" : currentAvgLatency < 250 ? "● Excellent Response" : currentAvgLatency < 500 ? "● Good Speed" : "● Delayed"}
-          </span>
-          <div className="absolute bottom-0 left-8 right-8 h-1 bg-gradient-to-r from-violet-500/50 to-violet-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-full" />
-        </div>
+          }
+        />
 
         {/* Metric 3: Success Rate */}
-        <div className="group relative rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-sm transition hover:shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Service Health</span>
-            <div className="rounded-xl bg-blue-500/10 p-2 text-blue-500">
+        <MetricCard
+          label="Service Health"
+          value={`${currentSuccessRate}%`}
+          detail="Uptime & accuracy rate"
+          tone="info"
+          icon={
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
                 <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-            </div>
-          </div>
-          <h4 className="font-serif text-3xl font-bold tracking-tight mb-2">
-            {currentSuccessRate}%
-          </h4>
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-            Uptime & accuracy rate
-          </p>
-          <div className="absolute bottom-0 left-8 right-8 h-1 bg-gradient-to-r from-blue-500/50 to-blue-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-full" />
-        </div>
+          }
+        />
 
         {/* Metric 4: Estimated Value Generated */}
-        <div className="group relative rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-sm transition hover:shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Estimated Value</span>
-            <div className="rounded-xl bg-amber-500/10 p-2 text-amber-500 animate-pulse">
-              <span className="text-xs font-black leading-none">$</span>
-            </div>
-          </div>
-          <h4 className="font-serif text-3xl font-bold tracking-tight mb-2">
-            ${estimatedSavings}
-          </h4>
-          <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
-            Dandi Value Generated
-          </p>
-          <div className="absolute bottom-0 left-8 right-8 h-1 bg-gradient-to-r from-amber-500/50 to-amber-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-full" />
-        </div>
+        <MetricCard label="Estimated Value" value={`$${estimatedSavings}`} detail="Dandi value generated" tone="warning" icon={<span className="text-xs font-black leading-none">$</span>} />
 
       </div>
 
       {/* Main Interactive Chart Card */}
-      <div className="rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8 md:rounded-[32px]">
+      <CommandPanel className="p-5 sm:p-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Historical Telemetry</p>
-            <h3 className="flex flex-wrap items-center gap-2 font-serif text-2xl font-bold tracking-tight">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/70">Historical Telemetry</p>
+            <h3 className="flex flex-wrap items-center gap-2 font-serif text-2xl font-bold tracking-tight text-white">
               {metricName} 
               <span className="text-xs font-normal font-sans text-zinc-400">/ last 30 days</span>
             </h3>
           </div>
           
           {/* Chart Legend */}
-          <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+          <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: chartColor }} />
               <span>{metricName}</span>
@@ -453,7 +411,8 @@ export function AnalyticsDashboard({
         </div>
 
         {/* Dynamic Chart Container */}
-        <div ref={resizeRef} className="relative w-full">
+        <ScrollFrame axis="x" minWidth="620px" label="Historical telemetry chart">
+        <div ref={resizeRef} className="relative w-full min-w-[620px]">
           
           {hoveredIndex !== null && hoverCoords && dataset[hoveredIndex] && (
             <div
@@ -502,11 +461,11 @@ export function AnalyticsDashboard({
           )}
 
           {dataset.length < 2 ? (
-            <div className="h-[240px] w-full flex flex-col items-center justify-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl bg-zinc-50/50 dark:bg-zinc-950/10">
-              <svg viewBox="0 0 24 24" className="h-8 w-8 text-zinc-300 mb-3" fill="none" stroke="currentColor">
+            <div className="h-[240px] w-full flex flex-col items-center justify-center border border-dashed border-white/10 rounded-3xl bg-slate-950/40">
+              <svg viewBox="0 0 24 24" className="h-8 w-8 text-slate-600 mb-3" fill="none" stroke="currentColor">
                 <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 01-2 2h-2a2 2 0 01-2-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 select-none">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 select-none">
                 Insufficient Historical Telemetry logs
               </p>
             </div>
@@ -539,13 +498,13 @@ export function AnalyticsDashboard({
                       stroke="currentColor"
                       strokeWidth="0.75"
                       strokeDasharray="4 6"
-                      className="text-zinc-300 dark:text-zinc-700"
+                    className="text-slate-700"
                     />
                     <text
                       x={paddingLeft - 8}
                       y={y + 3}
                       textAnchor="end"
-                      className="font-mono text-[8px] font-bold fill-zinc-400 dark:fill-zinc-600"
+                      className="font-mono text-[8px] font-bold fill-slate-500"
                     >
                       {labelValue}
                     </text>
@@ -561,7 +520,7 @@ export function AnalyticsDashboard({
                 y2={paddingTop + chartInnerHeight}
                 stroke="currentColor"
                 strokeWidth="1"
-                className="text-zinc-200 dark:text-zinc-800"
+                className="text-slate-800"
               />
 
               {/* X Axis Labels (every 5 days to prevent overlap) */}
@@ -686,16 +645,17 @@ export function AnalyticsDashboard({
           )}
 
         </div>
-      </div>
+        </ScrollFrame>
+      </CommandPanel>
 
       {/* Top Repos and Performance Insights Grid */}
       <div className="grid gap-8 lg:grid-cols-3">
         
         {/* Value Prop Insight Card */}
-        <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#18181b] p-6 sm:p-8 text-white shadow-xl flex flex-col justify-between">
+        <CommandPanel className="flex flex-col justify-between p-6 sm:p-8">
           <div>
             <div className="flex items-center justify-between mb-6">
-              <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-[8px] font-black text-emerald-400 tracking-widest uppercase">INSIGHT</span>
+              <StatusPill tone="success" compact>Insight</StatusPill>
               <span className="text-[10px] font-bold text-white/50">ROBUSTNESS</span>
             </div>
             <h3 className="font-serif text-3xl font-bold italic tracking-tight mb-4 text-white">Efficiency Ledger</h3>
@@ -703,25 +663,25 @@ export function AnalyticsDashboard({
               Your API architecture processed <strong className="text-white font-mono">{currentTotalRequests}</strong> transactions in the current billing epoch with a target reliability index of <strong className="text-white font-mono">{currentSuccessRate}%</strong>. 
             </p>
           </div>
-          <div className="border-t border-zinc-800 pt-6 mt-4">
+          <div className="border-t border-white/10 pt-6 mt-4">
             <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Suggested Action</p>
             <p className="text-xs font-bold text-emerald-400 mt-1">✓ Your key usage profile is optimized. No rate limit leaks detected.</p>
           </div>
-        </div>
+        </CommandPanel>
 
         {/* Global Repository Popularity */}
-        <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 shadow-sm lg:col-span-2">
+        <CommandPanel className="p-6 sm:p-8 lg:col-span-2">
           <div className="flex items-center justify-between mb-6">
             <div className="space-y-1">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Popularity Analytics</p>
-              <h3 className="font-serif text-xl font-bold tracking-tight">Active Ingested Repositories</h3>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/70">Popularity Analytics</p>
+              <h3 className="font-serif text-xl font-bold tracking-tight text-white">Active Ingested Repositories</h3>
             </div>
-            <span className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-[8px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">TOP REPOS</span>
+            <StatusPill tone="info" compact>Top Repos</StatusPill>
           </div>
 
           <div className="space-y-4">
             {globalTopRepos.length === 0 ? (
-              <p className="text-xs font-medium text-zinc-400 dark:text-zinc-500 p-4 border border-dashed border-zinc-100 dark:border-zinc-800/50 rounded-2xl text-center">
+              <p className="text-xs font-medium text-slate-500 p-4 border border-dashed border-white/10 rounded-2xl text-center">
                 No active repositories tracked yet in this period.
               </p>
             ) : (
@@ -732,12 +692,12 @@ export function AnalyticsDashboard({
                 return (
                   <div key={i} className="space-y-2">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-mono font-bold truncate text-zinc-700 dark:text-zinc-300 hover:text-emerald-500 dark:hover:text-emerald-400 transition cursor-pointer">
+                      <span className="font-mono font-bold truncate text-slate-300 hover:text-emerald-300 transition cursor-pointer">
                         {repoLabel}
                       </span>
-                      <span className="font-mono font-bold tabular-nums text-zinc-500 dark:text-zinc-400">{repo.count} Summarizations</span>
+                      <span className="font-mono font-bold tabular-nums text-slate-500">{repo.count} Summarizations</span>
                     </div>
-                    <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800/50 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-emerald-500/80 to-emerald-500 transition-all duration-1000"
                         style={{ width: `${pct}%` }}
@@ -748,7 +708,7 @@ export function AnalyticsDashboard({
               })
             )}
           </div>
-        </div>
+        </CommandPanel>
 
       </div>
 

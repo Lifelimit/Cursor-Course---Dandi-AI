@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { CopyIconButton } from "@/components/ui/CopyIconButton";
+import { CodeWindow, ScrollFrame } from "@/components/command";
 
 type CodeSnippetProps = {
   apiKey: string;
@@ -105,31 +106,40 @@ print(response.json())`
   };
 
   return (
-    <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-[#18181b] shadow-lg shadow-zinc-900/10 dark:border-zinc-800">
-      <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/5 bg-white/5 px-4 py-2">
-        <div className="flex min-w-0 gap-4 overflow-x-auto scrollbar-hide">
-          {(["curl", "fetch", "python"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${
-                activeTab === tab ? "text-emerald-400" : "text-zinc-500 hover:text-zinc-300"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+    <CodeWindow
+      title={mode === "rag" ? "rag-request-console" : "summary-request-console"}
+      language={activeTab}
+      actions={
         <CopyIconButton
           onClick={handleCopy}
           title="Copy snippet"
         />
+      }
+      maxHeight="22rem"
+      className="border-emerald-300/15"
+    >
+      <div className="min-w-0 border-b border-white/10 bg-white/[0.02] px-4 py-3">
+        <ScrollFrame axis="x" label="Snippet language tabs">
+          <div className="flex min-w-max gap-2">
+            {(["curl", "fetch", "python"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                  activeTab === tab
+                    ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-300"
+                    : "border-white/10 bg-slate-950/60 text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </ScrollFrame>
       </div>
-      <div className="relative min-w-0 p-4 sm:p-6">
-        <pre className="scrollbar-hide overflow-x-auto font-mono text-[11px] leading-relaxed text-zinc-300">
+      <pre className="min-w-max p-4 font-mono text-[11px] leading-relaxed text-slate-300 sm:p-6">
           <code>{snippets[activeTab]}</code>
-        </pre>
-      </div>
-    </div>
+      </pre>
+    </CodeWindow>
   );
 }

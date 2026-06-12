@@ -11,6 +11,7 @@ import { PlanComparison } from "@/components/billing/PlanComparison";
 import { PaymentMethodCard } from "@/components/billing/PaymentMethodCard";
 import { InvoiceTable, type Invoice } from "@/components/billing/InvoiceTable";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
+import { CommandPanel, StatusPill } from "@/components/command";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 
@@ -241,7 +242,10 @@ export default function BillingClient({
               {/* Payment Methods */}
               <section className="space-y-6">
                 <div className="flex flex-col gap-3 px-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="font-serif text-2xl font-bold">Wallet</h3>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Financial Infrastructure</p>
+                    <h3 className="mt-1 font-serif text-2xl font-bold text-white">Wallet</h3>
+                  </div>
                   <button 
                     disabled={isLoading}
                     onClick={() => {
@@ -249,7 +253,7 @@ export default function BillingClient({
                       setModalPendingPlan(null);
                       setIsModalOpen(true);
                     }}
-                    className="text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 hover:underline disabled:opacity-50"
+                    className="text-[10px] font-black uppercase tracking-widest text-emerald-300 hover:underline disabled:opacity-50"
                   >
                     + Add Card
                   </button>
@@ -258,7 +262,7 @@ export default function BillingClient({
                   {/* Primary Card - Takes more space or visual weight */}
                   <div className={`${currentData?.paymentMethods?.some(pm => !pm.isDefault) ? 'lg:col-span-2' : 'lg:col-span-3 max-w-4xl'} flex min-w-0 flex-col`}>
                     <div className="flex h-6 items-center px-2">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Primary Method</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Primary Method</p>
                     </div>
                     <div className="mt-4 flex-1">
                       {currentData?.paymentMethods?.find(pm => pm.isDefault) ? (
@@ -275,9 +279,9 @@ export default function BillingClient({
                           onSetDefault={() => {}} 
                         />
                       ) : (
-                        <div className="flex h-[180px] items-center justify-center rounded-[32px] border border-dashed border-zinc-200 bg-zinc-50/50 text-center">
-                          <p className="text-sm font-medium text-zinc-500">No primary payment method.</p>
-                        </div>
+                        <CommandPanel className="flex h-[180px] items-center justify-center border-dashed text-center">
+                          <p className="text-sm font-medium text-slate-500">No primary payment method.</p>
+                        </CommandPanel>
                       )}
                     </div>
                   </div>
@@ -286,7 +290,7 @@ export default function BillingClient({
                   {currentData?.paymentMethods?.some(pm => !pm.isDefault) && (
                     <div className="flex flex-col">
                       <div className="flex h-6 items-center justify-between px-2">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Secondary Methods</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Secondary Methods</p>
                         {currentData?.paymentMethods && currentData.paymentMethods.filter(pm => !pm.isDefault).length > 1 && (
                           <div className="flex gap-2">
                             <button 
@@ -294,7 +298,7 @@ export default function BillingClient({
                                 const secondaryMethods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
                                 setSecondaryIndex(prev => (prev - 1 + secondaryMethods.length) % secondaryMethods.length);
                               }}
-                              className="rounded-full border border-zinc-200 p-1 text-zinc-400 hover:border-zinc-900 hover:text-zinc-900 transition-all"
+                              className="rounded-full border border-white/10 p-1 text-slate-500 hover:border-emerald-300/30 hover:text-emerald-200 transition-all"
                             >
                               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                                 <path d="M15 19l-7-7 7-7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -305,7 +309,7 @@ export default function BillingClient({
                                 const secondaryMethods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
                                 setSecondaryIndex(prev => (prev + 1) % secondaryMethods.length);
                               }}
-                              className="rounded-full border border-zinc-200 p-1 text-zinc-400 hover:border-zinc-900 hover:text-zinc-900 transition-all"
+                              className="rounded-full border border-white/10 p-1 text-slate-500 hover:border-emerald-300/30 hover:text-emerald-200 transition-all"
                             >
                               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                                 <path d="M9 5l7 7-7 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -369,31 +373,31 @@ export default function BillingClient({
               {/* Transaction History Section */}
               <section className="space-y-6 pb-12">
                 <div className="flex flex-col gap-2 px-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="font-serif text-2xl font-bold">Transaction History</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Past 12 Months</p>
+                  <h3 className="font-serif text-2xl font-bold text-white">Transaction History</h3>
+                  <StatusPill tone="info" compact>Past 12 Months</StatusPill>
                 </div>
                 <InvoiceTable invoices={invoices} isLoading={isInvoicesLoading} />
               </section>
 
               {/* Danger Zone */}
               {currentPlan !== "Hobby" && (
-                <section className="mt-12 mb-20 rounded-[28px] border border-red-100 bg-red-50/30 p-5 dark:border-red-950/20 dark:bg-red-950/5 sm:p-8 md:rounded-[32px]">
+                <CommandPanel className="mt-12 mb-20 border-red-400/20 bg-red-950/10 p-5 sm:p-8">
                   <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <h3 className="text-sm font-black uppercase tracking-widest text-red-900 dark:text-red-400">Danger Zone</h3>
-                      <p className="mt-1 text-xs text-red-600/60 dark:text-red-400/40">Cancel your premium subscription and downgrade to the Hobby plan at the end of your term.</p>
+                      <h3 className="text-sm font-black uppercase tracking-widest text-red-300">Danger Zone</h3>
+                      <p className="mt-1 text-xs text-red-200/55">Cancel your premium subscription and downgrade to the Hobby plan at the end of your term.</p>
                     </div>
                     <button 
                       onClick={() => {
                         setModalPendingPlan("Hobby");
                         setIsModalOpen(true);
                       }}
-                      className="rounded-2xl border border-red-200 dark:border-red-950/30 bg-white dark:bg-zinc-900 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-red-500 dark:text-red-400 transition-all hover:bg-red-500 hover:text-white dark:hover:bg-red-500 dark:hover:text-white"
+                      className="rounded-2xl border border-red-400/20 bg-red-400/10 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-red-200 transition-all hover:bg-red-500 hover:text-white"
                     >
                       Cancel Subscription
                     </button>
                   </div>
-                </section>
+                </CommandPanel>
               )}
             </>
           )}

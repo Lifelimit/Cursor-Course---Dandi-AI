@@ -16,6 +16,13 @@ import { Toast } from "@/components/ui/Toast";
 import { CodeSnippet } from "@/components/playground/CodeSnippet";
 import { JsonViewer } from "@/components/playground/JsonViewer";
 import { NetworkLog, type LogEntry } from "@/components/playground/NetworkLog";
+import {
+  CommandPanel,
+  LiveIndicator,
+  PipelineFlow,
+  StatusPill,
+  TabsBar,
+} from "@/components/command";
 
 import { PLAN_DETAILS } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
@@ -846,6 +853,61 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
     summaryStatus === "error" ||
     Boolean(streamError)
   );
+  const getPipelineStatus = (id: string): "idle" | "active" | "done" | "error" => {
+    const log = requestLogs.find((entry) => entry.id === id);
+    if (!log) return "idle";
+    if (log.status === "pending") return "active";
+    if (log.status === "success") return "done";
+    return "error";
+  };
+  const isPipelineActive =
+    isLoadingSummary ||
+    ingestStatus === "crawling" ||
+    ingestStatus === "embedding" ||
+    isChatLoading ||
+    requestLogs.some((entry) => entry.status === "pending");
+  const hasPipelineError =
+    summaryStatus === "error" ||
+    ingestStatus === "error" ||
+    requestLogs.some((entry) => entry.status === "error");
+  const pipelineSteps = [
+    {
+      id: "request",
+      label: "Request",
+      sublabel: activeTab === "summary" ? "Repository summary payload" : "RAG workbench payload",
+      status: requestLogs.length > 0 ? "done" : isPipelineActive ? "active" : "idle",
+    },
+    {
+      id: "auth",
+      label: "Auth",
+      sublabel: "Credential validation",
+      status: getPipelineStatus("auth"),
+    },
+    {
+      id: "quota",
+      label: "Quota",
+      sublabel: isOverLimit ? "Limit exceeded" : "Usage gate clear",
+      status: isOverLimit ? "error" : requestLogs.length > 0 ? "done" : "idle",
+    },
+    {
+      id: "context",
+      label: activeTab === "rag" ? "Context/RAG" : "Repository",
+      sublabel: activeTab === "rag" ? "pgvector context retrieval" : "GitHub metadata fetch",
+      status: getPipelineStatus("repo_fetch"),
+    },
+    {
+      id: "ai",
+      label: "Gemini",
+      sublabel: activeTab === "rag" ? "Contextual stream" : "Summary generation",
+      status: getPipelineStatus("ai_processing"),
+    },
+    {
+      id: "response",
+      label: "Response",
+      sublabel: hasPipelineError ? "Inspect failure details" : "Output inspector",
+      status: hasPipelineError ? "error" : summaryHasData || ingestStatus === "completed" || ragMessages.length > 0 ? "done" : isPipelineActive ? "active" : "idle",
+    },
+  ] satisfies Parameters<typeof PipelineFlow>[0]["steps"];
 
   return (
     <>
@@ -865,41 +927,39 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
           <DashboardPageHeader
             eyebrow="Environment / Testing"
             title="API Playground"
-            description="Validate your secure credentials and monitor live orchestration response times."
+            description="Validate credentials, execute repository intelligence requests, and inspect the live orchestration pipeline."
+            rightAction={
+              <StatusPill tone={isPipelineActive ? "warning" : hasPipelineError ? "danger" : "success"} pulse={isPipelineActive}>
+                {isPipelineActive ? "Pipeline Running" : hasPipelineError ? "Action Required" : "Workbench Ready"}
+              </StatusPill>
+            }
           >
-            <div className="flex gap-8 overflow-x-auto border-b border-zinc-200 pb-3 scrollbar-hide dark:border-zinc-800">
-              <button
-                type="button"
-                onClick={(e) => {
-                  setActiveTab("summary");
-                  setErrorMessage("");
-                  e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-                }}
-                className={`shrink-0 pb-4 text-xs font-bold uppercase tracking-widest transition-all outline-none cursor-pointer ${
-                  activeTab === "summary" 
-                    ? "text-emerald-500 border-b-2 border-emerald-500 font-extrabold" 
-                    : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-400 font-bold"
-                }`}
-              >
-                Summary Engine
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  setActiveTab("rag");
-                  setErrorMessage("");
-                  e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-                }}
-                className={`flex shrink-0 items-center gap-2 pb-4 text-xs font-bold uppercase tracking-widest transition-all outline-none cursor-pointer ${
-                  activeTab === "rag" 
-                    ? "text-emerald-500 border-b-2 border-emerald-500 font-extrabold" 
-                    : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-400 font-bold"
-                }`}
-              >
-                Repository Chat (RAG)
-              </button>
-            </div>
+            <TabsBar
+              tabs={[
+                { id: "summary", label: "Summary Engine" },
+                { id: "rag", label: "Repository Chat (RAG)" },
+              ]}
+              activeId={activeTab}
+              onChange={(id) => {
+                setActiveTab(id as "summary" | "rag");
+                setErrorMessage("");
+              }}
+              variant="pills"
+            />
           </DashboardPageHeader>
+
+          <CommandPanel padding="none" className="p-4 sm:p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Execution Pipeline</p>
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  Request → Auth → Quota → Context → Gemini → Response
+                </p>
+              </div>
+              <LiveIndicator active={isPipelineActive} tone={hasPipelineError ? "danger" : isPipelineActive ? "warning" : "success"} label={isPipelineActive ? "live" : "standby"} />
+            </div>
+            <PipelineFlow steps={pipelineSteps} orientation="auto" />
+          </CommandPanel>
 
           <div className="flex flex-col gap-8 xl:flex-row">
             {/* Left Column (flex-1) */}
@@ -908,14 +968,14 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
               {activeTab === "rag" && ingestedRepo === githubUrl && ingestStatus === "completed" ? (
                 /* RAG Chat room box */
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                  <div className="flex min-h-[500px] flex-col rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8 md:rounded-[32px]">
+                  <CommandPanel className="flex min-h-[500px] flex-col p-5 sm:p-8">
                     {/* Header of Chat Room */}
-                    <div className="mb-6 flex flex-col gap-4 border-b border-zinc-200 pb-5 select-none dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="mb-6 flex flex-col gap-4 border-b border-white/10 pb-5 select-none sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center font-bold font-serif text-lg">D</div>
+                        <div className="h-10 w-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold font-serif text-lg">D</div>
                         <div className="min-w-0">
-                          <h3 className="font-serif text-md font-bold">RAG Codebase Companion</h3>
-                          <span className="text-[9px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-widest">Active Chat Session</span>
+                          <h3 className="font-serif text-md font-bold text-white">RAG Codebase Companion</h3>
+                          <span className="text-[9px] font-black text-emerald-300 uppercase tracking-widest">Active Chat Session</span>
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -925,7 +985,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                             setIngestStatus("idle");
                             setIngestedRepo(null);
                           }}
-                          className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 rounded-lg cursor-pointer"
+                          className="text-[9px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors border border-white/10 px-3 py-1.5 rounded-lg cursor-pointer"
                         >
                           Change Repo
                         </button>
@@ -947,7 +1007,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                               }
                             ]);
                           }}
-                          className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 rounded-lg cursor-pointer"
+                          className="text-[9px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors border border-white/10 px-3 py-1.5 rounded-lg cursor-pointer"
                         >
                           Clear History
                         </button>
@@ -961,15 +1021,15 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                           key={idx} 
                           className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"} gap-1.5`}
                         >
-                          <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none px-2">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 select-none px-2">
                             {msg.role === "user" ? "You (Developer)" : "Dandi AI RAG"}
                           </span>
                           
                           <div 
                             className={`rounded-2xl px-5 py-3.5 text-sm font-medium leading-relaxed ${
                               msg.role === "user" 
-                                ? "bg-zinc-200 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/40 text-zinc-900 dark:text-zinc-100 max-w-[80%]" 
-                                : "bg-emerald-50/50 dark:bg-emerald-950/10 border border-emerald-100/50 dark:border-emerald-950/20 text-zinc-800 dark:text-zinc-300 max-w-[90%]"
+                                ? "bg-white/10 border border-white/10 text-slate-100 max-w-[80%]" 
+                                : "bg-emerald-300/10 border border-emerald-300/15 text-slate-200 max-w-[90%]"
                             }`}
                           >
                             {msg.role === "assistant" ? renderMessageContent(msg.content) : renderTextWithInlineCode(msg.content)}
@@ -1028,14 +1088,14 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                     )}
 
                     {/* Chat Input form */}
-                    <form onSubmit={handleChatSubmit} className="flex gap-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                    <form onSubmit={handleChatSubmit} className="flex gap-3 pt-3 border-t border-white/10">
                       <input
                         type="text"
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         disabled={isChatLoading}
                         placeholder={isChatLoading ? "Gemini is searching & thinking..." : "Ask RAG Companion a question about codebase..."}
-                        className="min-w-0 flex-1 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 px-5 py-4 text-sm outline-none transition-all focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-4 focus:ring-zinc-900/5 dark:focus:ring-zinc-100/5 text-zinc-900 dark:text-zinc-100"
+                        className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600 focus:border-emerald-300/40 focus:ring-4 focus:ring-emerald-300/10"
                       />
                       <button
                         type="submit"
@@ -1051,21 +1111,33 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                         )}
                       </button>
                     </form>
-                  </div>
+                  </CommandPanel>
                 </div>
               ) : (
                 /* Otherwise show the credentials form, Stepper logs, and Landing Card */
                 <>
+                  <CommandPanel padding="none" className="p-5 sm:p-8">
                   <form onSubmit={activeTab === "summary" ? handleSummarize : handleIngest} className="space-y-8">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Request Builder</p>
+                        <h2 className="mt-1 font-serif text-2xl font-bold text-white">
+                          {activeTab === "summary" ? "Repository Summary Request" : "RAG Indexing Request"}
+                        </h2>
+                      </div>
+                      <StatusPill tone={activeTab === "summary" ? "info" : "success"} compact>
+                        {activeTab === "summary" ? "Summarizer" : "RAG Mode"}
+                      </StatusPill>
+                    </div>
                     <div className="grid gap-8 lg:grid-cols-2">
                       <div className="space-y-3">
                         <div className="flex min-h-16 flex-col gap-3 px-1 sm:flex-row sm:items-start sm:justify-between lg:min-h-16">
-                          <label htmlFor="api-key" className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 leading-none">
+                          <label htmlFor="api-key" className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 leading-none">
                             Secure Access Token
                           </label>
                           {apiKeys.length > 0 && (
                             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                              <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Quick Select</span>
+                              <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Quick Select</span>
                               <select 
                                 value={selectValue}
                                 onChange={(e) => {
@@ -1074,7 +1146,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                                   setSelectedKey(val);
                                   setSelectValue(val);
                                 }}
-                                className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 px-2.5 py-1 rounded-lg outline-none border-none cursor-pointer transition-colors dark:color-scheme-dark"
+                                className="text-[10px] font-bold uppercase tracking-widest text-emerald-300 bg-emerald-300/10 hover:bg-emerald-300/15 px-2.5 py-1 rounded-lg outline-none border border-emerald-300/15 cursor-pointer transition-colors dark:color-scheme-dark"
                               >
                                 <option value="__demo__" hidden className="dark:bg-zinc-900 dark:text-zinc-100">Demo</option>
                                 <option value="" className="dark:bg-zinc-900 dark:text-zinc-100">Custom Key</option>
@@ -1099,7 +1171,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                           value={apiKey}
                           onChange={(e) => { setApiKey(e.target.value); setSelectedKey(""); setSelectValue(""); }}
                           placeholder="sk_live_..."
-                          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 px-6 py-4 font-mono text-sm outline-none transition-all focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-4 focus:ring-zinc-900/5 dark:focus:ring-zinc-100/5 text-zinc-900 dark:text-zinc-100"
+                          className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-6 py-4 font-mono text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600 focus:border-emerald-300/40 focus:ring-4 focus:ring-emerald-300/10"
                         />
                         {/* Usage badge — shown only when a real user key is selected (not demo, not custom) */}
                         {(() => {
@@ -1108,7 +1180,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                           const pct = k.monthly_limit ? Math.min((k.usage_count / k.monthly_limit) * 100, 100) : null;
                           const isOver = pct !== null && pct >= 100;
                           return (
-                            <div className="flex items-center gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-2.5">
+                            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/70 px-4 py-2.5">
                               <div className="flex flex-1 flex-col gap-1">
                                 <div className="flex items-center justify-between">
                                   <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{k.name}</span>
@@ -1119,7 +1191,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                                   </span>
                                 </div>
                                 {pct !== null && (
-                                  <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                                  <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
                                     <div
                                       className={`h-full rounded-full transition-all ${
                                         isOver ? "bg-red-500" : pct > 70 ? "bg-amber-400" : "bg-emerald-500"
@@ -1139,7 +1211,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
 
                       <div className="space-y-3">
                         <div className="flex min-h-16 items-start px-1">
-                          <label htmlFor="github-url" className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 leading-none">
+                          <label htmlFor="github-url" className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 leading-none">
                             GitHub Repository URL
                           </label>
                         </div>
@@ -1150,7 +1222,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                           value={githubUrl}
                           onChange={(e) => setGithubUrl(e.target.value)}
                           placeholder="https://github.com/..."
-                          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 px-6 py-4 text-sm outline-none transition-all focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-4 focus:ring-zinc-900/5 dark:focus:ring-zinc-100/5 text-zinc-900 dark:text-zinc-100"
+                          className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-6 py-4 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600 focus:border-emerald-300/40 focus:ring-4 focus:ring-emerald-300/10"
                         />
                       </div>
                     </div>
@@ -1160,7 +1232,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                         <button
                           type="submit"
                           disabled={isLoadingSummary || isOverLimit}
-                          className="group flex flex-1 items-center justify-center gap-3 rounded-full bg-[#18181b] dark:bg-zinc-100 px-8 py-5 text-xs font-bold uppercase tracking-widest text-white dark:text-zinc-950 transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-zinc-900/10 cursor-pointer"
+                          className="group flex flex-1 items-center justify-center gap-3 rounded-2xl bg-emerald-300 px-8 py-5 text-xs font-bold uppercase tracking-widest text-slate-950 transition-all hover:bg-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-emerald-950/10 cursor-pointer"
                         >
                           {isLoadingSummary ? (
                             <>
@@ -1207,12 +1279,13 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                       <button
                         type="button"
                         onClick={handleDemoMode}
-                        className="flex items-center justify-center rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 shadow-sm cursor-pointer"
+                        className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] px-8 py-5 text-xs font-bold uppercase tracking-widest text-slate-400 transition-all hover:border-emerald-300/25 hover:text-emerald-200 shadow-sm cursor-pointer"
                       >
                         Try with Demo Key
                       </button>
                     </div>
                   </form>
+                  </CommandPanel>
 
                   {errorMessage && (
                     <div className="rounded-2xl border border-red-200 dark:border-red-950/30 bg-red-50 dark:bg-red-950/10 p-4 text-sm font-medium text-red-700 dark:text-red-400">
@@ -1224,15 +1297,15 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
 
                   {/* Render the landing card only when idle or error (hide it when crawling/embedding to focus on telemetry logs) */}
                   {activeTab === "rag" && (ingestStatus === "idle" || ingestStatus === "error") && (
-                    <div className="rounded-[28px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm text-center space-y-6 animate-in fade-in duration-500 sm:p-8 md:rounded-[32px]">
-                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 select-none">
+                    <CommandPanel className="p-5 text-center space-y-6 animate-in fade-in duration-500 sm:p-8">
+                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 select-none">
                         <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </div>
                       <div className="space-y-2 select-none">
-                        <h3 className="font-serif text-2xl font-bold">RAG Codebase Chat Engine</h3>
-                        <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 max-w-lg mx-auto leading-relaxed">
+                        <h3 className="font-serif text-2xl font-bold text-white">RAG Codebase Chat Engine</h3>
+                        <p className="text-sm font-medium text-slate-400 max-w-lg mx-auto leading-relaxed">
                           Ingest and index this repository to chat with your codebase in real-time. Dandi AI crawls the repository recursively, extracts and structures up to 40 code and markdown files, calculates 768D semantic embeddings with Google's Gemini embedding models, and saves them in pgvector indexes to power lightning-fast retrieval.
                         </p>
                       </div>
@@ -1241,26 +1314,22 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                           ⚠️ Ingestion failure: {errorMessage || "Process interrupted."}
                         </div>
                       )}
-                    </div>
+                    </CommandPanel>
                   )}
 
                   {/* Summary Results rendered in left column below NetworkLog */}
                   {shouldShowSummaryResults && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                      <div className="flex flex-wrap items-center justify-between gap-3 px-4">
-                        <div className="flex min-w-0 gap-4 overflow-x-auto scrollbar-hide">
-                          {(["visual", "json"] as const).map(mode => (
-                            <button
-                              key={mode}
-                              onClick={() => setViewMode(mode)}
-                              className={`text-[10px] font-bold uppercase tracking-widest transition-colors cursor-pointer ${
-                                viewMode === mode ? "text-emerald-500 underline underline-offset-8 decoration-2" : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-400"
-                              }`}
-                            >
-                              {mode} Results
-                            </button>
-                          ))}
-                        </div>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <TabsBar
+                          tabs={[
+                            { id: "visual", label: "Visual Results" },
+                            { id: "json", label: "JSON Results" },
+                          ]}
+                          activeId={viewMode}
+                          onChange={(id) => setViewMode(id as "visual" | "json")}
+                          variant="pills"
+                        />
                         {viewMode === "json" && summaryHasData && (
                           <button
                             onClick={() => {
@@ -1285,12 +1354,12 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                       </div>
 
                       {viewMode === "visual" ? (
-                        <div className="rounded-[28px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm sm:p-8 md:rounded-[32px]">
+                        <CommandPanel className="p-5 sm:p-8">
                           <div className="flex flex-col gap-8 lg:flex-row">
                             <div className="min-w-0 flex-1 space-y-6">
                               <div className="space-y-1">
-                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500">Intelligent Summary</p>
-                                <h2 className="font-serif text-3xl font-bold italic">Repository Intelligence</h2>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/80">Intelligent Summary</p>
+                                <h2 className="font-serif text-3xl font-bold italic text-white">Repository Intelligence</h2>
                               </div>
                               
                               <div className="flex flex-wrap gap-4">
@@ -1329,7 +1398,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                                 </div>
                               )}
 
-                              <p className="text-lg font-medium leading-relaxed text-zinc-700 dark:text-zinc-300">
+                              <p className="text-lg font-medium leading-relaxed text-slate-300">
                                 {summaryResult?.summary || (
                                   summaryStatus === "empty" && !streamError
                                     ? "No summary was returned."
@@ -1341,8 +1410,8 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                             </div>
 
                             <div className="w-full space-y-6 lg:w-80 lg:shrink-0">
-                              <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-800/30 p-6">
-                                <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Cool Facts</h3>
+                              <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-6">
+                                <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Cool Facts</h3>
                                 {summaryFacts.length > 0 ? (
                                   <ul className="space-y-4">
                                     {summaryFacts.map((fact: string, i: number) => (
@@ -1360,7 +1429,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                               </div>
                             </div>
                           </div>
-                        </div>
+                        </CommandPanel>
                       ) : (
                         <JsonViewer data={summaryJsonData} />
                       )}
@@ -1371,42 +1440,44 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
             </div>
 
             {/* Right Column */}
-            <div className="w-full space-y-6 xl:w-80 xl:shrink-0">
-              <div className="space-y-2">
+            <div className="w-full space-y-6 xl:w-96 xl:shrink-0">
+              <CommandPanel className="space-y-4 p-4 sm:p-5">
                 <div className="flex justify-between items-center px-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Integration Snippets</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/70">Integration Snippets</p>
                   <Link 
                     href="/docs" 
-                    className="text-[9px] font-bold uppercase tracking-widest text-emerald-500 dark:text-emerald-400 hover:underline transition"
+                    className="text-[9px] font-bold uppercase tracking-widest text-emerald-300 hover:underline transition"
                   >
                     Full API Docs →
                   </Link>
                 </div>
                 <CodeSnippet apiKey={apiKey} githubUrl={githubUrl} onCopy={(method) => showToast("success", `${method.toUpperCase()} code snippet copied!`)} mode={activeTab} />
-              </div>
+              </CommandPanel>
               
-              <div className="rounded-2xl bg-zinc-900 p-6 text-white space-y-4 shadow-xl">
-                <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-emerald-400">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
+              <CommandPanel className="p-6 text-white space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-emerald-300">
+                    <LiveIndicator active tone="success" />
                   Live Simulation
+                  </div>
+                  <StatusPill tone={activeTab === "summary" ? "info" : "success"} compact>
+                    {activeTab === "summary" ? "REST" : "RAG"}
+                  </StatusPill>
                 </div>
-                <p className="text-[11px] leading-relaxed text-white/60">
+                <p className="text-[11px] leading-relaxed text-slate-400">
                   {activeTab === "summary" ? (
                     <>
-                      Testing against our <span className="text-white font-mono">/api/github-summarizer</span> endpoint. 
+                      Testing against our <span className="text-white font-mono">/api/github-summarizer</span> endpoint.
                       Requests made here consume your active monthly quota.
                     </>
                   ) : (
                     <>
-                      Testing against our <span className="text-white font-mono">/api/rag/ingest</span> and <span className="text-white font-mono">/api/rag/chat</span> endpoints. 
+                      Testing against our <span className="text-white font-mono">/api/rag/ingest</span> and <span className="text-white font-mono">/api/rag/chat</span> endpoints.
                       Requests made here consume your active monthly quota.
                     </>
                   )}
                 </p>
-              </div>
+              </CommandPanel>
             </div>
           </div>
       </DashboardShell>

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { UsageSparkline } from "./UsageSparkline";
 import { AlertThresholdControl } from "./AlertThresholdControl";
 import { hasCrossedAlertThreshold } from "@/lib/alerts";
+import { CommandPanel, StatusPill } from "@/components/command";
 
 type KeyData = {
   id: string;
@@ -142,12 +143,12 @@ export function QuotaHealthGrid({
           const color = isExhausted ? "#ef4444" : isCritical ? "#ef4444" : isWarning ? "#fbbf24" : "#10b981";
           
           const alertStyles = isExhausted
-            ? 'border-red-400 ring-2 ring-red-500/25 shadow-[0_14px_34px_rgba(239,68,68,0.16)] dark:shadow-[0_14px_34px_rgba(0,0,0,0.35)]'
+            ? 'border-red-400/50 ring-2 ring-red-500/20 shadow-[0_18px_60px_rgba(239,68,68,0.12)]'
             : isCritical 
-              ? 'border-red-200 ring-2 ring-red-50 shadow-red-100/20' 
+              ? 'border-red-400/30 ring-2 ring-red-500/10' 
               : isWarning 
-                ? 'border-amber-200 ring-2 ring-amber-50 shadow-amber-100/20' 
-                : 'border-zinc-200 dark:border-zinc-800';
+                ? 'border-amber-300/30 ring-2 ring-amber-400/10' 
+                : 'border-white/10';
 
           const avgDaily = key.dailyTrend.length > 0 
             ? key.dailyTrend.reduce((acc, curr) => acc + curr.count, 0) / key.dailyTrend.length 
@@ -169,10 +170,12 @@ export function QuotaHealthGrid({
           const isLimitSubmitDisabled = !hasPlanHeadroom || updatingLimitKeyId === key.id || isNaN(parsedNewLimit) || parsedNewLimit <= minimumLimit || isAbovePlanLimit;
 
           return (
-          <div 
+          <CommandPanel 
             key={key.id} 
-            className={`relative flex flex-col rounded-[32px] border bg-white dark:bg-zinc-900 p-6 sm:p-8 transition-all shadow-sm ${alertStyles}`}
+            padding="none"
+            className={`relative flex flex-col overflow-hidden p-6 transition-all sm:p-8 ${alertStyles}`}
           >
+            <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-16 h-36 w-36 rounded-full bg-emerald-400/10 blur-3xl" />
             {confirmingDeleteId === key.id && (
               <div className="absolute inset-0 z-[20] flex flex-col items-center justify-center rounded-[32px] bg-zinc-900/95 p-6 sm:p-8 text-white backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
                   <div className="mb-4 rounded-full bg-red-500/20 p-4 border border-red-500/50">
@@ -239,12 +242,10 @@ export function QuotaHealthGrid({
               <div className="flex flex-wrap items-start justify-between mb-6 gap-4">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-serif text-lg font-bold text-zinc-900 dark:text-zinc-100 truncate">{key.name}</h3>
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${
-                      key.key_type === 'production' ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
-                    }`}>
+                    <h3 className="font-serif text-lg font-bold text-white truncate">{key.name}</h3>
+                    <StatusPill tone={key.key_type === "production" ? "info" : "warning"} compact>
                       {key.key_type === 'production' ? 'PROD' : 'DEV'}
-                    </span>
+                    </StatusPill>
                   </div>
                   {isExhausted ? (
                     <p className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1">
@@ -252,7 +253,7 @@ export function QuotaHealthGrid({
                       Service Interrupted
                     </p>
                   ) : (
-                    <p className="text-[10px] font-medium text-zinc-400">Active Monitoring</p>
+                    <p className="text-[10px] font-medium text-slate-400">Active Monitoring</p>
                   )}
                 </div>
                 
@@ -270,7 +271,7 @@ export function QuotaHealthGrid({
                   )}
                   <div className={`relative h-12 w-12 shrink-0 ${isExhausted ? "animate-pulse" : ""}`}>
                     <svg className="h-full w-full" viewBox="0 0 36 36">
-                      <circle cx="18" cy="18" r="16" fill="none" className="stroke-zinc-50 dark:stroke-zinc-800" strokeWidth="3" />
+                      <circle cx="18" cy="18" r="16" fill="none" className="stroke-white/10" strokeWidth="3" />
                       <circle
                         cx="18" cy="18" r="16" fill="none"
                         stroke={color} strokeWidth="3"
@@ -279,7 +280,7 @@ export function QuotaHealthGrid({
                         className="transition-all duration-1000 ease-out"
                         transform="rotate(-90 18 18)"
                       />
-                      <text x="18" y="20" textAnchor="middle" className="font-serif text-[8px] font-bold fill-zinc-900 dark:fill-zinc-100">
+                      <text x="18" y="20" textAnchor="middle" className="font-serif text-[8px] font-bold fill-white">
                         {Math.round(key.pct)}%
                       </text>
                     </svg>
@@ -290,7 +291,7 @@ export function QuotaHealthGrid({
               <div className="space-y-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <div className="flex flex-col">
-                    <span className={`text-2xl font-serif font-bold italic ${isExhausted ? 'text-red-600' : ''}`}>
+                    <span className={`text-2xl font-serif font-bold italic ${isExhausted ? 'text-red-400' : 'text-white'}`}>
                       {key.usage_count.toLocaleString()}
                     </span>
                     {!isExhausted && daysLeft !== null && (
@@ -299,7 +300,7 @@ export function QuotaHealthGrid({
                       </span>
                     )}
                   </div>
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">
                      / {key.monthly_limit ? key.monthly_limit.toLocaleString() : "∞"} <br/>Credits
                   </span>
                 </div>
@@ -437,7 +438,7 @@ export function QuotaHealthGrid({
                   />
                 </div>
               )}
-            </div>
+          </CommandPanel>
           );
         })}
       </div>

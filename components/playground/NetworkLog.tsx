@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { SyntaxHighlightedJSON } from "@/components/ui/SyntaxHighlightedJSON";
 import { CopyIconButton } from "@/components/ui/CopyIconButton";
+import { MockTerminal, StatusPill } from "@/components/command";
 
 export type LogEntry = {
   id: string;
@@ -121,25 +122,29 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
   const authStatus = getStepStatus("auth");
   const repoStatus = getStepStatus("repo_fetch");
   const aiStatus = getStepStatus("ai_processing");
+  const terminalStatus = logs.some((log) => log.status === "pending")
+    ? "running"
+    : logs.some((log) => log.status === "error")
+      ? "error"
+      : logs.length > 0
+        ? "success"
+        : "idle";
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-[#09090b] shadow-2xl transition-all duration-300">
-      {/* macOS Terminal Title Bar Header */}
-      <div className="flex min-w-0 items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-950 px-4 py-4 select-none sm:px-5">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex gap-1.5">
-            <span className="h-3 w-3 rounded-full bg-rose-500/80 transition hover:bg-rose-500 cursor-pointer" />
-            <span className="h-3 w-3 rounded-full bg-amber-500/80 transition hover:bg-amber-500 cursor-pointer" />
-            <span className="h-3 w-3 rounded-full bg-emerald-500/80 transition hover:bg-emerald-500 cursor-pointer" />
-          </div>
-          <span className="ml-2 min-w-0 truncate font-mono text-[10px] font-bold uppercase tracking-wider text-zinc-500 sm:ml-3">
-            dandi-orchestrator-console v1.0.4
-          </span>
-        </div>
-        
-        <div className="flex shrink-0 items-center gap-3">
+    <>
+    <MockTerminal
+      title="dandi-orchestrator-console v1.0.4"
+      status={terminalStatus}
+      maxHeight="48rem"
+      className="border-emerald-300/15 shadow-[0_28px_90px_rgba(0,0,0,0.34)]"
+    >
+      <div className="space-y-3">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+          <StatusPill tone={terminalStatus === "error" ? "danger" : terminalStatus === "running" ? "warning" : "success"} pulse={terminalStatus === "running"} compact>
+            Orchestrator
+          </StatusPill>
           {logs.length > 0 && (
-            <div className="hidden items-center gap-2 text-[9px] font-bold text-zinc-400 sm:flex">
+            <div className="flex items-center gap-2 text-[9px] font-bold text-zinc-400">
               <span className="font-mono text-zinc-500">
                 Total Latency:
               </span>
@@ -148,15 +153,10 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
               </span>
             </div>
           )}
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
         </div>
-      </div>
 
       {/* Telemetry Progress Stepper Track */}
-      <div className="relative overflow-hidden border-b border-zinc-800 bg-zinc-950 px-3 py-6 select-none sm:px-6 md:py-8">
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 px-3 py-6 select-none sm:px-6 md:py-8">
         {/* Style Block for custom animations */}
         <style dangerouslySetInnerHTML={{__html: `
           @keyframes pulse-flow {
@@ -188,6 +188,14 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
           }
           .animate-shake {
             animation: shake 0.3s ease-in-out 2;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .animate-pulse-flow,
+            .animate-spin-slow,
+            .animate-pulse-ring,
+            .animate-shake {
+              animation: none !important;
+            }
           }
         `}} />
 
@@ -338,7 +346,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
       </div>
 
       {/* Terminal Screen Area */}
-      <div className="min-h-[120px] p-3 font-mono text-xs text-zinc-300 sm:p-4">
+      <div className="min-h-[120px] rounded-2xl border border-white/10 bg-[#09090b] p-3 font-mono text-xs text-zinc-300 sm:p-4">
         {logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center space-y-2">
             <div className="flex items-center gap-2">
@@ -570,9 +578,11 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
           </div>
         )}
       </div>
+      </div>
 
       {/* Render Fallback Local Toast system if not handled by parent */}
+    </MockTerminal>
       {!onShowToast && <Toast toast={toast} />}
-    </div>
+    </>
   );
 }
