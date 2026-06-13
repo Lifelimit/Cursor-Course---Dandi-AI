@@ -447,7 +447,7 @@ export function QuotaHealthGrid({
       {deadKeys.length > 0 && (
         <div className="space-y-8 pt-8 border-t border-zinc-100 dark:border-zinc-800">
           <div className="flex flex-wrap items-center justify-between px-4 gap-2">
-            <h2 className="font-serif text-xl font-bold italic text-zinc-400 dark:text-zinc-500">Dead Keys Archive</h2>
+            <h2 className="font-serif text-xl font-bold italic text-zinc-400 dark:text-zinc-500">Inactive API Keys</h2>
             <span className="shrink-0 whitespace-nowrap rounded-full bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
               {deadKeys.length} Archived
             </span>

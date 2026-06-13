@@ -60,10 +60,10 @@ const QuickStartEmptyState = ({ onOpenCreateModal }: { onOpenCreateModal: () => 
         </svg>
       </div>
       <h3 className="font-serif text-3xl font-bold tracking-tight italic text-white">
-        No active credentials.
+        No API keys yet.
       </h3>
       <p className="text-xs font-semibold text-slate-400 leading-relaxed">
-        To start using our secure API endpoints, model registry, and developer playground, you&apos;ll need to generate a secure access token.
+        Create an API key to call Dandi endpoints and test requests in the playground.
       </p>
     </div>
 
@@ -73,19 +73,19 @@ const QuickStartEmptyState = ({ onOpenCreateModal }: { onOpenCreateModal: () => 
         {
           step: "Step 01",
           title: "Generate Key",
-          desc: "Create a dev or prod token. Plaintext keys are never stored, only their cryptographically secure hashes.",
+          desc: "Create a development or production key. Plaintext keys are never stored.",
           icon: "M15 7a2 2 0 012 2m4 0a6 6 0 11-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
         },
         {
           step: "Step 02",
           title: "Integrate SDK",
-          desc: "Initialize our lightweight client with one line of code to query fine-tuned models from your terminal.",
+          desc: "Use a lightweight client or direct HTTP request from your terminal.",
           icon: "M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
         },
         {
           step: "Step 03",
-          title: "Run Sandbox",
-          desc: "Test requests inside our live API playground with visual response logging and telemetry analysis.",
+          title: "Test Request",
+          desc: "Send requests in the API playground and inspect response logs.",
           icon: "M13 10V3L4 14h7v7l9-11h-7z"
         }
       ].map((card, idx) => (
@@ -257,15 +257,15 @@ export function ApiKeyTable({
       </div>
 
       <CommandPanel padding="none" className="animate-in fade-in duration-300">
-        <ScrollFrame axis="x" minWidth="800px" label="API credentials table">
+        <ScrollFrame axis="x" minWidth="800px" label="API keys table">
         <table className="w-full min-w-[800px] border-collapse text-left text-sm table-fixed">
           <thead className="bg-white/[0.03] text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
             <tr className="border-b border-white/10">
-              <th className="px-8 py-5 w-[22%]">Credential</th>
+              <th className="px-8 py-5 w-[22%]">API Key</th>
               <th className="px-4 py-5 w-[12%]">Tier</th>
-              <th className="px-4 py-5 w-[18%]">Telemetry</th>
+              <th className="px-4 py-5 w-[18%]">Usage</th>
               <th className="px-4 py-5 w-[33%]">Signature</th>
-              <th className="px-4 py-5 text-center w-[15%]">Control</th>
+              <th className="px-4 py-5 text-center w-[15%]">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
@@ -274,7 +274,7 @@ export function ApiKeyTable({
             ) : filteredKeys.length === 0 ? (
               <tr>
                 <td className="px-8 py-12 text-sm text-zinc-400 italic text-center" colSpan={5}>
-                  No credentials found matching your search.
+                  No API keys found matching your search.
                 </td>
               </tr>
             ) : null}
@@ -347,13 +347,13 @@ export function ApiKeyTable({
                           setSecurityPromptKeyId(securityPromptKeyId === key.id ? null : key.id);
                         }}
                         className="inline-flex items-center gap-1 rounded-lg border border-emerald-300/15 bg-emerald-300/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-300/80 transition-all hover:border-emerald-300/35 hover:bg-emerald-300/15 hover:text-emerald-200 active:scale-95 cursor-pointer"
-                        title="Securely Hashed (HMAC-SHA256) - Click to view cryptographic security explanation"
+                        title="Stored as an HMAC-SHA256 hash"
                       >
                         <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3">
                           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                           <path d="M7 11V7a5 5 0 0110 0v4" />
                         </svg>
-                        Secured
+                        Hashed
                       </button>
                     )}
                   </div>
@@ -374,8 +374,8 @@ export function ApiKeyTable({
                       onClick={(e) => { e.stopPropagation(); onDelete(key); }}
                       type="button"
                       className="rounded-xl p-2 text-slate-500 transition hover:bg-rose-400/10 hover:text-rose-300 active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-500"
-                      title="Revoke Credential"
-                      aria-label="Revoke API key credential"
+                      title="Revoke API key"
+                      aria-label="Revoke API key"
                     >
                       <TrashIcon className="h-4.5 w-4.5" />
                     </button>
@@ -394,7 +394,7 @@ export function ApiKeyTable({
                       </div>
                       <div className="space-y-1">
                         <p className="text-xs font-bold text-cyan-100 flex items-center gap-2">
-                          Secure Cryptographic Credential
+                          API Key Details
                           <StatusPill tone="info" compact>HMAC-SHA256</StatusPill>
                         </p>
                         <p className="text-xs text-cyan-100/70 leading-relaxed max-w-3xl">

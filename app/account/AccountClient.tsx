@@ -69,7 +69,7 @@ type WebhookLogEntry = {
 
 function formatEnvironmentAge(lastSeenAt: string | null, current: boolean) {
   if (current) return "Active now";
-  if (!lastSeenAt) return "No telemetry";
+  if (!lastSeenAt) return "No activity";
 
   const diffMs = Date.now() - new Date(lastSeenAt).getTime();
   if (!Number.isFinite(diffMs) || diffMs < 0) return "Recently";
@@ -134,7 +134,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
   const [environments, setEnvironments] = useState<AccountEnvironment[]>([]);
 
-  // Webhook Telemetry Logs State
+  // Webhook delivery logs state
   const [webhookLogs, setWebhookLogs] = useState<WebhookLogEntry[]>(() => [
     {
       id: "w1",
@@ -395,19 +395,19 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       if (error) {
         showToast("error", error.message);
       } else {
-        showToast("success", "Developer security credentials updated successfully.");
+        showToast("success", "Password updated successfully.");
         setNewPassword("");
         setConfirmPassword("");
       }
     } catch (err) {
       console.error(err);
-      showToast("error", "Error communicating with Supabase credential server.");
+      showToast("error", "Error communicating with Supabase Auth.");
     } finally {
       setIsSavingPassword(false);
     }
   };
 
-  // Dispatch secure email change request
+  // Request an account email change
   const handleUpdateEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail) return;
@@ -417,18 +417,18 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       if (error) {
         showToast("error", error.message);
       } else {
-        showToast("success", "Security confirmation dispatched. Please check both the old and new email addresses to complete relocation.");
+        showToast("success", "Confirmation emails sent. Please check both the old and new addresses to complete the email change.");
         setNewEmail("");
       }
     } catch (err) {
       console.error(err);
-      showToast("error", "Error triggering identity relocation query.");
+      showToast("error", "Unable to send the test email.");
     } finally {
       setIsSavingEmail(false);
     }
   };
 
-  // Webhook Telemetry Live Terminal Test Trigger
+  // Webhook tester trigger
   const runWebhookTest = () => {
     if (!webhookUrl) {
       showToast("error", "Please configure and save a webhook endpoint URL first.");
@@ -441,8 +441,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       `[info] ${new Date().toLocaleTimeString()} - Resolving host URL '${webhookUrl}'...`,
       `[info] ${new Date().toLocaleTimeString()} - Compiling payload event 'quota.warning' (current usage: 84.6%)`,
       `[info] ${new Date().toLocaleTimeString()} - Generating SHA-256 HMAC signature using secret token...`,
-      `[info] ${new Date().toLocaleTimeString()} - Secure headers compiled (x-dandi-signature injected)`,
-      `[info] ${new Date().toLocaleTimeString()} - Dispatched outgoing webhook HTTP POST request.`,
+      `[info] ${new Date().toLocaleTimeString()} - Signature header added (x-dandi-signature).`,
+      `[info] ${new Date().toLocaleTimeString()} - Sent outgoing webhook HTTP POST request.`,
       `[success] ${new Date().toLocaleTimeString()} - Connection established. Endpoint responded: 200 OK`
     ];
 
@@ -451,7 +451,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         setTesterLogs(prev => [...prev, step]);
         if (index === steps.length - 1) {
           setIsTestingWebhook(false);
-          showToast("success", "Webhook test payload dispatched successfully.");
+          showToast("success", "Webhook test payload sent successfully.");
           
           const newLog: WebhookLogEntry = {
             id: `w-${Date.now()}`,
@@ -497,16 +497,16 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         }}
       >
           <DashboardPageHeader
-            eyebrow="Identity / System Settings"
+            eyebrow="Account / Settings"
             title="Account"
-            description="Manage personal credentials, API namespaces, webhooks, and provider integrations."
+            description="Manage your profile, API namespace, webhooks, and provider integrations."
           >
             <TabsBar
               tabs={[
                 { id: "profile", label: "Developer Profile" },
                 { id: "integrations", label: "Git Providers" },
                 { id: "webhooks", label: "Alert Webhooks" },
-                { id: "security", label: "Security & Sessions" },
+                { id: "security", label: "Security & Sign-in" },
               ]}
               activeId={activeTab}
               onChange={(id) => setActiveTab(id as typeof activeTab)}
@@ -539,7 +539,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                         value={activeSession?.user?.email || ""} 
                         className="w-full rounded-2xl border border-white/5 bg-slate-950/20 px-5 py-4 text-sm font-semibold text-zinc-500 outline-none cursor-not-allowed border-dashed select-all" 
                       />
-                      <p className="text-[8px] text-zinc-500 italic ml-1">Email cannot be modified. Contact orchestrator for identity relocation.</p>
+                      <p className="text-[8px] text-zinc-500 italic ml-1">Email cannot be changed here. Contact support to update your sign-in email.</p>
                     </div>
 
                     <div className="space-y-2">
@@ -586,8 +586,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
               {activeTab === "integrations" && (
                 <CommandPanel className="space-y-8 p-8 md:p-10">
                   <div className="space-y-1">
-                    <h3 className="font-serif text-2xl font-bold text-white">External Provider Connections</h3>
-                    <p className="text-sm text-slate-400">Manage OAuth linkage for repository distillations.</p>
+                    <h3 className="font-serif text-2xl font-bold text-white">Git Provider Connections</h3>
+                    <p className="text-sm text-slate-400">Manage OAuth access for repository summaries.</p>
                   </div>
 
                   <div className="grid gap-6 md:grid-cols-2 max-w-4xl">
@@ -617,7 +617,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                         <div className="space-y-1">
                           <h4 className="text-sm font-bold text-white">GitHub Integration</h4>
                           <p className="text-[11px] leading-relaxed text-zinc-400">
-                            Connect your GitHub profile to resolve summaries of private repositories seamlessly using Dandi credentials.
+                            Connect GitHub so Dandi can summarize authorized private repositories.
                           </p>
                         </div>
                       </div>
@@ -661,7 +661,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                     <div className="border-t border-white/5 pt-10 space-y-6 max-w-4xl animate-in fade-in duration-300">
                       <div className="space-y-1">
                         <h4 className="text-base font-bold text-white">GitHub Repository Access Scopes</h4>
-                        <p className="text-xs text-zinc-400">Establish selective token permissions to restrict which private domains Dandi AI can resolve.</p>
+                        <p className="text-xs text-zinc-400">Choose which repositories Dandi can access through your GitHub connection.</p>
                       </div>
 
                       <div className="rounded-3xl border border-white/5 p-6 bg-slate-950/40 space-y-6 shadow-xl backdrop-blur-xl">
@@ -719,7 +719,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                               <h5 className={`text-sm font-bold transition-colors ${
                                 githubScope === "selected" ? "text-white" : "text-zinc-400"
                               }`}>Selected Repositories Only</h5>
-                              <p className="text-[10px] text-zinc-500 leading-normal">Restrict credential scanning strictly to a custom list of selected private domains.</p>
+                              <p className="text-[10px] text-zinc-500 leading-normal">Limit access to a custom list of selected private repositories.</p>
                             </div>
                           </button>
                         </div>
@@ -812,8 +812,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
               {activeTab === "webhooks" && (
                 <CommandPanel className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
                   <div className="space-y-1">
-                    <h3 className="font-serif text-xl font-bold text-white sm:text-2xl">Real-time Webhook Relays</h3>
-                    <p className="text-sm text-slate-400">Deploy account notifications and telemetry alerts directly to your remote servers.</p>
+                    <h3 className="font-serif text-xl font-bold text-white sm:text-2xl">Webhook Notifications</h3>
+                    <p className="text-sm text-slate-400">Send account notifications and usage alerts to your own endpoint.</p>
                   </div>
 
                   <form onSubmit={handleSaveWebhook} className="max-w-xl space-y-6">
@@ -873,7 +873,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                       </div>
 
                       <div className="flex flex-col items-stretch gap-6 md:flex-row">
-                        {/* Dispatch Trigger Panel */}
+                        {/* Test Payload Panel */}
                         <div className="flex flex-1 flex-col justify-between rounded-2xl border border-white/5 bg-slate-950/20 p-4 sm:p-6">
                           <div className="space-y-3">
                             <h5 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Example payload headers</h5>
@@ -896,12 +896,12 @@ X-Dandi-Event: quota.warning`}
                           </button>
                         </div>
 
-                        {/* Interactive Terminal Screen Log */}
+                        {/* Webhook Response Log */}
                         <MockTerminal title="webhook-logger" status={isTestingWebhook ? "running" : testerLogs.length > 0 ? "success" : "idle"} maxHeight="220px" className="flex-1">
                           <div className="space-y-3 font-mono text-[10px]">
                             <div className="space-y-1.5 scrollbar-hide max-h-[140px] overflow-y-auto">
                               {testerLogs.length === 0 ? (
-                                <p className="text-zinc-600 italic">Console idle. Awaiting test trigger dispatch...</p>
+                                <p className="text-zinc-600 italic">Log idle. Send a test webhook to see the response.</p>
                               ) : (
                                 testerLogs.map((log, idx) => (
                                   <p 
@@ -922,7 +922,7 @@ X-Dandi-Event: quota.warning`}
                           {isTestingWebhook && (
                             <div className="flex items-center gap-2 text-[8px] font-bold text-amber-400 uppercase tracking-wider mt-4">
                               <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
-                              Dispatched Event Transit Active
+                              Sending test webhook
                             </div>
                           )}
                         </MockTerminal>
@@ -933,8 +933,8 @@ X-Dandi-Event: quota.warning`}
                   {/* Webhook Delivery Logs History */}
                   <div className="max-w-4xl space-y-6 border-t border-white/5 pt-8 md:pt-10">
                     <div className="space-y-1">
-                      <h4 className="text-base font-bold text-white">Delivery Logs Tracker</h4>
-                      <p className="text-xs text-zinc-400">Review recent webhook dispatches, payloads, and response contexts.</p>
+                      <h4 className="text-base font-bold text-white">Webhook Delivery Logs</h4>
+                      <p className="text-xs text-zinc-400">Review recent webhook deliveries, payloads, and endpoint responses.</p>
                     </div>
 
                     <div className="space-y-3 md:hidden">
@@ -1018,7 +1018,7 @@ X-Dandi-Event: quota.warning`}
                               <th className="px-6 py-4">Method & URL</th>
                               <th className="px-6 py-4">Event Type</th>
                               <th className="px-6 py-4">Latency</th>
-                              <th className="px-6 py-4">Dispatched</th>
+                              <th className="px-6 py-4">Sent</th>
                               <th className="px-6 py-4 text-right">Payloads</th>
                             </tr>
                           </thead>
@@ -1083,20 +1083,20 @@ X-Dandi-Event: quota.warning`}
                 </CommandPanel>
               )}
 
-              {/* TAB 4: Security & Session Log */}
+              {/* TAB 4: Security & Sign-in Activity */}
               {activeTab === "security" && (
                 <CommandPanel className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
                   <div className="space-y-1">
-                    <h3 className="font-serif text-xl font-bold text-white sm:text-2xl">Identity Protections & Session Audits</h3>
-                    <p className="text-sm text-slate-400">Configure access mechanics and audit real-time terminal entry logs.</p>
+                    <h3 className="font-serif text-xl font-bold text-white sm:text-2xl">Security & Sign-in</h3>
+                    <p className="text-sm text-slate-400">Manage password settings and review recent account access.</p>
                   </div>
 
                   {/* Auth Preference toggle */}
                   <div className="flex max-w-2xl flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/20 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                     <div className="space-y-1 text-left">
-                      <h4 className="text-sm font-bold">Secure Magic Link Logins</h4>
+                      <h4 className="text-sm font-bold">Magic Link Sign-in</h4>
                       <p className="text-xs text-zinc-400 leading-relaxed">
-                        Prefer secure passwordless magic link verification over standard credential configurations.
+                        Prefer passwordless email sign-in when available.
                       </p>
                     </div>
                     <button
@@ -1114,11 +1114,11 @@ X-Dandi-Event: quota.warning`}
                     </button>
                   </div>
 
-                  {/* Session Logs Panel */}
+                  {/* Access Activity Panel */}
                   <div className="space-y-6">
                     <div className="space-y-1">
-                      <h4 className="text-base font-bold">Active Developer Terminal Access</h4>
-                      <p className="text-xs text-zinc-400">Review revocable API access separately from authenticated browser session context.</p>
+                      <h4 className="text-base font-bold">API Keys & Browser Sessions</h4>
+                      <p className="text-xs text-zinc-400">Review API key activity separately from browser sign-in activity.</p>
                     </div>
 
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -1159,14 +1159,14 @@ X-Dandi-Event: quota.warning`}
                             ? "bg-rose-500/10 text-rose-400 border-rose-500/25"
                             : "bg-slate-950 text-zinc-500 border-white/5"
                         }`}>
-                          Revocable Access
+                          API Key Access
                         </span>
                         <span className={`rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-widest border ${
                           accessView === "browser"
                             ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
                             : "bg-slate-950 text-zinc-500 border-white/5"
                         }`}>
-                          Session Context
+                          Browser Sessions
                         </span>
                       </div>
                     </div>
@@ -1191,7 +1191,7 @@ X-Dandi-Event: quota.warning`}
                                       ? "bg-rose-500/10 text-rose-400 border-rose-500/25"
                                       : "bg-slate-950 text-zinc-500 border-white/5"
                                   }`}>
-                                    {environment.revocable ? "Revocable" : "Telemetry"}
+                                    {environment.revocable ? "Revocable" : "Activity"}
                                   </span>
                                 </div>
                               </div>
@@ -1207,7 +1207,7 @@ X-Dandi-Event: quota.warning`}
                                 </div>
                                 <div className="space-y-1">
                                   <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Last Seen</p>
-                                  <p className="font-bold text-zinc-400">{environment.telemetryAge || "No telemetry"}</p>
+                                  <p className="font-bold text-zinc-400">{environment.telemetryAge || "No activity"}</p>
                                 </div>
                               </div>
 
@@ -1223,7 +1223,7 @@ X-Dandi-Event: quota.warning`}
                                   </button>
                                 ) : (
                                   <p className="text-center text-[8px] font-black uppercase tracking-widest text-zinc-500">
-                                    Telemetry only · No revocable credential
+                                    Activity only · No API key to revoke
                                   </p>
                                 )}
                               </div>
@@ -1266,11 +1266,11 @@ X-Dandi-Event: quota.warning`}
                                 </div>
                                 <div className="space-y-1">
                                   <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Status</p>
-                                  <p className="font-bold text-zinc-400">{environment.telemetryAge || "No telemetry"}</p>
+                                  <p className="font-bold text-zinc-400">{environment.telemetryAge || "No activity"}</p>
                                 </div>
                                 <div className="space-y-1">
                                   <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Action</p>
-                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Active Root</p>
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Current Session</p>
                                 </div>
                               </div>
                             </div>
@@ -1289,7 +1289,7 @@ X-Dandi-Event: quota.warning`}
 
                       {accessView === "api" && apiAccessEnvironments.length === 0 && (
                         <div className="rounded-2xl border border-white/5 bg-slate-950/20 p-5 text-center text-xs font-semibold text-zinc-500">
-                          No API keys or request telemetry found.
+                          No API keys or request activity found.
                         </div>
                       )}
                       {accessView === "browser" && browserEnvironments.length === 0 && (
@@ -1300,7 +1300,7 @@ X-Dandi-Event: quota.warning`}
                     </div>
 
                     <div className="hidden md:block">
-                      <ScrollFrame axis="x" minWidth="760px" label="Developer terminal access table">
+                      <ScrollFrame axis="x" minWidth="760px" label="API key and browser session table">
                         <table className="min-w-[760px] w-full border-collapse text-left font-sans text-xs">
                           <thead>
                             <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
@@ -1342,7 +1342,7 @@ X-Dandi-Event: quota.warning`}
                                 </td>
                                 <td className="px-6 py-4 font-mono select-all text-zinc-400">{environment.ip || "Unknown"}</td>
                                 <td className="px-6 py-4 text-zinc-400">{environment.location || "Unknown"}</td>
-                                <td className="px-6 py-4 text-zinc-400 font-bold">{environment.telemetryAge || "No telemetry"}</td>
+                                <td className="px-6 py-4 text-zinc-400 font-bold">{environment.telemetryAge || "No activity"}</td>
                                 <td className="px-6 py-4 text-right">
                                   {environment.revocable ? (
                                     <button
@@ -1354,7 +1354,7 @@ X-Dandi-Event: quota.warning`}
                                       Revoke Access
                                     </button>
                                   ) : (
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 pr-4 select-none">Telemetry Only</span>
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 pr-4 select-none">Activity Only</span>
                                   )}
                                 </td>
                               </tr>
@@ -1374,16 +1374,16 @@ X-Dandi-Event: quota.warning`}
                                 </td>
                                 <td className="px-6 py-4 font-mono select-all text-zinc-400">{environment.ip || "Unknown"}</td>
                                 <td className="px-6 py-4 text-zinc-400">{environment.location || "Unknown"}</td>
-                                <td className="px-6 py-4 text-zinc-400 font-bold">{environment.telemetryAge || "No telemetry"}</td>
+                                <td className="px-6 py-4 text-zinc-400 font-bold">{environment.telemetryAge || "No activity"}</td>
                                 <td className="px-6 py-4 text-right">
-                                  <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 pr-4 select-none">Active Root</span>
+                                  <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 pr-4 select-none">Current Session</span>
                                 </td>
                               </tr>
                             ))}
                             {accessView === "api" && apiAccessEnvironments.length === 0 && (
                               <tr>
                                 <td colSpan={6} className="px-6 py-10 text-center text-xs font-semibold text-zinc-500">
-                                  No API keys or request telemetry found.
+                                  No API keys or request activity found.
                                 </td>
                               </tr>
                             )}
@@ -1400,14 +1400,14 @@ X-Dandi-Event: quota.warning`}
                     </div>
                   </div>
 
-                  {/* Real Security Controls: Password Update & Email Relocation */}
+                  {/* Security Controls: Password Update & Email Change */}
                   <div className="mt-8 grid gap-5 border-t border-zinc-200 pt-8 dark:border-zinc-800 md:mt-10 md:grid-cols-2 md:gap-8 md:pt-10">
                     
                     {/* Password Update Form Card */}
                     <div className="flex flex-col justify-between space-y-6 rounded-3xl border border-white/5 bg-slate-950/40 p-4 sm:p-6">
                       <div className="space-y-2">
-                        <h4 className="text-base font-bold">Update Secure Password</h4>
-                        <p className="text-xs text-zinc-400">Establish a new account access password (minimum 6 characters).</p>
+                        <h4 className="text-base font-bold">Update Password</h4>
+                        <p className="text-xs text-zinc-400">Set a new account password. Minimum 6 characters.</p>
                       </div>
 
                       <form onSubmit={handleUpdatePassword} className="space-y-4">
@@ -1445,11 +1445,11 @@ X-Dandi-Event: quota.warning`}
                       </form>
                     </div>
 
-                    {/* Email Relocation Request Form Card */}
+                    {/* Email Change Request Form Card */}
                     <div className="flex flex-col justify-between space-y-6 rounded-3xl border border-white/5 bg-slate-950/40 p-4 sm:p-6">
                       <div className="space-y-2">
-                        <h4 className="text-base font-bold text-white">Request Email Relocation</h4>
-                        <p className="text-xs text-zinc-400">Initiate identity migration to a new verified developer email address.</p>
+                        <h4 className="text-base font-bold text-white">Request Email Change</h4>
+                        <p className="text-xs text-zinc-400">Move your account to a new verified email address.</p>
                       </div>
 
                       {/* Info Alert Box */}
@@ -1462,7 +1462,7 @@ X-Dandi-Event: quota.warning`}
                         <div className="space-y-0.5">
                           <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wide">Dual Verification Required</p>
                           <p className="text-[9px] font-medium text-amber-500/90 leading-relaxed">
-                            For security, Supabase dispatches validation links to BOTH email hosts. You must confirm on both mailboxes to commit.
+                            Supabase sends confirmation links to both email addresses. Confirm both inboxes to complete the change.
                           </p>
                         </div>
                       </div>
@@ -1485,7 +1485,7 @@ X-Dandi-Event: quota.warning`}
                           disabled={isSavingEmail}
                           className="w-full rounded-full bg-emerald-500 py-3.5 text-[10px] font-black uppercase tracking-widest text-zinc-950 hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
                         >
-                          {isSavingEmail ? "Requesting Relocation..." : "Request Email Change"}
+                          {isSavingEmail ? "Requesting Email Change..." : "Request Email Change"}
                         </button>
                       </form>
                     </div>
@@ -1522,7 +1522,7 @@ X-Dandi-Event: quota.warning`}
                   </span>
                   <span className="font-mono text-[9px] text-zinc-500 uppercase tracking-widest">{inspectedLog.event}</span>
                 </div>
-                <h3 className="font-serif text-xl font-bold mt-1.5 text-white">Webhook Dispatch Audit</h3>
+                <h3 className="font-serif text-xl font-bold mt-1.5 text-white">Webhook Delivery Details</h3>
                 <p className="text-[10px] font-mono text-zinc-500 break-all">{inspectedLog.url}</p>
               </div>
               <ModalCloseButton

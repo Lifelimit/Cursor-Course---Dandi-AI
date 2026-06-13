@@ -10,7 +10,7 @@ import { Toast } from "@/components/ui/Toast";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { ApiKeyModal } from "@/components/dashboard/ApiKeyModal";
-import { CommandPanel, StatusPill } from "@/components/command";
+import { CommandPanel, ModalFrame, StatusPill } from "@/components/command";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
@@ -20,14 +20,14 @@ import { User } from "@supabase/supabase-js";
 import { EyeOffIcon, ShieldIcon, CopyLockedIcon, CopyCheckIcon } from "@/components/icons";
 
 import { DecryptingKeyText } from "@/components/ui/DecryptingKeyText";
-export default function DashboardClient({ 
-  initialUser, 
+export default function DashboardClient({
+  initialUser,
   initialKeys = [],
   initialPlan = "Hobby",
   initialAvgLatency = 0,
   initialSuccessRate = 100,
   initialResetDate = null
-}: { 
+}: {
   initialUser: User | null;
   initialKeys?: ApiKey[];
   initialPlan?: string;
@@ -36,13 +36,13 @@ export default function DashboardClient({
   initialResetDate?: string | null;
 }) {
   const router = useRouter();
-  const activeUser = initialUser; 
-  
+  const activeUser = initialUser;
+
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey, refreshKeys } = useApiKeys(initialKeys);
-  
+
   const fetcher = (url: string) => fetch(url).then(res => res.json());
-  const { data: usageData, isValidating } = useSWR('/api/usage', fetcher, { 
-    refreshInterval: 20000 
+  const { data: usageData, isValidating } = useSWR('/api/usage', fetcher, {
+    refreshInterval: 20000
   });
 
   const totalUsage = usageData?.totalUsage ?? apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
@@ -86,13 +86,13 @@ export default function DashboardClient({
   const successTrend = trendPill(successSpark);
 
   // Dynamic Tier Logic - Using the most recent session data available
-  const currentPlan = realtimePlan || initialPlan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
+  const currentPlan = realtimePlan || initialPlan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby";
   const { monthlyLimit: currentLimit, isUnlimited } = getPlanLimits(currentPlan);
 
   const alerts = computeSidebarAlerts(usageData?.keys || apiKeys);
 
   const { toast, showToast } = useToast();
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
   const [createdPlainKey, setCreatedPlainKey] = useState<string | null>(null);
@@ -126,9 +126,9 @@ export default function DashboardClient({
     }
   };
 
-  const handleModalSubmit = async (data: { 
-    name: string; 
-    keyType: "development" | "production"; 
+  const handleModalSubmit = async (data: {
+    name: string;
+    keyType: "development" | "production";
     monthlyLimit: number | null;
     alertThreshold: number;
     alertChannels: string[];
@@ -222,7 +222,7 @@ export default function DashboardClient({
                     {errorMessage}
                   </div>
                 ) : (
-                  "System status and secure credentials management."
+                  "Review usage, plan status, and API key activity."
                 )
               }
               rightAction={
@@ -230,8 +230,8 @@ export default function DashboardClient({
                   className={`inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-950/20 px-3.5 py-1.5 text-[9px] font-bold font-mono uppercase tracking-[0.18em] text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.08)] backdrop-blur-md transition-all sm:self-center ${
                     isSyncing ? "border-emerald-400/40 shadow-[0_0_15px_rgba(52,211,153,0.18)]" : ""
                   }`}
-                  aria-label="All systems operational"
-                  title={isSyncing ? "Telemetry refresh in progress" : "All systems operational"}
+                  aria-label={isSyncing ? "Dashboard data syncing" : "Dashboard ready"}
+                  title={isSyncing ? "Refreshing dashboard data" : "Dashboard ready"}
                 >
                   <span className="relative flex h-1.5 w-1.5 shrink-0">
                     {isSyncing && (
@@ -239,7 +239,7 @@ export default function DashboardClient({
                     )}
                     <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isSyncing ? "bg-emerald-300" : "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"}`} />
                   </span>
-                  <span>ALL SYSTEMS OPERATIONAL</span>
+                  <span>{isSyncing ? "SYNCING DATA" : "DASHBOARD READY"}</span>
                 </div>
               }
             />
@@ -310,7 +310,7 @@ export default function DashboardClient({
                       aria-hidden="true"
                       className={`pointer-events-none absolute -right-14 -top-20 h-36 w-36 rounded-full blur-3xl opacity-60 ${glowColor}`}
                     />
-                    
+
                     {/* Upper row: icon, name+value, trend pill */}
                     <div className="relative flex min-w-0 items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
@@ -416,12 +416,12 @@ export default function DashboardClient({
                 }}
               />
               <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/50 to-transparent" />
-              
+
               <div className="relative flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
                 <div className="flex-1 space-y-8">
                   <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-300/80">Current Strategic Tier</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/80">Current Plan</p>
                       <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                         <h2 className="font-serif text-4xl font-bold italic tracking-tight text-white sm:text-5xl">{currentPlan}</h2>
                         {isUnlimited && (
@@ -429,19 +429,19 @@ export default function DashboardClient({
                         )}
                       </div>
                     </div>
-                    
-                    <button 
+
+                    <button
                       onClick={() => router.push("/billing")}
                       className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-8 py-3 text-[10px] font-black uppercase tracking-widest text-slate-300 transition-all hover:border-emerald-300/30 hover:text-emerald-200 sm:w-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                     >
-                      Management
+                      Manage Plan
                     </button>
                   </div>
 
                   <div className="space-y-6">
                     <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                        Consumption <span className="mx-2 opacity-20">/</span> <span className="text-white">{totalUsage.toLocaleString()} Units Used</span>
+                        Usage <span className="mx-2 opacity-20">/</span> <span className="text-white">{totalUsage.toLocaleString()} Units Used</span>
                       </p>
                       <div className="flex items-center gap-2">
                         <span className="relative flex h-2 w-2">
@@ -453,17 +453,17 @@ export default function DashboardClient({
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className="relative h-3 w-full overflow-hidden rounded-full bg-white/10">
-                      <div 
-                        className="h-full bg-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.35)] transition-all duration-1000 ease-out" 
+                      <div
+                        className="h-full bg-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.35)] transition-all duration-1000 ease-out"
                         style={{ width: `${isUnlimited ? 100 : Math.min((totalUsage / currentLimit) * 100, 100)}%` }}
                       ></div>
                     </div>
 
                     <div className="flex items-center justify-between gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                       <span>0 Units</span>
-                      <span>Target Limit: {isUnlimited ? "∞" : currentLimit.toLocaleString()} Units</span>
+                      <span>Plan Limit: {isUnlimited ? "∞" : currentLimit.toLocaleString()} Units</span>
                     </div>
                   </div>
                 </div>
@@ -472,8 +472,8 @@ export default function DashboardClient({
                 <div className="hidden h-32 w-48 shrink-0 items-center justify-center rounded-3xl border border-emerald-300/15 bg-slate-950/70 p-6 md:flex">
                   <div className="flex items-end gap-1 h-full w-full">
                     {[35, 65, 45, 85, 55, 75, 40, 90, 60, 80].map((h, i) => (
-                      <div 
-                        key={i} 
+                      <div
+                        key={i}
                         className="flex-1 rounded-t-sm bg-emerald-400/20 transition-all hover:bg-emerald-300"
                         style={{ height: `${h}%` }}
                       />
@@ -487,12 +487,12 @@ export default function DashboardClient({
             <CommandPanel padding="none" className="p-5 sm:p-8">
               <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">API Credentials</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/70">API Keys</p>
                   <h2 className="mt-1 font-serif text-2xl font-bold text-white">Active API Keys</h2>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="rounded-full border border-emerald-300/15 bg-emerald-300/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-200">
-                    {apiKeys.length} Records
+                    {apiKeys.length} Keys
                   </span>
                   <button
                     type="button"
@@ -534,97 +534,94 @@ export default function DashboardClient({
               keyUsage={keyToRevoke?.usage_count || 0}
             />
             {createdPlainKey && (
-              <div className="fixed inset-0 z-[1100] flex items-start justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm animate-in fade-in duration-300 sm:items-center sm:p-6">
-                <div 
-                  className="my-3 w-full max-w-xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-[28px] border border-white/5 bg-slate-950/90 p-6 shadow-2xl animate-in zoom-in-95 duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[40px] sm:p-10"
-                  style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
-                >
-                  <div className="mb-8 text-center space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-400">Security Warning</p>
-                    <h3 className="font-serif text-3xl font-bold tracking-tight italic text-white sm:text-4xl">
-                      Secure Key Generated.
-                    </h3>
-                    <p className="text-sm font-medium text-zinc-400">
-                      Copy your credentials now. This token will not be displayed again.
-                    </p>
-                  </div>
+              <ModalFrame open={true} size="md" titleId="created-key-modal-title">
+                <div className="mb-8 border-b border-white/5 pb-6 text-center space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-red-400">Save this API key</p>
+                  <h3 id="created-key-modal-title" className="font-serif text-3xl font-bold tracking-tight italic text-white sm:text-4xl">
+                    API Key Generated
+                  </h3>
+                  <p className="text-sm font-medium text-zinc-400">
+                    Copy this API key now. It will not be displayed again.
+                  </p>
+                </div>
 
-                  <div className="space-y-6">
-                    {/* Callout box */}
-                    <div className="rounded-3xl border border-red-500/10 bg-red-500/5 p-6 flex gap-4 items-start">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
-                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
-                          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs font-bold text-red-400">One-Time Visibility Only</p>
-                        <p className="text-[11px] font-medium text-red-500/80 leading-relaxed">
-                          For compliance and security, we only hash this credential in our database. We cannot retrieve or display this key ever again.
-                        </p>
-                      </div>
+                <div className="space-y-6">
+                  {/* Callout box */}
+                  <div className="rounded-3xl border border-red-500/10 bg-red-500/5 p-5 flex gap-4 items-start sm:p-6">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
+                        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
                     </div>
-
-                    {/* Key Display Area */}
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">
-                        Your Generated Plaintext API Key
-                      </label>
-                      <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/70 p-2 pl-4 sm:pl-6">
-                        <code className="min-w-0 flex-1 break-all font-mono text-xs font-bold tracking-wider text-slate-200">
-                          <DecryptingKeyText 
-                            text={createdPlainKey || ""} 
-                            visible={isPlainKeyVisible} 
-                            maskedText={createdPlainKey ? `${createdPlainKey.substring(0, 16)}••••••••••••••••••••${createdPlainKey.substring(createdPlainKey.length - 4)}` : ""}
-                          />
-                        </code>
-                        <button
-                          type="button"
-                          onClick={() => setIsPlainKeyVisible(!isPlainKeyVisible)}
-                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-white/5 hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-                          title={isPlainKeyVisible ? "Hide API key" : "Show API key"}
-                        >
-                          {isPlainKeyVisible ? (
-                            <EyeOffIcon className="h-5 w-5" />
-                          ) : (
-                            <ShieldIcon className="h-5 w-5" />
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyKey(createdPlainKey || "")}
-                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
-                            copiedKey 
-                              ? "bg-emerald-500 text-zinc-950 animate-pulse" 
-                              : "bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
-                          }`}
-                          title={copiedKey ? "Copied" : "Copy secure session key"}
-                        >
-                          {copiedKey ? (
-                            <CopyCheckIcon className="h-5 w-5" />
-                          ) : (
-                            <CopyLockedIcon className="h-5 w-5" />
-                          )}
-                        </button>
-                      </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-red-400">One-Time Visibility Only</p>
+                      <p className="text-[11px] font-medium text-red-500/80 leading-relaxed">
+                        We store only a hash of this key, so we cannot retrieve or display it again.
+                      </p>
                     </div>
                   </div>
 
-                  {/* Footer */}
-                  <div className="mt-10 flex items-center justify-end pt-4 border-t border-white/5">
+                  {/* Key Display Area */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">
+                      Your Generated Plaintext API Key
+                    </label>
+                    <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/70 p-2 pl-4 sm:pl-6">
+                      <code className="min-w-0 flex-1 break-all font-mono text-xs font-bold tracking-wider text-slate-200">
+                        <DecryptingKeyText
+                          text={createdPlainKey || ""}
+                          visible={isPlainKeyVisible}
+                          maskedText={createdPlainKey ? `${createdPlainKey.substring(0, 16)}••••••••••••••••••••${createdPlainKey.substring(createdPlainKey.length - 4)}` : ""}
+                        />
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => setIsPlainKeyVisible(!isPlainKeyVisible)}
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-white/5 hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                        title={isPlainKeyVisible ? "Hide API key" : "Show API key"}
+                        aria-label={isPlainKeyVisible ? "Hide API key" : "Show API key"}
+                      >
+                        {isPlainKeyVisible ? (
+                          <EyeOffIcon className="h-5 w-5" />
+                        ) : (
+                          <ShieldIcon className="h-5 w-5" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyKey(createdPlainKey || "")}
+                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+                          copiedKey
+                            ? "bg-emerald-500 text-zinc-950 animate-pulse"
+                            : "bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
+                        }`}
+                        title={copiedKey ? "Copied" : "Copy API key"}
+                        aria-label={copiedKey ? "API key copied" : "Copy API key"}
+                      >
+                        {copiedKey ? (
+                          <CopyCheckIcon className="h-5 w-5" />
+                        ) : (
+                          <CopyLockedIcon className="h-5 w-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="mt-10 flex items-center justify-end border-t border-white/5 pt-4">
                     <button
                       type="button"
                       onClick={() => setCreatedPlainKey(null)}
-                      className="group flex items-center justify-center gap-3 rounded-full bg-white px-10 py-4 text-xs font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-zinc-200 hover:scale-105 active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                      className="group flex w-full items-center justify-center gap-3 rounded-full bg-white px-10 py-4 text-xs font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-zinc-200 active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:w-auto"
                     >
-                      I have secured this key
+                      I saved this key
                       <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
                         <path d="M5 12h14m-7-7l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </button>
-                  </div>
                 </div>
-              </div>
+              </ModalFrame>
             )}
             <Toast toast={toast} />
           </div>

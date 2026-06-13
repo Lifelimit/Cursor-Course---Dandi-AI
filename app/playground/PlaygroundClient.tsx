@@ -196,7 +196,7 @@ export default function PlaygroundClient({
   const handleIngest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!apiKey) {
-      setErrorMessage("Secure Access Token is required to ingest repository.");
+      setErrorMessage("An API key is required to ingest a repository.");
       return;
     }
     if (!githubUrl) {
@@ -394,7 +394,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
     const maskedKey = apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`;
 
     setLogState("auth", {
-      label: "Validate Session",
+      label: "Validate API Key",
       status: "pending",
       method: "POST",
       url: "/api/keys/validate",
@@ -437,7 +437,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "RAG chat session failed.");
+        throw new Error(errorData.error || "RAG chat request failed.");
       }
 
       // Read sources from header
@@ -880,7 +880,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
     {
       id: "auth",
       label: "Auth",
-      sublabel: "Credential validation",
+      sublabel: "API key validation",
       status: getPipelineStatus("auth"),
     },
     {
@@ -927,7 +927,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
           <DashboardPageHeader
             eyebrow="Environment / Testing"
             title="API Playground"
-            description="Validate credentials, execute repository intelligence requests, and inspect the live orchestration pipeline."
+            description="Validate API keys, run repository summary requests, and inspect the request pipeline."
             rightAction={
               <StatusPill tone={isPipelineActive ? "warning" : hasPipelineError ? "danger" : "success"} pulse={isPipelineActive}>
                 {isPipelineActive ? "Pipeline Running" : hasPipelineError ? "Action Required" : "Workbench Ready"}
@@ -975,7 +975,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                         <div className="h-10 w-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold font-serif text-lg">D</div>
                         <div className="min-w-0">
                           <h3 className="font-serif text-md font-bold text-white">RAG Codebase Companion</h3>
-                          <span className="text-[9px] font-black text-emerald-300 uppercase tracking-widest">Active Chat Session</span>
+                          <span className="text-[9px] font-black text-emerald-300 uppercase tracking-widest">Active Chat</span>
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -1068,7 +1068,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                         <div className="flex flex-wrap gap-2">
                           {[
                             "Explain the repository structure & primary entry points",
-                            "How is configuration and credentials validation designed?",
+                            "How is API key validation designed?",
                             "Are there any rate limiting or quota guardrails implemented?",
                             "Show how the database migration schema is set up"
                           ].map((p, pIdx) => (
@@ -1133,7 +1133,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                       <div className="space-y-3">
                         <div className="flex min-h-16 flex-col gap-3 px-1 sm:flex-row sm:items-start sm:justify-between lg:min-h-16">
                           <label htmlFor="api-key" className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 leading-none">
-                            Secure Access Token
+                            API Key
                           </label>
                           {apiKeys.length > 0 && (
                             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -1295,7 +1295,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
 
                   <NetworkLog logs={requestLogs} onShowToast={showToast} />
 
-                  {/* Render the landing card only when idle or error (hide it when crawling/embedding to focus on telemetry logs) */}
+                  {/* Render the landing card only when idle or error (hide it when crawling/embedding to focus on request logs) */}
                   {activeTab === "rag" && (ingestStatus === "idle" || ingestStatus === "error") && (
                     <CommandPanel className="p-5 text-center space-y-6 animate-in fade-in duration-500 sm:p-8">
                       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 select-none">
@@ -1304,9 +1304,9 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                         </svg>
                       </div>
                       <div className="space-y-2 select-none">
-                        <h3 className="font-serif text-2xl font-bold text-white">RAG Codebase Chat Engine</h3>
+                        <h3 className="font-serif text-2xl font-bold text-white">Repository Chat</h3>
                         <p className="text-sm font-medium text-slate-400 max-w-lg mx-auto leading-relaxed">
-                          Ingest and index this repository to chat with your codebase in real-time. Dandi AI crawls the repository recursively, extracts and structures up to 40 code and markdown files, calculates 768D semantic embeddings with Google's Gemini embedding models, and saves them in pgvector indexes to power lightning-fast retrieval.
+                          Ingest a repository, index up to 40 code and markdown files, and ask questions against the indexed context.
                         </p>
                       </div>
                       {ingestStatus === "error" && (
@@ -1358,8 +1358,8 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                           <div className="flex flex-col gap-8 lg:flex-row">
                             <div className="min-w-0 flex-1 space-y-6">
                               <div className="space-y-1">
-                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/80">Intelligent Summary</p>
-                                <h2 className="font-serif text-3xl font-bold italic text-white">Repository Intelligence</h2>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/80">Repository Summary</p>
+                                <h2 className="font-serif text-3xl font-bold italic text-white">Repository Insights</h2>
                               </div>
                               
                               <div className="flex flex-wrap gap-4">

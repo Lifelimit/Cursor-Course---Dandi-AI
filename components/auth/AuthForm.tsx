@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, usePathname } from "next/navigation";
 import { getURL } from "@/lib/utils/url-helper";
@@ -13,6 +13,10 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const formId = useId();
+  const fullNameId = `${formId}-full-name`;
+  const emailId = `${formId}-email`;
+  const passwordId = `${formId}-password`;
 
   // Initialize based on pathname if available, otherwise fallback to defaultMode
   const [isSignUp, setIsSignUp] = useState(
@@ -153,19 +157,19 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
 
   if (isMagicLinkSent) {
     return (
-      <div className="rounded-2xl border border-emerald-500/10 bg-emerald-500/5 p-6 text-center animate-in fade-in zoom-in duration-300">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+      <div role="status" className="rounded-2xl border border-emerald-400/15 bg-emerald-400/10 p-6 text-center animate-in fade-in zoom-in duration-300">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-6 w-6">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
           </svg>
         </div>
         <h3 className="font-serif text-lg font-bold text-white">Check your inbox</h3>
-        <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
-          We&apos;ve sent a magic link to <span className="font-bold text-emerald-400">{email}</span>.
+        <p className="mt-2 break-words text-sm leading-relaxed text-slate-400">
+          We&apos;ve sent a sign-in link to <span className="font-bold text-emerald-300">{email}</span>.
         </p>
-        <button 
+        <button
           onClick={() => setIsMagicLinkSent(false)}
-          className="mt-6 text-xs font-bold uppercase tracking-widest text-emerald-400 hover:text-emerald-300 transition-colors"
+          className="mt-6 rounded-lg px-2 py-1 text-xs font-bold uppercase tracking-[0.14em] text-emerald-300 transition-colors hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
         >
           Try a different email
         </button>
@@ -179,23 +183,23 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
         <h2 className="font-serif text-2xl font-bold transition-all duration-300 text-white">
           {isSignUp ? "Create your account" : "Welcome back"}
         </h2>
-        <p className="text-sm text-zinc-400 transition-all duration-300">
-          {!usePassword 
-            ? "Sign in securely with a one-time link sent directly to your inbox."
-            : isSignUp 
-              ? "Join Dandi AI to manage your secure API credentials."
-              : "Access your dashboard and monitor orchestration nodes."}
+        <p className="text-sm text-slate-400 transition-all duration-300">
+          {!usePassword
+            ? "Use a one-time link sent to your inbox."
+            : isSignUp
+              ? "Create a Dandi workspace for API keys, usage, and repository insights."
+              : "Access your dashboard, API keys, usage, and billing."}
         </p>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-500/10 bg-rose-500/5 p-4 text-sm text-rose-400 animate-in slide-in-from-top-2 duration-300">
+        <div role="alert" className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm font-medium text-rose-200 animate-in slide-in-from-top-2 duration-300">
           {error}
         </div>
       )}
 
       {successMessage && (
-        <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-4 text-sm text-emerald-400 animate-in slide-in-from-top-2 duration-300">
+        <div role="status" className="rounded-xl border border-emerald-400/15 bg-emerald-400/10 p-4 text-sm font-medium text-emerald-200 animate-in slide-in-from-top-2 duration-300">
           {successMessage}
         </div>
       )}
@@ -203,42 +207,45 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
       <form onSubmit={handleAuth} className="space-y-4">
         {usePassword && isSignUp && (
           <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Full Name</label>
-            <input 
+            <label htmlFor={fullNameId} className="ml-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Full Name</label>
+            <input
+              id={fullNameId}
               type="text" 
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required={usePassword && isSignUp}
               disabled={isLoading}
-              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm font-medium text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 transition-all disabled:opacity-50"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-5 py-4 text-sm font-medium text-white placeholder-slate-600 outline-none transition-all focus:border-emerald-300/50 focus:ring-4 focus:ring-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-50"
               placeholder="Jane Doe"
             />
           </div>
         )}
 
         <div className="space-y-2">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Email Address</label>
-          <input 
+          <label htmlFor={emailId} className="ml-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Email Address</label>
+          <input
+            id={emailId}
             type="email" 
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={isLoading}
-            className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm font-medium text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 transition-all disabled:opacity-50"
+            className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-5 py-4 text-sm font-medium text-white placeholder-slate-600 outline-none transition-all focus:border-emerald-300/50 focus:ring-4 focus:ring-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-50"
             placeholder="name@company.com"
           />
         </div>
 
         {usePassword && (
           <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Password</label>
-            <input 
+            <label htmlFor={passwordId} className="ml-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Password</label>
+            <input
+              id={passwordId}
               type="password" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required={usePassword}
               disabled={isLoading}
-              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm font-medium text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 transition-all disabled:opacity-50"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-5 py-4 text-sm font-medium text-white placeholder-slate-600 outline-none transition-all focus:border-emerald-300/50 focus:ring-4 focus:ring-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-50"
               placeholder="••••••••"
             />
           </div>
@@ -247,11 +254,11 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
         <button
           type="submit"
           disabled={isLoading}
-          className="relative group w-full overflow-hidden rounded-full bg-emerald-500 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(52,211,153,0.3)] active:scale-[0.98] disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+          className="group relative w-full cursor-pointer overflow-hidden rounded-2xl bg-emerald-400 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-slate-950 transition-all hover:bg-emerald-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         >
           <span className={isLoading ? "opacity-0" : "opacity-100 transition-opacity"}>
             {!usePassword 
-              ? "Continue with Magic Link" 
+              ? "Continue with Email Link"
               : isSignUp ? "Sign Up" : "Sign In"}
           </span>
           {isLoading && (
@@ -268,23 +275,23 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
               setUsePassword(!usePassword);
               setError(null);
             }}
-            className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:underline focus-visible:text-white rounded px-1"
+            className="cursor-pointer rounded-lg px-1 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
           >
-            {usePassword ? "Use magic link instead" : "Sign in with password instead"}
+            {usePassword ? "Use email link instead" : "Use password instead"}
           </button>
         </div>
       </form>
 
       <div className="relative flex items-center py-2">
-        <div className="flex-grow border-t border-white/5"></div>
-        <span className="flex-shrink-0 px-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Or continue with social</span>
-        <div className="flex-grow border-t border-white/5"></div>
+        <div className="flex-grow border-t border-white/10"></div>
+        <span className="flex-shrink-0 px-4 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Or continue with</span>
+        <div className="flex-grow border-t border-white/10"></div>
       </div>
 
       <button
         onClick={signInWithGoogle}
         disabled={isLoading}
-        className="group flex w-full items-center justify-center gap-4 rounded-full border border-white/5 bg-slate-950/40 px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white transition-all hover:bg-white/5 hover:shadow-lg active:scale-[0.98] disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+        className="group flex w-full cursor-pointer items-center justify-center gap-4 rounded-2xl border border-white/10 bg-slate-950/70 px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-white transition-all hover:bg-white/5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
       >
         <svg viewBox="0 0 24 24" className="h-4 w-4" xmlns="http://www.w3.org/2000/svg">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -295,7 +302,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
         Continue with Google
       </button>
 
-      <div className="pt-4 text-center text-sm text-zinc-500 border-t border-white/5">
+      <div className="border-t border-white/10 pt-4 text-center text-sm text-slate-500">
         {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
         <button 
           onClick={() => {
@@ -303,7 +310,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
             setError(null);
             setSuccessMessage(null);
           }}
-          className="font-bold text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer focus-visible:outline-none focus-visible:underline focus-visible:text-emerald-300 rounded px-1"
+          className="cursor-pointer rounded-lg px-1 py-1 font-bold text-emerald-300 transition-colors hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
         >
           {isSignUp ? "Sign in" : "Sign up"}
         </button>

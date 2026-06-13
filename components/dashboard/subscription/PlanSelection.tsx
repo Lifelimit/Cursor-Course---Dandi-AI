@@ -24,8 +24,9 @@ export function PlanSelection({
       <div className="flex items-center justify-center gap-6 py-4">
         <span className={`font-mono text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${billingInterval === "month" ? "text-white" : "text-slate-500"}`}>Monthly</span>
         <button 
+          type="button"
           onClick={() => setBillingInterval(billingInterval === "month" ? "year" : "month")}
-          className="relative h-6 w-12 rounded-full bg-slate-800 p-1 transition-all hover:bg-slate-700 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          className="relative h-6 w-12 rounded-full bg-slate-800 p-1 transition-all hover:bg-slate-700 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
           role="switch"
           aria-checked={billingInterval === "year"}
           aria-label="Billing Interval Toggle"
@@ -45,6 +46,7 @@ export function PlanSelection({
           
           return (
             <button
+              type="button"
               key={plan.id}
               onClick={() => onSelectPlan(plan.id)}
               disabled={isLoading || isCurrent}
@@ -80,8 +82,9 @@ export function PlanSelection({
       </div>
       
       <button 
+        type="button"
         onClick={onGoBack}
-        className="w-full font-mono text-[9px] font-bold uppercase tracking-[0.3em] text-slate-500 hover:text-white transition-colors py-4 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+        className="w-full rounded-full font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-slate-500 hover:text-white transition-colors py-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
       >
         Go Back
       </button>

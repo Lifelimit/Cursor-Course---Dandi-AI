@@ -103,9 +103,10 @@ export function Overview({
                 
                 {cardData.number && (
                   <button 
+                    type="button"
                     onClick={handleRemoveCard}
                     disabled={isLoading}
-                    className="mt-6 font-mono text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-rose-400 underline underline-offset-8 transition-colors disabled:opacity-50 block cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-500"
+                    className="mt-6 rounded-full font-mono text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-rose-400 underline underline-offset-8 transition-colors disabled:opacity-50 block cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                   >
                     Remove Card
                   </button>
@@ -120,6 +121,7 @@ export function Overview({
         <div className="flex flex-col gap-3 sm:flex-row">
           {planName !== "Hobby" && (
             <button 
+              type="button"
               onClick={() => setView("update-payment")}
               className="flex-1 rounded-full bg-slate-100 py-4 text-[10px] font-black uppercase tracking-widest text-slate-950 transition hover:bg-slate-200 shadow-xl cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
             >
@@ -127,17 +129,19 @@ export function Overview({
             </button>
           )}
           <button 
+            type="button"
             onClick={() => setView("change-plan")}
-            className="flex-1 rounded-full border border-white/10 bg-slate-950/40 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+            className="flex-1 rounded-full border border-white/10 bg-slate-950/40 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
           >
             {planName === "Hobby" ? "Upgrade Plan" : "Change Plan"}
           </button>
         </div>
         
         <button 
+          type="button"
           onClick={onCancelSubscription}
           disabled={isLoading || planName === "Hobby"}
-          className="w-full text-center font-mono text-[9px] font-bold uppercase tracking-widest text-slate-500 hover:text-rose-400 transition-colors disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-500"
+          className="w-full rounded-full text-center font-mono text-[9px] font-bold uppercase tracking-widest text-slate-500 hover:text-rose-400 transition-colors disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         >
           {planName === "Hobby" ? "No active paid subscription" : "Cancel Subscription"}
         </button>

@@ -95,7 +95,13 @@
   --command-glow: 0 24px 90px rgba(52, 211, 153, 0.13);
 }
 
+html {
+  min-height: 100%;
+  background: var(--background);
+}
+
 body {
+  min-height: 100%;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;

@@ -1,9 +1,9 @@
 /**
- * /protected — Hidden "Vault" Route
+ * /protected — Hidden API key validation route
  *
  * This page is intentionally excluded from all navigation (Sidebar, Navbar, CTAs).
- * It serves as a secure, URL-only-accessible area for API key validation testing
- * and as a demonstration of the auth-gated architecture.
+ * It serves as a URL-only API key validation test page and as a demonstration
+ * of the auth-gated architecture.
  *
  * Access: Manually navigate to /protected. Requires active session (enforced by
  * both middleware.ts protectedRoutes and this page's server-side auth check).

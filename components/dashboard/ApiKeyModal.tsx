@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { ApiKey } from "@/types/api";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { ModalFrame } from "@/components/command/ModalFrame";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 type ApiKeyModalProps = {
   isOpen: boolean;
@@ -111,7 +112,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
 
     const trimmedName = keyName.trim();
     if (!trimmedName) {
-      setErrorMessage("Credential name is required.");
+      setErrorMessage("API key name is required.");
       return;
     }
 
@@ -155,21 +156,27 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
 
   return (
     <ModalFrame open={isOpen} onClose={onClose} size="lg" titleId="api-key-modal-title">
-      <div className="mb-8 text-center space-y-2 sm:mb-10">
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Credential Registry</p>
-        <h3 id="api-key-modal-title" className="font-serif text-3xl font-bold tracking-tight italic sm:text-4xl text-white">
-          {isEditing ? "Edit Key." : "Generate Key."}
-        </h3>
-        <p className="text-sm font-medium text-slate-400">
-          Configure secure access parameters and monitoring thresholds.
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4 border-b border-white/5 pb-6 sm:mb-10">
+        <div className="space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">API Key Settings</p>
+          <h3 id="api-key-modal-title" className="font-serif text-3xl font-bold tracking-tight italic text-white sm:text-4xl">
+            {isEditing ? "Edit Key." : "Generate Key."}
+          </h3>
+          <p className="text-sm font-medium text-slate-400">
+            Configure access, limits, and usage alerts.
+          </p>
+        </div>
+        <ModalCloseButton
+          onClick={onClose}
+          className="text-slate-500 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+        />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8 sm:space-y-10">
         {/* Key Name */}
         <div className="space-y-3">
           <label htmlFor="modal-key-name" className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">
-            Credential Descriptor
+            API Key Name
           </label>
           <input
             id="modal-key-name"
@@ -233,11 +240,11 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
           <div className="space-y-4">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Usage Constraints</p>
             <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-6 space-y-4">
-              <label className="flex items-center gap-3 text-xs font-bold text-slate-300 cursor-pointer">
+              <label className="flex items-center gap-3 rounded-xl text-xs font-bold text-slate-300 cursor-pointer focus-within:ring-2 focus-within:ring-emerald-300 focus-within:ring-offset-2 focus-within:ring-offset-slate-950">
+                <input type="checkbox" className="sr-only" checked={hasUsageLimit} onChange={(e) => setHasUsageLimit(e.target.checked)} />
                 <div className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${hasUsageLimit ? "bg-slate-100 text-slate-950 border-slate-100" : "bg-slate-950 border-white/10"}`}>
                   {hasUsageLimit && <svg viewBox="0 0 24 24" className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="4"><path d="M5 13l4 4L19 7" /></svg>}
                 </div>
-                <input type="checkbox" className="hidden" checked={hasUsageLimit} onChange={(e) => setHasUsageLimit(e.target.checked)} />
                 Hard Monthly Limit
               </label>
               <div className="relative">
@@ -302,12 +309,12 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
         )}
 
         {/* Action Footer */}
-        <div className="flex items-center justify-end gap-4 pt-4 border-t border-white/5">
+        <div className="flex flex-col-reverse gap-3 border-t border-white/5 pt-4 sm:flex-row sm:items-center sm:justify-end sm:gap-4">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="rounded-full border border-white/10 px-8 py-4 text-xs font-black uppercase tracking-widest text-slate-400 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 disabled:opacity-50 cursor-pointer"
+            className="rounded-full border border-white/10 px-8 py-4 text-xs font-black uppercase tracking-widest text-slate-400 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50 cursor-pointer"
           >
             Cancel
           </button>
@@ -321,7 +328,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
               </svg>
             }
           >
-            {isEditing ? "Update Credential" : "Generate Secure Key"}
+            {isEditing ? "Update API Key" : "Generate API Key"}
           </PrimaryButton>
         </div>
       </form>

@@ -139,7 +139,7 @@ export function PaymentForm({
             <button 
               type="button"
               onClick={() => setShowAddressForm(true)}
-              className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors cursor-pointer"
+              className="rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
             >
               Change
             </button>
@@ -172,7 +172,7 @@ export function PaymentForm({
             </div>
 
             {formValues.country && (
-              <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-top-2 duration-300 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">State / Province</label>
                   <select 
@@ -212,7 +212,7 @@ export function PaymentForm({
             )}
 
             {formValues.city && (
-              <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-top-2 duration-300 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                     {LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].zipLabel}
@@ -245,7 +245,7 @@ export function PaymentForm({
             <button 
               type="button"
               onClick={() => setShowAddressForm(false)}
-              className="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white pt-2 text-left animate-in fade-in cursor-pointer"
+              className="rounded-full pt-2 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white animate-in fade-in cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
             >
               ← Back to Summary
             </button>
@@ -261,8 +261,8 @@ export function PaymentForm({
           </svg>
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Secure Transaction</p>
-          <p className="text-[9px] text-emerald-500/70">Your payment information is encrypted and never stored on our servers.</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Stripe Checkout</p>
+          <p className="text-[9px] text-emerald-500/70">Card details are handled by Stripe. Dandi does not store full card numbers.</p>
         </div>
       </div>
 
@@ -286,7 +286,7 @@ export function PaymentForm({
               setView("overview");
             }
           }}
-          className="w-full rounded-full border border-white/10 bg-slate-950/40 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 cursor-pointer"
+          className="w-full rounded-full border border-white/10 bg-slate-950/40 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
         >
           Go Back
         </button>

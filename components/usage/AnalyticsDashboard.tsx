@@ -337,7 +337,7 @@ export function AnalyticsDashboard({
         </div>
       </CommandPanel>
 
-      {/* Telemetry Overview Cards */}
+      {/* Usage Overview Cards */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         
         {/* Metric 1: Requests */}
@@ -357,7 +357,7 @@ export function AnalyticsDashboard({
         <MetricCard
           label="Average Latency"
           value={<>{currentAvgLatency}<span className="ml-1 text-xs font-normal font-sans text-slate-400">ms</span></>}
-          detail={currentAvgLatency === 0 ? "No telemetry" : currentAvgLatency < 250 ? "Excellent response" : currentAvgLatency < 500 ? "Good speed" : "Delayed"}
+          detail={currentAvgLatency === 0 ? "No data yet" : currentAvgLatency < 250 ? "Fast response" : currentAvgLatency < 500 ? "Good speed" : "Delayed"}
           tone={currentAvgLatency < 250 ? "success" : currentAvgLatency < 500 ? "warning" : "danger"}
           icon={
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
@@ -368,9 +368,9 @@ export function AnalyticsDashboard({
 
         {/* Metric 3: Success Rate */}
         <MetricCard
-          label="Service Health"
+          label="Success Rate"
           value={`${currentSuccessRate}%`}
-          detail="Uptime & accuracy rate"
+          detail="Successful requests"
           tone="info"
           icon={
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
@@ -380,7 +380,7 @@ export function AnalyticsDashboard({
         />
 
         {/* Metric 4: Estimated Value Generated */}
-        <MetricCard label="Estimated Value" value={`$${estimatedSavings}`} detail="Dandi value generated" tone="warning" icon={<span className="text-xs font-black leading-none">$</span>} />
+        <MetricCard label="Estimated Savings" value={`$${estimatedSavings}`} detail="Compared with manual review" tone="warning" icon={<span className="text-xs font-black leading-none">$</span>} />
 
       </div>
 
@@ -388,7 +388,7 @@ export function AnalyticsDashboard({
       <CommandPanel className="p-5 sm:p-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/70">Historical Telemetry</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/70">Usage History</p>
             <h3 className="flex flex-wrap items-center gap-2 font-serif text-2xl font-bold tracking-tight text-white">
               {metricName} 
               <span className="text-xs font-normal font-sans text-slate-400">/ last 30 days</span>
@@ -411,7 +411,7 @@ export function AnalyticsDashboard({
         </div>
 
         {/* Dynamic Chart Container */}
-        <ScrollFrame axis="x" minWidth="620px" label="Historical telemetry chart">
+        <ScrollFrame axis="x" minWidth="620px" label="Usage history chart">
         <div ref={resizeRef} className="relative w-full min-w-[620px]">
           
           {hoveredIndex !== null && hoverCoords && dataset[hoveredIndex] && (
@@ -466,7 +466,7 @@ export function AnalyticsDashboard({
                 <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 01-2 2h-2a2 2 0 01-2-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 select-none">
-                Insufficient Historical Telemetry logs
+                Not enough usage data yet
               </p>
             </div>
           ) : (

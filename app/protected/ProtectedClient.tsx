@@ -45,7 +45,7 @@ function ProtectedContent() {
           showToast("success", `Valid API Key: ${data.name}`);
         } else {
           setIsValid(false);
-          showToast("error", "Invalid API Key. Access Denied.");
+          showToast("error", "Invalid API key.");
         }
       } catch {
         setIsValid(false);
@@ -62,16 +62,16 @@ function ProtectedContent() {
     <>
     <CommandPanel className="flex h-full flex-col p-8">
       <div className="space-y-2">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-300/75">Security / Key Verification</p>
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300/75">API Key Verification</p>
         <h1 className="font-serif text-4xl font-bold text-white md:text-5xl">Protected Area.</h1>
-        <p className="mt-4 text-sm font-medium text-slate-400">Secure credential verification and protected resource access.</p>
+        <p className="mt-4 text-sm font-medium text-slate-400">Validate an API key before showing protected content.</p>
       </div>
       
       <div className="mt-12 flex-1">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 space-y-4">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-300 border-t-transparent"></div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Verifying Access Key...</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Validating API key...</p>
           </div>
         ) : isValid ? (
           <div className="space-y-8">
@@ -83,8 +83,8 @@ function ProtectedContent() {
                   </svg>
                 </div>
                 <div>
-                  <h2 className="font-serif text-2xl font-bold">Access Granted</h2>
-                  <p className="text-sm font-medium opacity-70 italic">Credential: {keyName}</p>
+                  <h2 className="font-serif text-2xl font-bold">API key valid</h2>
+                  <p className="text-sm font-medium opacity-70 italic">API key: {keyName}</p>
                 </div>
               </div>
             </div>
@@ -93,9 +93,9 @@ function ProtectedContent() {
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-6">Restricted Resources</h3>
               <ul className="space-y-4">
                 {[
-                  { label: "Proprietary Algorithm Documentation", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
-                  { label: "Real-time Node Connection Status", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
-                  { label: "Protected Strategy Modules", icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" }
+                  { label: "Protected API Response", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
+                  { label: "Current Key Status", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
+                  { label: "Validation Result", icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" }
                 ].map((item) => (
                   <li key={item.label} className="flex items-center gap-4 group cursor-pointer transition-colors text-slate-300 hover:text-white">
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
@@ -115,14 +115,14 @@ function ProtectedContent() {
               </svg>
             </div>
             <div className="space-y-2">
-              <h2 className="font-serif text-3xl font-bold">Access Denied</h2>
-              <p className="text-sm font-medium opacity-70 text-rose-200">The provided API key is invalid or has been revoked by the orchestrator.</p>
+              <h2 className="font-serif text-3xl font-bold">API key invalid</h2>
+              <p className="text-sm font-medium opacity-70 text-rose-200">The provided API key is invalid or has been revoked.</p>
             </div>
             <button 
               onClick={() => window.history.back()}
               className="rounded-full bg-rose-500 px-8 py-3 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-rose-400 shadow-lg shadow-rose-500/20 hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] active:scale-95 cursor-pointer"
             >
-              Return to Safety
+              Go Back
             </button>
           </div>
         )}
@@ -132,7 +132,7 @@ function ProtectedContent() {
         <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
           <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <StatusPill tone="success" compact>End-to-End Encryption Enabled</StatusPill>
+        <StatusPill tone="success" compact>Protected Route</StatusPill>
       </div>
     </CommandPanel>
       <Toast toast={toast} />

@@ -63,7 +63,7 @@ export function FeatureGrid() {
   const typewriterTimer = useRef<NodeJS.Timeout | null>(null);
   const timeoutIds = useRef<NodeJS.Timeout[]>([]);
 
-  // Interactive Live Playground Simulator States & Actions
+  // Interactive playground preview state.
   const [playgroundState, setPlaygroundState] = useState<"idle" | "running" | "completed">("idle");
   const [playgroundTab, setPlaygroundTab] = useState<"request" | "response">("request");
 
@@ -113,24 +113,23 @@ export function FeatureGrid() {
     timeoutIds.current.forEach(clearTimeout);
     timeoutIds.current = [];
 
-    // Trigger log sequencing
     const t1 = setTimeout(() => {
-      setLogs(prev => [...prev, "[info] dandi: initializing analysis context"]);
+      setLogs(prev => [...prev, "[info] dandi: validating repository request"]);
     }, 200);
     timeoutIds.current.push(t1);
 
     const t2 = setTimeout(() => {
-      setLogs(prev => [...prev, "[info] github: parsing repository structures & fetching readme.md"]);
+      setLogs(prev => [...prev, "[info] github: reading repository metadata and README"]);
     }, 600);
     timeoutIds.current.push(t2);
 
     const t3 = setTimeout(() => {
-      setLogs(prev => [...prev, "[info] engine: preparing structured repository summary"]);
+      setLogs(prev => [...prev, "[info] api: preparing structured repository summary"]);
     }, 1000);
     timeoutIds.current.push(t3);
 
     const t4 = setTimeout(() => {
-      setLogs(prev => [...prev, "[success] core: successfully generated repository intelligence"]);
+      setLogs(prev => [...prev, "[success] api: repository summary generated"]);
     }, 1400);
     timeoutIds.current.push(t4);
 
@@ -166,15 +165,15 @@ export function FeatureGrid() {
   const currentRepoInfo = REPO_DATA[selectedRepo];
 
   return (
-    <section id="features" className="mx-auto max-w-7xl px-6 py-12 md:py-40">
-      <div className="mb-20 space-y-4 text-center md:text-left">
-        <h2 className="font-serif text-4xl font-bold md:text-6xl text-white">Architected for <br /> the next generation.</h2>
-        <p className="mx-auto max-w-md text-zinc-400 md:mx-0">Every component of Dandi is built with a singular focus on performance and reliability.</p>
+    <section id="features" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-32">
+      <div className="mb-14 space-y-4 text-center md:mb-20 md:text-left">
+        <h2 className="font-serif text-4xl font-bold md:text-6xl text-white">Built for fast <br /> repository insight.</h2>
+        <p className="mx-auto max-w-xl text-slate-400 md:mx-0">Dandi helps developers summarize repositories, inspect metadata, manage API access, and test requests quickly.</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-6 h-auto">
-        {/* Bento Item 1: Click to Orchestrate (Now Interactive!) */}
-        <div className="group relative col-span-full lg:col-span-3 overflow-hidden rounded-[32px] border border-white/5 bg-zinc-950/40 p-6 sm:p-8 md:p-10 transition-all hover:border-white/10 min-h-[480px] flex flex-col justify-between shadow-none" style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}>
+        {/* Bento Item 1: Interactive repository summary */}
+        <div className="group relative col-span-full flex min-h-[480px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-8 md:p-10 lg:col-span-3">
           <div className="relative z-10 space-y-5">
             <div className="flex items-center gap-4">
               <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-950/20 border border-emerald-500/20 shadow-sm">
@@ -183,12 +182,12 @@ export function FeatureGrid() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-xl font-bold tracking-tight text-white">Intelligent Summary</h3>
-                <p className="text-xs text-zinc-500">Interactive API preview</p>
+                <h3 className="text-xl font-bold tracking-tight text-white">Repository Summary</h3>
+                <p className="text-xs text-slate-500">Interactive API preview</p>
               </div>
             </div>
 
-            <p className="text-xs leading-relaxed text-zinc-400">
+            <p className="text-xs leading-relaxed text-slate-400">
               Generate structured repository summaries and analyze metadata directly from a public URL.
             </p>
 
@@ -199,19 +198,19 @@ export function FeatureGrid() {
                   type="button"
                   disabled={isOrchestrating}
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="w-full text-left appearance-none rounded-full border border-white/5 bg-zinc-950 pl-5 pr-10 py-3 text-xs font-bold text-zinc-200 outline-none transition hover:border-white/15 focus:border-zinc-100 disabled:opacity-50 active:scale-[0.99] cursor-pointer"
+                  className="w-full cursor-pointer appearance-none rounded-xl border border-white/10 bg-slate-950 py-3 pl-4 pr-10 text-left text-xs font-bold text-slate-200 outline-none transition hover:border-white/20 focus-visible:border-emerald-300/60 focus-visible:ring-2 focus-visible:ring-emerald-300/30 disabled:opacity-50 active:scale-[0.99]"
                 >
                   {selectedRepo.replace("/", " / ")}
                 </button>
                 <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center">
-                  <svg className={`h-3.5 w-3.5 text-zinc-500 transition-transform duration-300 ${isDropdownOpen ? "rotate-180 text-emerald-500" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <svg className={`h-3.5 w-3.5 text-slate-500 transition-transform duration-300 ${isDropdownOpen ? "rotate-180 text-emerald-500" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                   </svg>
                 </div>
                 
                 {/* Custom animated dropdown */}
                 <div
-                  className={`absolute left-0 right-0 top-full mt-2 rounded-2xl border border-white/5 bg-slate-950/95 p-1.5 shadow-xl backdrop-blur-md transition-all duration-355 origin-top transform z-50 ${
+                  className={`absolute left-0 right-0 top-full z-50 mt-2 origin-top rounded-2xl border border-white/10 bg-slate-950/98 p-1.5 shadow-xl backdrop-blur-sm transition-all duration-200 ${
                     isDropdownOpen
                       ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
                       : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
@@ -226,7 +225,7 @@ export function FeatureGrid() {
                         className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer ${
                           isSelected
                             ? "bg-emerald-500/10 text-emerald-400"
-                            : "text-zinc-400 hover:bg-white/5 hover:text-white"
+                            : "text-slate-400 hover:bg-white/5 hover:text-white"
                         }`}
                         onClick={() => {
                           setSelectedRepo(repo);
@@ -251,7 +250,7 @@ export function FeatureGrid() {
               <button
                 onClick={startOrchestration}
                 disabled={isOrchestrating}
-                className="rounded-full bg-zinc-100 hover:bg-zinc-200 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-950 shadow-md disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="flex items-center justify-center gap-2 rounded-xl bg-emerald-400 px-6 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-950 shadow-md transition-all hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50"
               >
                 {isOrchestrating ? (
                   <>
@@ -266,17 +265,17 @@ export function FeatureGrid() {
 
             {/* Output Screen Terminal */}
             {(logs.length > 0 || showResult) && (
-              <div className="rounded-2xl border border-white/5 bg-zinc-950 p-4 sm:p-5 font-mono text-[10px] leading-relaxed shadow-inner">
+              <div className="rounded-2xl border border-white/10 bg-slate-950 p-4 font-mono text-[10px] leading-relaxed shadow-inner sm:p-5">
                 {/* Simulated Header */}
-                <div className="flex items-center gap-1.5 pb-3 border-b border-zinc-800 mb-3 text-zinc-650">
+                <div className="mb-3 flex items-center gap-1.5 border-b border-slate-800 pb-3 text-slate-500">
                   <span className="h-2 w-2 rounded-full bg-zinc-700" />
                   <span className="h-2 w-2 rounded-full bg-zinc-700" />
                   <span className="h-2 w-2 rounded-full bg-zinc-700" />
-                  <span className="text-[8px] font-semibold uppercase tracking-widest ml-1 text-zinc-550">dandi-api output sample</span>
+                  <span className="ml-1 text-[8px] font-semibold uppercase tracking-widest text-slate-500">dandi-api output sample</span>
                 </div>
 
                 {/* Log Outputs */}
-                <div className="space-y-1.5 text-zinc-400">
+                <div className="space-y-1.5 text-slate-400">
                   {logs.map((log, idx) => (
                     <div key={idx} className="animate-in fade-in slide-in-from-left-2 duration-300">
                       {log}
@@ -288,36 +287,36 @@ export function FeatureGrid() {
                 {showResult && (
                   <div className="pt-2 animate-in fade-in duration-500 space-y-4">
                     {/* Multi Column Stats Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-zinc-900/50 border border-zinc-800 rounded-xl p-3 text-center">
+                    <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-800 bg-slate-900/50 p-3 text-center sm:grid-cols-4">
                       <div>
-                        <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">Stars</p>
+                        <p className="text-[8px] font-bold uppercase tracking-wider text-slate-500">Stars</p>
                         <p className="text-[10px] text-emerald-400 font-bold mt-0.5">{currentRepoInfo.stars}</p>
                       </div>
                       <div>
                         <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">Forks</p>
-                        <p className="text-[10px] text-zinc-300 font-bold mt-0.5">{currentRepoInfo.forks}</p>
+                        <p className="mt-0.5 text-[10px] font-bold text-slate-300">{currentRepoInfo.forks}</p>
                       </div>
                       <div>
-                        <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">License</p>
-                        <p className="text-[10px] text-zinc-300 font-bold mt-0.5">{currentRepoInfo.license}</p>
+                        <p className="text-[8px] font-bold uppercase tracking-wider text-slate-500">License</p>
+                        <p className="mt-0.5 text-[10px] font-bold text-slate-300">{currentRepoInfo.license}</p>
                       </div>
                       <div>
-                        <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">Version</p>
+                        <p className="text-[8px] font-bold uppercase tracking-wider text-slate-500">Version</p>
                         <p className="text-[10px] text-blue-400 font-bold mt-0.5">{currentRepoInfo.version}</p>
                       </div>
                     </div>
 
                     {/* Summary output */}
                     <div>
-                      <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider mb-1">Generated Summary</p>
-                      <p className="text-zinc-250 text-[10px] leading-relaxed bg-zinc-900/20 border border-zinc-800/40 rounded-xl p-3">
+                      <p className="mb-1 text-[8px] font-bold uppercase tracking-wider text-slate-500">Generated Summary</p>
+                      <p className="rounded-xl border border-slate-800/50 bg-slate-900/25 p-3 text-[10px] leading-relaxed text-slate-200">
                         {typewrittenSummary}
                       </p>
                     </div>
 
                     {/* Cool facts selectors */}
                     <div>
-                      <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider mb-1">Key Architecture Insights</p>
+                      <p className="mb-1 text-[8px] font-bold uppercase tracking-wider text-slate-500">Implementation Notes</p>
                       <div className="flex gap-2 mb-2">
                         {currentRepoInfo.coolFacts.map((_, idx) => (
                           <button
@@ -325,22 +324,22 @@ export function FeatureGrid() {
                             onClick={() => setActiveFactIdx(idx)}
                             className={`px-2 py-0.5 rounded text-[8px] font-bold tracking-widest uppercase transition ${
                               activeFactIdx === idx
-                                ? "bg-zinc-800 text-white border border-zinc-700"
-                                : "text-zinc-505 hover:text-zinc-300 border border-transparent"
+                                ? "border border-slate-700 bg-slate-800 text-white"
+                                : "border border-transparent text-slate-500 hover:text-slate-300"
                             }`}
                           >
                             Fact #{idx + 1}
                           </button>
                         ))}
                       </div>
-                      <p className="text-zinc-400 text-[9px] leading-relaxed italic bg-zinc-900/40 border border-zinc-800/40 rounded-lg p-2.5 min-h-[40px] animate-in fade-in duration-300">
+                      <p className="min-h-[40px] rounded-lg border border-slate-800/50 bg-slate-900/40 p-2.5 text-[9px] italic leading-relaxed text-slate-400 animate-in fade-in duration-300">
                         &quot;{currentRepoInfo.coolFacts[activeFactIdx]}&quot;
                       </p>
                     </div>
 
                     {/* Handoff CTA to Playground */}
-                    <div className="pt-4 border-t border-zinc-800/60 flex justify-between items-center text-[8px] font-bold uppercase tracking-widest mt-4">
-                      <span className="text-zinc-500 italic font-semibold">* Sample preview format</span>
+                      <div className="mt-4 flex flex-col justify-between gap-2 border-t border-slate-800/60 pt-4 text-[8px] font-bold uppercase tracking-widest sm:flex-row sm:items-center">
+                      <span className="font-semibold italic text-slate-500">Sample preview format</span>
                       <Link 
                         href="/playground" 
                         className="text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1"
@@ -356,34 +355,34 @@ export function FeatureGrid() {
               </div>
             )}
           </div>
-          <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-emerald-950/5 transition-transform group-hover:scale-150 -z-10"></div>
+          <div className="absolute -bottom-10 -right-10 -z-10 h-40 w-40 rounded-full bg-emerald-950/5"></div>
         </div>
 
-        {/* Bento Item 2: Active Quota Shield */}
-        <div className="group relative col-span-full lg:col-span-3 overflow-hidden rounded-[32px] border border-white/5 bg-zinc-950/40 p-6 sm:p-10 text-white transition-all hover:border-white/10 min-h-[300px] flex flex-col justify-between shadow-2xl" style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}>
+        {/* Bento Item 2: Usage Alerts */}
+        <div className="group relative col-span-full flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 text-white shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-10 lg:col-span-3">
           <div className="relative z-10 space-y-4 w-full lg:max-w-[calc(100%-260px)]">
-            <h3 className="text-2xl font-bold italic font-serif">Active Quota Shield</h3>
-            <p className="text-sm leading-relaxed text-zinc-450">Set custom alert thresholds and trigger instant notifications dynamically before your LLM credits run dry.</p>
+            <h3 className="font-serif text-2xl font-bold">Usage Alerts</h3>
+            <p className="text-sm leading-relaxed text-slate-400">Set alert thresholds for API usage and get notified before a project reaches its monthly plan limit.</p>
             
             {/* Real alert channels tag list */}
             <div className="flex flex-wrap gap-2 pt-2 select-none">
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/60 border border-white/5 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
-                Email Dispatch
+                Email Alerts
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/60 border border-white/5 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
-                In-Page Alerts
+                Dashboard Alerts
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/60 border border-white/5 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
-                SMS Logs
+                Usage Log
               </span>
             </div>
           </div>
           
           {/* Floating Glassmorphic Alert Box (Relative on mobile/tablet, absolute on lg desktop screens) */}
-          <div className="relative lg:absolute lg:bottom-8 lg:right-6 w-full lg:w-[240px] mt-6 lg:mt-0 rounded-2xl border border-amber-500/10 bg-zinc-950/80 p-4 shadow-xl backdrop-blur-md transition-all duration-500 select-none pointer-events-none group-hover:scale-105 group-hover:border-amber-500/30 opacity-60 group-hover:opacity-100 mx-auto">
+          <div className="relative mx-auto mt-6 w-full select-none rounded-2xl border border-amber-500/15 bg-slate-950/82 p-4 shadow-xl transition-colors duration-300 group-hover:border-amber-500/30 lg:absolute lg:bottom-8 lg:right-6 lg:mt-0 lg:w-[240px]">
             <div className="flex items-center gap-2 mb-3">
               <span className="flex h-1.5 w-1.5 rounded-full bg-amber-500 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
@@ -393,17 +392,17 @@ export function FeatureGrid() {
             </div>
             
             <div className="space-y-2">
-              <p className="text-[7.5px] font-mono text-zinc-550 truncate">KEY: dandi_sk_live_8f0a21...</p>
+              <p className="truncate font-mono text-[7.5px] text-slate-500">KEY: dandi_sk_live_8f0a21...</p>
               <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
                 <div className="h-full bg-amber-500 rounded-full w-4/5 animate-pulse" />
               </div>
-              <div className="flex justify-between text-[7px] font-bold text-zinc-500">
+              <div className="flex justify-between text-[7px] font-bold text-slate-500">
                 <span>Usage: 4,000 reqs</span>
                 <span>Limit: 5,000 reqs</span>
               </div>
             </div>
 
-            <div className="mt-3 pt-2 border-t border-zinc-900/60 flex items-center justify-between text-[7.5px] font-bold text-zinc-555">
+            <div className="mt-3 flex items-center justify-between border-t border-slate-900/70 pt-2 text-[7.5px] font-bold text-slate-500">
               <span>Notification:</span>
               <span className="text-emerald-400 flex items-center gap-1 font-sans">
                 <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3">
@@ -418,23 +417,23 @@ export function FeatureGrid() {
         </div>
 
         {/* Bento Item 3 (Large): Live Playground */}
-        <div className="group relative col-span-full lg:col-span-4 overflow-hidden rounded-[32px] border border-white/5 bg-zinc-950/40 p-6 sm:p-8 md:p-10 transition-all hover:border-white/10 min-h-[300px] shadow-none flex flex-col lg:flex-row gap-6 lg:items-center" style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}>
+        <div className="group relative col-span-full flex min-h-[300px] flex-col gap-6 overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-8 md:p-10 lg:col-span-4 lg:flex-row lg:items-center">
           <div className="space-y-4 lg:w-5/12 relative z-10">
             <h3 className="text-2xl font-bold text-white">Live Playground</h3>
-            <p className="text-sm leading-relaxed text-zinc-400">Test your orchestration before you ship. Monitor latency, inspect raw JSON responses, and generate snippets instantly.</p>
+            <p className="text-sm leading-relaxed text-slate-400">Test requests before you ship. Inspect raw JSON responses, review request state, and generate snippets quickly.</p>
           </div>
           
           <div className="lg:w-7/12 relative mt-4 lg:mt-0 h-full">
             {/* Mock IDE */}
-            <div className="rounded-2xl border border-white/5 bg-zinc-950 shadow-xl overflow-hidden flex flex-col h-[215px] sm:h-[200px] relative transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-2xl">
-              <div className="flex items-center justify-between px-4 py-2 bg-zinc-900/60 border-b border-white/5">
+            <div className="relative flex h-[215px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-xl transition-colors duration-300 group-hover:border-white/15 sm:h-[200px]">
+              <div className="flex items-center justify-between border-b border-white/8 bg-slate-900/60 px-4 py-2">
                 <div className="flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-red-400"></span>
                   <span className="h-2 w-2 rounded-full bg-amber-400"></span>
                   <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
                   
                   {/* File title on desktop, tabs on mobile */}
-                  <span className="hidden sm:inline ml-2 text-[9px] font-mono text-zinc-550 uppercase tracking-widest">playground.ts</span>
+                  <span className="ml-2 hidden font-mono text-[9px] uppercase tracking-widest text-slate-500 sm:inline">playground.ts</span>
                   
                   {/* Mobile tabs selector */}
                   <div className="flex sm:hidden ml-3 bg-zinc-900 border border-white/5 rounded-lg p-0.5 select-none">
@@ -466,7 +465,7 @@ export function FeatureGrid() {
                   {playgroundState === "idle" && (
                     <button
                       onClick={runPlaygroundSimulator}
-                      className="cursor-pointer px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-sm active:scale-95 transition"
+                    className="cursor-pointer rounded-lg bg-emerald-500 px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-white shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 active:scale-95"
                     >
                       Run
                     </button>
@@ -476,14 +475,14 @@ export function FeatureGrid() {
                       disabled
                       className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-zinc-500 bg-zinc-800 rounded-lg flex items-center gap-1 select-none"
                     >
-                      <span className="h-1.5 w-1.5 animate-spin rounded-full border border-zinc-400 border-t-zinc-355" />
+                      <span className="h-1.5 w-1.5 animate-spin rounded-full border border-zinc-400 border-t-slate-300" />
                       Run
                     </button>
                   )}
                   {playgroundState === "completed" && (
                     <button
                       onClick={resetPlaygroundSimulator}
-                      className="cursor-pointer px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-zinc-200 bg-zinc-900 border border-white/5 rounded-lg shadow-sm hover:bg-white/5 active:scale-95 transition"
+                      className="cursor-pointer rounded-lg border border-white/10 bg-slate-900 px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-slate-200 shadow-sm transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 active:scale-95"
                     >
                       Reset
                     </button>
@@ -493,7 +492,7 @@ export function FeatureGrid() {
               
               <div className="flex-1 flex font-mono text-[9px] overflow-hidden">
                 {/* Left Pane: Code */}
-                <div className={`w-full sm:w-1/2 p-3 sm:p-3.5 sm:border-r border-white/5 text-zinc-400 overflow-y-auto ${playgroundTab === "request" ? "block" : "hidden sm:block"}`}>
+                <div className={`w-full overflow-y-auto p-3 text-slate-400 sm:w-1/2 sm:border-r sm:border-white/8 sm:p-3.5 ${playgroundTab === "request" ? "block" : "hidden sm:block"}`}>
                   <span className="text-blue-400">const</span> res = <span className="text-blue-400">await</span> fetch(<br/>
                   &nbsp;&nbsp;&quot;/api/github-summarizer&quot;,<br/>
                   &nbsp;&nbsp;&#123;<br/>
@@ -506,12 +505,12 @@ export function FeatureGrid() {
                   );
                 </div>
                 {/* Right Pane: Output */}
-                <div className={`w-full sm:w-1/2 p-3 sm:p-4 bg-zinc-950/60 text-zinc-400 relative ${playgroundTab === "response" ? "block" : "hidden sm:block"}`}>
+                <div className={`relative w-full bg-slate-950/60 p-3 text-slate-400 sm:w-1/2 sm:p-4 ${playgroundTab === "response" ? "block" : "hidden sm:block"}`}>
                   {playgroundState === "idle" && (
                     <div className="absolute inset-0 flex flex-col justify-center items-center gap-1.5 p-4 text-center select-none bg-zinc-950/60 animate-in fade-in duration-300">
                       <button 
                         onClick={runPlaygroundSimulator}
-                        className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20 active:scale-95 transition-all shadow-xs"
+                        className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 shadow-xs transition-all hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 active:scale-95"
                       >
                         <svg viewBox="0 0 24 24" className="h-3 w-3 fill-current ml-0.5">
                           <path d="M8 5v14l11-7z" />
@@ -542,7 +541,7 @@ export function FeatureGrid() {
                   )}
                   
                   {/* Subtle decorative bottom gradient */}
-                  <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-zinc-955 to-transparent pointer-events-none z-10" />
+                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-8 bg-gradient-to-t from-slate-950 to-transparent" />
                 </div>
               </div>
             </div>
@@ -550,20 +549,20 @@ export function FeatureGrid() {
         </div>
 
         {/* Bento Item 4: API Developer First */}
-        <div className="group relative col-span-full lg:col-span-2 overflow-hidden rounded-[32px] border border-white/5 bg-zinc-950/40 p-6 sm:p-10 transition-all hover:border-white/10 min-h-[300px] flex flex-col justify-between shadow-none" style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}>
+        <div className="group relative col-span-full flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-10 lg:col-span-2">
           <div className="relative z-10 space-y-2 text-left">
             <p className="text-5xl font-black italic font-serif tracking-tighter text-white">API</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-550">Developer First</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Developer First</p>
           </div>
           
           <div className="relative z-10 w-full mt-8">
-            <div className="bg-zinc-900/80 rounded-xl p-4 shadow-xl border border-white/5 transition-transform duration-500 group-hover:-translate-y-1 group-hover:shadow-2xl">
+            <div className="rounded-xl border border-white/10 bg-slate-900/80 p-4 shadow-xl transition-colors duration-300 group-hover:border-white/15">
               <div className="flex gap-1.5 mb-3">
                 <div className="h-2 w-2 rounded-full bg-zinc-700" />
                 <div className="h-2 w-2 rounded-full bg-zinc-700" />
                 <div className="h-2 w-2 rounded-full bg-zinc-700" />
               </div>
-              <p className="font-mono text-[9px] leading-relaxed break-all text-zinc-305">
+              <p className="break-all font-mono text-[9px] leading-relaxed text-slate-300">
                 <span className="text-emerald-400">~</span> <span className="text-zinc-300">curl -X POST</span> https://dandi.ai/api/github-summarizer \<br/>
                 &nbsp;&nbsp;-H <span className="text-zinc-400">&quot;x-api-key: dandi_sk_...&quot;</span> \<br/>
                 &nbsp;&nbsp;-d <span className="text-zinc-400">&#39;&#123;&quot;githubUrl&quot;:&quot;...&quot;&#125;&#39;</span><span className="animate-pulse">_</span>

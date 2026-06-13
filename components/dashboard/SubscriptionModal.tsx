@@ -57,7 +57,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
   const [isInitializing, setIsInitializing] = useState(initialPendingPlan === "Hobby");
   const [billingInterval, setBillingInterval] = useState<"month" | "year">(initialBillingInterval || "month");
   const hasInitializedRef = React.useRef(false);
-  
+
   // State for card details
   const [cardData, setCardData] = useState({
     name: "",
@@ -116,7 +116,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
         setView(targetView);
         setPendingPlan(finalPendingPlan);
         setBillingInterval(initialBillingInterval || "month");
-        
+
         const s = session?.user;
         if (s) {
           const meta = s.user_metadata || {};
@@ -133,7 +133,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
             country: meta.billing_country || prev.country
           }));
           setShowAddressForm(!meta.billing_street);
-          
+
           setFormValues({
             name: meta.full_name || "",
             street: meta.billing_street || "",
@@ -448,7 +448,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
 
   const handlePlanSelection = async (newPlan: string) => {
     if (newPlan === planName) return;
-    
+
     if (newPlan === "Hobby") {
       setPendingPlan("Hobby");
       handleInitiateDowngrade();
@@ -487,7 +487,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
 
   const handleExecutePlanChange = async () => {
     if (!pendingPlan) return;
-    
+
     setIsLoading(true);
     try {
       // 1. If upgrading, re-enable any keys that were disabled during a previous downgrade
@@ -517,7 +517,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
       const response = await fetch("/api/stripe/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           priceId,
           planId: pendingPlan
         }),
@@ -610,37 +610,31 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
       {isInitializing ? (
         <div className="flex flex-col items-center justify-center gap-6 p-12">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/5 border-t-white" />
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-slate-500 text-center">Verifying Operational Status...</p>
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-slate-500 text-center">Checking Plan Limits...</p>
         </div>
       ) : (
         <div key={view} className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-500 sm:max-h-[calc(100dvh-3rem)]">
           {/* Adaptive Header: Softened Rose-Red for destructive actions, Slate-950 for others */}
-          <div className={`relative overflow-hidden p-6 transition-all duration-500 sm:p-10 ${(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector')
-            ? 'bg-gradient-to-br from-[#881337] to-[#e11d48] text-white' 
+          <div className={`relative overflow-hidden border-b border-white/5 p-6 transition-all duration-300 sm:p-8 ${(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector')
+            ? 'bg-rose-950/40 text-white'
             : 'bg-slate-950 text-white border-b border-white/5'}`}>
-            
-            {/* Subtle Grain Overlay for Destructive Views */}
-            {(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector') && (
-              <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")' }} />
-            )}
-            
             <ModalCloseButton
               onClick={onClose}
-              className="absolute right-3 top-3 z-30 text-white/35 hover:bg-white/10 hover:text-white sm:right-6 sm:top-6"
+              className="absolute right-3 top-3 z-30 text-white/45 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:right-5 sm:top-5"
             />
-            
+
             <div className="relative z-10 space-y-2 pr-12 sm:pr-14">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">
-                {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : view === "remove-card-confirm" ? "Confirm Removal" : view === "key-downgrade-selector" ? "Hobby Plan Limit" : "Confirm Cancellation"}
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white/45">
+                {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Plan" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Billing Details") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : view === "remove-card-confirm" ? "Confirm Removal" : view === "key-downgrade-selector" ? "Hobby Plan Limit" : "Confirm Cancellation"}
               </p>
-              <h3 id="subscription-modal-title" className="font-serif text-3xl font-bold italic tracking-tight sm:text-6xl text-white">
+              <h3 id="subscription-modal-title" className="font-serif text-3xl font-bold italic tracking-tight text-white sm:text-5xl">
                 {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Thank You!" : view === "plan-change-review" ? "Confirm Switch" : view === "remove-card-confirm" ? "Remove Card?" : view === "key-downgrade-selector" ? "Select Keys" : "Cancel Plan?"}
               </h3>
             </div>
 
             {view === "overview" && planName !== "Hobby" && (
-              <div className="relative z-10 mt-8 flex items-baseline gap-2 sm:mt-10">
-                <span className="text-5xl font-bold tracking-tighter sm:text-7xl">{currentPlan.price}</span>
+              <div className="relative z-10 mt-8 flex items-baseline gap-2">
+                <span className="text-5xl font-bold tracking-tighter sm:text-6xl">{currentPlan.price}</span>
                 <span className="text-sm font-medium text-white/40">/ per month</span>
               </div>
             )}
@@ -649,7 +643,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
           {/* Body Section */}
           <div className="p-5 sm:p-8">
             {view === "change-plan" ? (
-              <PlanSelection 
+              <PlanSelection
                 planName={planName}
                 isLoading={isLoading}
                 billingInterval={billingInterval}
@@ -659,7 +653,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
               />
             ) : view === "update-payment" ? (
               <div className="flex flex-col gap-6 md:flex-row md:gap-8">
-                <PaymentForm 
+                <PaymentForm
                   formValues={formValues}
                   setFormValues={setFormValues}
                   handleInputChange={handleInputChange}
@@ -680,14 +674,14 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
                 <OrderSummary pendingPlan={pendingPlan} />
               </div>
             ) : view === "success" ? (
-              <SuccessView 
-                pendingPlan={pendingPlan} 
-                transactionId={transactionId} 
-                session={session || null} 
+              <SuccessView
+                pendingPlan={pendingPlan}
+                transactionId={transactionId}
+                session={session || null}
                 onClose={onClose}
               />
             ) : view === "plan-change-review" ? (
-              <PlanReview 
+              <PlanReview
                 pendingPlan={pendingPlan}
                 isLoading={isLoading}
                 billingInterval={billingInterval}
@@ -702,7 +696,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
                 onBack={onClose}
               />
             ) : view === "cancel-confirm" ? (
-              <CancelConfirmation 
+              <CancelConfirmation
                 isLoading={isLoading}
                 hasCard={false}
                 nextBillingDate={nextBillingDate}
@@ -711,13 +705,13 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
                 onCancel={onClose}
               />
             ) : view === "remove-card-confirm" ? (
-              <RemoveCardConfirmation 
+              <RemoveCardConfirmation
                 isLoading={isLoading}
                 onConfirm={executeRemoveCard}
                 onCancel={() => setView("overview")}
               />
             ) : (
-              <Overview 
+              <Overview
                 planName={planName}
                 currentPlan={currentPlan}
                 nextBillingDate={nextBillingDate}

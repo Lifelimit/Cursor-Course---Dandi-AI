@@ -12,7 +12,7 @@ type CancelConfirmationProps = {
 export function CancelConfirmation({ isLoading, hasCard, nextBillingDate, planName, onConfirm, onCancel }: CancelConfirmationProps) {
   const [keepCard, setKeepCard] = useState(true);
 
-  const formattedDate = nextBillingDate 
+  const formattedDate = nextBillingDate
     ? new Date(nextBillingDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : 'the end of your current term';
 
@@ -26,12 +26,11 @@ export function CancelConfirmation({ isLoading, hasCard, nextBillingDate, planNa
 
       {/* Card Retention Toggle */}
       {hasCard && (
-        <div 
-          className="px-6 py-4 rounded-[24px] bg-slate-950/50 border border-white/5 flex items-center justify-between group cursor-pointer hover:bg-slate-950/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" 
+        <button
+          type="button"
+          className="px-6 py-4 rounded-[24px] bg-slate-950/50 border border-white/5 flex w-full items-center justify-between gap-4 text-left group cursor-pointer hover:bg-slate-950/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
           onClick={() => setKeepCard(!keepCard)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setKeepCard(!keepCard); } }}
+          aria-pressed={keepCard}
         >
           <div className="space-y-1">
             <p className="text-xs font-bold text-white">Retain payment method</p>
@@ -40,20 +39,22 @@ export function CancelConfirmation({ isLoading, hasCard, nextBillingDate, planNa
           <div className={`h-6 w-12 rounded-full p-1 transition-all duration-300 ${keepCard ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-slate-800'}`}>
             <div className={`h-4 w-4 rounded-full bg-white transition-all duration-300 ${keepCard ? 'translate-x-6' : 'translate-x-0'}`} />
           </div>
-        </div>
+        </button>
       )}
 
-      <div className="flex flex-col gap-3 pt-6 border-t border-white/5">
-        <button 
+      <div className="flex flex-col gap-3 border-t border-white/5 pt-6">
+        <button
+          type="button"
           onClick={() => onConfirm(keepCard)}
           disabled={isLoading}
-          className="w-full rounded-full bg-slate-100 py-5 text-[10px] font-black uppercase tracking-widest text-slate-950 transition hover:bg-slate-200 shadow-xl disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+          className="w-full rounded-full bg-rose-600 py-5 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-rose-700 shadow-xl disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         >
           {isLoading ? "Scheduling..." : "Schedule Cancellation"}
         </button>
-        <button 
+        <button
+          type="button"
           onClick={onCancel}
-          className="w-full rounded-full border border-white/10 bg-slate-950/40 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 cursor-pointer"
+          className="w-full rounded-full border border-white/10 bg-slate-950/40 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
         >
           Keep My Plan
         </button>
@@ -86,16 +87,18 @@ export function RemoveCardConfirmation({ isLoading, onConfirm, onCancel }: Remov
       </div>
 
       <div className="flex flex-col gap-3 mt-12">
-        <button 
+        <button
+          type="button"
           onClick={onConfirm}
           disabled={isLoading}
           className="w-full rounded-full bg-rose-600 py-4 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-rose-700 disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         >
           {isLoading ? "Processing..." : "Remove Card"}
         </button>
-        <button 
+        <button
+          type="button"
           onClick={onCancel}
-          className="w-full rounded-full border border-white/10 bg-slate-950/40 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 cursor-pointer"
+          className="w-full rounded-full border border-white/10 bg-slate-950/40 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
         >
           Keep Card
         </button>

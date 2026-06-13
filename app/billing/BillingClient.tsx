@@ -11,7 +11,7 @@ import { PlanComparison } from "@/components/billing/PlanComparison";
 import { PaymentMethodCard } from "@/components/billing/PaymentMethodCard";
 import { InvoiceTable, type Invoice } from "@/components/billing/InvoiceTable";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
-import { CommandPanel, StatusPill } from "@/components/command";
+import { CommandPanel, ModalFrame, StatusPill } from "@/components/command";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 
@@ -39,18 +39,18 @@ type BillingData = {
 };
 
 
-export default function BillingClient({ 
-  initialUser, 
+export default function BillingClient({
+  initialUser,
   initialInvoices = [],
   initialData = null
-}: { 
-  initialUser: User | null, 
+}: {
+  initialUser: User | null,
   initialInvoices?: Invoice[],
   initialData?: BillingData | null
 }) {
   const activeUser = initialUser;
   const hasRefreshed = useRef(false);
-  
+
   const [data, setData] = useState<BillingData | null>(initialData);
   const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
   const [isLoading, setIsLoading] = useState(initialData === null);
@@ -95,7 +95,7 @@ export default function BillingClient({
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("success") === "true" && !hasRefreshed.current) {
       hasRefreshed.current = true;
-      
+
       // Clean up URL IMMEDIATELY to prevent loops on re-render/refresh
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
@@ -174,9 +174,15 @@ export default function BillingClient({
   }, [fetchBillingData, initialData]);
 
   const currentData = data || initialData;
+  const paymentMethods = currentData?.paymentMethods || [];
+  const defaultPaymentMethod = paymentMethods.find(pm => pm.isDefault);
+  const secondaryPaymentMethods = paymentMethods.filter(pm => !pm.isDefault);
+  const secondaryCount = secondaryPaymentMethods.length;
+  const safeSecondaryIndex = secondaryCount > 0 ? Math.min(secondaryIndex, secondaryCount - 1) : 0;
+  const activeSecondaryPosition = secondaryCount > 0 ? safeSecondaryIndex + 1 : 0;
   const currentPlan = currentData?.plan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby";
   const billingInterval = (activeUser?.user_metadata as { billing_interval?: "month" | "year" })?.billing_interval || "month";
-  
+
   const { monthlyLimit: currentLimit, isUnlimited } = getPlanLimits(currentPlan);
 
   const alerts = computeSidebarAlerts(currentData?.keys || []);
@@ -188,7 +194,7 @@ export default function BillingClient({
 
   const handleUpgrade = (planId: string, interval?: "month" | "year") => {
     if (interval) setModalBillingInterval(interval);
-    
+
     // Unified Downgrade Flow: Intercept any move to Hobby and show the premium Key Selection Modal
     if (planId === "Hobby" && currentPlan !== "Hobby") {
       setModalPendingPlan("Hobby");
@@ -215,14 +221,13 @@ export default function BillingClient({
   };
 
   const handleDeckKeyDown = (e: React.KeyboardEvent) => {
-    const secondaryMethods = currentData?.paymentMethods?.filter(pm => !pm.isDefault) || [];
-    if (secondaryMethods.length <= 1) return;
+    if (secondaryCount <= 1) return;
     if (e.key === "ArrowRight" || e.key === "ArrowDown") {
       e.preventDefault();
-      setSecondaryIndex(prev => (prev + 1) % secondaryMethods.length);
+      setSecondaryIndex(prev => (prev + 1) % secondaryCount);
     } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
       e.preventDefault();
-      setSecondaryIndex(prev => (prev - 1 + secondaryMethods.length) % secondaryMethods.length);
+      setSecondaryIndex(prev => (prev - 1 + secondaryCount) % secondaryCount);
     }
   };
 
@@ -241,7 +246,7 @@ export default function BillingClient({
         }}
       >
           <DashboardPageHeader
-            eyebrow="Account / Financials"
+            eyebrow="Account / Billing"
             title="Billing"
             description="Manage subscription plans, invoices, and payment methods."
           />
@@ -254,7 +259,7 @@ export default function BillingClient({
           ) : (
             <>
               {/* Plan Hero */}
-              <PlanHero 
+              <PlanHero
                 plan={currentPlan}
                 limit={currentLimit}
                 usage={currentData?.totalUsage || 0}
@@ -270,40 +275,40 @@ export default function BillingClient({
               <section className="space-y-6">
                 <div className="flex flex-col gap-3 px-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Financial Infrastructure</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/70">Payment Methods</p>
                     <h3 className="mt-1 font-serif text-2xl font-bold text-white">Wallet</h3>
                   </div>
-                  <button 
+                  <button
+                    type="button"
                     disabled={isLoading}
                     onClick={() => {
                       setModalInitialView("update-payment");
                       setModalPendingPlan(null);
                       setIsModalOpen(true);
                     }}
-                    className="text-[10px] font-black uppercase tracking-widest text-emerald-300 hover:underline disabled:opacity-50"
+                    className="inline-flex min-h-10 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 text-[10px] font-black uppercase tracking-widest text-emerald-100 transition-all hover:border-emerald-300/45 hover:bg-emerald-300/20 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                   >
                     + Add Card
                   </button>
                 </div>
-                <div className="grid min-w-0 gap-6 lg:grid-cols-3">
+                <div className="grid min-w-0 gap-5 sm:gap-6 lg:grid-cols-3">
                   {/* Primary Card - Takes more space or visual weight */}
-                  <div className={`${currentData?.paymentMethods?.some(pm => !pm.isDefault) ? 'lg:col-span-2' : 'lg:col-span-3 max-w-4xl'} flex min-w-0 flex-col`}>
+                  <div className={`${secondaryCount > 0 ? 'lg:col-span-2' : 'lg:col-span-3 max-w-4xl'} flex min-w-0 flex-col`}>
                     <div className="flex h-6 items-center px-2">
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Primary Method</p>
                     </div>
                     <div className="mt-4 flex-1">
-                      {currentData?.paymentMethods?.find(pm => pm.isDefault) ? (
-                        <PaymentMethodCard 
-                          brand={currentData.paymentMethods.find(pm => pm.isDefault)!.brand}
-                          last4={currentData.paymentMethods.find(pm => pm.isDefault)!.last4}
-                          expiryMonth={parseInt(currentData.paymentMethods.find(pm => pm.isDefault)!.expiry.split('/')[0])}
-                          expiryYear={parseInt(currentData.paymentMethods.find(pm => pm.isDefault)!.expiry.split('/')[1])}
+                      {defaultPaymentMethod ? (
+                        <PaymentMethodCard
+                          brand={defaultPaymentMethod.brand}
+                          last4={defaultPaymentMethod.last4}
+                          expiryMonth={parseInt(defaultPaymentMethod.expiry.split('/')[0])}
+                          expiryYear={parseInt(defaultPaymentMethod.expiry.split('/')[1])}
                           isDefault={true}
                           onDelete={() => {
-                            const pm = currentData!.paymentMethods!.find(p => p.isDefault)!;
-                            setCardToDelete({ id: pm.id, brand: pm.brand, last4: pm.last4 });
-                          }} 
-                          onSetDefault={() => {}} 
+                            setCardToDelete({ id: defaultPaymentMethod.id, brand: defaultPaymentMethod.brand, last4: defaultPaymentMethod.last4 });
+                          }}
+                          onSetDefault={() => {}}
                         />
                       ) : (
                         <CommandPanel className="flex h-[180px] items-center justify-center border-dashed text-center">
@@ -314,31 +319,38 @@ export default function BillingClient({
                   </div>
 
                   {/* Secondary Cards - Apple Wallet Stack Layout */}
-                  {currentData?.paymentMethods?.some(pm => !pm.isDefault) && (
-                    <div className="flex flex-col">
-                      <div className="flex h-6 items-center justify-between px-2">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Secondary Methods</p>
-                        {currentData?.paymentMethods && currentData.paymentMethods.filter(pm => !pm.isDefault).length > 1 && !prefersReducedMotion && (
-                          <div className="flex gap-2">
-                            <button 
+                  {secondaryCount > 0 && (
+                    <div className="flex min-w-0 flex-col">
+                      <div className="flex min-h-6 flex-wrap items-center justify-between gap-2 px-2">
+                        <div className="flex items-center gap-2">
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Secondary Methods</p>
+                          {secondaryCount > 1 && (
+                            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-[10px] font-bold text-slate-300">
+                              {activeSecondaryPosition} of {secondaryCount}
+                            </span>
+                          )}
+                        </div>
+                        {secondaryCount > 1 && !prefersReducedMotion && (
+                          <div className="flex gap-2" aria-label="Secondary card deck controls">
+                            <button
+                              type="button"
                               onClick={() => {
-                                const secondaryMethods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
-                                setSecondaryIndex(prev => (prev - 1 + secondaryMethods.length) % secondaryMethods.length);
+                                setSecondaryIndex(prev => (prev - 1 + secondaryCount) % secondaryCount);
                               }}
                               aria-label="Previous secondary card"
-                              className="rounded-full border border-white/10 p-1 text-slate-500 hover:border-emerald-300/30 hover:text-emerald-200 transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 cursor-pointer"
+                              className="rounded-full border border-white/10 bg-slate-950/70 p-1.5 text-slate-400 transition-all hover:border-emerald-300/30 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
                             >
                               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                                 <path d="M15 19l-7-7 7-7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                               </svg>
                             </button>
-                            <button 
+                            <button
+                              type="button"
                               onClick={() => {
-                                const secondaryMethods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
-                                setSecondaryIndex(prev => (prev + 1) % secondaryMethods.length);
+                                setSecondaryIndex(prev => (prev + 1) % secondaryCount);
                               }}
                               aria-label="Next secondary card"
-                              className="rounded-full border border-white/10 p-1 text-slate-500 hover:border-emerald-300/30 hover:text-emerald-200 transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 cursor-pointer"
+                              className="rounded-full border border-white/10 bg-slate-950/70 p-1.5 text-slate-400 transition-all hover:border-emerald-300/30 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
                             >
                               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                                 <path d="M9 5l7 7-7 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -347,52 +359,52 @@ export default function BillingClient({
                           </div>
                         )}
                       </div>
-                      
+
                       {prefersReducedMotion ? (
                         <div className="mt-4 space-y-4 max-h-[380px] overflow-y-auto pr-1.5 command-scroll">
-                          {currentData.paymentMethods.filter(pm => !pm.isDefault).map((pm) => (
+                          {secondaryPaymentMethods.map((pm) => (
                             <div key={pm.id} className="w-full">
-                              <PaymentMethodCard 
+                              <PaymentMethodCard
                                 brand={pm.brand}
                                 last4={pm.last4}
                                 expiryMonth={parseInt(pm.expiry.split('/')[0])}
                                 expiryYear={parseInt(pm.expiry.split('/')[1])}
                                 isDefault={false}
                                 isActive={true}
-                                onDelete={() => setCardToDelete({ id: pm.id, brand: pm.brand, last4: pm.last4 })} 
-                                onSetDefault={() => handleSetDefault(pm.id)} 
+                                onDelete={() => setCardToDelete({ id: pm.id, brand: pm.brand, last4: pm.last4 })}
+                                onSetDefault={() => handleSetDefault(pm.id)}
                               />
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div 
-                          className="relative mt-4 h-[250px] w-full focus:outline-none" 
-                          style={{ perspective: '1200px' }}
+                        <div
+                          className="relative mt-4 h-[250px] w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:h-[260px]"
                           onKeyDown={handleDeckKeyDown}
+                          tabIndex={secondaryCount > 1 ? 0 : -1}
+                          role="region"
                           aria-label="Secondary payment methods card deck. Use arrow keys to rotate cards."
                         >
-                          {currentData.paymentMethods.filter(pm => !pm.isDefault).map((pm, idx) => {
-                            const methods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
-                            const length = methods.length;
-                            const relativeIdx = (idx - secondaryIndex + length) % length;
+                          {secondaryPaymentMethods.map((pm, idx) => {
+                            const length = secondaryCount;
+                            const relativeIdx = (idx - safeSecondaryIndex + length) % length;
                             const isVisible = relativeIdx <= 2 || relativeIdx >= length - 1;
                             const isActive = relativeIdx === 0;
 
                             return (
-                              <div 
-                                key={pm.id} 
-                                className="absolute top-0 left-0 w-full transition-all duration-500 ease-out"
+                              <div
+                                key={pm.id}
+                                className="absolute top-0 left-0 w-full transition-all duration-500 ease-out motion-reduce:transition-none"
                                 style={{
-                                  willChange: 'transform, opacity',
-                                  transform: `translate3d(0, ${-relativeIdx * 14}px, ${-relativeIdx * 25}px) scale(${1 - relativeIdx * 0.04}) rotateX(${relativeIdx > 0 ? -4 : 0}deg)`,
+                                  willChange: isActive ? 'transform, opacity' : 'auto',
+                                  transform: `translateY(${relativeIdx * 14}px) scale(${1 - relativeIdx * 0.04})`,
                                   zIndex: length - relativeIdx,
                                   opacity: Math.max(0, 1 - (relativeIdx * 0.2)),
                                   visibility: isVisible ? 'visible' : 'hidden'
                                 }}
                               >
-                                <div className="transform scale-[0.88] origin-top-left">
-                                  <PaymentMethodCard 
+                                <div className="origin-top-left transform scale-[0.92] sm:scale-[0.88]">
+                                  <PaymentMethodCard
                                     brand={pm.brand}
                                     last4={pm.last4}
                                     expiryMonth={parseInt(pm.expiry.split('/')[0])}
@@ -401,8 +413,8 @@ export default function BillingClient({
                                     isActive={isActive}
                                     onClick={() => setSecondaryIndex(idx)}
                                     onFocus={() => setSecondaryIndex(idx)}
-                                    onDelete={() => setCardToDelete({ id: pm.id, brand: pm.brand, last4: pm.last4 })} 
-                                    onSetDefault={() => handleSetDefault(pm.id)} 
+                                    onDelete={() => setCardToDelete({ id: pm.id, brand: pm.brand, last4: pm.last4 })}
+                                    onSetDefault={() => handleSetDefault(pm.id)}
                                   />
                                 </div>
                               </div>
@@ -417,9 +429,9 @@ export default function BillingClient({
 
               {/* Plan Switcher */}
               <section className="space-y-6">
-                <PlanComparison 
-                  currentPlan={currentPlan} 
-                  onUpgrade={handleUpgrade} 
+                <PlanComparison
+                  currentPlan={currentPlan}
+                  onUpgrade={handleUpgrade}
                   billingInterval={billingInterval}
                 />
               </section>
@@ -442,12 +454,13 @@ export default function BillingClient({
                       <h3 className="text-sm font-black uppercase tracking-widest text-red-300">Danger Zone</h3>
                       <p className="mt-1 text-xs text-red-200/55">Cancel your premium subscription and downgrade to the Hobby plan at the end of your term.</p>
                     </div>
-                    <button 
+                    <button
+                      type="button"
                       onClick={() => {
                         setModalPendingPlan("Hobby");
                         setIsModalOpen(true);
                       }}
-                      className="rounded-2xl border border-red-400/20 bg-red-400/10 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-red-200 transition-all hover:bg-red-500 hover:text-white"
+                      className="rounded-2xl border border-red-400/20 bg-red-400/10 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-red-200 transition-all hover:bg-red-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                     >
                       Cancel Subscription
                     </button>
@@ -458,7 +471,7 @@ export default function BillingClient({
           )}
       </DashboardShell>
 
-      <SubscriptionModal 
+      <SubscriptionModal
         key={isModalOpen ? "open" : "closed"}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -476,42 +489,39 @@ export default function BillingClient({
 
       {/* Remove Card Confirmation Modal */}
       {cardToDelete && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm transition-all duration-300 sm:items-center sm:p-6">
-          <div 
-            className="my-3 w-full max-w-md max-h-[calc(100dvh-1.5rem)] scale-95 transform overflow-y-auto rounded-[28px] border border-white/5 bg-slate-950/90 p-6 shadow-2xl transition-all duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[32px] sm:p-8"
-            style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
-          >
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-rose-400">Warning / Security</p>
-                <h3 className="font-serif text-2xl font-bold tracking-tight text-white">Remove Payment Method?</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Are you sure you want to remove the <strong className="text-slate-200">{cardToDelete.brand}</strong> card ending in <strong className="text-slate-200">•••• {cardToDelete.last4}</strong>? 
-                  {cardToDelete.id === data?.paymentMethods?.find(pm => pm.isDefault)?.id && (
-                    <span className="block mt-2 text-rose-400 font-medium">
-                      ⚠️ Note: This is your primary payment method. Removing it may disrupt active subscriptions unless a secondary method is set.
-                    </span>
-                  )}
-                </p>
-              </div>
+        <ModalFrame open={true} onClose={() => setCardToDelete(null)} size="md" titleId="remove-card-modal-title">
+          <div className="space-y-6">
+            <div className="border-b border-white/5 pb-6">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-rose-400">Payment Method</p>
+              <h3 id="remove-card-modal-title" className="mt-2 font-serif text-2xl font-bold tracking-tight text-white">Remove Payment Method?</h3>
+              <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+                Are you sure you want to remove the <strong className="text-slate-200">{cardToDelete.brand}</strong> card ending in <strong className="text-slate-200">•••• {cardToDelete.last4}</strong>?
+                {cardToDelete.id === data?.paymentMethods?.find(pm => pm.isDefault)?.id && (
+                  <span className="block mt-2 text-rose-300 font-medium">
+                    This is your primary payment method. Removing it may affect active subscriptions unless another method is available.
+                  </span>
+                )}
+              </p>
+            </div>
 
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setCardToDelete(null)}
-                  className="flex-1 rounded-2xl border border-white/10 bg-slate-900/60 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 transition-all hover:bg-white/5 hover:text-white cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleDeletePayment(cardToDelete.id)}
-                  className="flex-1 rounded-2xl bg-rose-500 py-4 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-rose-400 shadow-lg shadow-rose-500/20 cursor-pointer"
-                >
-                  Remove Card
-                </button>
-              </div>
+            <div className="flex flex-col-reverse gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setCardToDelete(null)}
+                className="flex-1 rounded-full border border-white/10 bg-slate-900/60 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 transition-all hover:bg-white/5 hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeletePayment(cardToDelete.id)}
+                className="flex-1 rounded-full bg-rose-600 py-4 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-rose-700 shadow-lg shadow-rose-500/15 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+              >
+                Remove Card
+              </button>
             </div>
           </div>
-        </div>
+        </ModalFrame>
       )}
 
       <Toast toast={toast} />

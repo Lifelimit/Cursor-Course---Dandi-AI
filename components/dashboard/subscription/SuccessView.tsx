@@ -48,6 +48,7 @@ export function SuccessView({ pendingPlan, transactionId, session, onClose }: Su
         </div>
 
         <button 
+          type="button"
           onClick={onClose}
           className="w-full rounded-xl bg-slate-100 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-950 transition-all hover:bg-slate-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         >
@@ -55,8 +56,8 @@ export function SuccessView({ pendingPlan, transactionId, session, onClose }: Su
         </button>
       </div>
 
-      <div className="w-full md:w-80 rounded-2xl bg-slate-950/80 p-8 text-white border border-white/10 relative overflow-hidden group">
-        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
+      <div className="w-full md:w-80 rounded-2xl bg-slate-950/80 p-8 text-white border border-white/10 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-10">
           <svg viewBox="0 0 24 24" className="h-3 w-32" fill="currentColor">
             <path d="M12 2L2 22h20L12 2zm0 4.5l6.5 13h-13L12 6.5z"/>
           </svg>
@@ -64,7 +65,7 @@ export function SuccessView({ pendingPlan, transactionId, session, onClose }: Su
         <div className="relative z-10 space-y-6 h-full flex flex-col justify-between">
           <div className="space-y-2">
             <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400">Next Steps</h4>
-            <p className="font-serif text-xl italic">Ready to orchestrate your APIs?</p>
+            <p className="font-serif text-xl italic">Ready to start building?</p>
           </div>
           
           <ul className="space-y-4 text-sm font-medium text-slate-400">
@@ -78,12 +79,12 @@ export function SuccessView({ pendingPlan, transactionId, session, onClose }: Su
             </li>
             <li className="flex gap-3 items-start">
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-black text-white mt-0.5">3</span>
-              <span>Deploy your first pipeline integration</span>
+              <span>Ship your first API integration</span>
             </li>
           </ul>
 
           <div className="pt-4 border-t border-white/10 mt-auto">
-            <button className="text-[10px] font-bold uppercase tracking-widest text-white hover:text-emerald-400 transition-colors flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500">
+            <button type="button" className="rounded-full text-[10px] font-bold uppercase tracking-widest text-white hover:text-emerald-400 transition-colors flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
               View Documentation
               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                 <path d="M5 12h14M12 5l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

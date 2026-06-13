@@ -33,7 +33,8 @@ export function DashboardPageHeader({
     }>;
 
     const isLonelyDot =
-      firstChild.props?.["aria-label"] === "Telemetry sync status" ||
+      firstChild.props?.["aria-label"] === "Data sync status" ||
+      firstChild.props?.["aria-label"] === "System status" ||
       firstChild.props?.className?.includes("h-8 w-8");
 
     if (isLonelyDot) {
@@ -55,7 +56,7 @@ export function DashboardPageHeader({
             className={`inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-950/20 px-3.5 py-1.5 text-[9px] font-bold font-mono uppercase tracking-[0.18em] text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.08)] backdrop-blur-md transition-all ${
               isSyncing ? "border-emerald-400/40 shadow-[0_0_15px_rgba(52,211,153,0.18)]" : ""
             }`}
-            title={isSyncing ? "Telemetry refresh in progress" : "All systems operational"}
+            title={isSyncing ? "Refreshing dashboard data" : "Dashboard ready"}
           >
             <span className="relative flex h-1.5 w-1.5 shrink-0">
               {isSyncing && (
@@ -67,7 +68,7 @@ export function DashboardPageHeader({
                 }`}
               />
             </span>
-            <span>ALL SYSTEMS OPERATIONAL</span>
+            <span>{isSyncing ? "SYNCING DATA" : "DASHBOARD READY"}</span>
           </div>
         );
       }
@@ -126,4 +127,3 @@ export function DashboardPageHeader({
     </header>
   );
 }
-

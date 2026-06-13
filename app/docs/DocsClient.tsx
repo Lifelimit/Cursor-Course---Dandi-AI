@@ -165,7 +165,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               </div>
               <h1 className="font-serif text-4xl font-bold md:text-5xl tracking-tight text-white animate-in fade-in slide-in-from-top-4 duration-500">API Reference Guide</h1>
               <p className="text-zinc-400 text-sm leading-relaxed md:text-base">
-                Welcome to the Dandi AI API documentation. Learn how to fetch repository summaries, sync metadata, and integrate insights directly into your workflow.
+                Welcome to the Dandi AI API documentation. Learn how to fetch repository summaries, read metadata, and integrate results into your workflow.
               </p>
             </header>
 
@@ -177,7 +177,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               <div className="grid gap-6 sm:grid-cols-3">
                 <div className="bg-slate-950/40 p-5 rounded-2xl border border-white/5 shadow-xl space-y-2">
                   <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">Step 01</span>
-                  <h4 className="font-bold text-sm text-slate-200">Account Creation</h4>
+                  <h4 className="font-bold text-sm text-slate-200">Create Account</h4>
                   <p className="text-[11px] text-zinc-500 leading-relaxed">
                     Create your account via email or Google to access your developer dashboard.
                   </p>
@@ -186,7 +186,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                   <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">Step 02</span>
                   <h4 className="font-bold text-sm text-slate-200">Get API Keys</h4>
                   <p className="text-[11px] text-zinc-500 leading-relaxed">
-                    Navigate directly to the <Link href="/playground" className="text-slate-300 underline hover:text-emerald-400">Playground</Link> to generate API keys.
+                    Create and manage API keys from the <Link href="/dashboards" className="text-slate-300 underline hover:text-emerald-400">Dashboard</Link>.
                   </p>
                 </div>
                 <div className="bg-slate-950/40 p-5 rounded-2xl border border-white/5 shadow-xl space-y-2">

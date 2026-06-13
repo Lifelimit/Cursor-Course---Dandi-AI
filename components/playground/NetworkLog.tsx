@@ -133,7 +133,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
   return (
     <>
     <MockTerminal
-      title="dandi-orchestrator-console v1.0.4"
+      title="dandi-request-log v1.0.4"
       status={terminalStatus}
       maxHeight="48rem"
       className="border-emerald-300/15 shadow-[0_28px_90px_rgba(0,0,0,0.34)]"
@@ -141,7 +141,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
       <div className="space-y-3">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
           <StatusPill tone={terminalStatus === "error" ? "danger" : terminalStatus === "running" ? "warning" : "success"} pulse={terminalStatus === "running"} compact>
-            Orchestrator
+            Request Log
           </StatusPill>
           {logs.length > 0 && (
             <div className="flex items-center gap-2 text-[9px] font-bold text-zinc-400">
@@ -155,7 +155,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
           )}
         </div>
 
-      {/* Telemetry Progress Stepper Track */}
+      {/* Request Progress Stepper Track */}
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 px-3 py-6 select-none sm:px-6 md:py-8">
         {/* Style Block for custom animations */}
         <style dangerouslySetInnerHTML={{__html: `
@@ -236,7 +236,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
           )}
         </svg>
 
-        {/* Nodes Wrapper */}
+        {/* Steps Wrapper */}
         <div className="relative z-10 mx-auto flex max-w-2xl items-center justify-between px-0 sm:px-8">
           {/* Step 1: Authentication */}
           <div className="flex flex-col items-center gap-2.5 text-center flex-1">
@@ -352,11 +352,11 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
             <div className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-zinc-600 animate-pulse" />
               <span className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">
-                Console Connection Open
+                Request Log Ready
               </span>
             </div>
             <p className="text-[11px] text-zinc-600 leading-relaxed font-mono">
-              dandi@orchestrator:~$ awaiting instruction trigger...
+              dandi@api:~$ waiting for a request...
             </p>
             <div className="h-4 w-1.5 bg-zinc-600 animate-pulse mt-2" />
           </div>
@@ -546,7 +546,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                               </span>
                             </div>
                             <span className="text-zinc-500 text-[9px]">
-                              Server: Dandi Orchestration Edge
+                              Server: Dandi API
                             </span>
                           </div>
 

@@ -28,7 +28,7 @@ export default function LandingClient({ initialSession }: { initialSession: Sess
   const firstName = fullName.split(" ")[0];
 
   return (
-    <div className="min-h-screen bg-[#05070b] font-sans text-[#f8fafc] selection:bg-emerald-500/20 overflow-x-hidden">
+    <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.08),transparent_34rem),linear-gradient(180deg,#05070b_0%,#070b12_48%,#05070b_100%)] font-sans text-slate-100 selection:bg-emerald-500/20">
       {/* Navigation */}
       <Navbar session={session} />
 
@@ -47,34 +47,34 @@ export default function LandingClient({ initialSession }: { initialSession: Sess
 
       {/* Final CTA - Personalized depending on session state */}
       {session ? (
-        <section className="mx-auto max-w-7xl px-6 py-12 md:py-48 text-center">
-          <div className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-            <h2 className="font-serif text-3xl sm:text-5xl font-bold md:text-8xl leading-tight text-white">
-              Welcome back, <span className="text-zinc-400 italic">{firstName}</span>!<br />
-              Ready to orchestrate?
+        <section className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 md:py-32">
+          <div className="mx-auto max-w-4xl space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+            <h2 className="font-serif text-3xl font-bold leading-tight text-white sm:text-5xl md:text-7xl">
+              Welcome back, <span className="text-slate-400 italic">{firstName}</span>.<br />
+              Keep building.
             </h2>
-            <Link href="/dashboards" className="mx-auto flex w-fit items-center justify-center gap-3 rounded-full bg-zinc-100 px-8 sm:px-12 py-4 sm:py-6 text-xs sm:text-sm font-bold uppercase tracking-[0.3em] text-zinc-950 shadow-2xl transition-all hover:scale-105 hover:bg-zinc-200 active:scale-95">
+            <Link href="/dashboards" className="mx-auto flex w-full max-w-xs items-center justify-center gap-3 rounded-2xl bg-emerald-400 px-8 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-950 shadow-[0_18px_40px_rgba(16,185,129,0.16)] transition-all hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 active:scale-[0.98] sm:w-fit sm:max-w-none sm:px-10">
               Go to Dashboard
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
                 <path d="M5 12h14m-7-7l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </Link>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
+            <p className="break-words text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
               Currently signed in as {session.user.email}
             </p>
           </div>
         </section>
       ) : (
-        <section className="mx-auto max-w-7xl px-6 py-12 md:py-48 text-center">
-          <div className="space-y-10">
-            <h2 className="font-serif text-3xl sm:text-5xl font-bold md:text-8xl text-white">Ready to <br /> orchestrate?</h2>
-            <Link href="/signup" className="mx-auto flex w-fit items-center justify-center gap-3 rounded-full bg-zinc-100 px-8 sm:px-12 py-4 sm:py-6 text-xs sm:text-sm font-bold uppercase tracking-[0.3em] text-zinc-950 shadow-2xl transition-all hover:scale-105 hover:bg-zinc-200 active:scale-95">
-              Get Started Now
+        <section className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 md:py-32">
+          <div className="mx-auto max-w-4xl space-y-8">
+            <h2 className="font-serif text-3xl font-bold text-white sm:text-5xl md:text-7xl">Ready to build with repository intelligence?</h2>
+            <Link href="/signup" className="mx-auto flex w-full max-w-xs items-center justify-center gap-3 rounded-2xl bg-emerald-400 px-8 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-950 shadow-[0_18px_40px_rgba(16,185,129,0.16)] transition-all hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 active:scale-[0.98] sm:w-fit sm:max-w-none sm:px-10">
+              Start Building
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
                 <path d="M12 2v20M2 12h20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </Link>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Instant Access via Google or Email</p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Sign up with Google or email</p>
           </div>
         </section>
       )}

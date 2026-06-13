@@ -31,12 +31,7 @@ export function PaymentMethodCard({
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [shine, setShine] = useState({ x: 0, y: 0, opacity: 0 });
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    }
-    return false;
-  });
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -59,12 +54,8 @@ export function PaymentMethodCard({
     
     const pctX = (x / width) - 0.5;
     const pctY = (y / height) - 0.5;
-    
-    // Max tilt: 12 degrees
-    const rotateX = -pctY * 12;
-    const rotateY = pctX * 12;
 
-    setTilt({ x: rotateY, y: rotateX });
+    setTilt({ x: pctX, y: pctY });
     setShine({
       x: (x / width) * 100,
       y: (y / height) * 100,
@@ -93,6 +84,7 @@ export function PaymentMethodCard({
       </div>
     );
   };
+  const hasPointerMotion = !prefersReducedMotion && isActive && (tilt.x !== 0 || tilt.y !== 0);
 
   return (
     <div 
@@ -106,22 +98,19 @@ export function PaymentMethodCard({
       role={!isActive ? "button" : undefined}
       aria-label={!isActive ? `Select ${brand} card ending in ${last4}` : undefined}
       style={{
-        transform: (prefersReducedMotion || !isActive)
-          ? undefined
-          : `perspective(1000px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg) scale3d(${tilt.x !== 0 ? 1.025 : 1}, ${tilt.y !== 0 ? 1.025 : 1}, 1)`,
-        boxShadow: !prefersReducedMotion && isActive && tilt.x !== 0 
+        transform: hasPointerMotion ? "translateY(-2px) scale(1.01)" : undefined,
+        boxShadow: hasPointerMotion
           ? '0 24px 60px -20px rgba(16, 185, 129, 0.22), 0 0 1px 1px rgba(52,211,153,0.18)' 
           : '0 18px 50px -24px rgba(0, 0, 0, 0.5), 0 0 1px 0 rgba(255,255,255,0.12)',
-        transition: 'transform 0.15s ease-out, box-shadow 0.2s ease-out, opacity 0.3s ease-out, filter 0.3s ease-out',
-        WebkitMaskImage: "-webkit-radial-gradient(white, black)"
+        transition: prefersReducedMotion ? undefined : 'transform 0.15s ease-out, box-shadow 0.2s ease-out, opacity 0.3s ease-out, filter 0.3s ease-out',
       }}
-      className={`group relative overflow-hidden rounded-[24px] border p-6 backdrop-blur-xl select-none ${
+      className={`group relative overflow-hidden rounded-[22px] border p-5 backdrop-blur-xl select-none sm:rounded-[24px] sm:p-6 ${
         !isActive 
           ? 'border-white/5 bg-slate-950/45 shadow-sm cursor-pointer hover:border-white/10 hover:bg-slate-950/60'
           : isDefault 
             ? 'border-emerald-300/35 bg-slate-950/90 ring-1 ring-emerald-300/30 shadow-lg' 
             : 'border-white/10 bg-slate-950/75 shadow-sm'
-      } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950`}
+      } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950`}
     >
       {/* Light sheen overlay */}
       {!prefersReducedMotion && isActive && (
@@ -141,12 +130,12 @@ export function PaymentMethodCard({
         </>
       )}
 
-      <div className="flex items-start justify-between relative z-20">
-        <div className="space-y-4">
+      <div className="relative z-20 flex items-start justify-between gap-4">
+        <div className="min-w-0 space-y-4">
           {getBrandLogo(brand)}
           
           <div className="space-y-1">
-            <p className="font-mono text-sm font-bold tracking-widest text-slate-100">
+            <p className="font-mono text-xs font-bold tracking-widest text-slate-100 sm:text-sm">
               •••• •••• •••• {last4}
             </p>
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
@@ -155,19 +144,23 @@ export function PaymentMethodCard({
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-3">
+        <div className="flex shrink-0 flex-col items-end gap-3">
           {isDefault ? (
             <StatusPill tone="success" compact>Default</StatusPill>
           ) : (
             <button 
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onSetDefault();
               }}
               disabled={!isActive}
               tabIndex={isActive ? 0 : -1}
-              className={`text-[9px] font-black uppercase tracking-widest text-slate-400 transition-all hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 rounded px-1 cursor-pointer duration-200 ${
-                isActive ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+              aria-label={`Set ${brand} card ending in ${last4} as default payment method`}
+              className={`rounded-full border px-3 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+                isActive
+                  ? "pointer-events-auto border-emerald-300/25 bg-emerald-300/10 text-emerald-100 hover:border-emerald-300/45 hover:bg-emerald-300/20"
+                  : "pointer-events-none border-white/5 bg-white/[0.03] text-slate-600 opacity-0"
               }`}
             >
               Set Default
@@ -175,15 +168,18 @@ export function PaymentMethodCard({
           )}
           
           <button 
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
             disabled={!isActive}
             tabIndex={isActive ? 0 : -1}
-            aria-label="Delete payment method"
-            className={`rounded-full p-2 text-slate-600 transition-all hover:bg-red-500/10 hover:text-red-300 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-500 duration-200 ${
-              isActive ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+            aria-label={`Remove ${brand} card ending in ${last4}`}
+            className={`rounded-full border p-2 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+              isActive
+                ? "pointer-events-auto border-white/10 text-slate-400 hover:border-red-300/30 hover:bg-red-500/10 hover:text-red-200"
+                : "pointer-events-none border-white/5 text-slate-700 opacity-0"
             }`}
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">

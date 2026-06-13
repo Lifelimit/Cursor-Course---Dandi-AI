@@ -59,7 +59,7 @@ export function PlanReview({
             <div className="space-y-4">
               <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Checkout Security</span>
               <p className="text-xs text-slate-400 leading-relaxed max-w-xs">
-                Your payment will be processed securely inline via Stripe Elements. Your card credentials are encrypted and processed safely without ever leaving your browser.
+                Your payment is handled by Stripe Elements. Dandi does not store your full card details.
               </p>
             </div>
           </div>
@@ -109,6 +109,7 @@ export function PlanReview({
       {/* Action Buttons */}
       <div className="space-y-4">
         <button 
+          type="button"
           onClick={onConfirm}
           disabled={isLoading}
           className="w-full rounded-full bg-slate-100 py-5 text-[10px] font-black uppercase tracking-widest text-slate-950 transition hover:bg-slate-200 shadow-xl disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
@@ -116,8 +117,9 @@ export function PlanReview({
           {isLoading ? "Processing..." : "Proceed to Inline Payment"}
         </button>
         <button 
+          type="button"
           onClick={onBack}
-          className="w-full rounded-full border border-white/10 bg-slate-950/40 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 cursor-pointer"
+          className="w-full rounded-full border border-white/10 bg-slate-950/40 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
         >
           Change Selection
         </button>

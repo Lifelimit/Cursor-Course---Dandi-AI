@@ -139,13 +139,13 @@ export default function UsageClient({
         }}
       >
           <DashboardPageHeader
-            eyebrow="Intelligence / Analytics"
+            eyebrow="Usage / Analytics"
             title="Usage Center"
-            description="Track quota health, live telemetry, and repository usage trends."
+            description="Track quota health, request activity, and repository usage trends."
             rightAction={
               <>
                 <StatusPill tone={isSyncing ? "warning" : "success"} pulse={isSyncing}>
-                  {isSyncing ? "Syncing Telemetry" : "Telemetry Online"}
+                  {isSyncing ? "Syncing Usage" : "Usage Updated"}
                 </StatusPill>
                 <button
                   onClick={handleExport}
@@ -164,7 +164,7 @@ export default function UsageClient({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-8">
               <TabsBar
                 tabs={[
-                  { id: "credentials", label: "Active Credentials" },
+                  { id: "credentials", label: "API Keys" },
                   { id: "analytics", label: "Analytics & Trends" },
                 ]}
                 activeId={activeTab}
@@ -219,9 +219,9 @@ export default function UsageClient({
                     
                     <div className="flex flex-col gap-8">
                       <CommandPanel className="p-6 sm:p-8">
-                        <h3 className="font-serif text-xl font-bold mb-4 text-white">Usage Philosophy</h3>
+                        <h3 className="font-serif text-xl font-bold mb-4 text-white">How usage works</h3>
                         <p className="text-sm leading-relaxed text-slate-400">
-                          We track repository summaries to help you optimize your intelligent credits. 
+                          We track repository summaries to help you manage monthly credits.
                           Credits are consumed only on successful AI generation.
                         </p>
                         <div className="mt-6 flex items-center gap-4">
@@ -234,8 +234,8 @@ export default function UsageClient({
 
                       <CommandPanel className="p-6 text-white sm:p-8">
                         <div className="flex items-center justify-between mb-4">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">Tier Status</p>
-                          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[8px] font-black text-emerald-400">OPTIMIZED</span>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">Plan Status</p>
+                          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[8px] font-black text-emerald-400">ACTIVE</span>
                         </div>
                         <h3 className="font-serif text-2xl font-bold italic mb-6">Need more volume?</h3>
                         <Link 

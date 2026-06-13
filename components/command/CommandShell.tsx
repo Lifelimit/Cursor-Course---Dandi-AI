@@ -28,7 +28,7 @@ export function CommandShell({
   className,
 }: CommandShellProps) {
   const shellClassName = cx(
-    "min-w-0 overflow-x-hidden bg-[var(--command-bg)] text-[var(--command-text)]",
+    "min-h-dvh min-w-0 overflow-x-hidden bg-[var(--command-bg)] text-[var(--command-text)]",
     variantClasses[variant],
     className,
   );

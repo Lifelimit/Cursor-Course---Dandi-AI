@@ -35,24 +35,21 @@ export function Navbar({ session }: { session: Session | null }) {
   const userInitial = session?.user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <nav className="fixed left-0 right-0 top-3 z-50 px-4 sm:px-6">
-      <div 
-        className="relative mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-white/5 bg-[#05070b]/65 p-3 shadow-lg shadow-black/30 backdrop-blur-md"
-        style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
-      >
+    <nav className="fixed left-0 right-0 top-3 z-50 px-3 sm:px-6">
+      <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-3 overflow-hidden rounded-2xl border border-emerald-400/10 bg-slate-950/82 p-3 shadow-lg shadow-black/30 backdrop-blur-sm">
         {/* Brand / Circular Logo */}
         <Link href="/" className="group z-10 flex shrink-0 cursor-pointer items-center gap-3">
-          <div className="relative flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/35 bg-emerald-500/10 text-emerald-100 shadow-[0_0_15px_rgba(52,211,153,0.15)] transition-transform group-hover:scale-105">
+          <div className="relative flex h-8 w-8 items-center justify-center rounded-xl border border-emerald-400/35 bg-emerald-400/10 text-emerald-100 shadow-[0_0_15px_rgba(52,211,153,0.12)] transition-colors group-hover:border-emerald-300/60">
             <span className="font-serif text-sm font-bold italic drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]">D</span>
           </div>
           <span className="hidden font-serif text-sm font-bold tracking-[0.12em] text-white min-[420px]:inline md:inline uppercase">Dandi AI</span>
         </Link>
         
         {/* Mid Navigation Links */}
-        <div className="hidden items-center gap-1 rounded-full bg-slate-900/50 p-1 text-[10px] font-black uppercase tracking-widest text-zinc-400 md:absolute md:left-1/2 md:flex md:-translate-x-1/2 border border-white/5">
-          <Link href="/#features" className="rounded-full px-4 py-2 transition hover:bg-white/5 hover:text-white">Features</Link>
-          <Link href="/#pricing" className="rounded-full px-4 py-2 transition hover:bg-white/5 hover:text-white">Pricing</Link>
-          <Link href="/playground" className="rounded-full px-4 py-2 transition hover:bg-white/5 hover:text-white">Playground</Link>
+        <div className="hidden items-center gap-1 rounded-xl border border-white/8 bg-slate-900/55 p-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 md:absolute md:left-1/2 md:flex md:-translate-x-1/2">
+          <Link href="/#features" className="rounded-lg px-4 py-2 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Features</Link>
+          <Link href="/#pricing" className="rounded-lg px-4 py-2 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Pricing</Link>
+          <Link href="/playground" className="rounded-lg px-4 py-2 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Playground</Link>
         </div>
 
         {/* User Profile / Action Buttons */}
@@ -60,13 +57,13 @@ export function Navbar({ session }: { session: Session | null }) {
           <div className="hidden items-center gap-4 md:flex">
             {session ? (
               <div className="flex items-center gap-3">
-                <Link href="/dashboards" className="rounded-full bg-zinc-100 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-zinc-200">
+                <Link href="/dashboards" className="rounded-xl bg-emerald-400 px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-950 transition-all hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
                   Dashboard
                 </Link>
                 <button
                   type="button"
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="profile-trigger flex items-center gap-2 rounded-full outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 cursor-pointer"
+                  className="profile-trigger flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 cursor-pointer"
                   aria-expanded={isProfileOpen}
                   aria-label="User Profile menu"
                 >
@@ -80,7 +77,7 @@ export function Navbar({ session }: { session: Session | null }) {
                 </button>
                 <button
                   onClick={handleSignOut}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-slate-400 transition-all hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
+                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 text-slate-400 transition-all hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/70"
                   aria-label="Sign out"
                   title="Sign out"
                 >
@@ -93,13 +90,13 @@ export function Navbar({ session }: { session: Session | null }) {
               <>
                 <Link 
                   href="/login"
-                  className="rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 transition-colors hover:text-white"
+                  className="rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
                 >
                   Login
                 </Link>
                 <Link 
                   href="/signup"
-                  className="rounded-full bg-zinc-100 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-zinc-200 active:scale-95"
+                  className="rounded-xl bg-emerald-400 px-6 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-950 transition-all hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 active:scale-[0.98]"
                 >
                   Start Building
                 </Link>
@@ -111,7 +108,7 @@ export function Navbar({ session }: { session: Session | null }) {
             <button
               type="button"
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="profile-trigger flex items-center gap-2 rounded-full outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 md:hidden cursor-pointer"
+              className="profile-trigger flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 md:hidden cursor-pointer"
               aria-expanded={isProfileOpen}
               aria-label="User Profile menu"
             >
@@ -131,7 +128,7 @@ export function Navbar({ session }: { session: Session | null }) {
               setIsOpen(!isOpen);
               setIsProfileOpen(false);
             }}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-slate-400 transition-all hover:bg-white/5 hover:text-white md:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 text-slate-400 transition-all hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 md:hidden"
             aria-controls="homepage-mobile-nav"
             aria-expanded={isOpen}
             aria-label={isOpen ? "Hide navigation" : "Show navigation"}
@@ -150,7 +147,7 @@ export function Navbar({ session }: { session: Session | null }) {
 
           {/* Profile Popover */}
           {isProfileOpen && session && (
-            <div className="profile-popover absolute right-3 top-[calc(100%+8px)] z-[100] w-64 rounded-2xl border border-white/5 bg-slate-950/90 p-4 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-250">
+            <div className="profile-popover absolute right-3 top-[calc(100%+8px)] z-[100] w-64 rounded-2xl border border-white/10 bg-slate-950/95 p-4 shadow-xl backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="space-y-3">
                 <div className="border-b border-white/5 pb-2">
                   <p className="truncate text-xs font-black uppercase tracking-wider text-white">
@@ -164,7 +161,7 @@ export function Navbar({ session }: { session: Session | null }) {
                   <Link
                     onClick={() => setIsProfileOpen(false)}
                     href="/dashboards"
-                    className="rounded px-2.5 py-1.5 transition hover:bg-white/5 hover:text-white"
+                    className="rounded-lg px-2.5 py-1.5 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
                   >
                     Dashboard
                   </Link>
@@ -174,7 +171,7 @@ export function Navbar({ session }: { session: Session | null }) {
                       setIsProfileOpen(false);
                       handleSignOut();
                     }}
-                    className="rounded px-2.5 py-1.5 text-left text-rose-400 transition hover:bg-rose-500/10 hover:text-rose-300 cursor-pointer"
+                    className="rounded-lg px-2.5 py-1.5 text-left text-rose-400 transition hover:bg-rose-500/10 hover:text-rose-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/70 cursor-pointer"
                   >
                     Sign Out
                   </button>
@@ -187,32 +184,31 @@ export function Navbar({ session }: { session: Session | null }) {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div 
+        <div
           id="homepage-mobile-nav" 
-          className="mx-auto mt-3 max-w-7xl rounded-2xl border border-white/5 bg-slate-950/95 p-3 shadow-xl shadow-black/30 backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200 md:hidden"
-          style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
+          className="mx-auto mt-3 max-w-7xl overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-xl shadow-black/30 backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-200 md:hidden"
         >
-          <div className="grid gap-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-            <Link onClick={() => setIsOpen(false)} href="/#features" className="rounded-xl px-4 py-3 transition hover:bg-white/5 hover:text-white">Features</Link>
-            <Link onClick={() => setIsOpen(false)} href="/#pricing" className="rounded-xl px-4 py-3 transition hover:bg-white/5 hover:text-white">Pricing</Link>
-            <Link onClick={() => setIsOpen(false)} href="/playground" className="rounded-xl px-4 py-3 transition hover:bg-white/5 hover:text-white">Playground</Link>
+          <div className="grid gap-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+            <Link onClick={() => setIsOpen(false)} href="/#features" className="rounded-xl px-4 py-3 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Features</Link>
+            <Link onClick={() => setIsOpen(false)} href="/#pricing" className="rounded-xl px-4 py-3 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Pricing</Link>
+            <Link onClick={() => setIsOpen(false)} href="/playground" className="rounded-xl px-4 py-3 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Playground</Link>
             <hr className="border-white/5" />
             {session ? (
               <>
-                <Link onClick={() => setIsOpen(false)} href="/dashboards" className="rounded-xl bg-white text-zinc-950 px-4 py-3">Dashboard</Link>
+                <Link onClick={() => setIsOpen(false)} href="/dashboards" className="rounded-xl bg-emerald-400 text-slate-950 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">Dashboard</Link>
                 <button 
                   onClick={handleSignOut}
-                  className="rounded-xl px-4 py-3 text-left text-rose-400 transition hover:bg-rose-500/10 hover:text-rose-300"
+                  className="rounded-xl px-4 py-3 text-left text-rose-400 transition hover:bg-rose-500/10 hover:text-rose-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/70"
                 >
                   Sign Out
                 </button>
               </>
             ) : (
               <>
-                <Link onClick={() => setIsOpen(false)} href="/login" className="rounded-xl px-4 py-3 text-slate-300 transition hover:text-white">
+                <Link onClick={() => setIsOpen(false)} href="/login" className="rounded-xl px-4 py-3 text-slate-300 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">
                   Sign In
                 </Link>
-                <Link onClick={() => setIsOpen(false)} href="/signup" className="rounded-xl bg-white text-zinc-950 px-4 py-3">
+                <Link onClick={() => setIsOpen(false)} href="/signup" className="rounded-xl bg-emerald-400 text-slate-950 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">
                   Start Building
                 </Link>
               </>

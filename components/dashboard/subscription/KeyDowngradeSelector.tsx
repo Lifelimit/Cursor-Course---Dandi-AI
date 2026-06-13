@@ -63,7 +63,7 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-6 py-24">
         <div className="h-12 w-12 animate-spin rounded-full border-[6px] border-white/5 border-t-white" />
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.4em] text-slate-400">Auditing Asset Quota...</p>
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">Checking API Keys...</p>
       </div>
     );
   }
@@ -71,9 +71,9 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
   const HOBBY_REQUEST_LIMIT = 1000;
 
   return (
-    <div className="flex flex-1 flex-col gap-12">
+    <div className="flex flex-1 flex-col gap-8 sm:gap-12">
       {/* Quota Header */}
-      <div className="flex items-center justify-between px-2">
+      <div className="flex flex-col gap-4 px-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Quota Allocation</p>
           <h4 className="text-xl font-bold tracking-tight text-white">Select 3 keys to retain</h4>
@@ -81,9 +81,9 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
         <div className="flex flex-col items-end gap-1">
           <div className="flex gap-1.5">
             {[...Array(HOBBY_KEY_LIMIT)].map((_, i) => (
-              <div 
-                key={i} 
-                className={`h-2 w-6 rounded-full transition-all duration-500 ${i < selectedCount ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-slate-800'}`} 
+              <div
+                key={i}
+                className={`h-2 w-6 rounded-full transition-all duration-500 ${i < selectedCount ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-slate-800'}`}
               />
             ))}
           </div>
@@ -98,15 +98,15 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
         {keys.map((key) => {
           const isSelected = selectedIds.has(key.id);
           const isDisabled = !isSelected && selectedCount >= HOBBY_KEY_LIMIT;
-          
+
           const currentLimit = key.monthly_limit || HOBBY_REQUEST_LIMIT;
           const usagePercent = Math.min((key.usage_count / currentLimit) * 100, 100);
-          
+
           // Color Logic: Emerald (Safe), Amber (Warning), Rose-Red (Critical)
-          const intensityColor = usagePercent > 90 
-            ? 'bg-rose-500' 
-            : usagePercent > 70 
-              ? 'bg-amber-500' 
+          const intensityColor = usagePercent > 90
+            ? 'bg-rose-500'
+            : usagePercent > 70
+              ? 'bg-amber-500'
               : 'bg-emerald-500';
 
           return (
@@ -115,7 +115,7 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
               type="button"
               onClick={() => toggleKey(key.id)}
               disabled={isDisabled}
-              className={`group relative w-full rounded-2xl border p-6 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+              className={`group relative w-full rounded-2xl border p-4 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:p-6 ${
                 isSelected
                   ? "border-emerald-500/50 bg-emerald-950/10 shadow-sm"
                   : isDisabled
@@ -123,7 +123,7 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
                   : "border-white/5 bg-slate-950/30 hover:border-white/10 hover:bg-slate-950/60 cursor-pointer"
               }`}
             >
-              <div className="flex items-center justify-between gap-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
                 {/* Left: Key Identity */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2.5 mb-1.5">
@@ -141,15 +141,15 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
                 </div>
 
                 {/* Right: Usage Ledger */}
-                <div className="w-40 flex flex-col gap-2">
+                <div className="flex w-full flex-col gap-2 sm:w-40">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-slate-400">Usage</span>
                     <span className="text-[10px] font-bold text-white">{key.usage_count.toLocaleString()} <span className="text-slate-400 font-medium">/ {currentLimit.toLocaleString()}</span></span>
                   </div>
-                  
+
                   <div className="h-1 w-full bg-slate-900 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full transition-all duration-1000 ${isSelected ? intensityColor : 'bg-slate-800'}`} 
+                    <div
+                      className={`h-full transition-all duration-1000 ${isSelected ? intensityColor : 'bg-slate-800'}`}
                       style={{ width: `${usagePercent}%` }}
                     />
                   </div>
@@ -162,12 +162,11 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
 
       {/* Card Retention Toggle */}
       {hasCard && (
-        <div 
-          className="px-6 py-4 rounded-[24px] bg-slate-950/50 border border-white/5 flex items-center justify-between group cursor-pointer hover:bg-slate-950/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" 
+        <button
+          type="button"
+          className="px-6 py-4 rounded-[24px] bg-slate-950/50 border border-white/5 flex w-full items-center justify-between gap-4 text-left group cursor-pointer hover:bg-slate-950/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
           onClick={() => setKeepCard(!keepCard)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setKeepCard(!keepCard); } }}
+          aria-pressed={keepCard}
         >
           <div className="space-y-1">
             <p className="text-xs font-bold text-white">Retain payment method</p>
@@ -176,7 +175,7 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
           <div className={`h-6 w-12 rounded-full p-1 transition-all duration-300 ${keepCard ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-slate-800'}`}>
             <div className={`h-4 w-4 rounded-full bg-white transition-all duration-300 ${keepCard ? 'translate-x-6' : 'translate-x-0'}`} />
           </div>
-        </div>
+        </button>
       )}
 
       {/* Actions */}
@@ -185,7 +184,7 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
           type="button"
           onClick={onBack}
           disabled={isLoading}
-          className="flex-1 rounded-full border border-white/10 bg-slate-950/40 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 cursor-pointer"
+          className="flex-1 rounded-full border border-white/10 bg-slate-950/40 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
         >
           Go Back
         </button>

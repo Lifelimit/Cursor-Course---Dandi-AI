@@ -15,10 +15,10 @@ export function TopReposTable({ data, title = "Most Analyzed Repositories" }: { 
       <div className="mb-6 flex min-w-0 flex-wrap items-center justify-between gap-3">
         <h3 className="font-serif text-xl font-bold text-white">{title}</h3>
         <StatusPill tone="success" pulse compact>
-          Repo Telemetry
+          Repo Usage
         </StatusPill>
       </div>
-      <ScrollFrame axis="x" minWidth="420px" label="Repository telemetry ranking">
+      <ScrollFrame axis="x" minWidth="420px" label="Repository usage ranking">
       <div className="min-w-[420px] space-y-3">
         {data.map((repo, i) => (
           <div key={repo.repo_url} className="group relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950/55">
