@@ -516,8 +516,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 space-y-4">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-900 dark:border-zinc-100 border-t-transparent"></div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Fetching Account Details...</p>
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-emerald-400"></div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Fetching Account Details...</p>
             </div>
           ) : (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -532,41 +532,41 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
                   <form onSubmit={handleSaveProfile} className="space-y-6 max-w-xl">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 ml-1">Email Address</label>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Email Address</label>
                       <input 
                         type="email" 
                         readOnly 
                         value={activeSession?.user?.email || ""} 
-                        className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 px-5 py-4 text-sm font-semibold text-zinc-400 outline-none cursor-not-allowed border-dashed select-all" 
+                        className="w-full rounded-2xl border border-white/5 bg-slate-950/20 px-5 py-4 text-sm font-semibold text-zinc-500 outline-none cursor-not-allowed border-dashed select-all" 
                       />
-                      <p className="text-[8px] text-zinc-400 dark:text-zinc-500 italic ml-1">Email cannot be modified. Contact orchestrator for identity relocation.</p>
+                      <p className="text-[8px] text-zinc-500 italic ml-1">Email cannot be modified. Contact orchestrator for identity relocation.</p>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 ml-1">Full Name</label>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Full Name</label>
                       <input 
                         type="text" 
                         required
                         placeholder="Developer Name"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-5 py-4 text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-4 focus:ring-zinc-900/5 dark:focus:ring-zinc-100/5 transition-all" 
+                        className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm font-medium text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 transition-all" 
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 ml-1">Organization Namespace Slug</label>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Organization Namespace Slug</label>
                       <input 
                         type="text" 
                         placeholder="my-cool-org"
                         value={orgSlug}
                         onChange={(e) => setOrgSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                        className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-5 py-4 text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-4 focus:ring-zinc-900/5 dark:focus:ring-zinc-100/5 transition-all" 
+                        className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm font-medium text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 transition-all" 
                       />
                       {orgSlug && (
-                        <div className="ml-1 flex flex-col gap-1 rounded-xl border border-zinc-100 bg-zinc-50 p-3 font-mono text-[9px] text-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="ml-1 flex flex-col gap-1 rounded-xl border border-white/5 bg-slate-950/20 p-3 font-mono text-[9px] text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
                           <span>Custom Namespace Preview:</span>
-                          <span className="break-all font-bold text-emerald-500 select-all dark:text-emerald-400">https://dandi.ai/org/{orgSlug}</span>
+                          <span className="break-all font-bold text-emerald-400 select-all">https://dandi.ai/org/{orgSlug}</span>
                         </div>
                       )}
                     </div>
@@ -574,7 +574,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                     <button
                       type="submit"
                       disabled={isSavingProfile}
-                      className="rounded-full bg-zinc-900 dark:bg-zinc-100 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-950 transition hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-95 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-zinc-100 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-950"
+                      className="rounded-full bg-emerald-500 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-95 disabled:opacity-50 focus:outline-none cursor-pointer"
                     >
                       {isSavingProfile ? "Saving Details..." : "Save Profile Details"}
                     </button>
@@ -592,28 +592,31 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
                   <div className="grid gap-6 md:grid-cols-2 max-w-4xl">
                     {/* GitHub Connection */}
-                    <div className="relative overflow-hidden rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 flex flex-col justify-between bg-zinc-50/50 dark:bg-zinc-950/10 min-h-[220px] group">
+                    <div 
+                      className="relative overflow-hidden rounded-3xl border border-white/5 p-6 flex flex-col justify-between bg-slate-950/40 min-h-[220px] group shadow-xl backdrop-blur-xl"
+                      style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
+                    >
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 dark:bg-zinc-800 text-white border border-zinc-800 dark:border-zinc-700 shadow-sm">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white border border-white/10 shadow-sm">
                             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
                               <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
                             </svg>
                           </div>
                           {githubConnected ? (
-                            <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1 border border-emerald-200 dark:border-emerald-900/30">
+                            <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 border border-emerald-500/25">
                               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
-                              <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Connected</span>
+                              <span className="text-[8px] font-black uppercase tracking-widest text-emerald-300">Connected</span>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1.5 rounded-full bg-zinc-100 dark:bg-zinc-950 px-3 py-1 border border-zinc-200 dark:border-zinc-800">
-                              <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Offline</span>
+                            <div className="flex items-center gap-1.5 rounded-full bg-slate-950 px-3 py-1 border border-white/5">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Offline</span>
                             </div>
                           )}
                         </div>
                         <div className="space-y-1">
-                          <h4 className="text-sm font-bold">GitHub Integration</h4>
-                          <p className="text-[11px] leading-relaxed text-zinc-500">
+                          <h4 className="text-sm font-bold text-white">GitHub Integration</h4>
+                          <p className="text-[11px] leading-relaxed text-zinc-400">
                             Connect your GitHub profile to resolve summaries of private repositories seamlessly using Dandi credentials.
                           </p>
                         </div>
@@ -621,10 +624,10 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                       <button
                         onClick={handleToggleGithub}
                         disabled={isConnectingGithub}
-                        className={`w-full rounded-full py-3.5 text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-zinc-100 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-950 ${
+                        className={`w-full rounded-full py-3.5 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                           githubConnected 
-                            ? "bg-zinc-100 hover:bg-red-50 hover:text-red-500 border border-zinc-200 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-red-950/20 text-zinc-500"
-                            : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 hover:shadow-lg active:scale-95"
+                            ? "bg-slate-900 border border-white/10 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400 text-slate-400"
+                            : "bg-emerald-500 text-zinc-950 hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.3)] active:scale-95"
                         }`}
                       >
                         {isConnectingGithub ? "Syncing Integration..." : githubConnected ? "Disconnect Integration" : "Connect with GitHub"}
@@ -632,22 +635,22 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                     </div>
 
                     {/* GitLab Placeholder */}
-                    <div className="relative overflow-hidden rounded-3xl border border-zinc-100 dark:border-zinc-800 border-dashed p-6 flex flex-col justify-between bg-zinc-50/10 min-h-[220px] opacity-40 select-none">
+                    <div className="relative overflow-hidden rounded-3xl border border-white/5 border-dashed p-6 flex flex-col justify-between bg-slate-950/20 min-h-[220px] opacity-40 select-none">
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 text-zinc-400 border border-zinc-200 dark:border-zinc-800">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-zinc-500 border border-white/5">
                             <span className="text-xs font-serif font-black italic">G</span>
                           </div>
-                          <span className="rounded-full bg-zinc-100 dark:bg-zinc-800/60 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-zinc-400">Available Soon</span>
+                          <span className="rounded-full bg-slate-950 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-zinc-500">Available Soon</span>
                         </div>
                         <div className="space-y-1">
-                          <h4 className="text-sm font-bold text-zinc-400">GitLab Integration</h4>
-                          <p className="text-[11px] leading-relaxed text-zinc-400/80">
+                          <h4 className="text-sm font-bold text-zinc-500">GitLab Integration</h4>
+                          <p className="text-[11px] leading-relaxed text-zinc-500/80">
                             Unlock integrated repository scanning for self-managed and cloud-hosted GitLab project spaces.
                           </p>
                         </div>
                       </div>
-                      <button disabled className="w-full rounded-full border border-zinc-100 dark:border-zinc-800 py-3.5 text-[10px] font-black uppercase tracking-widest text-zinc-400 cursor-not-allowed">
+                      <button disabled className="w-full rounded-full border border-white/5 py-3.5 text-[10px] font-black uppercase tracking-widest text-zinc-600 cursor-not-allowed">
                         Coming Soon
                       </button>
                     </div>
@@ -655,13 +658,13 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
                   {/* Fine-Grained Permissions (Renders only when GitHub is connected) */}
                   {githubConnected && (
-                    <div className="border-t border-zinc-100 dark:border-zinc-800 pt-10 space-y-6 max-w-4xl animate-in fade-in duration-300">
+                    <div className="border-t border-white/5 pt-10 space-y-6 max-w-4xl animate-in fade-in duration-300">
                       <div className="space-y-1">
-                        <h4 className="text-base font-bold">GitHub Repository Access Scopes</h4>
+                        <h4 className="text-base font-bold text-white">GitHub Repository Access Scopes</h4>
                         <p className="text-xs text-zinc-400">Establish selective token permissions to restrict which private domains Dandi AI can resolve.</p>
                       </div>
 
-                      <div className="rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 bg-zinc-50/20 dark:bg-zinc-950/10 space-y-6">
+                      <div className="rounded-3xl border border-white/5 p-6 bg-slate-950/40 space-y-6 shadow-xl backdrop-blur-xl">
                         {/* Scope Toggle Options */}
                         <div className="flex flex-col sm:flex-row gap-4">
                           <button
@@ -670,25 +673,25 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                               setGithubScope("all");
                               showToast("success", "Authorized scope updated to: All Repositories.");
                             }}
-                            className={`flex-1 rounded-2xl border p-5 flex flex-col justify-between text-left transition-all ${
+                            className={`flex-1 rounded-2xl border p-5 flex flex-col justify-between text-left transition-all cursor-pointer ${
                               githubScope === "all"
-                                ? "border-zinc-900 dark:border-zinc-100 bg-white dark:bg-zinc-800 ring-2 ring-zinc-900/10 dark:ring-zinc-100/10 shadow-md"
-                                : "border-zinc-200 dark:border-zinc-800 hover:bg-white/40 dark:hover:bg-zinc-900/40"
+                                ? "border-emerald-500/30 bg-slate-900 shadow-md ring-2 ring-emerald-500/10"
+                                : "border-white/5 bg-slate-950/20 hover:bg-slate-950/40"
                             }`}
                           >
                             <div className="flex items-center justify-between w-full">
                               <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${
-                                githubScope === "all" ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500"
+                                githubScope === "all" ? "text-emerald-400" : "text-zinc-500"
                               }`}>Scope A</span>
                               {githubScope === "all" && (
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
                               )}
                             </div>
                             <div className="mt-4 space-y-1">
                               <h5 className={`text-sm font-bold transition-colors ${
-                                githubScope === "all" ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300"
+                                githubScope === "all" ? "text-white" : "text-zinc-400"
                               }`}>All Repositories</h5>
-                              <p className="text-[10px] text-zinc-400 leading-normal">Grants Dandi access to scan and distill all public and authorized private repositories.</p>
+                              <p className="text-[10px] text-zinc-500 leading-normal">Grants Dandi access to scan and distill all public and authorized private repositories.</p>
                             </div>
                           </button>
 
@@ -698,44 +701,44 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                               setGithubScope("selected");
                               showToast("success", "Authorized scope updated to: Selected Repositories.");
                             }}
-                            className={`flex-1 rounded-2xl border p-5 flex flex-col justify-between text-left transition-all ${
+                            className={`flex-1 rounded-2xl border p-5 flex flex-col justify-between text-left transition-all cursor-pointer ${
                               githubScope === "selected"
-                                ? "border-zinc-900 dark:border-zinc-100 bg-white dark:bg-zinc-800 ring-2 ring-zinc-900/10 dark:ring-zinc-100/10 shadow-md"
-                                : "border-zinc-200 dark:border-zinc-800 hover:bg-white/40 dark:hover:bg-zinc-900/40"
+                                ? "border-emerald-500/30 bg-slate-900 shadow-md ring-2 ring-emerald-500/10"
+                                : "border-white/5 bg-slate-950/20 hover:bg-slate-950/40"
                             }`}
                           >
                             <div className="flex items-center justify-between w-full">
                               <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${
-                                githubScope === "selected" ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500"
+                                githubScope === "selected" ? "text-emerald-400" : "text-zinc-500"
                               }`}>Scope B</span>
                               {githubScope === "selected" && (
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
                               )}
                             </div>
                             <div className="mt-4 space-y-1">
                               <h5 className={`text-sm font-bold transition-colors ${
-                                githubScope === "selected" ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300"
+                                githubScope === "selected" ? "text-white" : "text-zinc-400"
                               }`}>Selected Repositories Only</h5>
-                              <p className="text-[10px] text-zinc-400 leading-normal">Restrict credential scanning strictly to a custom list of selected private domains.</p>
+                              <p className="text-[10px] text-zinc-500 leading-normal">Restrict credential scanning strictly to a custom list of selected private domains.</p>
                             </div>
                           </button>
                         </div>
 
                         {/* Selected Repos Interface */}
                         {githubScope === "selected" && (
-                          <div className="space-y-4 pt-4 border-t border-zinc-100 dark:border-zinc-800/80 animate-in fade-in duration-300">
+                          <div className="space-y-4 pt-4 border-t border-white/5 animate-in fade-in duration-300">
                             <div className="flex gap-2">
                               <input 
                                 type="text"
                                 placeholder="Search repositories..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="flex-1 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-xs outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
+                                className="flex-1 rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 transition-colors"
                               />
                             </div>
 
                             {/* Repos list checkboxes */}
-                            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/40 divide-y divide-zinc-100 dark:divide-zinc-900 max-h-[180px] overflow-y-auto scrollbar-hide">
+                            <div className="rounded-2xl border border-white/5 bg-slate-950/40 divide-y divide-white/5 max-h-[180px] overflow-y-auto scrollbar-hide">
                               {[
                                 "dandi-ai/summarizer-sdk",
                                 "my-username/nextjs-boilerplate",
@@ -750,9 +753,9 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                                   return (
                                     <label 
                                       key={repo}
-                                      className="flex items-center justify-between p-3.5 px-4 cursor-pointer hover:bg-zinc-50/50 dark:hover:bg-zinc-900/20 text-xs font-semibold tracking-wide"
+                                      className="flex items-center justify-between p-3.5 px-4 cursor-pointer hover:bg-white/5 text-xs font-semibold tracking-wide"
                                     >
-                                      <span className={isChecked ? "text-emerald-500 font-bold" : "text-zinc-700 dark:text-zinc-300"}>{repo}</span>
+                                      <span className={isChecked ? "text-emerald-400 font-bold" : "text-zinc-400"}>{repo}</span>
                                       <input 
                                         type="checkbox"
                                         checked={isChecked}
@@ -765,7 +768,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                                             showToast("success", `Authorized repository: ${repo}`);
                                           }
                                         }}
-                                        className="h-4 w-4 rounded bg-zinc-100 border-zinc-300 text-emerald-500 accent-emerald-500 focus:ring-emerald-500 focus:ring-2 cursor-pointer"
+                                        className="h-4 w-4 rounded bg-slate-950 border-white/10 text-emerald-500 accent-emerald-500 focus:ring-emerald-500/20 cursor-pointer"
                                       />
                                     </label>
                                   );
@@ -776,10 +779,10 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                             {/* Selected tags list */}
                             {selectedRepos.length > 0 && (
                               <div className="space-y-1.5 ml-1 pt-2">
-                                <span className="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Currently Selected Repositories</span>
+                                <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest block">Currently Selected Repositories</span>
                                 <div className="flex flex-wrap gap-1.5">
                                   {selectedRepos.map(repo => (
-                                    <span key={repo} className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md">
+                                    <span key={repo} className="inline-flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md">
                                       {repo}
                                       <button 
                                         type="button"
@@ -787,7 +790,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                                           setSelectedRepos(prev => prev.filter(r => r !== repo));
                                           showToast("success", `De-authorized repository: ${repo}`);
                                         }}
-                                        className="text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-300 font-serif font-black ml-0.5"
+                                        className="text-emerald-400 hover:text-emerald-300 font-serif font-black ml-0.5"
                                       >
                                         ×
                                       </button>
@@ -815,21 +818,21 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
                   <form onSubmit={handleSaveWebhook} className="max-w-xl space-y-6">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 ml-1">Webhook Endpoint URL</label>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Webhook Endpoint URL</label>
                       <input 
                         type="url" 
                         placeholder="https://api.yourdomain.com/webhooks/dandi"
                         value={webhookUrl}
                         onChange={(e) => setWebhookUrl(e.target.value)}
-                        className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-5 py-4 text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-4 focus:ring-zinc-900/5 dark:focus:ring-zinc-100/5 transition-all" 
+                        className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm font-medium text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 transition-all" 
                       />
                     </div>
 
                     {webhookSecret && (
                       <div className="space-y-2 animate-in fade-in duration-300">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 ml-1">Webhook Signature Secret Key</label>
-                        <div className="flex flex-col gap-2 rounded-2xl border border-zinc-200 bg-zinc-50/50 p-3 dark:border-zinc-800 dark:bg-zinc-950/50 sm:flex-row sm:items-center sm:pl-6">
-                          <code className="min-w-0 flex-1 break-all font-mono text-xs font-bold tracking-wider text-zinc-800 dark:text-zinc-300">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Webhook Signature Secret Key</label>
+                        <div className="flex flex-col gap-2 rounded-2xl border border-white/5 bg-slate-950/20 p-3 sm:flex-row sm:items-center sm:pl-6">
+                          <code className="min-w-0 flex-1 break-all font-mono text-xs font-bold tracking-wider text-slate-300">
                             {webhookSecret}
                           </code>
                           <button
@@ -838,7 +841,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                               navigator.clipboard.writeText(webhookSecret);
                               showToast("success", "Signature secret copied to clipboard.");
                             }}
-                            className="flex h-12 w-full shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-white shadow transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200 sm:w-12"
+                            className="flex h-12 w-full shrink-0 items-center justify-center rounded-xl bg-slate-900 border border-white/10 text-slate-300 shadow transition hover:bg-white hover:text-zinc-950 sm:w-12 cursor-pointer"
                             title="Copy secret key"
                           >
                             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
@@ -846,7 +849,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                             </svg>
                           </button>
                         </div>
-                        <p className="text-[8px] text-zinc-400 dark:text-zinc-500 leading-relaxed italic ml-1">
+                        <p className="text-[8px] text-zinc-500 leading-relaxed italic ml-1">
                           Use this key to compute HMAC signatures and verify incoming webhook requests are authenticated.
                         </p>
                       </div>
@@ -855,7 +858,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                     <button
                       type="submit"
                       disabled={isSavingWebhook}
-                      className="w-full rounded-full bg-zinc-900 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-zinc-800 active:scale-95 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200 sm:w-auto"
+                      className="w-full rounded-full bg-emerald-500 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-95 disabled:opacity-50 sm:w-auto cursor-pointer"
                     >
                       {isSavingWebhook ? "Saving Telemetry..." : "Save Webhook Configuration"}
                     </button>
@@ -863,15 +866,15 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
                   {/* Webhook Tester Section */}
                   {webhookUrl && (
-                    <div className="max-w-4xl space-y-6 border-t border-zinc-100 pt-8 animate-in fade-in duration-300 dark:border-zinc-800 md:pt-10">
+                    <div className="max-w-4xl space-y-6 border-t border-white/5 pt-8 animate-in fade-in duration-300 md:pt-10">
                       <div className="space-y-1">
-                        <h4 className="text-base font-bold">Interactive Telemetry Tester</h4>
+                        <h4 className="text-base font-bold text-white">Interactive Telemetry Tester</h4>
                         <p className="text-xs text-zinc-400">Trigger a simulated telemetry payload dispatch to verify endpoint routing.</p>
                       </div>
 
                       <div className="flex flex-col items-stretch gap-6 md:flex-row">
                         {/* Dispatch Trigger Panel */}
-                        <div className="flex flex-1 flex-col justify-between rounded-2xl border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-950/20 sm:p-6">
+                        <div className="flex flex-1 flex-col justify-between rounded-2xl border border-white/5 bg-slate-950/20 p-4 sm:p-6">
                           <div className="space-y-3">
                             <h5 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Example payload headers</h5>
                             <pre className="font-mono text-[9px] text-slate-400 bg-slate-950 p-4 rounded-xl border border-white/10 leading-relaxed overflow-x-auto">
@@ -887,7 +890,7 @@ X-Dandi-Event: quota.warning`}
                             type="button"
                             onClick={runWebhookTest}
                             disabled={isTestingWebhook}
-                            className="mt-6 rounded-full bg-zinc-900 dark:bg-zinc-100 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-950 shadow transition hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                            className="mt-6 rounded-full bg-slate-900 border border-white/10 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-300 shadow transition hover:bg-white hover:text-zinc-950 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                           >
                             {isTestingWebhook ? "Sending Webhook Event..." : "Trigger Test Webhook"}
                           </button>
@@ -928,15 +931,15 @@ X-Dandi-Event: quota.warning`}
                   )}
 
                   {/* Webhook Delivery Logs History */}
-                  <div className="max-w-4xl space-y-6 border-t border-zinc-100 pt-8 dark:border-zinc-800 md:pt-10">
+                  <div className="max-w-4xl space-y-6 border-t border-white/5 pt-8 md:pt-10">
                     <div className="space-y-1">
-                      <h4 className="text-base font-bold">Delivery Logs Tracker</h4>
+                      <h4 className="text-base font-bold text-white">Delivery Logs Tracker</h4>
                       <p className="text-xs text-zinc-400">Review recent webhook dispatches, payloads, and response contexts.</p>
                     </div>
 
                     <div className="space-y-3 md:hidden">
                       {webhookLogs.length === 0 ? (
-                        <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-center text-xs font-semibold text-zinc-400 dark:border-zinc-800 dark:bg-zinc-950">
+                        <div className="rounded-2xl border border-white/5 bg-slate-950/20 p-5 text-center text-xs font-semibold text-zinc-500">
                           No webhook delivery logs recorded yet. Configure URL and trigger a test to start tracking.
                         </div>
                       ) : (
@@ -945,37 +948,37 @@ X-Dandi-Event: quota.warning`}
                             const isSuccess = log.status >= 200 && log.status < 300;
                             const dateStr = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                             return (
-                              <div key={log.id} className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+                              <div key={log.id} className="space-y-4 rounded-2xl border border-white/5 bg-slate-950/40 p-4 shadow-xl backdrop-blur-xl">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
                                     isSuccess
-                                      ? "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/30 dark:bg-emerald-950/30 dark:text-emerald-400"
-                                      : "border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-900/30 dark:bg-rose-950/30 dark:text-rose-400"
+                                      ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
+                                      : "border-rose-500/25 bg-rose-500/10 text-rose-400"
                                   }`}>
                                     <span className={`h-1 w-1 rounded-full ${isSuccess ? "bg-emerald-500" : "bg-rose-500"}`} />
                                     {log.status} {isSuccess ? "OK" : "Error"}
                                   </span>
-                                  <span className="font-mono text-[10px] font-bold text-zinc-400 dark:text-zinc-500">{dateStr}</span>
+                                  <span className="font-mono text-[10px] font-bold text-zinc-500">{dateStr}</span>
                                 </div>
 
                                 <div className="space-y-3">
                                   <div className="space-y-1">
-                                    <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Method & URL</p>
-                                    <p className="break-all font-mono text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
-                                      <span className="mr-1.5 font-bold text-zinc-700 dark:text-zinc-300">POST</span>
+                                    <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Method & URL</p>
+                                    <p className="break-all font-mono text-[10px] font-semibold text-zinc-400">
+                                      <span className="mr-1.5 font-bold text-zinc-300">POST</span>
                                       {log.url}
                                     </p>
                                   </div>
                                   <div className="grid grid-cols-2 gap-3">
                                     <div className="space-y-1">
-                                      <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Event</p>
-                                      <span className="inline-flex rounded-md border border-zinc-200 bg-zinc-100 px-2 py-0.5 font-mono text-[10px] font-bold text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                                      <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Event</p>
+                                      <span className="inline-flex rounded-md border border-white/5 bg-slate-950/60 px-2 py-0.5 font-mono text-[10px] font-bold text-zinc-400">
                                         {log.event}
                                       </span>
                                     </div>
                                     <div className="space-y-1">
-                                      <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Latency</p>
-                                      <p className="font-mono text-xs font-bold text-zinc-500 dark:text-zinc-400">{log.latency}ms</p>
+                                      <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Latency</p>
+                                      <p className="font-mono text-xs font-bold text-zinc-400">{log.latency}ms</p>
                                     </div>
                                   </div>
                                 </div>
@@ -986,7 +989,7 @@ X-Dandi-Event: quota.warning`}
                                     setInspectedLog(log);
                                     setModalActiveTab("request");
                                   }}
-                                  className="w-full rounded-full border border-zinc-200 bg-zinc-100 px-3.5 py-2 text-[8px] font-black uppercase tracking-widest text-zinc-600 shadow-sm transition-all hover:bg-zinc-900 hover:text-white active:scale-[0.97] dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-100 dark:hover:text-zinc-950"
+                                  className="w-full rounded-full border border-white/10 bg-slate-900 px-3.5 py-2 text-[8px] font-black uppercase tracking-widest text-slate-300 shadow-sm transition-all hover:bg-white hover:text-zinc-950 active:scale-[0.97]"
                                 >
                                   Inspect Payload
                                 </button>
@@ -997,7 +1000,7 @@ X-Dandi-Event: quota.warning`}
                             <button
                               type="button"
                               onClick={() => setShowAllWebhookLogs(!showAllWebhookLogs)}
-                              className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors shadow-sm cursor-pointer active:scale-[0.99]"
+                              className="w-full rounded-2xl border border-white/5 bg-slate-950/20 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition-colors shadow-sm cursor-pointer active:scale-[0.99]"
                             >
                               {showAllWebhookLogs ? "View Less" : `View More (${webhookLogs.length - 3} more)`}
                             </button>
@@ -1010,7 +1013,7 @@ X-Dandi-Event: quota.warning`}
                       <ScrollFrame axis="x" minWidth="760px" label="Webhook delivery logs">
                         <table className="min-w-[760px] w-full border-collapse text-left font-sans text-xs">
                           <thead>
-                            <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none">
+                            <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
                               <th className="px-6 py-4">Status</th>
                               <th className="px-6 py-4">Method & URL</th>
                               <th className="px-6 py-4">Event Type</th>
@@ -1019,10 +1022,10 @@ X-Dandi-Event: quota.warning`}
                               <th className="px-6 py-4 text-right">Payloads</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900 font-medium">
+                          <tbody className="divide-y divide-white/5 font-medium">
                             {webhookLogs.length === 0 ? (
                               <tr>
-                                <td colSpan={6} className="px-6 py-10 text-center text-zinc-400 dark:text-zinc-500 italic">
+                                <td colSpan={6} className="px-6 py-10 text-center text-zinc-500 italic">
                                   No webhook delivery logs recorded yet. Configure URL and trigger a test to start tracking.
                                 </td>
                               </tr>
@@ -1033,7 +1036,7 @@ X-Dandi-Event: quota.warning`}
                                 return (
                                   <tr 
                                     key={log.id} 
-                                    className="transition-colors hover:bg-zinc-50/30 dark:hover:bg-zinc-900/10 text-zinc-800 dark:text-zinc-200 cursor-pointer"
+                                    className="transition-colors hover:bg-white/5 text-zinc-300 cursor-pointer"
                                     onClick={() => {
                                       setInspectedLog(log);
                                       setModalActiveTab("request");
@@ -1042,28 +1045,28 @@ X-Dandi-Event: quota.warning`}
                                     <td className="px-6 py-4">
                                       <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
                                         isSuccess 
-                                          ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30" 
-                                          : "bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/30"
+                                          ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/25" 
+                                          : "bg-rose-500/10 text-rose-400 border border-rose-500/25"
                                       }`}>
                                         <span className={`h-1 w-1 rounded-full ${isSuccess ? "bg-emerald-500" : "bg-rose-500"}`} />
                                         {log.status} {isSuccess ? "OK" : "Error"}
                                       </span>
                                     </td>
-                                    <td className="px-6 py-4 font-mono text-[10px] select-all max-w-[200px] truncate text-zinc-500 dark:text-zinc-400">
-                                      <span className="font-bold text-zinc-700 dark:text-zinc-300 mr-1.5">POST</span>
+                                    <td className="px-6 py-4 font-mono text-[10px] select-all max-w-[200px] truncate text-zinc-400">
+                                      <span className="font-bold text-zinc-300 mr-1.5">POST</span>
                                       {log.url}
                                     </td>
                                     <td className="px-6 py-4 font-mono text-[10px]">
-                                      <span className="rounded-md bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 border border-zinc-200 dark:border-zinc-800 font-bold text-zinc-600 dark:text-zinc-400">
+                                      <span className="rounded-md bg-slate-950 px-2 py-0.5 border border-white/5 font-bold text-zinc-400">
                                         {log.event}
                                       </span>
                                     </td>
-                                    <td className="px-6 py-4 font-mono text-zinc-400 dark:text-zinc-500">{log.latency}ms</td>
-                                    <td className="px-6 py-4 text-zinc-400 dark:text-zinc-500">{dateStr}</td>
+                                    <td className="px-6 py-4 font-mono text-zinc-500">{log.latency}ms</td>
+                                    <td className="px-6 py-4 text-zinc-500">{dateStr}</td>
                                     <td className="px-6 py-4 text-right">
                                       <button
                                         type="button"
-                                        className="rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3.5 py-1.5 text-[8px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:bg-zinc-900 dark:hover:bg-zinc-100 hover:text-white dark:hover:text-zinc-950 transition-all shadow-sm active:scale-[0.97]"
+                                        className="rounded-full bg-slate-900 border border-white/10 px-3.5 py-1.5 text-[8px] font-black uppercase tracking-widest text-slate-300 hover:bg-white hover:text-zinc-950 transition-all shadow-sm active:scale-[0.97]"
                                       >
                                         Inspect
                                       </button>
@@ -1089,10 +1092,10 @@ X-Dandi-Event: quota.warning`}
                   </div>
 
                   {/* Auth Preference toggle */}
-                  <div className="flex max-w-2xl flex-col gap-4 rounded-3xl border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-950/10 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                  <div className="flex max-w-2xl flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/20 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                     <div className="space-y-1 text-left">
                       <h4 className="text-sm font-bold">Secure Magic Link Logins</h4>
-                      <p className="text-xs text-zinc-500 leading-relaxed">
+                      <p className="text-xs text-zinc-400 leading-relaxed">
                         Prefer secure passwordless magic link verification over standard credential configurations.
                       </p>
                     </div>
@@ -1101,10 +1104,10 @@ X-Dandi-Event: quota.warning`}
                         setPreferMagicLink(!preferMagicLink);
                         showToast("success", "Authentication preferences successfully synced.");
                       }}
-                      className={`w-full rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all sm:w-auto ${
+                      className={`w-full rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all sm:w-auto cursor-pointer ${
                         preferMagicLink 
-                          ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950"
-                          : "border border-zinc-200 dark:border-zinc-800 text-zinc-400 hover:text-zinc-900"
+                          ? "bg-white text-zinc-950"
+                          : "border border-white/10 text-zinc-500 hover:text-white hover:bg-white/5"
                       }`}
                     >
                       {preferMagicLink ? "Magic Link Preferred" : "Password Preferred"}
@@ -1119,17 +1122,17 @@ X-Dandi-Event: quota.warning`}
                     </div>
 
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="flex w-full gap-2 overflow-x-auto rounded-2xl bg-zinc-100 p-1 dark:bg-zinc-950/80 sm:w-auto sm:rounded-full">
+                      <div className="flex w-full gap-2 overflow-x-auto rounded-2xl bg-slate-950/80 p-1 border border-white/5 sm:w-auto sm:rounded-full">
                         <button
                           type="button"
                           onClick={(e) => {
                             setAccessView("api");
                             e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
                           }}
-                          className={`whitespace-nowrap rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all ${
+                          className={`whitespace-nowrap rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                             accessView === "api"
-                              ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-100"
-                              : "text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-100"
+                              ? "bg-white text-zinc-950 shadow-sm"
+                              : "text-zinc-500 hover:text-white"
                           }`}
                         >
                           API Keys & Access ({apiAccessEnvironments.length})
@@ -1140,10 +1143,10 @@ X-Dandi-Event: quota.warning`}
                             setAccessView("browser");
                             e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
                           }}
-                          className={`whitespace-nowrap rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all ${
+                          className={`whitespace-nowrap rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                             accessView === "browser"
-                              ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-100"
-                              : "text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-100"
+                              ? "bg-white text-zinc-950 shadow-sm"
+                              : "text-zinc-500 hover:text-white"
                           }`}
                         >
                           Browser Sessions ({browserEnvironments.length})
@@ -1151,17 +1154,17 @@ X-Dandi-Event: quota.warning`}
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        <span className={`rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-widest ${
+                        <span className={`rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-widest border ${
                           accessView === "api"
-                            ? "bg-rose-50 text-rose-500 ring-1 ring-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:ring-rose-900/30"
-                            : "bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200 dark:bg-zinc-950 dark:ring-zinc-800"
+                            ? "bg-rose-500/10 text-rose-400 border-rose-500/25"
+                            : "bg-slate-950 text-zinc-500 border-white/5"
                         }`}>
                           Revocable Access
                         </span>
-                        <span className={`rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-widest ${
+                        <span className={`rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-widest border ${
                           accessView === "browser"
-                            ? "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:ring-emerald-900/30"
-                            : "bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200 dark:bg-zinc-950 dark:ring-zinc-800"
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
+                            : "bg-slate-950 text-zinc-500 border-white/5"
                         }`}>
                           Session Context
                         </span>
@@ -1171,26 +1174,22 @@ X-Dandi-Event: quota.warning`}
                       {accessView === "api" && (
                         <>
                           {apiAccessEnvironments.slice(0, showAllTerminalApi ? undefined : 3).map((environment) => (
-                            <div key={environment.id} className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+                            <div key={environment.id} className="space-y-4 rounded-2xl border border-white/5 bg-slate-950/40 p-4 shadow-xl backdrop-blur-xl">
                               <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1 space-y-1">
-                                  <p className="break-words font-bold text-zinc-800 dark:text-zinc-200">{environment.label}</p>
+                                  <p className="break-words font-bold text-white">{environment.label}</p>
                                   {environment.detail && (
-                                    <p className="break-words text-[10px] font-medium text-zinc-400 dark:text-zinc-500">{environment.detail}</p>
+                                    <p className="break-words text-[10px] font-medium text-zinc-500">{environment.detail}</p>
                                   )}
                                 </div>
                                 <div className="flex shrink-0 flex-col items-end gap-1.5">
-                                  <span className={`rounded-full px-2 py-0.5 text-[7px] font-black uppercase tracking-widest ${
-                                    environment.kind === "api_key"
-                                      ? "bg-indigo-50 text-indigo-500 dark:bg-indigo-950/30 dark:text-indigo-400"
-                                      : "bg-zinc-100 text-zinc-400 dark:bg-zinc-900"
-                                  }`}>
+                                  <span className={`rounded-full px-2 py-0.5 text-[7px] font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-300 border border-indigo-500/25`}>
                                     {environment.kind === "api_key" ? "API Key" : "API Request"}
                                   </span>
-                                  <span className={`rounded-full px-2 py-0.5 text-[7px] font-black uppercase tracking-widest ${
+                                  <span className={`rounded-full px-2 py-0.5 text-[7px] font-black uppercase tracking-widest border ${
                                     environment.revocable
-                                      ? "bg-rose-50 text-rose-500 ring-1 ring-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:ring-rose-900/30"
-                                      : "bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800"
+                                      ? "bg-rose-500/10 text-rose-400 border-rose-500/25"
+                                      : "bg-slate-950 text-zinc-500 border-white/5"
                                   }`}>
                                     {environment.revocable ? "Revocable" : "Telemetry"}
                                   </span>
@@ -1199,31 +1198,31 @@ X-Dandi-Event: quota.warning`}
 
                               <div className="grid grid-cols-2 gap-3 text-xs">
                                 <div className="space-y-1">
-                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">IP</p>
-                                  <p className="break-all font-mono text-zinc-500">{environment.ip || "Unknown"}</p>
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">IP</p>
+                                  <p className="break-all font-mono text-zinc-400">{environment.ip || "Unknown"}</p>
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Location</p>
-                                  <p className="text-zinc-500">{environment.location || "Unknown"}</p>
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Location</p>
+                                  <p className="text-zinc-400">{environment.location || "Unknown"}</p>
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Last Seen</p>
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Last Seen</p>
                                   <p className="font-bold text-zinc-400">{environment.telemetryAge || "No telemetry"}</p>
                                 </div>
                               </div>
 
-                              <div className="border-t border-zinc-100 pt-3 dark:border-zinc-800">
+                              <div className="border-t border-white/5 pt-3">
                                 {environment.revocable ? (
                                   <button
                                     type="button"
                                     onClick={() => handleRevokeEnvironment(environment)}
-                                    className="w-full rounded-xl border border-rose-200 bg-transparent px-4 py-3 text-[9px] font-black uppercase tracking-widest text-rose-500 transition-all hover:bg-rose-50 hover:text-rose-600 active:scale-[0.98] dark:border-rose-900/40 dark:hover:bg-rose-950/20"
+                                    className="w-full rounded-xl border border-rose-500/20 bg-rose-950/20 px-4 py-3 text-[9px] font-black uppercase tracking-widest text-rose-400 transition-all hover:bg-rose-500 hover:text-white active:scale-[0.98]"
                                     title="Disable the API key behind this environment"
                                   >
                                     Revoke Access
                                   </button>
                                 ) : (
-                                  <p className="text-center text-[8px] font-black uppercase tracking-widest text-zinc-400">
+                                  <p className="text-center text-[8px] font-black uppercase tracking-widest text-zinc-500">
                                     Telemetry only · No revocable credential
                                   </p>
                                 )}
@@ -1234,7 +1233,7 @@ X-Dandi-Event: quota.warning`}
                             <button
                               type="button"
                               onClick={() => setShowAllTerminalApi(!showAllTerminalApi)}
-                              className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors shadow-sm cursor-pointer active:scale-[0.99]"
+                              className="w-full rounded-2xl border border-white/5 bg-slate-950/20 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition-colors shadow-sm cursor-pointer active:scale-[0.99]"
                             >
                               {showAllTerminalApi ? "View Less" : `View More (${apiAccessEnvironments.length - 3} more)`}
                             </button>
@@ -1245,32 +1244,32 @@ X-Dandi-Event: quota.warning`}
                       {accessView === "browser" && (
                         <>
                           {browserEnvironments.slice(0, showAllTerminalBrowser ? undefined : 3).map((environment) => (
-                            <div key={environment.id} className="space-y-4 rounded-2xl border border-emerald-100 bg-emerald-500/[0.02] p-4 dark:border-emerald-950/40 dark:bg-emerald-950/[0.04]">
+                            <div key={environment.id} className="space-y-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4">
                               <div className="space-y-1">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <p className="break-words font-bold text-emerald-600 dark:text-emerald-400">{environment.label}</p>
-                                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">Current Session</span>
+                                  <p className="break-words font-bold text-emerald-300">{environment.label}</p>
+                                  <span className="rounded-full bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-emerald-300">Current Session</span>
                                 </div>
                                 {environment.detail && (
-                                  <p className="break-words text-[10px] font-medium text-zinc-400 dark:text-zinc-500">{environment.detail}</p>
+                                  <p className="break-words text-[10px] font-medium text-zinc-500">{environment.detail}</p>
                                 )}
                               </div>
 
                               <div className="grid grid-cols-2 gap-3 text-xs">
                                 <div className="space-y-1">
-                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">IP</p>
-                                  <p className="break-all font-mono text-zinc-500">{environment.ip || "Unknown"}</p>
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">IP</p>
+                                  <p className="break-all font-mono text-zinc-400">{environment.ip || "Unknown"}</p>
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Location</p>
-                                  <p className="text-zinc-500">{environment.location || "Unknown"}</p>
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Location</p>
+                                  <p className="text-zinc-400">{environment.location || "Unknown"}</p>
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Status</p>
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Status</p>
                                   <p className="font-bold text-zinc-400">{environment.telemetryAge || "No telemetry"}</p>
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Action</p>
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Action</p>
                                   <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Active Root</p>
                                 </div>
                               </div>
@@ -1280,7 +1279,7 @@ X-Dandi-Event: quota.warning`}
                             <button
                               type="button"
                               onClick={() => setShowAllTerminalBrowser(!showAllTerminalBrowser)}
-                              className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors shadow-sm cursor-pointer active:scale-[0.99]"
+                              className="w-full rounded-2xl border border-white/5 bg-slate-950/20 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition-colors shadow-sm cursor-pointer active:scale-[0.99]"
                             >
                               {showAllTerminalBrowser ? "View Less" : `View More (${browserEnvironments.length - 3} more)`}
                             </button>
@@ -1289,12 +1288,12 @@ X-Dandi-Event: quota.warning`}
                       )}
 
                       {accessView === "api" && apiAccessEnvironments.length === 0 && (
-                        <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-center text-xs font-semibold text-zinc-400 dark:border-zinc-800 dark:bg-zinc-950">
+                        <div className="rounded-2xl border border-white/5 bg-slate-950/20 p-5 text-center text-xs font-semibold text-zinc-500">
                           No API keys or request telemetry found.
                         </div>
                       )}
                       {accessView === "browser" && browserEnvironments.length === 0 && (
-                        <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-center text-xs font-semibold text-zinc-400 dark:border-zinc-800 dark:bg-zinc-950">
+                        <div className="rounded-2xl border border-white/5 bg-slate-950/20 p-5 text-center text-xs font-semibold text-zinc-500">
                           No browser sessions found.
                         </div>
                       )}
@@ -1304,7 +1303,7 @@ X-Dandi-Event: quota.warning`}
                       <ScrollFrame axis="x" minWidth="760px" label="Developer terminal access table">
                         <table className="min-w-[760px] w-full border-collapse text-left font-sans text-xs">
                           <thead>
-                            <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none">
+                            <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
                               {accessView === "api" ? (
                                 <>
                                   <th className="px-6 py-4">Access</th>
@@ -1325,76 +1324,72 @@ X-Dandi-Event: quota.warning`}
                               )}
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900 font-medium">
+                          <tbody className="divide-y divide-white/5 font-medium">
                             {accessView === "api" && apiAccessEnvironments.map((environment) => (
-                              <tr key={environment.id} className="text-zinc-800 transition-colors hover:bg-zinc-50/30 dark:text-zinc-200 dark:hover:bg-zinc-900/10">
+                              <tr key={environment.id} className="text-zinc-300 transition-colors hover:bg-white/5">
                                 <td className="px-6 py-4">
                                   <div className="flex max-w-[280px] flex-col gap-1">
-                                    <span className="truncate font-bold" title={environment.label}>{environment.label}</span>
+                                    <span className="truncate font-bold text-white" title={environment.label}>{environment.label}</span>
                                     {environment.detail && (
-                                      <span className="truncate text-[10px] font-medium text-zinc-400 dark:text-zinc-500" title={environment.detail}>{environment.detail}</span>
+                                      <span className="truncate text-[10px] font-medium text-zinc-500" title={environment.detail}>{environment.detail}</span>
                                     )}
                                   </div>
                                 </td>
                                 <td className="px-6 py-4">
-                                  <span className={`rounded-full px-2 py-0.5 text-[7px] font-black uppercase tracking-widest ${
-                                    environment.kind === "api_key"
-                                      ? "bg-indigo-50 text-indigo-500 dark:bg-indigo-950/30 dark:text-indigo-400"
-                                      : "bg-zinc-100 text-zinc-400 dark:bg-zinc-900"
-                                  }`}>
+                                  <span className={`rounded-full px-2 py-0.5 text-[7px] font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-300 border border-indigo-500/25`}>
                                     {environment.kind === "api_key" ? "API Key" : "API Request"}
                                   </span>
                                 </td>
-                                <td className="px-6 py-4 font-mono select-all text-zinc-500">{environment.ip || "Unknown"}</td>
-                                <td className="px-6 py-4 text-zinc-500">{environment.location || "Unknown"}</td>
+                                <td className="px-6 py-4 font-mono select-all text-zinc-400">{environment.ip || "Unknown"}</td>
+                                <td className="px-6 py-4 text-zinc-400">{environment.location || "Unknown"}</td>
                                 <td className="px-6 py-4 text-zinc-400 font-bold">{environment.telemetryAge || "No telemetry"}</td>
                                 <td className="px-6 py-4 text-right">
                                   {environment.revocable ? (
                                     <button
                                       type="button"
                                       onClick={() => handleRevokeEnvironment(environment)}
-                                      className="rounded-full bg-rose-50 px-3.5 py-2 text-[8px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-600 hover:text-white transition-all shadow-sm border border-rose-100 hover:border-rose-600 active:scale-[0.97]"
+                                      className="rounded-full bg-rose-950/20 border border-rose-500/20 px-3.5 py-2 text-[8px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-[0.97]"
                                       title="Disable the API key behind this environment"
                                     >
                                       Revoke Access
                                     </button>
                                   ) : (
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 pr-4 select-none">Telemetry Only</span>
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 pr-4 select-none">Telemetry Only</span>
                                   )}
                                 </td>
                               </tr>
                             ))}
                             {accessView === "browser" && browserEnvironments.map((environment) => (
-                              <tr key={environment.id} className="bg-emerald-500/[0.01] text-emerald-600 transition-colors hover:bg-zinc-50/30 dark:text-emerald-400 dark:hover:bg-zinc-900/10">
+                              <tr key={environment.id} className="bg-emerald-500/[0.02] text-emerald-300 transition-colors hover:bg-white/5">
                                 <td className="px-6 py-4">
                                   <div className="flex max-w-[280px] flex-col gap-1">
                                     <div className="flex flex-wrap items-center gap-2">
-                                      <span className="truncate font-bold" title={environment.label}>{environment.label}</span>
-                                      <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Current Session</span>
+                                      <span className="truncate font-bold text-white" title={environment.label}>{environment.label}</span>
+                                      <span className="rounded-full bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-emerald-300 font-bold">Current Session</span>
                                     </div>
                                     {environment.detail && (
-                                      <span className="truncate text-[10px] font-medium text-zinc-400 dark:text-zinc-500" title={environment.detail}>{environment.detail}</span>
+                                      <span className="truncate text-[10px] font-medium text-zinc-500" title={environment.detail}>{environment.detail}</span>
                                     )}
                                   </div>
                                 </td>
-                                <td className="px-6 py-4 font-mono select-all text-zinc-500">{environment.ip || "Unknown"}</td>
-                                <td className="px-6 py-4 text-zinc-500">{environment.location || "Unknown"}</td>
+                                <td className="px-6 py-4 font-mono select-all text-zinc-400">{environment.ip || "Unknown"}</td>
+                                <td className="px-6 py-4 text-zinc-400">{environment.location || "Unknown"}</td>
                                 <td className="px-6 py-4 text-zinc-400 font-bold">{environment.telemetryAge || "No telemetry"}</td>
                                 <td className="px-6 py-4 text-right">
-                                  <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 pr-4 select-none">Active Root</span>
+                                  <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 pr-4 select-none">Active Root</span>
                                 </td>
                               </tr>
                             ))}
                             {accessView === "api" && apiAccessEnvironments.length === 0 && (
                               <tr>
-                                <td colSpan={6} className="px-6 py-10 text-center text-xs font-semibold text-zinc-400">
+                                <td colSpan={6} className="px-6 py-10 text-center text-xs font-semibold text-zinc-500">
                                   No API keys or request telemetry found.
                                 </td>
                               </tr>
                             )}
                             {accessView === "browser" && browserEnvironments.length === 0 && (
                               <tr>
-                                <td colSpan={5} className="px-6 py-10 text-center text-xs font-semibold text-zinc-400">
+                                <td colSpan={5} className="px-6 py-10 text-center text-xs font-semibold text-zinc-500">
                                   No browser sessions found.
                                 </td>
                               </tr>
@@ -1409,7 +1404,7 @@ X-Dandi-Event: quota.warning`}
                   <div className="mt-8 grid gap-5 border-t border-zinc-200 pt-8 dark:border-zinc-800 md:mt-10 md:grid-cols-2 md:gap-8 md:pt-10">
                     
                     {/* Password Update Form Card */}
-                    <div className="flex flex-col justify-between space-y-6 rounded-3xl border border-zinc-200 bg-zinc-50/20 p-4 dark:border-zinc-800 dark:bg-zinc-950/10 sm:p-6">
+                    <div className="flex flex-col justify-between space-y-6 rounded-3xl border border-white/5 bg-slate-950/40 p-4 sm:p-6">
                       <div className="space-y-2">
                         <h4 className="text-base font-bold">Update Secure Password</h4>
                         <p className="text-xs text-zinc-400">Establish a new account access password (minimum 6 characters).</p>
@@ -1417,33 +1412,33 @@ X-Dandi-Event: quota.warning`}
 
                       <form onSubmit={handleUpdatePassword} className="space-y-4">
                         <div className="space-y-1">
-                          <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 ml-1">New Password</label>
+                          <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 ml-1">New Password</label>
                           <input 
                             type="password" 
                             required
                             placeholder="••••••••"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-xs outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors" 
+                            className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 transition-colors" 
                           />
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 ml-1">Confirm New Password</label>
+                          <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Confirm New Password</label>
                           <input 
                             type="password" 
                             required
                             placeholder="••••••••"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-xs outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors" 
+                            className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 transition-colors" 
                           />
                         </div>
 
                         <button
                           type="submit"
                           disabled={isSavingPassword}
-                          className="w-full rounded-full bg-zinc-900 dark:bg-zinc-100 py-3.5 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-[0.98] transition-all disabled:opacity-50 mt-2"
+                          className="w-full rounded-full bg-emerald-500 py-3.5 text-[10px] font-black uppercase tracking-widest text-zinc-950 hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-[0.98] transition-all disabled:opacity-50 mt-2 cursor-pointer"
                         >
                           {isSavingPassword ? "Updating Password..." : "Update Password"}
                         </button>
@@ -1451,22 +1446,22 @@ X-Dandi-Event: quota.warning`}
                     </div>
 
                     {/* Email Relocation Request Form Card */}
-                    <div className="flex flex-col justify-between space-y-6 rounded-3xl border border-zinc-200 bg-zinc-50/20 p-4 dark:border-zinc-800 dark:bg-zinc-950/10 sm:p-6">
+                    <div className="flex flex-col justify-between space-y-6 rounded-3xl border border-white/5 bg-slate-950/40 p-4 sm:p-6">
                       <div className="space-y-2">
-                        <h4 className="text-base font-bold">Request Email Relocation</h4>
+                        <h4 className="text-base font-bold text-white">Request Email Relocation</h4>
                         <p className="text-xs text-zinc-400">Initiate identity migration to a new verified developer email address.</p>
                       </div>
 
                       {/* Info Alert Box */}
-                      <div className="rounded-2xl border border-amber-200 dark:border-amber-950/30 bg-amber-50 dark:bg-amber-950/10 p-4 flex gap-3 items-start">
-                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+                      <div className="rounded-2xl border border-amber-500/10 bg-amber-500/5 p-4 flex gap-3 items-start">
+                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">
                           <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                           </svg>
                         </div>
                         <div className="space-y-0.5">
-                          <p className="text-[10px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wide">Dual Verification Required</p>
-                          <p className="text-[9px] font-medium text-amber-700 dark:text-amber-500 leading-relaxed">
+                          <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wide">Dual Verification Required</p>
+                          <p className="text-[9px] font-medium text-amber-500/90 leading-relaxed">
                             For security, Supabase dispatches validation links to BOTH email hosts. You must confirm on both mailboxes to commit.
                           </p>
                         </div>
@@ -1474,21 +1469,21 @@ X-Dandi-Event: quota.warning`}
 
                       <form onSubmit={handleUpdateEmail} className="space-y-4">
                         <div className="space-y-1">
-                          <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 ml-1">New Email Address</label>
+                          <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 ml-1">New Email Address</label>
                           <input 
                             type="email" 
                             required
                             placeholder="new-email@company.com"
                             value={newEmail}
                             onChange={(e) => setNewEmail(e.target.value)}
-                            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-xs outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors" 
+                            className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 transition-colors" 
                           />
                         </div>
 
                         <button
                           type="submit"
                           disabled={isSavingEmail}
-                          className="w-full rounded-full bg-zinc-900 dark:bg-zinc-100 py-3.5 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-[0.98] transition-all disabled:opacity-50"
+                          className="w-full rounded-full bg-emerald-500 py-3.5 text-[10px] font-black uppercase tracking-widest text-zinc-950 hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
                         >
                           {isSavingEmail ? "Requesting Relocation..." : "Request Email Change"}
                         </button>
@@ -1506,46 +1501,47 @@ X-Dandi-Event: quota.warning`}
       {/* Webhook Delivery Payload Inspector Modal */}
       {inspectedLog && (
         <div 
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-zinc-950/40 p-3 backdrop-blur-md animate-in fade-in duration-300 dark:bg-black/60 sm:items-center sm:p-6"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-md animate-in fade-in duration-300 sm:items-center sm:p-6"
           onClick={() => setInspectedLog(null)}
         >
           <div 
-            className="my-3 w-full max-w-2xl max-h-[calc(100dvh-1.5rem)] rounded-[28px] border border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xl overflow-hidden backdrop-blur-md animate-in zoom-in-95 duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[32px]"
+            className="my-3 w-full max-w-2xl max-h-[calc(100dvh-1.5rem)] rounded-[28px] border border-white/10 bg-slate-950/90 shadow-2xl overflow-hidden backdrop-blur-xl animate-in zoom-in-95 duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[32px]"
+            style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="p-6 md:p-8 border-b border-zinc-100 dark:border-zinc-800 flex items-start justify-between gap-4">
+            <div className="p-6 md:p-8 border-b border-white/5 flex items-start justify-between gap-4">
               <div className="min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
                   <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
                     inspectedLog.status >= 200 && inspectedLog.status < 300
-                      ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30" 
-                      : "bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/30"
+                      ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/25" 
+                      : "bg-rose-500/10 text-rose-400 border border-rose-500/25"
                   }`}>
                     {inspectedLog.status} {inspectedLog.status >= 200 && inspectedLog.status < 300 ? "OK" : "Error"}
                   </span>
-                  <span className="font-mono text-[9px] text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">{inspectedLog.event}</span>
+                  <span className="font-mono text-[9px] text-zinc-500 uppercase tracking-widest">{inspectedLog.event}</span>
                 </div>
-                <h3 className="font-serif text-xl font-bold mt-1.5">Webhook Dispatch Audit</h3>
-                <p className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 break-all">{inspectedLog.url}</p>
+                <h3 className="font-serif text-xl font-bold mt-1.5 text-white">Webhook Dispatch Audit</h3>
+                <p className="text-[10px] font-mono text-zinc-500 break-all">{inspectedLog.url}</p>
               </div>
               <ModalCloseButton
                 onClick={() => setInspectedLog(null)}
-                className="relative z-10 bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+                className="relative z-10 bg-slate-900 border border-white/10 text-slate-400 hover:bg-white hover:text-zinc-950"
               />
             </div>
 
             {/* Modal Body with internal tabs */}
             <div className="max-h-[calc(100dvh-13rem)] overflow-y-auto p-5 space-y-6 sm:max-h-[60vh] md:p-8">
               {/* Tab Selector */}
-              <div className="flex gap-2 border-b border-zinc-100 dark:border-zinc-800 pb-4">
+              <div className="flex gap-2 border-b border-white/5 pb-4">
                 <button
                   type="button"
                   onClick={() => setModalActiveTab("request")}
-                  className={`rounded-full px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all ${
+                  className={`rounded-full px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                     modalActiveTab === "request"
-                      ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-sm"
-                      : "text-zinc-400 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100"
+                      ? "bg-white text-zinc-950 shadow-sm"
+                      : "text-zinc-500 hover:text-white"
                   }`}
                 >
                   Request Payload
@@ -1553,10 +1549,10 @@ X-Dandi-Event: quota.warning`}
                 <button
                   type="button"
                   onClick={() => setModalActiveTab("response")}
-                  className={`rounded-full px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all ${
+                  className={`rounded-full px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                     modalActiveTab === "response"
-                      ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-sm"
-                      : "text-zinc-400 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-100"
+                      ? "bg-white text-zinc-950 shadow-sm"
+                      : "text-zinc-500 hover:text-white"
                   }`}
                 >
                   Response Context
@@ -1567,13 +1563,13 @@ X-Dandi-Event: quota.warning`}
               {modalActiveTab === "request" ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">HTTP POST Request Payload JSON</span>
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">HTTP POST Request Payload JSON</span>
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(JSON.stringify(inspectedLog.requestBody, null, 2));
                         showToast("success", "Request payload copied to clipboard.");
                       }}
-                      className="inline-flex items-center gap-1.5 text-[9px] font-bold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                      className="inline-flex items-center gap-1.5 text-[9px] font-bold text-zinc-400 hover:text-white transition-colors"
                       aria-label="Copy request payload"
                     >
                       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1582,7 +1578,7 @@ X-Dandi-Event: quota.warning`}
                       Copy JSON
                     </button>
                   </div>
-                  <pre className="font-mono text-[10px] text-zinc-300 bg-[#09090b] p-5 rounded-2xl border border-zinc-800 leading-relaxed overflow-x-auto max-h-[280px]">
+                  <pre className="font-mono text-[10px] text-zinc-300 bg-slate-950 p-5 rounded-2xl border border-white/5 leading-relaxed overflow-x-auto max-h-[280px]">
                     {JSON.stringify(inspectedLog.requestBody, null, 2)}
                   </pre>
                 </div>
@@ -1590,8 +1586,8 @@ X-Dandi-Event: quota.warning`}
                 <div className="space-y-6">
                   {/* Headers */}
                   <div className="space-y-2">
-                    <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Response Headers</span>
-                    <div className="font-mono text-[9px] text-zinc-300 bg-[#09090b] p-4 rounded-2xl border border-zinc-800 space-y-1 overflow-x-auto">
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Response Headers</span>
+                    <div className="font-mono text-[9px] text-zinc-300 bg-slate-950 p-4 rounded-2xl border border-white/5 space-y-1 overflow-x-auto">
                       {Object.entries(inspectedLog.responseHeaders).map(([key, val]) => (
                         <div key={key} className="flex gap-2">
                           <span className="text-zinc-500 font-bold">{key}:</span>
@@ -1603,8 +1599,8 @@ X-Dandi-Event: quota.warning`}
 
                   {/* Body */}
                   <div className="space-y-2">
-                    <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Response Body</span>
-                    <pre className="font-mono text-[10px] text-zinc-300 bg-[#09090b] p-5 rounded-2xl border border-zinc-800 leading-relaxed overflow-x-auto max-h-[160px]">
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Response Body</span>
+                    <pre className="font-mono text-[10px] text-zinc-300 bg-slate-950 p-5 rounded-2xl border border-white/5 leading-relaxed overflow-x-auto max-h-[160px]">
                       {typeof inspectedLog.responseBody === "object" && inspectedLog.responseBody !== null
                         ? JSON.stringify(inspectedLog.responseBody, null, 2)
                         : String(inspectedLog.responseBody ?? "")
@@ -1616,12 +1612,12 @@ X-Dandi-Event: quota.warning`}
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 md:p-8 py-5 bg-zinc-50 dark:bg-zinc-950/40 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-              <span className="font-mono text-[9px] text-zinc-400 dark:text-zinc-500">Latency: {inspectedLog.latency}ms</span>
+            <div className="px-6 md:p-8 py-5 bg-slate-950/80 border-t border-white/5 flex items-center justify-between">
+              <span className="font-mono text-[9px] text-zinc-500">Latency: {inspectedLog.latency}ms</span>
               <button
                 type="button"
                 onClick={() => setInspectedLog(null)}
-                className="rounded-full bg-zinc-900 dark:bg-zinc-100 px-6 py-2.5 text-[9px] font-black uppercase tracking-widest text-white dark:text-zinc-950 shadow transition hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-[0.98]"
+                className="rounded-full bg-slate-900 border border-white/10 px-6 py-2.5 text-[9px] font-black uppercase tracking-widest text-slate-300 shadow transition hover:bg-white hover:text-zinc-950 active:scale-[0.98]"
               >
                 Close Audit
               </button>

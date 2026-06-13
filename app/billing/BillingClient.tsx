@@ -221,8 +221,8 @@ export default function BillingClient({
 
           {showSkeleton ? (
             <div className="space-y-8 animate-pulse">
-              <div className="h-64 rounded-[32px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800" />
-              <div className="h-96 rounded-[32px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800" />
+              <div className="h-64 rounded-[32px] bg-slate-950/40 border border-white/5" />
+              <div className="h-96 rounded-[32px] bg-slate-950/40 border border-white/5" />
             </div>
           ) : (
             <>
@@ -421,16 +421,19 @@ export default function BillingClient({
 
       {/* Remove Card Confirmation Modal */}
       {cardToDelete && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-zinc-950/40 p-3 backdrop-blur-sm transition-all duration-300 sm:items-center sm:p-6">
-          <div className="my-3 w-full max-w-md max-h-[calc(100dvh-1.5rem)] scale-95 transform overflow-y-auto rounded-[28px] border border-zinc-200 bg-white p-6 shadow-2xl transition-all duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[32px] sm:p-8">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm transition-all duration-300 sm:items-center sm:p-6">
+          <div 
+            className="my-3 w-full max-w-md max-h-[calc(100dvh-1.5rem)] scale-95 transform overflow-y-auto rounded-[28px] border border-white/5 bg-slate-950/90 p-6 shadow-2xl transition-all duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[32px] sm:p-8"
+            style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
+          >
             <div className="space-y-6">
               <div className="space-y-2">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-red-500">Warning / Security</p>
-                <h3 className="font-serif text-2xl font-bold tracking-tight text-zinc-900">Remove Payment Method?</h3>
-                <p className="text-xs text-zinc-500 leading-relaxed">
-                  Are you sure you want to remove the <strong className="text-zinc-900">{cardToDelete.brand}</strong> card ending in <strong className="text-zinc-900">•••• {cardToDelete.last4}</strong>? 
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-rose-400">Warning / Security</p>
+                <h3 className="font-serif text-2xl font-bold tracking-tight text-white">Remove Payment Method?</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Are you sure you want to remove the <strong className="text-slate-200">{cardToDelete.brand}</strong> card ending in <strong className="text-slate-200">•••• {cardToDelete.last4}</strong>? 
                   {cardToDelete.id === data?.paymentMethods?.find(pm => pm.isDefault)?.id && (
-                    <span className="block mt-2 text-red-500 font-medium">
+                    <span className="block mt-2 text-rose-400 font-medium">
                       ⚠️ Note: This is your primary payment method. Removing it may disrupt active subscriptions unless a secondary method is set.
                     </span>
                   )}
@@ -440,13 +443,13 @@ export default function BillingClient({
               <div className="flex gap-4">
                 <button
                   onClick={() => setCardToDelete(null)}
-                  className="flex-1 rounded-2xl border border-zinc-200 bg-white py-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 transition-all hover:bg-zinc-50"
+                  className="flex-1 rounded-2xl border border-white/10 bg-slate-900/60 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 transition-all hover:bg-white/5 hover:text-white cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => handleDeletePayment(cardToDelete.id)}
-                  className="flex-1 rounded-2xl bg-red-500 py-4 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-red-600 shadow-lg shadow-red-500/10"
+                  className="flex-1 rounded-2xl bg-rose-500 py-4 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-rose-400 shadow-lg shadow-rose-500/20 cursor-pointer"
                 >
                   Remove Card
                 </button>

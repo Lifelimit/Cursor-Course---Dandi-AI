@@ -69,6 +69,7 @@ export function PaymentMethodCard({ brand, last4, expiryMonth, expiryYear, isDef
           ? '0 24px 60px -20px rgba(16, 185, 129, 0.22), 0 0 1px 1px rgba(52,211,153,0.18)' 
           : '0 18px 50px -24px rgba(0, 0, 0, 0.5), 0 0 1px 0 rgba(255,255,255,0.12)',
         transition: 'transform 0.1s ease-out, box-shadow 0.2s ease-out',
+        WebkitMaskImage: "-webkit-radial-gradient(white, black)"
       }}
       className={`group relative overflow-hidden rounded-[24px] border p-6 backdrop-blur-xl select-none cursor-pointer ${
         isDefault 

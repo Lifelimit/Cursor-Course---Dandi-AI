@@ -10,28 +10,26 @@ export default async function LoginPage({
   const error = params.error === "auth-failed";
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#f4f2ed] dark:bg-zinc-950 p-6 selection:bg-zinc-200 dark:selection:bg-zinc-800">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#05070b] p-6 selection:bg-emerald-500/20 selection:text-emerald-200">
       <div className="w-full max-w-sm space-y-12">
         {/* Branding */}
         <div className="flex flex-col items-center gap-4">
           <Link href="/" className="group flex flex-col items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#18181b] dark:bg-zinc-100 text-white dark:text-zinc-950 transition-transform group-hover:rotate-12 shadow-2xl shadow-zinc-900/20 dark:shadow-none">
-              <svg viewBox="0 0 24 24" className="h-10 w-10" fill="none" stroke="currentColor">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-emerald-500/35 bg-emerald-500/10 text-emerald-100 shadow-[0_0_30px_rgba(52,211,153,0.15)] transition-transform group-hover:scale-105">
+              <span className="font-serif text-2xl font-bold italic drop-shadow-[0_0_12px_rgba(52,211,153,0.3)]">D</span>
             </div>
             <div className="text-center">
-              <h1 className="font-serif text-3xl font-bold tracking-tight uppercase text-zinc-900 dark:text-zinc-100">Dandi AI</h1>
-              <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">Secure Access Portal</p>
+              <h1 className="font-serif text-3xl font-bold tracking-tight uppercase text-white">Dandi AI</h1>
+              <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Secure Access Portal</p>
             </div>
           </Link>
         </div>
 
         {/* Login Card */}
-        <div className="rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-10 shadow-2xl shadow-zinc-200/50 dark:shadow-none">
+        <div className="rounded-[32px] border border-white/5 bg-slate-950/40 p-10 shadow-2xl shadow-black/50 backdrop-blur-2xl">
           <div className="space-y-6">
             {error && (
-              <div className="rounded-xl border border-rose-200 dark:border-rose-950/20 bg-rose-50 dark:bg-rose-950/10 p-4 text-xs font-bold uppercase tracking-widest text-rose-600 dark:text-rose-400 animate-in fade-in slide-in-from-top-2 duration-500">
+              <div className="rounded-xl border border-rose-950/20 bg-rose-950/10 p-4 text-xs font-bold uppercase tracking-widest text-rose-400 animate-in fade-in slide-in-from-top-2 duration-500">
                 Authentication Failed. Please try again.
               </div>
             )}
@@ -41,7 +39,7 @@ export default async function LoginPage({
         </div>
 
         {/* Footer */}
-        <p className="text-center text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+        <p className="text-center text-[10px] font-bold uppercase tracking-widest text-zinc-500">
           Secure E2E Encryption Enabled
         </p>
       </div>

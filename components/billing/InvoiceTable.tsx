@@ -14,7 +14,7 @@ export type Invoice = {
 const InvoiceTableSkeleton = () => (
   <>
     {[1, 2, 3].map((i) => (
-      <tr key={i} className="border-b border-zinc-100/50">
+      <tr key={i} className="border-b border-white/5">
         <td className="px-8 py-6">
           <div className="h-4 w-28 rounded-lg shimmer-cell mb-1.5" />
           <div className="h-3 w-16 rounded shimmer-cell" />
@@ -50,14 +50,9 @@ export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoic
           100% { background-position: 200% 0; }
         }
         .shimmer-cell {
-          background: linear-gradient(90deg, #f4f4f5 25%, #e4e4e7 50%, #f4f4f5 75%);
+          background: linear-gradient(90deg, #090d16 25%, #151c2c 50%, #090d16 75%);
           background-size: 200% 100%;
           animation: shimmer-loader 1.6s infinite linear;
-        }
-        @media (prefers-color-scheme: dark) {
-          .shimmer-cell {
-            background: linear-gradient(90deg, #27272a 25%, #3f3f46 50%, #27272a 75%);
-          }
         }
         @keyframes progress-slide {
           0% { left: -33%; }
@@ -76,13 +71,13 @@ export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoic
       )}
 
       <ScrollFrame axis="x" minWidth="560px" label="Invoice ledger table">
-        <table className="w-full min-w-[560px] text-left border-collapse">
+        <table className="w-full min-w-[560px] text-left border-collapse table-fixed">
           <thead>
             <tr className="border-b border-white/10 bg-white/[0.03]">
-              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Cycle</th>
-              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Amount</th>
-              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Ledger State</th>
-              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Receipt</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 w-[35%]">Cycle</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 w-[25%]">Amount</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 w-[25%]">Ledger State</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 text-right w-[15%]">Receipt</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">

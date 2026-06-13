@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, CSSProperties } from "react";
 import { cx } from "./utils";
 
 export type CommandPanelProps = {
@@ -7,6 +7,7 @@ export type CommandPanelProps = {
   padding?: "sm" | "md" | "lg" | "none";
   interactive?: boolean;
   className?: string;
+  style?: CSSProperties;
 };
 
 const toneClasses: Record<NonNullable<CommandPanelProps["tone"]>, string> = {
@@ -29,7 +30,10 @@ export function CommandPanel({
   padding = "md",
   interactive = false,
   className,
+  style,
 }: CommandPanelProps) {
+  const isOverflowHidden = className?.includes("overflow-hidden");
+  const maskStyle = isOverflowHidden ? { WebkitMaskImage: "-webkit-radial-gradient(white, black)" } : {};
   return (
     <div
       className={cx(
@@ -40,6 +44,7 @@ export function CommandPanel({
           "transition duration-300 hover:-translate-y-0.5 hover:border-[var(--command-border-bright)] hover:shadow-[var(--command-glow)] focus-within:border-[var(--command-border-bright)]",
         className,
       )}
+      style={{ ...maskStyle, ...style }}
     >
       {children}
     </div>

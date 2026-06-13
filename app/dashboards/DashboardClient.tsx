@@ -176,7 +176,7 @@ export default function DashboardClient({
           <div className="space-y-8">
             <DashboardPageHeader
               eyebrow={
-                <Link href="/" className="group flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white">
+                <Link href="/" className="group flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 transition hover:text-white">
                   <svg viewBox="0 0 24 24" className="h-3 w-3 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor">
                     <path d="M15 18l-6-6 6-6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -394,8 +394,8 @@ export default function DashboardClient({
 
                   <div className="space-y-6">
                     <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
-                        Consumption <span className="mx-2 opacity-20">/</span> <span className="text-zinc-900 dark:text-zinc-100">{totalUsage.toLocaleString()} Units Used</span>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                        Consumption <span className="mx-2 opacity-20">/</span> <span className="text-white">{totalUsage.toLocaleString()} Units Used</span>
                       </p>
                       <div className="flex items-center gap-2">
                         <span className="relative flex h-2 w-2">
@@ -488,29 +488,32 @@ export default function DashboardClient({
               keyUsage={keyToRevoke?.usage_count || 0}
             />
             {createdPlainKey && (
-              <div className="fixed inset-0 z-[1100] flex items-start justify-center overflow-y-auto bg-zinc-950/40 dark:bg-zinc-950/60 p-3 backdrop-blur-sm animate-in fade-in duration-300 sm:items-center sm:p-6">
-                <div className="my-3 w-full max-w-xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-[28px] border border-zinc-200 dark:border-zinc-800 bg-[#f4f2ed] dark:bg-zinc-900 p-6 shadow-2xl animate-in zoom-in-95 duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[40px] sm:p-10">
+              <div className="fixed inset-0 z-[1100] flex items-start justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm animate-in fade-in duration-300 sm:items-center sm:p-6">
+                <div 
+                  className="my-3 w-full max-w-xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-[28px] border border-white/5 bg-slate-950/90 p-6 shadow-2xl animate-in zoom-in-95 duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[40px] sm:p-10"
+                  style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
+                >
                   <div className="mb-8 text-center space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">Security Warning</p>
-                    <h3 className="font-serif text-3xl font-bold tracking-tight italic text-zinc-900 dark:text-zinc-100 sm:text-4xl">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-400">Security Warning</p>
+                    <h3 className="font-serif text-3xl font-bold tracking-tight italic text-white sm:text-4xl">
                       Secure Key Generated.
                     </h3>
-                    <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                    <p className="text-sm font-medium text-zinc-400">
                       Copy your credentials now. This token will not be displayed again.
                     </p>
                   </div>
 
                   <div className="space-y-6">
                     {/* Callout box */}
-                    <div className="rounded-3xl border border-red-200 dark:border-red-950/30 bg-red-50 dark:bg-red-950/10 p-6 flex gap-4 items-start">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400">
+                    <div className="rounded-3xl border border-red-500/10 bg-red-500/5 p-6 flex gap-4 items-start">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
                         <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
                           <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-xs font-bold text-red-800 dark:text-red-400">One-Time Visibility Only</p>
-                        <p className="text-[11px] font-medium text-red-600 dark:text-red-500 leading-relaxed">
+                        <p className="text-xs font-bold text-red-400">One-Time Visibility Only</p>
+                        <p className="text-[11px] font-medium text-red-500/80 leading-relaxed">
                           For compliance and security, we only hash this credential in our database. We cannot retrieve or display this key ever again.
                         </p>
                       </div>
@@ -518,11 +521,11 @@ export default function DashboardClient({
 
                     {/* Key Display Area */}
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 px-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">
                         Your Generated Plaintext API Key
                       </label>
-                      <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-zinc-200 bg-white p-2 pl-4 dark:border-zinc-800 dark:bg-zinc-950 sm:pl-6">
-                        <code className="min-w-0 flex-1 break-all font-mono text-xs font-bold tracking-wider text-zinc-800 dark:text-zinc-200">
+                      <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/70 p-2 pl-4 sm:pl-6">
+                        <code className="min-w-0 flex-1 break-all font-mono text-xs font-bold tracking-wider text-slate-200">
                           <DecryptingKeyText 
                             text={createdPlainKey || ""} 
                             visible={isPlainKeyVisible} 
@@ -532,7 +535,7 @@ export default function DashboardClient({
                         <button
                           type="button"
                           onClick={() => setIsPlainKeyVisible(!isPlainKeyVisible)}
-                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-zinc-400 dark:text-zinc-500 transition hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white"
+                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-white/5 hover:text-white cursor-pointer"
                           title={isPlainKeyVisible ? "Hide API key" : "Show API key"}
                         >
                           {isPlainKeyVisible ? (
@@ -544,10 +547,10 @@ export default function DashboardClient({
                         <button
                           type="button"
                           onClick={() => handleCopyKey(createdPlainKey || "")}
-                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all ${
+                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all cursor-pointer ${
                             copiedKey 
-                              ? "bg-emerald-500 text-white animate-pulse" 
-                              : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200"
+                              ? "bg-emerald-500 text-zinc-950 animate-pulse" 
+                              : "bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
                           }`}
                           title={copiedKey ? "Copied" : "Copy secure session key"}
                         >
@@ -562,11 +565,11 @@ export default function DashboardClient({
                   </div>
 
                   {/* Footer */}
-                  <div className="mt-10 flex items-center justify-end pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                  <div className="mt-10 flex items-center justify-end pt-4 border-t border-white/5">
                     <button
                       type="button"
                       onClick={() => setCreatedPlainKey(null)}
-                      className="group flex items-center justify-center gap-3 rounded-full bg-zinc-900 dark:bg-zinc-100 px-10 py-4 text-xs font-black uppercase tracking-widest text-white dark:text-zinc-950 shadow-xl shadow-zinc-900/10 dark:shadow-none transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200 hover:scale-105 active:scale-95"
+                      className="group flex items-center justify-center gap-3 rounded-full bg-white px-10 py-4 text-xs font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-zinc-200 hover:scale-105 active:scale-95 cursor-pointer"
                     >
                       I have secured this key
                       <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">

@@ -75,9 +75,9 @@ function ProtectedContent() {
           </div>
         ) : isValid ? (
           <div className="space-y-8">
-            <div className="rounded-[24px] border border-emerald-300/20 bg-emerald-300/10 p-8 text-emerald-200">
+            <div className="rounded-[24px] border border-emerald-500/20 bg-emerald-950/20 p-8 text-emerald-200">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
                   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
                     <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -89,7 +89,7 @@ function ProtectedContent() {
               </div>
             </div>
 
-            <div className="rounded-[24px] border border-white/10 bg-slate-950/60 p-8 shadow-sm">
+            <div className="rounded-[24px] border border-white/5 bg-slate-950/40 p-8 shadow-xl backdrop-blur-xl">
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-6">Restricted Resources</h3>
               <ul className="space-y-4">
                 {[
@@ -108,7 +108,7 @@ function ProtectedContent() {
             </div>
           </div>
         ) : (
-          <div className="rounded-[24px] border border-rose-400/20 bg-rose-400/10 p-10 text-rose-200 text-center space-y-6">
+          <div className="rounded-[24px] border border-rose-500/20 bg-rose-950/20 p-10 text-rose-200 text-center space-y-6">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-500 text-white shadow-xl shadow-rose-500/20">
               <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor">
                 <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -120,7 +120,7 @@ function ProtectedContent() {
             </div>
             <button 
               onClick={() => window.history.back()}
-              className="rounded-full bg-rose-900 px-8 py-3 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-rose-800 shadow-lg shadow-rose-900/10"
+              className="rounded-full bg-rose-500 px-8 py-3 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-rose-400 shadow-lg shadow-rose-500/20 hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] active:scale-95 cursor-pointer"
             >
               Return to Safety
             </button>
@@ -160,10 +160,10 @@ export default function ProtectedClient({ initialSession }: { initialSession: Se
       }}
     >
       <Suspense fallback={
-        <div className="flex-1 rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 p-8 backdrop-blur-sm">
+        <div className="flex-1 rounded-[32px] border border-white/5 bg-slate-950/40 p-8 backdrop-blur-xl">
           <div className="animate-pulse space-y-4">
-            <div className="h-8 w-48 bg-zinc-200 dark:bg-zinc-800 rounded-full"></div>
-            <div className="h-32 w-full bg-zinc-100 dark:bg-zinc-800/50 rounded-[24px]"></div>
+            <div className="h-8 w-48 bg-slate-900 rounded-full"></div>
+            <div className="h-32 w-full bg-slate-900/50 rounded-[24px]"></div>
           </div>
         </div>
       }>

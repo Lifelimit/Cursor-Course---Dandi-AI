@@ -188,7 +188,7 @@ export default function UsageClient({
           {showSkeleton ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map(i => (
-                <div key={i} className="h-64 animate-pulse rounded-[32px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800" />
+                <div key={i} className="h-64 animate-pulse rounded-[32px] bg-slate-950/40 border border-white/5" />
               ))}
             </div>
           ) : (
@@ -240,7 +240,7 @@ export default function UsageClient({
                         <h3 className="font-serif text-2xl font-bold italic mb-6">Need more volume?</h3>
                         <Link 
                           href="/billing"
-                          className="w-full text-center block rounded-full bg-white dark:bg-zinc-100 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-950 transition hover:bg-zinc-200 dark:hover:bg-zinc-200/80"
+                          className="w-full text-center block rounded-full bg-white py-3 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition hover:bg-zinc-200 cursor-pointer"
                         >
                           View Plans
                         </Link>

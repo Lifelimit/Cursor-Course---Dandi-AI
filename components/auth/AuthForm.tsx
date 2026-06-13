@@ -153,19 +153,19 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
 
   if (isMagicLinkSent) {
     return (
-      <div className="rounded-2xl border border-emerald-100 dark:border-emerald-950/30 bg-emerald-50/50 dark:bg-emerald-950/10 p-6 text-center animate-in fade-in zoom-in duration-300">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+      <div className="rounded-2xl border border-emerald-500/10 bg-emerald-500/5 p-6 text-center animate-in fade-in zoom-in duration-300">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-6 w-6">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
           </svg>
         </div>
-        <h3 className="font-serif text-lg font-bold text-emerald-900 dark:text-emerald-100">Check your inbox</h3>
-        <p className="mt-2 text-sm text-emerald-700/80 dark:text-emerald-300/80 leading-relaxed">
-          We&apos;ve sent a magic link to <span className="font-bold">{email}</span>.
+        <h3 className="font-serif text-lg font-bold text-white">Check your inbox</h3>
+        <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
+          We&apos;ve sent a magic link to <span className="font-bold text-emerald-400">{email}</span>.
         </p>
         <button 
           onClick={() => setIsMagicLinkSent(false)}
-          className="mt-6 text-xs font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
+          className="mt-6 text-xs font-bold uppercase tracking-widest text-emerald-400 hover:text-emerald-300 transition-colors"
         >
           Try a different email
         </button>
@@ -176,10 +176,10 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
   return (
     <div className="w-full space-y-6">
       <div className="space-y-2">
-        <h2 className="font-serif text-2xl font-bold transition-all duration-300 text-zinc-900 dark:text-white">
+        <h2 className="font-serif text-2xl font-bold transition-all duration-300 text-white">
           {isSignUp ? "Create your account" : "Welcome back"}
         </h2>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 transition-all duration-300">
+        <p className="text-sm text-zinc-400 transition-all duration-300">
           {!usePassword 
             ? "Sign in securely with a one-time link sent directly to your inbox."
             : isSignUp 
@@ -189,13 +189,13 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-200 dark:border-rose-950/30 bg-rose-50 dark:bg-rose-950/10 p-4 text-sm text-rose-700 dark:text-rose-400 animate-in slide-in-from-top-2 duration-300">
+        <div className="rounded-xl border border-rose-500/10 bg-rose-500/5 p-4 text-sm text-rose-400 animate-in slide-in-from-top-2 duration-300">
           {error}
         </div>
       )}
 
       {successMessage && (
-        <div className="rounded-xl border border-emerald-200 dark:border-emerald-950/30 bg-emerald-50 dark:bg-emerald-950/10 p-4 text-sm text-emerald-700 dark:text-emerald-400 animate-in slide-in-from-top-2 duration-300">
+        <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-4 text-sm text-emerald-400 animate-in slide-in-from-top-2 duration-300">
           {successMessage}
         </div>
       )}
@@ -203,42 +203,42 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
       <form onSubmit={handleAuth} className="space-y-4">
         {usePassword && isSignUp && (
           <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 ml-1">Full Name</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Full Name</label>
             <input 
               type="text" 
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required={usePassword && isSignUp}
               disabled={isLoading}
-              className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-5 py-4 text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-4 focus:ring-zinc-900/5 dark:focus:ring-zinc-100/5 transition-all disabled:opacity-50"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm font-medium text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 transition-all disabled:opacity-50"
               placeholder="Jane Doe"
             />
           </div>
         )}
 
         <div className="space-y-2">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 ml-1">Email Address</label>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Email Address</label>
           <input 
             type="email" 
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={isLoading}
-            className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-5 py-4 text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-4 focus:ring-zinc-900/5 dark:focus:ring-zinc-100/5 transition-all disabled:opacity-50"
+            className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm font-medium text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 transition-all disabled:opacity-50"
             placeholder="name@company.com"
           />
         </div>
 
         {usePassword && (
           <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 ml-1">Password</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Password</label>
             <input 
               type="password" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required={usePassword}
               disabled={isLoading}
-              className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-5 py-4 text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-4 focus:ring-zinc-900/5 dark:focus:ring-zinc-100/5 transition-all disabled:opacity-50"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm font-medium text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 transition-all disabled:opacity-50"
               placeholder="••••••••"
             />
           </div>
@@ -247,7 +247,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
         <button
           type="submit"
           disabled={isLoading}
-          className="relative group w-full overflow-hidden rounded-full bg-zinc-900 dark:bg-zinc-100 py-4 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-950 transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200 hover:shadow-xl active:scale-[0.98] disabled:opacity-50"
+          className="relative group w-full overflow-hidden rounded-full bg-emerald-500 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(52,211,153,0.3)] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
         >
           <span className={isLoading ? "opacity-0" : "opacity-100 transition-opacity"}>
             {!usePassword 
@@ -256,7 +256,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
           </span>
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-500 dark:border-zinc-400 border-t-white dark:border-t-zinc-950" />
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-950/30 border-t-zinc-950" />
             </div>
           )}
         </button>
@@ -268,7 +268,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
               setUsePassword(!usePassword);
               setError(null);
             }}
-            className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+            className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors cursor-pointer"
           >
             {usePassword ? "Use magic link instead" : "Sign in with password instead"}
           </button>
@@ -276,15 +276,15 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
       </form>
 
       <div className="relative flex items-center py-2">
-        <div className="flex-grow border-t border-zinc-100 dark:border-zinc-800"></div>
-        <span className="flex-shrink-0 px-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Or continue with social</span>
-        <div className="flex-grow border-t border-zinc-100 dark:border-zinc-800"></div>
+        <div className="flex-grow border-t border-white/5"></div>
+        <span className="flex-shrink-0 px-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Or continue with social</span>
+        <div className="flex-grow border-t border-white/5"></div>
       </div>
 
       <button
         onClick={signInWithGoogle}
         disabled={isLoading}
-        className="group flex w-full items-center justify-center gap-4 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-900 dark:text-zinc-100 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:shadow-lg active:scale-[0.98] disabled:opacity-50"
+        className="group flex w-full items-center justify-center gap-4 rounded-full border border-white/5 bg-slate-950/40 px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white transition-all hover:bg-white/5 hover:shadow-lg active:scale-[0.98] disabled:opacity-50 cursor-pointer"
       >
         <svg viewBox="0 0 24 24" className="h-4 w-4" xmlns="http://www.w3.org/2000/svg">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -295,7 +295,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
         Continue with Google
       </button>
 
-      <div className="pt-4 text-center text-sm text-zinc-500 dark:text-zinc-400 border-t border-zinc-100 dark:border-zinc-800">
+      <div className="pt-4 text-center text-sm text-zinc-500 border-t border-white/5">
         {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
         <button 
           onClick={() => {
@@ -303,7 +303,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
             setError(null);
             setSuccessMessage(null);
           }}
-          className="font-bold text-zinc-900 dark:text-white hover:underline"
+          className="font-bold text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
         >
           {isSignUp ? "Sign in" : "Sign up"}
         </button>
