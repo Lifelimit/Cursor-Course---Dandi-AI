@@ -408,7 +408,13 @@ export default function DashboardClient({
             {/* Plan Status Card */}
             <CommandPanel padding="none" className="group relative overflow-hidden p-5 sm:p-8 md:p-10">
               {/* Background Glow Decoration */}
-              <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl transition-all group-hover:bg-emerald-400/15" />
+              <div
+                className="pointer-events-none absolute inset-0 opacity-70 transition-opacity duration-300 group-hover:opacity-100"
+                style={{
+                  background:
+                    "radial-gradient(ellipse 120% 80% at 100% 0%, rgba(52, 211, 153, 0.14), transparent 60%)",
+                }}
+              />
               <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/50 to-transparent" />
               
               <div className="relative flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
