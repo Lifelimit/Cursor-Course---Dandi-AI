@@ -62,16 +62,16 @@ function ProtectedContent() {
     <>
     <CommandPanel className="flex h-full flex-col p-8">
       <div className="space-y-2">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-300/75">Security / Vault</p>
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-300/75">Security / Key Verification</p>
         <h1 className="font-serif text-4xl font-bold text-white md:text-5xl">Protected Area.</h1>
-        <p className="mt-4 text-sm font-medium text-slate-400">Secure credential verification and encrypted resource access.</p>
+        <p className="mt-4 text-sm font-medium text-slate-400">Secure credential verification and protected resource access.</p>
       </div>
       
       <div className="mt-12 flex-1">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 space-y-4">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-300 border-t-transparent"></div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Decrypting Access Node...</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Verifying Access Key...</p>
           </div>
         ) : isValid ? (
           <div className="space-y-8">
@@ -94,8 +94,8 @@ function ProtectedContent() {
               <ul className="space-y-4">
                 {[
                   { label: "Proprietary Algorithm Documentation", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
-                  { label: "Real-time Node Telemetry", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
-                  { label: "Encrypted Strategy Modules", icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" }
+                  { label: "Real-time Node Connection Status", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
+                  { label: "Protected Strategy Modules", icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" }
                 ].map((item) => (
                   <li key={item.label} className="flex items-center gap-4 group cursor-pointer transition-colors text-slate-300 hover:text-white">
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">

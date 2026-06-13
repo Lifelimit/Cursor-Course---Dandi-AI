@@ -35,7 +35,7 @@ export function ScrollFrame({
       aria-label={label}
       tabIndex={label ? 0 : undefined}
     >
-      <div className={cx("min-w-0", minWidth && "w-full")} style={innerStyle}>
+      <div className={cx(axis === "y" ? "min-w-0" : undefined, minWidth && "w-full")} style={innerStyle}>
         {children}
       </div>
     </div>

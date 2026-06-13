@@ -28,7 +28,7 @@ export function MockTerminal({
   className,
 }: MockTerminalProps) {
   return (
-    <div className={cx("min-w-0 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 font-mono text-zinc-300 shadow-[0_24px_80px_rgba(0,0,0,0.24)]", className)}>
+    <div className={cx("min-w-0 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 font-mono text-zinc-300 shadow-[0_24px_80px_rgba(0,0,0,0.24)]", className)} style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}>
       <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <div aria-hidden="true" className="flex shrink-0 items-center gap-1.5">

@@ -609,7 +609,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
 
                   {/* data node */}
                   <div className="pl-4">
-                    <button onClick={() => setIsDataOpen(!isDataOpen)} className="hover:text-emerald-400 focus:outline-none font-bold text-zinc-500 text-left cursor-pointer">
+                    <button onClick={() => setIsDataOpen(!isDataOpen)} className="hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 rounded px-1 font-bold text-zinc-500 text-left cursor-pointer">
                       {isDataOpen ? "▼" : "▶"} <span className="text-emerald-400">&quot;data&quot;</span>: {"{"}
                     </button>
                     
@@ -625,7 +625,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
 
                         {/* metadata node */}
                         <div>
-                          <button onClick={() => setIsMetadataOpen(!isMetadataOpen)} className="hover:text-emerald-400 focus:outline-none font-bold text-zinc-500 text-left cursor-pointer">
+                          <button onClick={() => setIsMetadataOpen(!isMetadataOpen)} className="hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 rounded px-1 font-bold text-zinc-500 text-left cursor-pointer">
                             {isMetadataOpen ? "▼" : "▶"} <span className="text-emerald-400">&quot;metadata&quot;</span>: {"{"}
                           </button>
                           {isMetadataOpen && (
@@ -657,7 +657,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
 
                         {/* cool facts node */}
                         <div>
-                          <button onClick={() => setIsCoolFactsOpen(!isCoolFactsOpen)} className="hover:text-emerald-400 focus:outline-none font-bold text-zinc-500 text-left cursor-pointer">
+                          <button onClick={() => setIsCoolFactsOpen(!isCoolFactsOpen)} className="hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 rounded px-1 font-bold text-zinc-500 text-left cursor-pointer">
                             {isCoolFactsOpen ? "▼" : "▶"} <span className="text-emerald-400">&quot;cool_facts&quot;</span>: [
                           </button>
                           {isCoolFactsOpen && (

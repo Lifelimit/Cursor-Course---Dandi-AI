@@ -32,19 +32,17 @@ export function CommandPanel({
   className,
   style,
 }: CommandPanelProps) {
-  const isOverflowHidden = className?.includes("overflow-hidden");
-  const maskStyle = isOverflowHidden ? { WebkitMaskImage: "-webkit-radial-gradient(white, black)" } : {};
   return (
     <div
       className={cx(
-        "min-w-0 rounded-[24px] border backdrop-blur-xl md:rounded-[32px]",
+        "min-w-0 overflow-hidden rounded-[24px] border backdrop-blur-xl md:rounded-[32px]",
         toneClasses[tone],
         paddingClasses[padding],
         interactive &&
           "transition duration-300 hover:-translate-y-0.5 hover:border-[var(--command-border-bright)] hover:shadow-[var(--command-glow)] focus-within:border-[var(--command-border-bright)]",
         className,
       )}
-      style={{ ...maskStyle, ...style }}
+      style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)", ...style }}
     >
       {children}
     </div>

@@ -5,6 +5,7 @@ import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, useStripe, useElements, CardNumberElement } from "@stripe/react-stripe-js";
+import { ModalFrame } from "@/components/command/ModalFrame";
 
 import type { Session } from "@supabase/supabase-js";
 
@@ -590,144 +591,147 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
     }
   };
 
+  const modalSize = isInitializing
+    ? "sm"
+    : (view === "update-payment" || view === "success" || view === "plan-change-review")
+    ? "xl"
+    : (view === "key-downgrade-selector" || view === "cancel-confirm")
+    ? "lg"
+    : "md";
+
   return (
-    <div 
-      className="fixed inset-0 z-[1000] flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-6"
+    <ModalFrame
+      open={isOpen}
+      onClose={onClose}
+      size={modalSize}
+      titleId="subscription-modal-title"
+      className="p-0 sm:p-0 overflow-hidden border-[var(--command-border-strong)] bg-[var(--command-panel-solid)] text-[var(--command-text)]"
     >
-      {/* Decisive Backdrop - Blocks all background interaction */}
-      <div 
-        className="fixed inset-0 bg-zinc-900/60 backdrop-blur-md transition-opacity animate-in fade-in duration-300"
-        onClick={onClose}
-      />
-
-      <div className={`relative z-10 my-3 w-full max-h-[calc(100dvh-1.5rem)] overflow-hidden rounded-[28px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl animate-in zoom-in-95 duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[40px] ${isInitializing ? 'max-w-sm' : (view === 'update-payment' || view === 'success' || view === 'plan-change-review') ? 'max-w-4xl' : (view === 'key-downgrade-selector' || view === 'cancel-confirm') ? 'max-w-xl' : 'max-w-lg'}`}>
-        
-        {isInitializing ? (
-          <div className="flex flex-col items-center justify-center gap-6 p-12">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-100 dark:border-zinc-800 border-t-zinc-900 dark:border-t-zinc-100" />
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500 text-center">Verifying Operational Status...</p>
-          </div>
-        ) : (
-          <div key={view} className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-500 sm:max-h-[calc(100dvh-3rem)]">
-            {/* Adaptive Header: Softened Rose-Red for destructive actions, Zinc-900 for others */}
-            <div className={`relative overflow-hidden p-6 transition-all duration-500 sm:p-10 ${(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector')
-              ? 'bg-gradient-to-br from-[#d40035] to-[#f4003d] text-white' 
-              : 'bg-[#18181b] text-white'}`}>
-              
-              {/* Subtle Grain Overlay for Destructive Views */}
-              {(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector') && (
-                <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")' }} />
-              )}
-              
-              <ModalCloseButton
-                onClick={onClose}
-                className="absolute right-3 top-3 z-30 text-white/35 hover:bg-white/10 hover:text-white sm:right-6 sm:top-6"
-              />
-              
-              <div className="relative z-10 space-y-2 pr-12 sm:pr-14">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">
-                  {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : view === "remove-card-confirm" ? "Confirm Removal" : view === "key-downgrade-selector" ? "Hobby Plan Limit" : "Confirm Cancellation"}
-                </p>
-                <h3 className="font-serif text-3xl font-bold italic tracking-tight sm:text-6xl">
-                  {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Thank You!" : view === "plan-change-review" ? "Confirm Switch" : view === "remove-card-confirm" ? "Remove Card?" : view === "key-downgrade-selector" ? "Select Keys" : "Cancel Plan?"}
-                </h3>
-              </div>
-
-              {view === "overview" && planName !== "Hobby" && (
-                <div className="relative z-10 mt-8 flex items-baseline gap-2 sm:mt-10">
-                  <span className="text-5xl font-bold tracking-tighter sm:text-7xl">{currentPlan.price}</span>
-                  <span className="text-sm font-medium text-white/40">/ per month</span>
-                </div>
-              )}
-            </div>
-
-            {/* Body Section */}
-            <div className="p-5 sm:p-8">
-              {view === "change-plan" ? (
-            <PlanSelection 
-              planName={planName}
-              isLoading={isLoading}
-              billingInterval={billingInterval}
-              setBillingInterval={setBillingInterval}
-              onSelectPlan={handlePlanSelection}
-              onGoBack={() => setView("overview")}
-            />
-          ) : view === "update-payment" ? (
-            <div className="flex flex-col gap-6 md:flex-row md:gap-8">
-              <PaymentForm 
-                formValues={formValues}
-                setFormValues={setFormValues}
-                handleInputChange={handleInputChange}
-                handleSavePayment={handleSavePayment}
-                isLoading={isLoading}
-                showCvc={showCvc}
-                setShowCvc={setShowCvc}
-                showAddressForm={showAddressForm}
-                setShowAddressForm={setShowAddressForm}
-                pendingPlan={pendingPlan}
-                planName={planName}
-                onClose={onClose}
-                setView={setView}
-                setPendingPlan={setPendingPlan}
-                initialView={initialView}
-                cardData={cardData}
-              />
-              <OrderSummary pendingPlan={pendingPlan} />
-            </div>
-          ) : view === "success" ? (
-            <SuccessView 
-              pendingPlan={pendingPlan} 
-              transactionId={transactionId} 
-              session={session || null} 
-              onClose={onClose}
-            />
-          ) : view === "plan-change-review" ? (
-            <PlanReview 
-              pendingPlan={pendingPlan}
-              isLoading={isLoading}
-              billingInterval={billingInterval}
-              onConfirm={handleExecutePlanChange}
-              onBack={() => { setView("change-plan"); setPendingPlan(null); }}
-            />
-          ) : view === "key-downgrade-selector" ? (
-            <KeyDowngradeSelector
-              isLoading={isLoading}
-              hasCard={false}
-              onConfirm={handleKeyDowngradeConfirm}
-              onBack={onClose}
-            />
-          ) : view === "cancel-confirm" ? (
-            <CancelConfirmation 
-              isLoading={isLoading}
-              hasCard={false}
-              nextBillingDate={nextBillingDate}
-              planName={planName}
-              onConfirm={handleCancelAction}
-              onCancel={onClose}
-            />
-          ) : view === "remove-card-confirm" ? (
-            <RemoveCardConfirmation 
-              isLoading={isLoading}
-              onConfirm={executeRemoveCard}
-              onCancel={() => setView("overview")}
-            />
-          ) : (
-            <Overview 
-              planName={planName}
-              currentPlan={currentPlan}
-              nextBillingDate={nextBillingDate}
-              formValues={formValues}
-              cardData={cardData}
-              isLoading={isLoading}
-              setView={setView}
-              handleRemoveCard={handleRemoveCard}
-              onCancelSubscription={handleInitiateDowngrade}
-            />
-          )}
+      {isInitializing ? (
+        <div className="flex flex-col items-center justify-center gap-6 p-12">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/5 border-t-white" />
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-slate-500 text-center">Verifying Operational Status...</p>
         </div>
+      ) : (
+        <div key={view} className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-500 sm:max-h-[calc(100dvh-3rem)]">
+          {/* Adaptive Header: Softened Rose-Red for destructive actions, Slate-950 for others */}
+          <div className={`relative overflow-hidden p-6 transition-all duration-500 sm:p-10 ${(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector')
+            ? 'bg-gradient-to-br from-[#881337] to-[#e11d48] text-white' 
+            : 'bg-slate-950 text-white border-b border-white/5'}`}>
+            
+            {/* Subtle Grain Overlay for Destructive Views */}
+            {(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector') && (
+              <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")' }} />
+            )}
+            
+            <ModalCloseButton
+              onClick={onClose}
+              className="absolute right-3 top-3 z-30 text-white/35 hover:bg-white/10 hover:text-white sm:right-6 sm:top-6"
+            />
+            
+            <div className="relative z-10 space-y-2 pr-12 sm:pr-14">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">
+                {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Tier" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Secure Billing") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : view === "remove-card-confirm" ? "Confirm Removal" : view === "key-downgrade-selector" ? "Hobby Plan Limit" : "Confirm Cancellation"}
+              </p>
+              <h3 id="subscription-modal-title" className="font-serif text-3xl font-bold italic tracking-tight sm:text-6xl text-white">
+                {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Thank You!" : view === "plan-change-review" ? "Confirm Switch" : view === "remove-card-confirm" ? "Remove Card?" : view === "key-downgrade-selector" ? "Select Keys" : "Cancel Plan?"}
+              </h3>
+            </div>
+
+            {view === "overview" && planName !== "Hobby" && (
+              <div className="relative z-10 mt-8 flex items-baseline gap-2 sm:mt-10">
+                <span className="text-5xl font-bold tracking-tighter sm:text-7xl">{currentPlan.price}</span>
+                <span className="text-sm font-medium text-white/40">/ per month</span>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-    </div>
+
+          {/* Body Section */}
+          <div className="p-5 sm:p-8">
+            {view === "change-plan" ? (
+              <PlanSelection 
+                planName={planName}
+                isLoading={isLoading}
+                billingInterval={billingInterval}
+                setBillingInterval={setBillingInterval}
+                onSelectPlan={handlePlanSelection}
+                onGoBack={() => setView("overview")}
+              />
+            ) : view === "update-payment" ? (
+              <div className="flex flex-col gap-6 md:flex-row md:gap-8">
+                <PaymentForm 
+                  formValues={formValues}
+                  setFormValues={setFormValues}
+                  handleInputChange={handleInputChange}
+                  handleSavePayment={handleSavePayment}
+                  isLoading={isLoading}
+                  showCvc={showCvc}
+                  setShowCvc={setShowCvc}
+                  showAddressForm={showAddressForm}
+                  setShowAddressForm={setShowAddressForm}
+                  pendingPlan={pendingPlan}
+                  planName={planName}
+                  onClose={onClose}
+                  setView={setView}
+                  setPendingPlan={setPendingPlan}
+                  initialView={initialView}
+                  cardData={cardData}
+                />
+                <OrderSummary pendingPlan={pendingPlan} />
+              </div>
+            ) : view === "success" ? (
+              <SuccessView 
+                pendingPlan={pendingPlan} 
+                transactionId={transactionId} 
+                session={session || null} 
+                onClose={onClose}
+              />
+            ) : view === "plan-change-review" ? (
+              <PlanReview 
+                pendingPlan={pendingPlan}
+                isLoading={isLoading}
+                billingInterval={billingInterval}
+                onConfirm={handleExecutePlanChange}
+                onBack={() => { setView("change-plan"); setPendingPlan(null); }}
+              />
+            ) : view === "key-downgrade-selector" ? (
+              <KeyDowngradeSelector
+                isLoading={isLoading}
+                hasCard={false}
+                onConfirm={handleKeyDowngradeConfirm}
+                onBack={onClose}
+              />
+            ) : view === "cancel-confirm" ? (
+              <CancelConfirmation 
+                isLoading={isLoading}
+                hasCard={false}
+                nextBillingDate={nextBillingDate}
+                planName={planName}
+                onConfirm={handleCancelAction}
+                onCancel={onClose}
+              />
+            ) : view === "remove-card-confirm" ? (
+              <RemoveCardConfirmation 
+                isLoading={isLoading}
+                onConfirm={executeRemoveCard}
+                onCancel={() => setView("overview")}
+              />
+            ) : (
+              <Overview 
+                planName={planName}
+                currentPlan={currentPlan}
+                nextBillingDate={nextBillingDate}
+                formValues={formValues}
+                cardData={cardData}
+                isLoading={isLoading}
+                setView={setView}
+                handleRemoveCard={handleRemoveCard}
+                onCancelSubscription={handleInitiateDowngrade}
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </ModalFrame>
   );
 }

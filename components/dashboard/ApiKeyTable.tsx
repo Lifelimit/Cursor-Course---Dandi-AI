@@ -257,7 +257,7 @@ export function ApiKeyTable({
       </div>
 
       <CommandPanel padding="none" className="animate-in fade-in duration-300">
-        <ScrollFrame axis="x" minWidth="800px" label="Credential vault table">
+        <ScrollFrame axis="x" minWidth="800px" label="API credentials table">
         <table className="w-full min-w-[800px] border-collapse text-left text-sm table-fixed">
           <thead className="bg-white/[0.03] text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
             <tr className="border-b border-white/10">
@@ -364,16 +364,18 @@ export function ApiKeyTable({
                     <button
                       onClick={(e) => { e.stopPropagation(); onEdit(key); }}
                       type="button"
-                      className="rounded-xl p-2 text-slate-500 transition hover:bg-white/10 hover:text-white active:scale-95"
+                      className="rounded-xl p-2 text-slate-500 transition hover:bg-white/10 hover:text-white active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
                       title="Edit Configuration"
+                      aria-label="Edit API key configuration"
                     >
                       <EditIcon className="h-4.5 w-4.5" />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onDelete(key); }}
                       type="button"
-                      className="rounded-xl p-2 text-slate-500 transition hover:bg-rose-400/10 hover:text-rose-300 active:scale-95"
+                      className="rounded-xl p-2 text-slate-500 transition hover:bg-rose-400/10 hover:text-rose-300 active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-500"
                       title="Revoke Credential"
+                      aria-label="Revoke API key credential"
                     >
                       <TrashIcon className="h-4.5 w-4.5" />
                     </button>

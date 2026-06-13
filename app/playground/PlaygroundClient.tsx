@@ -1232,11 +1232,11 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                         <button
                           type="submit"
                           disabled={isLoadingSummary || isOverLimit}
-                          className="group flex flex-1 items-center justify-center gap-3 rounded-2xl bg-emerald-300 px-8 py-5 text-xs font-bold uppercase tracking-widest text-slate-950 transition-all hover:bg-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-emerald-950/10 cursor-pointer"
+                          className="group flex flex-1 items-center justify-center gap-3 rounded-2xl bg-emerald-400 px-8 py-5 text-xs font-black uppercase tracking-widest text-slate-950 transition-all hover:bg-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_24px_rgba(52,211,153,0.18)] cursor-pointer"
                         >
                           {isLoadingSummary ? (
                             <>
-                              <div className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 dark:border-zinc-950/20 border-t-white dark:border-t-zinc-950"></div>
+                              <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950"></div>
                               Processing Repo...
                             </>
                           ) : isOverLimit ? (
@@ -1259,11 +1259,11 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                         <button
                           type="submit"
                           disabled={ingestStatus === "crawling" || ingestStatus === "embedding" || isOverLimit}
-                          className="group flex flex-1 items-center justify-center gap-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-5 text-xs font-bold uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-emerald-950/10 cursor-pointer"
+                          className="group flex flex-1 items-center justify-center gap-3 rounded-2xl bg-emerald-400 px-8 py-5 text-xs font-black uppercase tracking-widest text-slate-950 transition-all hover:bg-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_24px_rgba(52,211,153,0.18)] cursor-pointer"
                         >
                           {ingestStatus === "crawling" || ingestStatus === "embedding" ? (
                             <>
-                              <div className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-white"></div>
+                              <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950"></div>
                               Ingesting & Indexing...
                             </>
                           ) : (

@@ -62,6 +62,7 @@ export function ModalFrame({
           sizeClasses[size],
           className,
         )}
+        style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
       >
         {children}
       </div>

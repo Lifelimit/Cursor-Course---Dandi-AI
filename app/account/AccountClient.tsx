@@ -451,7 +451,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         setTesterLogs(prev => [...prev, step]);
         if (index === steps.length - 1) {
           setIsTestingWebhook(false);
-          showToast("success", "Webhook live telemetry test completed successfully.");
+          showToast("success", "Webhook test payload dispatched successfully.");
           
           const newLog: WebhookLogEntry = {
             id: `w-${Date.now()}`,
@@ -574,7 +574,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                     <button
                       type="submit"
                       disabled={isSavingProfile}
-                      className="rounded-full bg-emerald-500 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-95 disabled:opacity-50 focus:outline-none cursor-pointer"
+                      className="rounded-full bg-emerald-500 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-95 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
                     >
                       {isSavingProfile ? "Saving Details..." : "Save Profile Details"}
                     </button>
@@ -860,7 +860,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                       disabled={isSavingWebhook}
                       className="w-full rounded-full bg-emerald-500 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-95 disabled:opacity-50 sm:w-auto cursor-pointer"
                     >
-                      {isSavingWebhook ? "Saving Telemetry..." : "Save Webhook Configuration"}
+                      {isSavingWebhook ? "Saving Configuration..." : "Save Webhook Configuration"}
                     </button>
                   </form>
 
@@ -868,8 +868,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                   {webhookUrl && (
                     <div className="max-w-4xl space-y-6 border-t border-white/5 pt-8 animate-in fade-in duration-300 md:pt-10">
                       <div className="space-y-1">
-                        <h4 className="text-base font-bold text-white">Interactive Telemetry Tester</h4>
-                        <p className="text-xs text-zinc-400">Trigger a simulated telemetry payload dispatch to verify endpoint routing.</p>
+                        <h4 className="text-base font-bold text-white">Interactive Webhook Tester</h4>
+                        <p className="text-xs text-zinc-400">Send a test webhook payload to verify endpoint routing.</p>
                       </div>
 
                       <div className="flex flex-col items-stretch gap-6 md:flex-row">

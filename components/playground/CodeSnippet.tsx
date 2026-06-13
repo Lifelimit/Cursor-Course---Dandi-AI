@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { CopyIconButton } from "@/components/ui/CopyIconButton";
-import { CodeWindow, ScrollFrame } from "@/components/command";
+import { CodeWindow } from "@/components/command";
 
 type CodeSnippetProps = {
   apiKey: string;
@@ -118,9 +118,10 @@ print(response.json())`
       maxHeight="22rem"
       className="border-emerald-300/15"
     >
-      <div className="min-w-0 border-b border-white/10 bg-white/[0.02] px-4 py-3">
-        <ScrollFrame axis="x" label="Snippet language tabs">
-          <div className="flex min-w-max gap-2">
+      {/* Single min-w-max wrapper so tab bar + code block scroll as one unit */}
+      <div className="min-w-max">
+        <div className="border-b border-white/10 bg-white/[0.02] px-4 py-3">
+          <div className="flex gap-2">
             {(["curl", "fetch", "python"] as const).map((tab) => (
               <button
                 key={tab}
@@ -135,11 +136,11 @@ print(response.json())`
               </button>
             ))}
           </div>
-        </ScrollFrame>
-      </div>
-      <pre className="min-w-max p-4 font-mono text-[11px] leading-relaxed text-slate-300 sm:p-6">
+        </div>
+        <pre className="p-4 font-mono text-[11px] leading-relaxed text-slate-300 sm:p-6">
           <code>{snippets[activeTab]}</code>
-      </pre>
+        </pre>
+      </div>
     </CodeWindow>
   );
 }

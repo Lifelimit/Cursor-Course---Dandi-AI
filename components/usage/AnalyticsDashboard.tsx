@@ -226,13 +226,13 @@ export function AnalyticsDashboard({
       {/* Selector and Filter Header */}
       <CommandPanel className="relative z-40 flex flex-col justify-between gap-4 p-6 md:flex-row md:items-center">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Resource Context</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Resource Context</span>
           <div ref={dropdownRef} className="relative select-none z-30">
             {/* Trigger Button */}
             <button
               type="button"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/70 px-4.5 py-2.5 text-xs font-bold text-slate-100 shadow-sm transition duration-200 hover:border-emerald-300/25 active:scale-98 cursor-pointer"
+              className="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/70 px-4.5 py-2.5 text-xs font-bold text-slate-100 shadow-sm transition duration-200 hover:border-emerald-300/25 active:scale-98 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
             >
               <span className="truncate max-w-[150px] sm:max-w-[200px]">
                 {selectedKeyId === "all"
@@ -241,7 +241,7 @@ export function AnalyticsDashboard({
               </span>
               <svg
                 viewBox="0 0 24 24"
-                className={`h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 transition-transform duration-300 ${
+                className={`h-3.5 w-3.5 text-zinc-400 transition-transform duration-300 ${
                   isDropdownOpen ? "rotate-180 text-emerald-500" : ""
                 }`}
                 fill="none"
@@ -267,7 +267,7 @@ export function AnalyticsDashboard({
                   setSelectedKeyId("all");
                   setIsDropdownOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer ${
+                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 ${
                   selectedKeyId === "all"
                     ? "bg-emerald-500/10 text-emerald-300"
                     : "text-slate-400 hover:bg-white/5 hover:text-slate-100"
@@ -294,7 +294,7 @@ export function AnalyticsDashboard({
                         setSelectedKeyId(k.id);
                         setIsDropdownOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer ${
+                      className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 ${
                         isSelected
                           ? "bg-emerald-500/10 text-emerald-300"
                           : "text-slate-400 hover:bg-white/5 hover:text-slate-100"
@@ -302,7 +302,7 @@ export function AnalyticsDashboard({
                     >
                       <div className="flex flex-col gap-0.5">
                         <span className="truncate max-w-[170px]">{k.name}</span>
-                        <span className="text-[9px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">{k.usage_count.toLocaleString()} requests</span>
+                        <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">{k.usage_count.toLocaleString()} requests</span>
                       </div>
                       {isSelected && (
                         <svg viewBox="0 0 24 24" className="h-4 w-4 text-emerald-500 animate-in zoom-in duration-200" fill="none" stroke="currentColor" strokeWidth="3">
@@ -325,7 +325,7 @@ export function AnalyticsDashboard({
                 setMetricView(view);
                 setHoveredIndex(null);
               }}
-              className={`rounded-full px-4.5 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`rounded-full px-4.5 py-2 text-[10px] font-black uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                 metricView === view
                   ? "bg-emerald-300 text-slate-950 shadow-md scale-102"
                   : "border border-white/10 bg-slate-950/60 text-slate-400 hover:text-slate-100"
@@ -356,7 +356,7 @@ export function AnalyticsDashboard({
         {/* Metric 2: Average Latency */}
         <MetricCard
           label="Average Latency"
-          value={<>{currentAvgLatency}<span className="ml-1 text-xs font-normal font-sans text-slate-500">ms</span></>}
+          value={<>{currentAvgLatency}<span className="ml-1 text-xs font-normal font-sans text-slate-400">ms</span></>}
           detail={currentAvgLatency === 0 ? "No telemetry" : currentAvgLatency < 250 ? "Excellent response" : currentAvgLatency < 500 ? "Good speed" : "Delayed"}
           tone={currentAvgLatency < 250 ? "success" : currentAvgLatency < 500 ? "warning" : "danger"}
           icon={
@@ -391,12 +391,12 @@ export function AnalyticsDashboard({
             <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/70">Historical Telemetry</p>
             <h3 className="flex flex-wrap items-center gap-2 font-serif text-2xl font-bold tracking-tight text-white">
               {metricName} 
-              <span className="text-xs font-normal font-sans text-zinc-400">/ last 30 days</span>
+              <span className="text-xs font-normal font-sans text-slate-400">/ last 30 days</span>
             </h3>
           </div>
           
           {/* Chart Legend */}
-          <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: chartColor }} />
               <span>{metricName}</span>
@@ -664,7 +664,7 @@ export function AnalyticsDashboard({
             </p>
           </div>
           <div className="border-t border-white/10 pt-6 mt-4">
-            <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Suggested Action</p>
+            <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Suggested Action</p>
             <p className="text-xs font-bold text-emerald-400 mt-1">✓ Your key usage profile is optimized. No rate limit leaks detected.</p>
           </div>
         </CommandPanel>
@@ -681,7 +681,7 @@ export function AnalyticsDashboard({
 
           <div className="space-y-4">
             {globalTopRepos.length === 0 ? (
-              <p className="text-xs font-medium text-slate-500 p-4 border border-dashed border-white/10 rounded-2xl text-center">
+              <p className="text-xs font-medium text-slate-400 p-4 border border-dashed border-white/10 rounded-2xl text-center">
                 No active repositories tracked yet in this period.
               </p>
             ) : (
@@ -695,7 +695,7 @@ export function AnalyticsDashboard({
                       <span className="font-mono font-bold truncate text-slate-300 hover:text-emerald-300 transition cursor-pointer">
                         {repoLabel}
                       </span>
-                      <span className="font-mono font-bold tabular-nums text-slate-500">{repo.count} Summarizations</span>
+                      <span className="font-mono font-bold tabular-nums text-slate-400">{repo.count} Summarizations</span>
                     </div>
                     <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
                       <div

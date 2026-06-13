@@ -247,7 +247,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
         <button
           type="submit"
           disabled={isLoading}
-          className="relative group w-full overflow-hidden rounded-full bg-emerald-500 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(52,211,153,0.3)] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+          className="relative group w-full overflow-hidden rounded-full bg-emerald-500 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 hover:shadow-[0_0_20px_rgba(52,211,153,0.3)] active:scale-[0.98] disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         >
           <span className={isLoading ? "opacity-0" : "opacity-100 transition-opacity"}>
             {!usePassword 
@@ -268,7 +268,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
               setUsePassword(!usePassword);
               setError(null);
             }}
-            className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors cursor-pointer"
+            className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:underline focus-visible:text-white rounded px-1"
           >
             {usePassword ? "Use magic link instead" : "Sign in with password instead"}
           </button>
@@ -284,7 +284,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
       <button
         onClick={signInWithGoogle}
         disabled={isLoading}
-        className="group flex w-full items-center justify-center gap-4 rounded-full border border-white/5 bg-slate-950/40 px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white transition-all hover:bg-white/5 hover:shadow-lg active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+        className="group flex w-full items-center justify-center gap-4 rounded-full border border-white/5 bg-slate-950/40 px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-white transition-all hover:bg-white/5 hover:shadow-lg active:scale-[0.98] disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
       >
         <svg viewBox="0 0 24 24" className="h-4 w-4" xmlns="http://www.w3.org/2000/svg">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -303,7 +303,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
             setError(null);
             setSuccessMessage(null);
           }}
-          className="font-bold text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
+          className="font-bold text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer focus-visible:outline-none focus-visible:underline focus-visible:text-emerald-300 rounded px-1"
         >
           {isSignUp ? "Sign in" : "Sign up"}
         </button>

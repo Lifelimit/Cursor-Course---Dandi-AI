@@ -17,7 +17,7 @@ export function PrimaryButton({
   return (
     <button
       disabled={isLoading || disabled}
-      className={`group flex items-center justify-center gap-3 rounded-full bg-zinc-900 dark:bg-zinc-100 px-8 py-4 text-xs font-black uppercase tracking-widest text-white dark:text-zinc-900 shadow-xl shadow-zinc-900/10 dark:shadow-none transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none ${className}`}
+      className={`group flex items-center justify-center gap-3 rounded-full bg-zinc-900 dark:bg-zinc-100 px-8 py-4 text-xs font-black uppercase tracking-widest text-white dark:text-zinc-900 shadow-xl shadow-zinc-900/10 dark:shadow-none transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${className}`}
       {...props}
     >
       {isLoading ? (

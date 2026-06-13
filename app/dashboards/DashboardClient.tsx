@@ -53,6 +53,38 @@ export default function DashboardClient({
   const resetDate = usageData?.resetDate || initialResetDate;
   const isSyncing = isValidating;
 
+  // ─── Real sparklines & trends derived from dailyAnalytics ────────────────
+  type DailyPoint = { date: string; count: number; success: number; error: number; avgLatency: number };
+  const dailyAnalytics: DailyPoint[] = Array.isArray(usageData?.dailyAnalytics) ? usageData.dailyAnalytics : [];
+
+  // Last 23 daily values for each metric (sparkline)
+  const SPARK_POINTS = 23;
+  const latencySpark = dailyAnalytics.slice(-SPARK_POINTS).map(d => d.avgLatency);
+  const successSpark  = dailyAnalytics.slice(-SPARK_POINTS).map(d =>
+    d.count + d.error > 0 ? Math.round((d.success / (d.success + d.error)) * 100) : 0
+  );
+  const requestsSpark = dailyAnalytics.slice(-SPARK_POINTS).map(d => d.count);
+
+  // Pad to SPARK_POINTS with zeros if fewer data points are available
+  const padSpark = (arr: number[]) =>
+    arr.length < SPARK_POINTS ? [...Array(SPARK_POINTS - arr.length).fill(0), ...arr] : arr;
+
+  // Period-over-period trend pill: compare last 7 days vs prior 7 days
+  const trendPill = (values: number[]): string => {
+    const last7  = values.slice(-7);
+    const prior7 = values.slice(-14, -7);
+    const sumLast  = last7.reduce((a, b) => a + b, 0);
+    const sumPrior = prior7.reduce((a, b) => a + b, 0);
+    if (sumPrior === 0 && sumLast === 0) return '─ N/A';
+    if (sumPrior === 0) return '↗ NEW';
+    const pct = Math.round(((sumLast - sumPrior) / sumPrior) * 100);
+    if (pct === 0) return '─ 0%';
+    return pct > 0 ? `↗ ${pct}%` : `↘ ${Math.abs(pct)}%`;
+  };
+
+  const latencyTrend = trendPill(latencySpark);
+  const successTrend = trendPill(successSpark);
+
   // Dynamic Tier Logic - Using the most recent session data available
   const currentPlan = realtimePlan || initialPlan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
   const { monthlyLimit: currentLimit, isUnlimited } = getPlanLimits(currentPlan);
@@ -220,24 +252,23 @@ export default function DashboardClient({
                   value: avgLatency > 0 ? `${avgLatency}ms` : "--",
                   icon: "M13 10V3L4 14h7v7l9-11h-7z",
                   tone: "amber",
-                  trend: "↗ 12%",
-                  spark: [36, 38, 42, 50, 43, 39, 36, 40, 31, 39, 47, 45, 53, 44, 38, 47, 35, 37, 49, 44, 39, 48, 58],
+                  trend: latencyTrend,
+                  spark: padSpark(latencySpark),
                 },
                 {
                   label: "Success Rate",
-                  value: `${successRate.toFixed(1)}%`,
+                  value: dailyAnalytics.length > 0 ? `${successRate.toFixed(1)}%` : "--",
                   icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
                   tone: "emerald",
-                  trend: "↗ 5%",
-                  spark: [34, 34, 43, 35, 37, 35, 41, 43, 49, 45, 53, 46, 42, 48, 41, 34, 45, 53, 45, 39, 36, 46, 57],
+                  trend: successTrend,
+                  spark: padSpark(successSpark),
                 },
                 {
                   label: "Active Keys",
                   value: apiKeys.length.toString(),
                   icon: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z",
                   tone: "blue",
-                  trend: "− 0%",
-                  spark: [35, 37, 43, 35, 31, 40, 32, 41, 34, 45, 51, 43, 40, 46, 33, 43, 36, 33, 31, 41, 40, 50, 55],
+                  spark: padSpark(requestsSpark),
                 },
               ].map((m) => {
                 const accentText =
@@ -291,7 +322,7 @@ export default function DashboardClient({
                           </svg>
                         </div>
                         <div className="min-w-0 leading-normal">
-                          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500 font-sans">
+                          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 font-sans">
                             {m.label}
                           </p>
                           <p className="text-2xl font-bold tracking-tight text-white font-sans mt-0.5 tabular-nums">
@@ -300,64 +331,73 @@ export default function DashboardClient({
                         </div>
                       </div>
 
-                      <span
-                        className={`inline-flex shrink-0 items-center rounded-lg border px-2 py-1 text-[10px] font-bold font-mono tracking-wide tabular-nums ${accentBorder} ${accentBg} ${accentText} shadow-[0_0_10px_rgba(0,0,0,0.2)]`}
-                      >
-                        {m.trend}
-                      </span>
+                      {'trend' in m && m.trend && (
+                        <span
+                          className={`inline-flex shrink-0 items-center rounded-lg border px-2 py-1 text-[10px] font-bold font-mono tracking-wide tabular-nums ${accentBorder} ${accentBg} ${accentText} shadow-[0_0_10px_rgba(0,0,0,0.2)]`}
+                        >
+                          {m.trend}
+                        </span>
+                      )}
                     </div>
 
                     {/* Bottom row: Sparkline */}
                     <div className="relative mt-6 h-12 w-full overflow-hidden md:mt-auto md:pt-4">
                       <svg viewBox="0 0 220 40" preserveAspectRatio="none" className="h-full w-full">
-                        <defs>
-                          <linearGradient id={`metric-fill-${m.tone}`} x1="0" x2="0" y1="0" y2="1">
-                            <stop offset="0%" stopColor="currentColor" stopOpacity="0.18" />
-                            <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
-                          </linearGradient>
-                        </defs>
-                        <polygon
-                          points={`0,40 ${m.spark
-                            .map((point, index) => `${index * 10},${35 - point / 2.3}`)
-                            .join(" ")} 220,40`}
-                          className={
-                            m.tone === "amber"
-                              ? "fill-amber-500/10 text-amber-500"
-                              : m.tone === "blue"
-                              ? "fill-blue-500/10 text-blue-500"
-                              : "fill-emerald-500/10 text-emerald-500"
-                          }
-                        />
-                        <polyline
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          points={m.spark
-                            .map((point, index) => `${index * 10},${35 - point / 2.3}`)
-                            .join(" ")}
-                          className={
-                            m.tone === "amber"
-                              ? "text-amber-500 drop-shadow-[0_0_6px_rgba(245,158,11,0.3)]"
-                              : m.tone === "blue"
-                              ? "text-blue-500 drop-shadow-[0_0_6px_rgba(59,130,246,0.3)]"
-                              : "text-emerald-500 drop-shadow-[0_0_6px_rgba(16,185,129,0.3)]"
-                          }
-                        />
-                        <circle
-                          cx="220"
-                          cy={35 - m.spark[m.spark.length - 1] / 2.3}
-                          r="3"
-                          fill="currentColor"
-                          className={
-                            m.tone === "amber"
-                              ? "text-amber-400 drop-shadow-[0_0_6px_rgba(245,158,11,0.8)]"
-                              : m.tone === "blue"
-                              ? "text-blue-400 drop-shadow-[0_0_6px_rgba(59,130,246,0.8)]"
-                              : "text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.8)]"
-                          }
-                        />
+                        {(() => {
+                          const pts = m.spark;
+                          const maxVal = Math.max(...pts);
+                          const minVal = Math.min(...pts);
+                          const range = maxVal - minVal;
+                          // Normalize 0–30 px height within the 0–35 canvas (5px top padding)
+                          const toY = (v: number) =>
+                            range === 0 ? 20 : Math.round(35 - ((v - minVal) / range) * 30);
+                          const step = pts.length > 1 ? 220 / (pts.length - 1) : 0;
+                          const pointStr = pts.map((v, i) => `${Math.round(i * step)},${toY(v)}`).join(" ");
+                          const lastX = Math.round((pts.length - 1) * step);
+                          const lastY = toY(pts[pts.length - 1]);
+                          return (
+                            <>
+                              <polygon
+                                points={`0,40 ${pointStr} ${lastX},40`}
+                                className={
+                                  m.tone === "amber"
+                                    ? "fill-amber-500/10"
+                                    : m.tone === "blue"
+                                    ? "fill-blue-500/10"
+                                    : "fill-emerald-500/10"
+                                }
+                              />
+                              <polyline
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                points={pointStr}
+                                className={
+                                  m.tone === "amber"
+                                    ? "text-amber-500 drop-shadow-[0_0_6px_rgba(245,158,11,0.3)]"
+                                    : m.tone === "blue"
+                                    ? "text-blue-500 drop-shadow-[0_0_6px_rgba(59,130,246,0.3)]"
+                                    : "text-emerald-500 drop-shadow-[0_0_6px_rgba(16,185,129,0.3)]"
+                                }
+                              />
+                              <circle
+                                cx={lastX}
+                                cy={lastY}
+                                r="3"
+                                fill="currentColor"
+                                className={
+                                  m.tone === "amber"
+                                    ? "text-amber-400 drop-shadow-[0_0_6px_rgba(245,158,11,0.8)]"
+                                    : m.tone === "blue"
+                                    ? "text-blue-400 drop-shadow-[0_0_6px_rgba(59,130,246,0.8)]"
+                                    : "text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.8)]"
+                                }
+                              />
+                            </>
+                          );
+                        })()}
                       </svg>
                     </div>
                   </div>
@@ -386,7 +426,7 @@ export default function DashboardClient({
                     
                     <button 
                       onClick={() => router.push("/billing")}
-                      className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-8 py-3 text-[10px] font-black uppercase tracking-widest text-slate-300 transition-all hover:border-emerald-300/30 hover:text-emerald-200 sm:w-auto"
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-8 py-3 text-[10px] font-black uppercase tracking-widest text-slate-300 transition-all hover:border-emerald-300/30 hover:text-emerald-200 sm:w-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                     >
                       Management
                     </button>
@@ -394,7 +434,7 @@ export default function DashboardClient({
 
                   <div className="space-y-6">
                     <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
                         Consumption <span className="mx-2 opacity-20">/</span> <span className="text-white">{totalUsage.toLocaleString()} Units Used</span>
                       </p>
                       <div className="flex items-center gap-2">
@@ -415,7 +455,7 @@ export default function DashboardClient({
                       ></div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    <div className="flex items-center justify-between gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                       <span>0 Units</span>
                       <span>Target Limit: {isUnlimited ? "∞" : currentLimit.toLocaleString()} Units</span>
                     </div>
@@ -441,8 +481,8 @@ export default function DashboardClient({
             <CommandPanel padding="none" className="p-5 sm:p-8">
               <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Credential Vault</p>
-                  <h2 className="mt-1 font-serif text-2xl font-bold text-white">Encrypted Keys</h2>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">API Credentials</p>
+                  <h2 className="mt-1 font-serif text-2xl font-bold text-white">Active API Keys</h2>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="rounded-full border border-emerald-300/15 bg-emerald-300/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-200">
@@ -451,7 +491,7 @@ export default function DashboardClient({
                   <button
                     type="button"
                     onClick={handleOpenCreateModal}
-                    className="rounded-2xl bg-emerald-400 px-5 py-2 text-[10px] font-black uppercase tracking-widest text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.18)] transition hover:bg-emerald-300"
+                    className="rounded-2xl bg-emerald-400 px-5 py-2 text-[10px] font-black uppercase tracking-widest text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.18)] transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                   >
                     New Key
                   </button>
@@ -521,7 +561,7 @@ export default function DashboardClient({
 
                     {/* Key Display Area */}
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">
                         Your Generated Plaintext API Key
                       </label>
                       <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/70 p-2 pl-4 sm:pl-6">
@@ -535,7 +575,7 @@ export default function DashboardClient({
                         <button
                           type="button"
                           onClick={() => setIsPlainKeyVisible(!isPlainKeyVisible)}
-                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-white/5 hover:text-white cursor-pointer"
+                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-white/5 hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                           title={isPlainKeyVisible ? "Hide API key" : "Show API key"}
                         >
                           {isPlainKeyVisible ? (
@@ -547,7 +587,7 @@ export default function DashboardClient({
                         <button
                           type="button"
                           onClick={() => handleCopyKey(createdPlainKey || "")}
-                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all cursor-pointer ${
+                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                             copiedKey 
                               ? "bg-emerald-500 text-zinc-950 animate-pulse" 
                               : "bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
@@ -569,7 +609,7 @@ export default function DashboardClient({
                     <button
                       type="button"
                       onClick={() => setCreatedPlainKey(null)}
-                      className="group flex items-center justify-center gap-3 rounded-full bg-white px-10 py-4 text-xs font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-zinc-200 hover:scale-105 active:scale-95 cursor-pointer"
+                      className="group flex items-center justify-center gap-3 rounded-full bg-white px-10 py-4 text-xs font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-zinc-200 hover:scale-105 active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                     >
                       I have secured this key
                       <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">

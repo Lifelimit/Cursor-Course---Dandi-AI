@@ -200,7 +200,7 @@ export function Sidebar({
               setIsMobileNavOpen((isOpen) => !isOpen);
               setIsProfileOpen(false);
             }}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-400 hover:text-white transition-all focus-visible:outline-none"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-400 hover:text-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
             aria-controls="dashboard-mobile-nav"
             aria-expanded={isMobileNavOpen}
             aria-label={isMobileNavOpen ? "Hide navigation" : "Show navigation"}
@@ -266,7 +266,7 @@ export function Sidebar({
                 key={item.name}
                 href={item.href}
                 onClick={() => setIsMobileNavOpen(false)}
-                className={`group relative flex items-center gap-3 overflow-hidden rounded-xl px-4 py-3 text-[10px] font-bold uppercase tracking-widest transition-all focus-visible:outline-none ${
+                className={`group relative flex items-center gap-3 overflow-hidden rounded-xl px-4 py-3 text-[10px] font-bold uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/50 ${
                   isActive
                     ? "border border-emerald-500/25 bg-emerald-500/5 text-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.08),inset_0_0_12px_rgba(52,211,153,0.04)]"
                     : "border border-transparent text-slate-400 hover:border-white/5 hover:bg-white/[0.03] hover:text-white"
@@ -327,7 +327,7 @@ export function Sidebar({
           <div className="h-px bg-white/5" />
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-rose-400 hover:text-rose-300 transition-colors w-fit focus:outline-none"
+            className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-rose-400 hover:text-rose-300 transition-colors w-fit focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-500 rounded px-1"
           >
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -339,38 +339,41 @@ export function Sidebar({
         </div>
       )}
 
-      {/* Quota Telemetry Widget */}
+      {/* Quota Widget */}
       <div className={`${isMobileNavOpen ? "block mx-0.5 mb-2 mt-4" : "hidden"} relative rounded-2xl border border-white/5 bg-slate-900/10 p-4 md:block md:mx-0 md:mb-0 md:mt-2`}>
-        <div className="flex justify-between items-center gap-2">
-          <span className="truncate text-[10px] font-serif font-bold uppercase tracking-[0.12em] text-white">{plan}</span>
-          
-          <div className="flex items-center gap-1.5">
-            <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-emerald-400">
-              <span className="relative flex h-1 w-1">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1 w-1 bg-emerald-500" />
-              </span>
-              LIVE QUOTA
-            </div>
-            {isUnlimited && (
-              <span className="rounded-full border border-cyan-500/20 bg-cyan-500/5 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-cyan-400">UNLIMITED</span>
-            )}
-          </div>
+        {/* Plan name row */}
+        <div className="flex items-center gap-2 mb-3.5">
+          <span className="relative flex h-1.5 w-1.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+          </span>
+          <span className="text-[10px] font-serif font-bold uppercase tracking-[0.12em] text-white truncate">
+            {plan}
+          </span>
         </div>
 
-        <div className="mt-3.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-950 border border-white/5">
+        {/* Progress bar */}
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-950 border border-white/5">
           <div
             className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-cyan-500 to-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.4)] transition-all duration-500"
             style={{ width: `${isUnlimited ? 100 : Math.min((totalUsage / limit) * 100, 100)}%` }}
-          ></div>
+          />
         </div>
 
-        {!isUnlimited && (
-          <div className="mt-2.5 flex justify-between items-center gap-3 text-[9px] font-mono tracking-wider text-zinc-500">
-            <span className="text-zinc-300">{totalUsage.toLocaleString()} reqs</span>
-            <span>/ {limit.toLocaleString()} max</span>
-          </div>
-        )}
+        {/* Usage figures */}
+        <div className="mt-2.5 flex justify-between items-center gap-3 text-[9px] font-mono tracking-wider text-zinc-500">
+          {isUnlimited ? (
+            <>
+              <span className="text-zinc-300">{totalUsage.toLocaleString()} reqs</span>
+              <span className="rounded-full border border-cyan-500/20 bg-cyan-500/5 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-cyan-400">Unlimited</span>
+            </>
+          ) : (
+            <>
+              <span className="text-zinc-300">{totalUsage.toLocaleString()} reqs</span>
+              <span>/ {limit.toLocaleString()} max</span>
+            </>
+          )}
+        </div>
       </div>
     </aside>
   );

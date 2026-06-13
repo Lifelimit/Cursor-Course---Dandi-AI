@@ -30,35 +30,35 @@ export function PlanReview({
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-8 lg:flex-row items-start">
         {/* Left Column: Security & Info */}
-        <div className="flex-1 rounded-[32px] border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-10 shadow-sm dark:shadow-black/20 space-y-10">
+        <div className="flex-1 rounded-[32px] border border-white/5 bg-slate-950/40 p-10 space-y-10">
           <div className="space-y-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <svg viewBox="0 0 24 24" className="h-3 w-3 text-zinc-400 dark:text-zinc-500" fill="none" stroke="currentColor">
+                <svg viewBox="0 0 24 24" className="h-3 w-3 text-slate-400" fill="none" stroke="currentColor">
                   <path d="M9 12l2 2 4-4" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">Target Plan</span>
+                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Target Plan</span>
               </div>
-              <p className="text-base font-bold text-zinc-900 dark:text-zinc-100">{pendingPlan} Tier</p>
+              <p className="text-base font-bold text-white">{pendingPlan} Tier</p>
             </div>
 
-            <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
+            <div className="h-px bg-white/5" />
 
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <svg viewBox="0 0 24 24" className="h-3 w-3 text-zinc-400 dark:text-zinc-500" fill="none" stroke="currentColor">
+                <svg viewBox="0 0 24 24" className="h-3 w-3 text-slate-400" fill="none" stroke="currentColor">
                   <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">Billing Cycle</span>
+                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Billing Cycle</span>
               </div>
-              <p className="text-base font-bold text-zinc-900 dark:text-zinc-100 capitalize">{billingInterval}</p>
+              <p className="text-base font-bold text-white capitalize">{billingInterval}</p>
             </div>
 
-            <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
+            <div className="h-px bg-white/5" />
 
             <div className="space-y-4">
-              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">Checkout Security</span>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-xs">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Checkout Security</span>
+              <p className="text-xs text-slate-400 leading-relaxed max-w-xs">
                 Your payment will be processed securely inline via Stripe Elements. Your card credentials are encrypted and processed safely without ever leaving your browser.
               </p>
             </div>
@@ -66,7 +66,7 @@ export function PlanReview({
         </div>
 
         {/* Right Column: Order Summary */}
-        <div className="w-full lg:w-96 rounded-[32px] bg-[#18181b] dark:bg-zinc-950 p-10 text-white shadow-2xl dark:shadow-black/80 border border-transparent dark:border-zinc-800 space-y-10">
+        <div className="w-full lg:w-96 rounded-[32px] bg-slate-950/80 p-10 text-white border border-white/10 space-y-10">
           <h4 className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">Checkout Summary</h4>
           
           <div className="space-y-8">
@@ -111,13 +111,13 @@ export function PlanReview({
         <button 
           onClick={onConfirm}
           disabled={isLoading}
-          className="w-full rounded-full bg-[#18181b] dark:bg-zinc-100 py-5 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-950 transition hover:bg-black dark:hover:bg-zinc-200 shadow-xl shadow-zinc-900/10 dark:shadow-black/20 disabled:opacity-50"
+          className="w-full rounded-full bg-slate-100 py-5 text-[10px] font-black uppercase tracking-widest text-slate-950 transition hover:bg-slate-200 shadow-xl disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         >
           {isLoading ? "Processing..." : "Proceed to Inline Payment"}
         </button>
         <button 
           onClick={onBack}
-          className="w-full rounded-full border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 transition hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+          className="w-full rounded-full border border-white/10 bg-slate-950/40 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 cursor-pointer"
         >
           Change Selection
         </button>

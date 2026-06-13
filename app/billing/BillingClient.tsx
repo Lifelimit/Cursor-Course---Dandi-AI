@@ -57,8 +57,23 @@ export default function BillingClient({
   const [isInvoicesLoading, setIsInvoicesLoading] = useState(false);
   const isHydrated = useRef(initialData !== null);
   const [secondaryIndex, setSecondaryIndex] = useState(0);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    }
+    return false;
+  });
   const [cardToDelete, setCardToDelete] = useState<{ id: string; brand: string; last4: string } | null>(null);
   const { toast, showToast } = useToast();
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+      const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+      mediaQuery.addEventListener("change", handler);
+      return () => mediaQuery.removeEventListener("change", handler);
+    }
+  }, []);
 
   const fetchInvoices = useCallback(async () => {
     try {
@@ -199,6 +214,18 @@ export default function BillingClient({
     }
   };
 
+  const handleDeckKeyDown = (e: React.KeyboardEvent) => {
+    const secondaryMethods = currentData?.paymentMethods?.filter(pm => !pm.isDefault) || [];
+    if (secondaryMethods.length <= 1) return;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      setSecondaryIndex(prev => (prev + 1) % secondaryMethods.length);
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      setSecondaryIndex(prev => (prev - 1 + secondaryMethods.length) % secondaryMethods.length);
+    }
+  };
+
   const showSkeleton = isLoading && !initialData;
 
   return (
@@ -291,14 +318,15 @@ export default function BillingClient({
                     <div className="flex flex-col">
                       <div className="flex h-6 items-center justify-between px-2">
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Secondary Methods</p>
-                        {currentData?.paymentMethods && currentData.paymentMethods.filter(pm => !pm.isDefault).length > 1 && (
+                        {currentData?.paymentMethods && currentData.paymentMethods.filter(pm => !pm.isDefault).length > 1 && !prefersReducedMotion && (
                           <div className="flex gap-2">
                             <button 
                               onClick={() => {
                                 const secondaryMethods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
                                 setSecondaryIndex(prev => (prev - 1 + secondaryMethods.length) % secondaryMethods.length);
                               }}
-                              className="rounded-full border border-white/10 p-1 text-slate-500 hover:border-emerald-300/30 hover:text-emerald-200 transition-all"
+                              aria-label="Previous secondary card"
+                              className="rounded-full border border-white/10 p-1 text-slate-500 hover:border-emerald-300/30 hover:text-emerald-200 transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 cursor-pointer"
                             >
                               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                                 <path d="M15 19l-7-7 7-7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -309,7 +337,8 @@ export default function BillingClient({
                                 const secondaryMethods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
                                 setSecondaryIndex(prev => (prev + 1) % secondaryMethods.length);
                               }}
-                              className="rounded-full border border-white/10 p-1 text-slate-500 hover:border-emerald-300/30 hover:text-emerald-200 transition-all"
+                              aria-label="Next secondary card"
+                              className="rounded-full border border-white/10 p-1 text-slate-500 hover:border-emerald-300/30 hover:text-emerald-200 transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 cursor-pointer"
                             >
                               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                                 <path d="M9 5l7 7-7 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -319,42 +348,68 @@ export default function BillingClient({
                         )}
                       </div>
                       
-                      <div className="relative mt-4 h-[180px] w-full overflow-hidden" style={{ perspective: '1000px' }}>
-                        {currentData.paymentMethods.filter(pm => !pm.isDefault).map((pm, idx) => {
-                          const methods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
-                          const length = methods.length;
-                          const relativeIdx = (idx - secondaryIndex + length) % length;
-                          const isVisible = relativeIdx <= 3 || relativeIdx >= length - 1;
-
-                          return (
-                            <div 
-                              key={pm.id} 
-                              className="absolute top-0 left-0 w-full transition-[transform,opacity,filter] duration-800 cubic-bezier(0.19, 1, 0.22, 1)"
-                              style={{
-                                willChange: 'transform, opacity, filter',
-                                transform: `translateX(${relativeIdx * 30}px) translateZ(${-relativeIdx * 60}px) scale(${1 - relativeIdx * 0.08})`,
-                                zIndex: length - relativeIdx,
-                                opacity: Math.max(0, 1 - (relativeIdx * 0.25)),
-                                filter: relativeIdx > 0 ? `blur(${relativeIdx * 0.8}px)` : 'none',
-                                pointerEvents: relativeIdx === 0 ? 'auto' : 'none',
-                                visibility: isVisible ? 'visible' : 'hidden'
-                              }}
-                            >
-                              <div className="transform scale-[0.85] origin-top-left">
-                                <PaymentMethodCard 
-                                  brand={pm.brand}
-                                  last4={pm.last4}
-                                  expiryMonth={parseInt(pm.expiry.split('/')[0])}
-                                  expiryYear={parseInt(pm.expiry.split('/')[1])}
-                                  isDefault={false}
-                                  onDelete={() => setCardToDelete({ id: pm.id, brand: pm.brand, last4: pm.last4 })} 
-                                  onSetDefault={() => handleSetDefault(pm.id)} 
-                                />
-                              </div>
+                      {prefersReducedMotion ? (
+                        <div className="mt-4 space-y-4 max-h-[380px] overflow-y-auto pr-1.5 command-scroll">
+                          {currentData.paymentMethods.filter(pm => !pm.isDefault).map((pm) => (
+                            <div key={pm.id} className="w-full">
+                              <PaymentMethodCard 
+                                brand={pm.brand}
+                                last4={pm.last4}
+                                expiryMonth={parseInt(pm.expiry.split('/')[0])}
+                                expiryYear={parseInt(pm.expiry.split('/')[1])}
+                                isDefault={false}
+                                isActive={true}
+                                onDelete={() => setCardToDelete({ id: pm.id, brand: pm.brand, last4: pm.last4 })} 
+                                onSetDefault={() => handleSetDefault(pm.id)} 
+                              />
                             </div>
-                          );
-                        })}
-                      </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div 
+                          className="relative mt-4 h-[250px] w-full focus:outline-none" 
+                          style={{ perspective: '1200px' }}
+                          onKeyDown={handleDeckKeyDown}
+                          aria-label="Secondary payment methods card deck. Use arrow keys to rotate cards."
+                        >
+                          {currentData.paymentMethods.filter(pm => !pm.isDefault).map((pm, idx) => {
+                            const methods = currentData.paymentMethods!.filter(pm => !pm.isDefault);
+                            const length = methods.length;
+                            const relativeIdx = (idx - secondaryIndex + length) % length;
+                            const isVisible = relativeIdx <= 2 || relativeIdx >= length - 1;
+                            const isActive = relativeIdx === 0;
+
+                            return (
+                              <div 
+                                key={pm.id} 
+                                className="absolute top-0 left-0 w-full transition-all duration-500 ease-out"
+                                style={{
+                                  willChange: 'transform, opacity',
+                                  transform: `translate3d(0, ${-relativeIdx * 14}px, ${-relativeIdx * 25}px) scale(${1 - relativeIdx * 0.04}) rotateX(${relativeIdx > 0 ? -4 : 0}deg)`,
+                                  zIndex: length - relativeIdx,
+                                  opacity: Math.max(0, 1 - (relativeIdx * 0.2)),
+                                  visibility: isVisible ? 'visible' : 'hidden'
+                                }}
+                              >
+                                <div className="transform scale-[0.88] origin-top-left">
+                                  <PaymentMethodCard 
+                                    brand={pm.brand}
+                                    last4={pm.last4}
+                                    expiryMonth={parseInt(pm.expiry.split('/')[0])}
+                                    expiryYear={parseInt(pm.expiry.split('/')[1])}
+                                    isDefault={false}
+                                    isActive={isActive}
+                                    onClick={() => setSecondaryIndex(idx)}
+                                    onFocus={() => setSecondaryIndex(idx)}
+                                    onDelete={() => setCardToDelete({ id: pm.id, brand: pm.brand, last4: pm.last4 })} 
+                                    onSetDefault={() => handleSetDefault(pm.id)} 
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

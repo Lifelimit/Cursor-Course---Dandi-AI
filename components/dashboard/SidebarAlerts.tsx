@@ -164,7 +164,7 @@ export function SidebarAlerts({
                         onChange={(e) => handleNewLimitChange(e.target.value)}
                         disabled={!hasPlanHeadroom}
                         placeholder="500"
-                        className="w-full rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-4 font-serif text-2xl font-bold text-zinc-900 dark:text-zinc-100 focus:border-zinc-900 dark:focus:border-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:outline-none transition-all"
+                        className="w-full rounded-2xl border border-white/5 bg-slate-950/70 px-4 py-4 font-serif text-2xl font-bold text-white placeholder-zinc-700 focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all"
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black text-zinc-400 uppercase">Credits</span>
                     </div>
@@ -244,7 +244,7 @@ export function SidebarAlerts({
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-[9px] font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-widest">New Monthly Limit</span>
+                      <span className="text-[9px] font-black text-white uppercase tracking-widest">New Monthly Limit</span>
                     </div>
                     <div className="relative">
                       <input 
@@ -254,7 +254,7 @@ export function SidebarAlerts({
                         onChange={(e) => handleNewLimitChange(e.target.value)}
                         disabled={!hasPlanHeadroom}
                         placeholder="500"
-                        className="w-full rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800 px-4 py-4 font-serif text-2xl font-bold text-zinc-900 dark:text-zinc-100 focus:border-zinc-900 dark:focus:border-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:outline-none transition-all"
+                        className="w-full rounded-2xl border border-white/5 bg-slate-950/70 px-4 py-4 font-serif text-2xl font-bold text-white placeholder-zinc-700 focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all"
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black text-zinc-300 uppercase">Credits</span>
                     </div>

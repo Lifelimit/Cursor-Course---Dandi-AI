@@ -3,8 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 
-
-
 interface RepoInfo {
   stars: string;
   forks: string;
@@ -170,27 +168,27 @@ export function FeatureGrid() {
   return (
     <section id="features" className="mx-auto max-w-7xl px-6 py-12 md:py-40">
       <div className="mb-20 space-y-4 text-center md:text-left">
-        <h2 className="font-serif text-4xl font-bold md:text-6xl">Architected for <br /> the next generation.</h2>
-        <p className="mx-auto max-w-md text-zinc-500 dark:text-zinc-400 md:mx-0">Every component of Dandi is built with a singular focus on performance and reliability.</p>
+        <h2 className="font-serif text-4xl font-bold md:text-6xl text-white">Architected for <br /> the next generation.</h2>
+        <p className="mx-auto max-w-md text-zinc-400 md:mx-0">Every component of Dandi is built with a singular focus on performance and reliability.</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-6 h-auto">
         {/* Bento Item 1: Click to Orchestrate (Now Interactive!) */}
-        <div className="group relative col-span-full lg:col-span-3 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 md:p-10 transition-all hover:border-zinc-400 dark:hover:border-zinc-700 min-h-[480px] flex flex-col justify-between shadow-sm dark:shadow-none">
+        <div className="group relative col-span-full lg:col-span-3 overflow-hidden rounded-[32px] border border-white/5 bg-zinc-950/40 p-6 sm:p-8 md:p-10 transition-all hover:border-white/10 min-h-[480px] flex flex-col justify-between shadow-none" style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}>
           <div className="relative z-10 space-y-5">
             <div className="flex items-center gap-4">
-              <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30">
-                <svg viewBox="0 0 24 24" className="h-6 w-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-950/20 border border-emerald-500/20 shadow-sm">
+                <svg viewBox="0 0 24 24" className="h-6 w-6 text-emerald-400" fill="none" stroke="currentColor">
                   <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
               <div>
-                <h3 className="text-xl font-bold tracking-tight">Intelligent Summary</h3>
-                <p className="text-xs text-zinc-400">Interactive API preview</p>
+                <h3 className="text-xl font-bold tracking-tight text-white">Intelligent Summary</h3>
+                <p className="text-xs text-zinc-500">Interactive API preview</p>
               </div>
             </div>
 
-            <p className="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs leading-relaxed text-zinc-400">
               Generate structured repository summaries and analyze metadata directly from a public URL.
             </p>
 
@@ -201,19 +199,19 @@ export function FeatureGrid() {
                   type="button"
                   disabled={isOrchestrating}
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="w-full text-left appearance-none rounded-full border border-zinc-200 dark:border-zinc-800 bg-[#f4f2ed]/50 dark:bg-zinc-950 pl-5 pr-10 py-3 text-xs font-bold text-zinc-800 dark:text-zinc-200 outline-none transition hover:border-zinc-400 focus:border-zinc-900 dark:focus:border-zinc-100 disabled:opacity-50 hover:shadow-sm active:scale-[0.99] cursor-pointer"
+                  className="w-full text-left appearance-none rounded-full border border-white/5 bg-zinc-950 pl-5 pr-10 py-3 text-xs font-bold text-zinc-200 outline-none transition hover:border-white/15 focus:border-zinc-100 disabled:opacity-50 active:scale-[0.99] cursor-pointer"
                 >
                   {selectedRepo.replace("/", " / ")}
                 </button>
                 <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center">
-                  <svg className={`h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 transition-transform duration-300 ${isDropdownOpen ? "rotate-180 text-emerald-500" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <svg className={`h-3.5 w-3.5 text-zinc-500 transition-transform duration-300 ${isDropdownOpen ? "rotate-180 text-emerald-500" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                   </svg>
                 </div>
                 
                 {/* Custom animated dropdown */}
                 <div
-                  className={`absolute left-0 right-0 top-full mt-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 p-1.5 shadow-xl backdrop-blur-md transition-all duration-355 origin-top transform z-50 ${
+                  className={`absolute left-0 right-0 top-full mt-2 rounded-2xl border border-white/5 bg-slate-950/95 p-1.5 shadow-xl backdrop-blur-md transition-all duration-355 origin-top transform z-50 ${
                     isDropdownOpen
                       ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
                       : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
@@ -227,8 +225,8 @@ export function FeatureGrid() {
                         type="button"
                         className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer ${
                           isSelected
-                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                            : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+                            ? "bg-emerald-500/10 text-emerald-400"
+                            : "text-zinc-400 hover:bg-white/5 hover:text-white"
                         }`}
                         onClick={() => {
                           setSelectedRepo(repo);
@@ -253,11 +251,11 @@ export function FeatureGrid() {
               <button
                 onClick={startOrchestration}
                 disabled={isOrchestrating}
-                className="rounded-full bg-zinc-900 dark:bg-zinc-100 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-950 shadow-md hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="rounded-full bg-zinc-100 hover:bg-zinc-200 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-950 shadow-md disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
                 {isOrchestrating ? (
                   <>
-                    <span className="h-3 w-3 animate-spin rounded-full border border-zinc-400 border-t-white dark:border-t-zinc-950" />
+                    <span className="h-3 w-3 animate-spin rounded-full border border-zinc-400 border-t-zinc-950" />
                     Analyzing...
                   </>
                 ) : (
@@ -268,13 +266,13 @@ export function FeatureGrid() {
 
             {/* Output Screen Terminal */}
             {(logs.length > 0 || showResult) && (
-              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-950 dark:bg-zinc-950/80 p-4 sm:p-5 font-mono text-[10px] leading-relaxed shadow-inner">
+              <div className="rounded-2xl border border-white/5 bg-zinc-950 p-4 sm:p-5 font-mono text-[10px] leading-relaxed shadow-inner">
                 {/* Simulated Header */}
-                <div className="flex items-center gap-1.5 pb-3 border-b border-zinc-800 mb-3 text-zinc-600">
+                <div className="flex items-center gap-1.5 pb-3 border-b border-zinc-800 mb-3 text-zinc-650">
                   <span className="h-2 w-2 rounded-full bg-zinc-700" />
                   <span className="h-2 w-2 rounded-full bg-zinc-700" />
                   <span className="h-2 w-2 rounded-full bg-zinc-700" />
-                  <span className="text-[8px] font-semibold uppercase tracking-widest ml-1 text-zinc-500">dandi-api output sample</span>
+                  <span className="text-[8px] font-semibold uppercase tracking-widest ml-1 text-zinc-550">dandi-api output sample</span>
                 </div>
 
                 {/* Log Outputs */}
@@ -312,7 +310,7 @@ export function FeatureGrid() {
                     {/* Summary output */}
                     <div>
                       <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider mb-1">Generated Summary</p>
-                      <p className="text-zinc-200 text-[10px] leading-relaxed bg-zinc-900/20 border border-zinc-800/40 rounded-xl p-3">
+                      <p className="text-zinc-250 text-[10px] leading-relaxed bg-zinc-900/20 border border-zinc-800/40 rounded-xl p-3">
                         {typewrittenSummary}
                       </p>
                     </div>
@@ -328,7 +326,7 @@ export function FeatureGrid() {
                             className={`px-2 py-0.5 rounded text-[8px] font-bold tracking-widest uppercase transition ${
                               activeFactIdx === idx
                                 ? "bg-zinc-800 text-white border border-zinc-700"
-                                : "text-zinc-500 hover:text-zinc-300 border border-transparent"
+                                : "text-zinc-505 hover:text-zinc-300 border border-transparent"
                             }`}
                           >
                             Fact #{idx + 1}
@@ -358,26 +356,26 @@ export function FeatureGrid() {
               </div>
             )}
           </div>
-          <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-emerald-50/50 dark:bg-emerald-950/10 transition-transform group-hover:scale-150 -z-10"></div>
+          <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-emerald-950/5 transition-transform group-hover:scale-150 -z-10"></div>
         </div>
 
         {/* Bento Item 2: Active Quota Shield */}
-        <div className="group relative col-span-full lg:col-span-3 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#18181b] dark:bg-zinc-900 p-6 sm:p-10 text-white transition-all hover:border-zinc-700 min-h-[300px] flex flex-col justify-between shadow-2xl">
+        <div className="group relative col-span-full lg:col-span-3 overflow-hidden rounded-[32px] border border-white/5 bg-zinc-950/40 p-6 sm:p-10 text-white transition-all hover:border-white/10 min-h-[300px] flex flex-col justify-between shadow-2xl" style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}>
           <div className="relative z-10 space-y-4 w-full lg:max-w-[calc(100%-260px)]">
             <h3 className="text-2xl font-bold italic font-serif">Active Quota Shield</h3>
-            <p className="text-sm leading-relaxed text-zinc-400 dark:text-zinc-300">Set custom alert thresholds and trigger instant notifications dynamically before your LLM credits run dry.</p>
+            <p className="text-sm leading-relaxed text-zinc-450">Set custom alert thresholds and trigger instant notifications dynamically before your LLM credits run dry.</p>
             
             {/* Real alert channels tag list */}
             <div className="flex flex-wrap gap-2 pt-2 select-none">
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/50 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/60 border border-white/5 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
                 Email Dispatch
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/50 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/60 border border-white/5 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
                 In-Page Alerts
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/50 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/60 border border-white/5 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
                 SMS Logs
               </span>
@@ -385,7 +383,7 @@ export function FeatureGrid() {
           </div>
           
           {/* Floating Glassmorphic Alert Box (Relative on mobile/tablet, absolute on lg desktop screens) */}
-          <div className="relative lg:absolute lg:bottom-8 lg:right-6 w-full lg:w-[240px] mt-6 lg:mt-0 rounded-2xl border border-amber-500/20 bg-zinc-950/80 p-4 shadow-xl backdrop-blur-md transition-all duration-500 select-none pointer-events-none group-hover:scale-105 group-hover:border-amber-500/40 opacity-60 group-hover:opacity-100 mx-auto">
+          <div className="relative lg:absolute lg:bottom-8 lg:right-6 w-full lg:w-[240px] mt-6 lg:mt-0 rounded-2xl border border-amber-500/10 bg-zinc-950/80 p-4 shadow-xl backdrop-blur-md transition-all duration-500 select-none pointer-events-none group-hover:scale-105 group-hover:border-amber-500/30 opacity-60 group-hover:opacity-100 mx-auto">
             <div className="flex items-center gap-2 mb-3">
               <span className="flex h-1.5 w-1.5 rounded-full bg-amber-500 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
@@ -395,17 +393,17 @@ export function FeatureGrid() {
             </div>
             
             <div className="space-y-2">
-              <p className="text-[7.5px] font-mono text-zinc-500 truncate">KEY: dandi_sk_live_8f0a21...</p>
+              <p className="text-[7.5px] font-mono text-zinc-550 truncate">KEY: dandi_sk_live_8f0a21...</p>
               <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
                 <div className="h-full bg-amber-500 rounded-full w-4/5 animate-pulse" />
               </div>
-              <div className="flex justify-between text-[7px] font-bold text-zinc-400">
+              <div className="flex justify-between text-[7px] font-bold text-zinc-500">
                 <span>Usage: 4,000 reqs</span>
                 <span>Limit: 5,000 reqs</span>
               </div>
             </div>
 
-            <div className="mt-3 pt-2 border-t border-zinc-900/60 flex items-center justify-between text-[7.5px] font-bold text-zinc-500">
+            <div className="mt-3 pt-2 border-t border-zinc-900/60 flex items-center justify-between text-[7.5px] font-bold text-zinc-555">
               <span>Notification:</span>
               <span className="text-emerald-400 flex items-center gap-1 font-sans">
                 <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3">
@@ -416,36 +414,36 @@ export function FeatureGrid() {
             </div>
           </div>
           
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-800/20 via-zinc-900/0 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-800/10 via-zinc-900/0 to-transparent pointer-events-none" />
         </div>
 
         {/* Bento Item 3 (Large): Live Playground */}
-        <div className="group relative col-span-full lg:col-span-4 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 sm:p-8 md:p-10 transition-all hover:border-zinc-400 dark:hover:border-zinc-700 min-h-[300px] shadow-sm dark:shadow-none flex flex-col lg:flex-row gap-6 lg:items-center">
+        <div className="group relative col-span-full lg:col-span-4 overflow-hidden rounded-[32px] border border-white/5 bg-zinc-950/40 p-6 sm:p-8 md:p-10 transition-all hover:border-white/10 min-h-[300px] shadow-none flex flex-col lg:flex-row gap-6 lg:items-center" style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}>
           <div className="space-y-4 lg:w-5/12 relative z-10">
-            <h3 className="text-2xl font-bold">Live Playground</h3>
-            <p className="text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">Test your orchestration before you ship. Monitor latency, inspect raw JSON responses, and generate snippets instantly.</p>
+            <h3 className="text-2xl font-bold text-white">Live Playground</h3>
+            <p className="text-sm leading-relaxed text-zinc-400">Test your orchestration before you ship. Monitor latency, inspect raw JSON responses, and generate snippets instantly.</p>
           </div>
           
           <div className="lg:w-7/12 relative mt-4 lg:mt-0 h-full">
             {/* Mock IDE */}
-            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-[#fbfaf9] dark:bg-zinc-950 shadow-xl overflow-hidden flex flex-col h-[215px] sm:h-[200px] relative transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-2xl">
-              <div className="flex items-center justify-between px-4 py-2 bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+            <div className="rounded-2xl border border-white/5 bg-zinc-950 shadow-xl overflow-hidden flex flex-col h-[215px] sm:h-[200px] relative transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-2xl">
+              <div className="flex items-center justify-between px-4 py-2 bg-zinc-900/60 border-b border-white/5">
                 <div className="flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-red-400"></span>
                   <span className="h-2 w-2 rounded-full bg-amber-400"></span>
                   <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
                   
                   {/* File title on desktop, tabs on mobile */}
-                  <span className="hidden sm:inline ml-2 text-[9px] font-mono text-zinc-400 uppercase tracking-widest">playground.ts</span>
+                  <span className="hidden sm:inline ml-2 text-[9px] font-mono text-zinc-550 uppercase tracking-widest">playground.ts</span>
                   
                   {/* Mobile tabs selector */}
-                  <div className="flex sm:hidden ml-3 bg-zinc-200 dark:bg-zinc-950 rounded-lg p-0.5 border border-zinc-300/40 dark:border-zinc-900 select-none">
+                  <div className="flex sm:hidden ml-3 bg-zinc-900 border border-white/5 rounded-lg p-0.5 select-none">
                     <button
                       onClick={() => setPlaygroundTab("request")}
                       className={`px-2 py-0.5 text-[8px] font-bold uppercase rounded-md transition cursor-pointer ${
                         playgroundTab === "request"
-                          ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-xs"
-                          : "text-zinc-400 dark:text-zinc-600"
+                          ? "bg-zinc-800 text-white shadow-xs"
+                          : "text-zinc-500"
                       }`}
                     >
                       Req
@@ -454,8 +452,8 @@ export function FeatureGrid() {
                       onClick={() => setPlaygroundTab("response")}
                       className={`px-2 py-0.5 text-[8px] font-bold uppercase rounded-md transition cursor-pointer ${
                         playgroundTab === "response"
-                          ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-xs"
-                          : "text-zinc-400 dark:text-zinc-600"
+                          ? "bg-zinc-800 text-white shadow-xs"
+                          : "text-zinc-500"
                       }`}
                     >
                       Res
@@ -476,16 +474,16 @@ export function FeatureGrid() {
                   {playgroundState === "running" && (
                     <button
                       disabled
-                      className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-zinc-400 bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 rounded-lg flex items-center gap-1 select-none"
+                      className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-zinc-500 bg-zinc-800 rounded-lg flex items-center gap-1 select-none"
                     >
-                      <span className="h-1.5 w-1.5 animate-spin rounded-full border border-zinc-400 border-t-zinc-600 dark:border-t-zinc-300" />
+                      <span className="h-1.5 w-1.5 animate-spin rounded-full border border-zinc-400 border-t-zinc-355" />
                       Run
                     </button>
                   )}
                   {playgroundState === "completed" && (
                     <button
                       onClick={resetPlaygroundSimulator}
-                      className="cursor-pointer px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-zinc-800 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-900 active:scale-95 transition"
+                      className="cursor-pointer px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-zinc-200 bg-zinc-900 border border-white/5 rounded-lg shadow-sm hover:bg-white/5 active:scale-95 transition"
                     >
                       Reset
                     </button>
@@ -495,8 +493,8 @@ export function FeatureGrid() {
               
               <div className="flex-1 flex font-mono text-[9px] overflow-hidden">
                 {/* Left Pane: Code */}
-                <div className={`w-full sm:w-1/2 p-3 sm:p-3.5 sm:border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 overflow-y-auto ${playgroundTab === "request" ? "block" : "hidden sm:block"}`}>
-                  <span className="text-blue-500 dark:text-blue-400">const</span> res = <span className="text-blue-500 dark:text-blue-400">await</span> fetch(<br/>
+                <div className={`w-full sm:w-1/2 p-3 sm:p-3.5 sm:border-r border-white/5 text-zinc-400 overflow-y-auto ${playgroundTab === "request" ? "block" : "hidden sm:block"}`}>
+                  <span className="text-blue-400">const</span> res = <span className="text-blue-400">await</span> fetch(<br/>
                   &nbsp;&nbsp;&quot;/api/github-summarizer&quot;,<br/>
                   &nbsp;&nbsp;&#123;<br/>
                   &nbsp;&nbsp;&nbsp;&nbsp;method: &quot;POST&quot;,<br/>
@@ -508,9 +506,9 @@ export function FeatureGrid() {
                   );
                 </div>
                 {/* Right Pane: Output */}
-                <div className={`w-full sm:w-1/2 p-3 sm:p-4 bg-zinc-50 dark:bg-[#111] text-zinc-500 dark:text-zinc-400 relative ${playgroundTab === "response" ? "block" : "hidden sm:block"}`}>
+                <div className={`w-full sm:w-1/2 p-3 sm:p-4 bg-zinc-950/60 text-zinc-400 relative ${playgroundTab === "response" ? "block" : "hidden sm:block"}`}>
                   {playgroundState === "idle" && (
-                    <div className="absolute inset-0 flex flex-col justify-center items-center gap-1.5 p-4 text-center select-none bg-zinc-50 dark:bg-[#111] animate-in fade-in duration-300">
+                    <div className="absolute inset-0 flex flex-col justify-center items-center gap-1.5 p-4 text-center select-none bg-zinc-950/60 animate-in fade-in duration-300">
                       <button 
                         onClick={runPlaygroundSimulator}
                         className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20 active:scale-95 transition-all shadow-xs"
@@ -519,20 +517,20 @@ export function FeatureGrid() {
                           <path d="M8 5v14l11-7z" />
                         </svg>
                       </button>
-                      <p className="text-[7.5px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Ready to Send Request</p>
-                      <p className="text-[6.5px] text-zinc-400/70 max-w-[120px] leading-relaxed">Click Run to execute fetch and see response payload.</p>
+                      <p className="text-[7.5px] font-bold uppercase tracking-widest text-zinc-400">Ready to Send Request</p>
+                      <p className="text-[6.5px] text-zinc-500/70 max-w-[120px] leading-relaxed">Click Run to execute fetch and see response payload.</p>
                     </div>
                   )}
 
                   {playgroundState === "running" && (
-                    <div className="absolute inset-0 flex flex-col justify-center items-center gap-1.5 p-4 text-center select-none bg-zinc-50 dark:bg-[#111] animate-in fade-in duration-300">
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-200 dark:border-zinc-800 border-t-emerald-500" />
-                      <p className="text-[7.5px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-600 animate-pulse mt-1">Executing fetch...</p>
+                    <div className="absolute inset-0 flex flex-col justify-center items-center gap-1.5 p-4 text-center select-none bg-zinc-950/60 animate-in fade-in duration-300">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-800 border-t-emerald-500" />
+                      <p className="text-[7.5px] font-bold uppercase tracking-widest text-zinc-500 animate-pulse mt-1">Executing fetch...</p>
                     </div>
                   )}
 
                   {playgroundState === "completed" && (
-                    <div className="animate-in slide-in-from-bottom-2 fade-in duration-500">
+                    <div className="animate-in slide-in-from-bottom-2 fade-in duration-500 text-zinc-400">
                       &#123;<br/>
                       &nbsp;&nbsp;&quot;status&quot;: 200,<br/>
                       &nbsp;&nbsp;&quot;data&quot;: &#123;<br/>
@@ -544,7 +542,7 @@ export function FeatureGrid() {
                   )}
                   
                   {/* Subtle decorative bottom gradient */}
-                  <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-zinc-50/80 to-transparent dark:from-[#111]/80 dark:to-transparent pointer-events-none z-10" />
+                  <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-zinc-955 to-transparent pointer-events-none z-10" />
                 </div>
               </div>
             </div>
@@ -552,20 +550,20 @@ export function FeatureGrid() {
         </div>
 
         {/* Bento Item 4: API Developer First */}
-        <div className="group relative col-span-full lg:col-span-2 overflow-hidden rounded-[32px] border border-zinc-200 dark:border-zinc-800 bg-[#efebe2] dark:bg-zinc-900/50 p-6 sm:p-10 transition-all hover:border-zinc-400 dark:hover:border-zinc-700 min-h-[300px] flex flex-col justify-between shadow-sm dark:shadow-none">
+        <div className="group relative col-span-full lg:col-span-2 overflow-hidden rounded-[32px] border border-white/5 bg-zinc-950/40 p-6 sm:p-10 transition-all hover:border-white/10 min-h-[300px] flex flex-col justify-between shadow-none" style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}>
           <div className="relative z-10 space-y-2 text-left">
-            <p className="text-5xl font-black italic font-serif tracking-tighter text-zinc-900 dark:text-zinc-100">API</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">Developer First</p>
+            <p className="text-5xl font-black italic font-serif tracking-tighter text-white">API</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-550">Developer First</p>
           </div>
           
           <div className="relative z-10 w-full mt-8">
-            <div className="bg-zinc-900 dark:bg-zinc-950 text-white rounded-xl p-4 shadow-xl border border-zinc-800 transition-transform duration-500 group-hover:-translate-y-1 group-hover:shadow-2xl">
+            <div className="bg-zinc-900/80 rounded-xl p-4 shadow-xl border border-white/5 transition-transform duration-500 group-hover:-translate-y-1 group-hover:shadow-2xl">
               <div className="flex gap-1.5 mb-3">
                 <div className="h-2 w-2 rounded-full bg-zinc-700" />
                 <div className="h-2 w-2 rounded-full bg-zinc-700" />
                 <div className="h-2 w-2 rounded-full bg-zinc-700" />
               </div>
-              <p className="font-mono text-[9px] leading-relaxed break-all">
+              <p className="font-mono text-[9px] leading-relaxed break-all text-zinc-305">
                 <span className="text-emerald-400">~</span> <span className="text-zinc-300">curl -X POST</span> https://dandi.ai/api/github-summarizer \<br/>
                 &nbsp;&nbsp;-H <span className="text-zinc-400">&quot;x-api-key: dandi_sk_...&quot;</span> \<br/>
                 &nbsp;&nbsp;-d <span className="text-zinc-400">&#39;&#123;&quot;githubUrl&quot;:&quot;...&quot;&#125;&#39;</span><span className="animate-pulse">_</span>
@@ -573,7 +571,7 @@ export function FeatureGrid() {
             </div>
           </div>
           
-          <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-white/40 dark:bg-zinc-800/20 blur-3xl group-hover:bg-emerald-500/10 transition-colors duration-1000 pointer-events-none" />
+          <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-emerald-500/5 blur-3xl group-hover:bg-emerald-500/10 transition-colors duration-1000 pointer-events-none" />
         </div>
       </div>
     </section>
