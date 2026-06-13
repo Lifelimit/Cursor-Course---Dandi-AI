@@ -133,8 +133,8 @@ body {
 }
 
 @keyframes command-ambient-drift {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.78; }
-  50% { transform: translate3d(2%, -2%, 0) scale(1.04); opacity: 1; }
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(1.5%, -1.5%, 0) scale(1.02); }
 }
 
 @keyframes command-pulse {
@@ -155,61 +155,71 @@ body {
 
 .command-ambient {
   isolation: isolate;
-  background:
-    radial-gradient(circle at 15% 10%, rgba(52, 211, 153, 0.16), transparent 30rem),
-    radial-gradient(circle at 85% 15%, rgba(34, 211, 238, 0.14), transparent 28rem),
-    radial-gradient(circle at 50% 100%, rgba(167, 139, 250, 0.1), transparent 32rem),
-    var(--command-bg);
+  background-color: var(--command-bg);
+  background-image:
+    radial-gradient(ellipse 90% 55% at 14% 6%, rgba(52, 211, 153, 0.11), transparent 58%),
+    radial-gradient(ellipse 75% 50% at 86% 10%, rgba(34, 211, 238, 0.09), transparent 52%),
+    radial-gradient(ellipse 85% 60% at 50% 100%, rgba(167, 139, 250, 0.07), transparent 58%),
+    linear-gradient(168deg, #080d14 0%, #05070b 42%, #030508 100%);
 }
 
 .command-ambient-subtle {
-  --command-ambient-opacity: 0.42;
-  --command-grid-opacity: 0.12;
+  --command-ambient-opacity: 0.38;
+  --command-grid-opacity: 0.1;
+  --command-vignette-opacity: 0.32;
 }
 
 .command-ambient-standard {
-  --command-ambient-opacity: 0.62;
-  --command-grid-opacity: 0.18;
+  --command-ambient-opacity: 0.58;
+  --command-grid-opacity: 0.14;
+  --command-vignette-opacity: 0.42;
 }
 
 .command-ambient-hero {
-  --command-ambient-opacity: 0.82;
-  --command-grid-opacity: 0.24;
+  --command-ambient-opacity: 0.78;
+  --command-grid-opacity: 0.18;
+  --command-vignette-opacity: 0.5;
 }
 
 .command-ambient-radial {
-  opacity: var(--command-ambient-opacity, 0.62);
-  filter: blur(4px);
-  animation: command-ambient-drift 18s ease-in-out infinite;
+  opacity: var(--command-ambient-opacity, 0.58);
+  animation: command-ambient-drift 22s ease-in-out infinite;
 }
 
 .command-ambient-radial-one {
   background:
-    radial-gradient(circle at 20% 18%, rgba(52, 211, 153, 0.22), transparent 24rem),
-    radial-gradient(circle at 78% 0%, rgba(34, 211, 238, 0.16), transparent 22rem);
+    radial-gradient(ellipse 58% 48% at 16% 14%, rgba(52, 211, 153, 0.16), transparent 68%),
+    radial-gradient(ellipse 48% 42% at 84% 4%, rgba(34, 211, 238, 0.11), transparent 66%);
 }
 
 .command-ambient-radial-two {
   background:
-    radial-gradient(circle at 70% 72%, rgba(167, 139, 250, 0.14), transparent 28rem),
-    radial-gradient(circle at 5% 92%, rgba(34, 211, 238, 0.12), transparent 22rem);
-  animation-delay: -8s;
+    radial-gradient(ellipse 52% 46% at 74% 78%, rgba(167, 139, 250, 0.09), transparent 72%),
+    radial-gradient(ellipse 42% 36% at 6% 90%, rgba(34, 211, 238, 0.07), transparent 68%);
+  animation-delay: -9s;
 }
 
 .command-ambient-grid {
-  opacity: var(--command-grid-opacity, 0.18);
+  opacity: var(--command-grid-opacity, 0.14);
   background-image:
-    linear-gradient(rgba(148, 163, 184, 0.18) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.18) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(circle at center, black, transparent 72%);
+    linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse 88% 78% at 50% 42%, black, transparent 80%);
+  mask-image: radial-gradient(ellipse 88% 78% at 50% 42%, black, transparent 80%);
+}
+
+.command-ambient-vignette {
+  opacity: var(--command-vignette-opacity, 0.42);
+  background: radial-gradient(ellipse 115% 95% at 50% 48%, transparent 35%, rgba(0, 0, 0, 0.45) 100%);
 }
 
 .command-ambient-noise {
-  opacity: 0.12;
+  opacity: 0.05;
   background-image:
-    linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 38%, rgba(255, 255, 255, 0.04) 68%, transparent);
-  mix-blend-mode: screen;
+    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.04), transparent 42%),
+    radial-gradient(circle at 78% 72%, rgba(255, 255, 255, 0.03), transparent 38%),
+    linear-gradient(140deg, rgba(255, 255, 255, 0.02), transparent 45%, rgba(255, 255, 255, 0.015) 72%, transparent);
 }
 
 .command-scroll {
