@@ -32,8 +32,14 @@ export function TabsBar({
         className={cx(
           "flex min-w-max items-center gap-2",
           variant === "underline" && "border-b border-[var(--command-border)]",
-          variant === "pills" && "rounded-full border border-[var(--command-border)] bg-white/[0.03] p-1",
+          variant === "pills" &&
+            "isolate overflow-hidden rounded-full border border-[var(--command-border)] bg-white/[0.03] p-1",
         )}
+        style={
+          variant === "pills"
+            ? { WebkitMaskImage: "-webkit-radial-gradient(white, black)" }
+            : undefined
+        }
       >
         {tabs.map((tab) => {
           const selected = tab.id === activeId;
@@ -54,7 +60,7 @@ export function TabsBar({
                 variant === "pills" &&
                   "rounded-full px-4 py-2 " +
                     (selected
-                      ? "bg-emerald-300 text-zinc-950 shadow-[0_0_24px_rgba(52,211,153,0.22)]"
+                      ? "relative z-10 bg-emerald-300 text-zinc-950 shadow-[0_0_24px_rgba(52,211,153,0.22)]"
                       : "text-[var(--command-muted)] hover:bg-white/[0.06] hover:text-[var(--command-text)]"),
               )}
             >
