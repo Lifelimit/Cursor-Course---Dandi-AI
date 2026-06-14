@@ -9,6 +9,7 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
     nextBilling: "N/A",
     monthlyLimit: 1000,
     keyLimit: 3,
+    maxKeyLimitCap: 1000,
   },
   Premium: {
     id: "Premium",
@@ -19,6 +20,7 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
     yearlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY_PRICE_ID,
     monthlyLimit: 5000,
     keyLimit: 10,
+    maxKeyLimitCap: 5000,
   },
   Researcher: {
     id: "Researcher",
@@ -29,6 +31,7 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
     yearlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID,
     monthlyLimit: null,
     keyLimit: null,
+    maxKeyLimitCap: 100000,
   }
 };
 
@@ -155,10 +158,6 @@ export const PLANS: Plan[] = [
   }
 ];
 
-/**
- * Resolves a user's plan name to its canonical name and settings.
- * Unknown, empty, or null plan names consistently resolve to "Hobby".
- */
 export function resolvePlan(planName?: string | null) {
   const name = (planName && PLAN_DETAILS[planName]) ? planName : "Hobby";
   const details = PLAN_DETAILS[name];
@@ -167,6 +166,7 @@ export function resolvePlan(planName?: string | null) {
     details,
     maxKeys: details.keyLimit,
     monthlyRequests: details.monthlyLimit,
+    maxLimitCap: details.maxKeyLimitCap,
   };
 }
 
@@ -183,5 +183,6 @@ export function getPlanLimits(planName?: string | null) {
     monthlyLimit: isUnlimited ? 1_000_000 : resolved.monthlyRequests!,
     keyLimit: resolved.maxKeys,
     isUnlimited,
+    maxLimitCap: resolved.maxLimitCap,
   };
 }

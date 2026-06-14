@@ -116,20 +116,20 @@ print(response.json())`
         />
       }
       maxHeight="22rem"
-      className="border-emerald-300/15"
+      className="border-[var(--command-border)]"
     >
       {/* Single min-w-max wrapper so tab bar + code block scroll as one unit */}
       <div className="min-w-max">
-        <div className="border-b border-white/10 bg-white/[0.02] px-4 py-3">
+        <div className="border-b border-[var(--command-border)] bg-[var(--command-bg)]/20 px-4 py-3">
           <div className="flex gap-2">
             {(["curl", "fetch", "python"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`rounded-xl border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                className={`rounded-xl border px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${
                   activeTab === tab
                     ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-300"
-                    : "border-white/10 bg-slate-950/60 text-slate-500 hover:text-slate-300"
+                    : "border-slate-800 bg-slate-950/60 text-slate-500 hover:text-slate-300"
                 }`}
               >
                 {tab}

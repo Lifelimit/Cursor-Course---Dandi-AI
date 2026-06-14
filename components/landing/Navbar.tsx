@@ -36,7 +36,7 @@ export function Navbar({ session }: { session: Session | null }) {
 
   return (
     <nav className="fixed left-0 right-0 top-3 z-50 px-3 sm:px-6">
-      <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-3 overflow-hidden rounded-2xl border border-emerald-400/10 bg-slate-950/82 p-3 shadow-lg shadow-black/30 backdrop-blur-sm">
+      <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-emerald-400/10 bg-slate-950/82 p-3 shadow-lg shadow-black/30 backdrop-blur-sm">
         {/* Brand / Circular Logo */}
         <Link href="/" className="group z-10 flex shrink-0 cursor-pointer items-center gap-3">
           <div className="relative flex h-8 w-8 items-center justify-center rounded-xl border border-emerald-400/35 bg-emerald-400/10 text-emerald-100 shadow-[0_0_15px_rgba(52,211,153,0.12)] transition-colors group-hover:border-emerald-300/60">
@@ -60,21 +60,42 @@ export function Navbar({ session }: { session: Session | null }) {
                 <Link href="/dashboards" className="rounded-xl bg-emerald-400 px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-950 transition-all hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
                   Dashboard
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="profile-trigger flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 cursor-pointer"
-                  aria-expanded={isProfileOpen}
-                  aria-label="User Profile menu"
-                >
-                  {userImage ? (
-                    <Image src={userImage} alt="Avatar" width={32} height={32} className="h-8 w-8 rounded-full border border-emerald-500/20" referrerPolicy="no-referrer" unoptimized />
-                  ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-[9px] font-black uppercase text-emerald-100">
-                      {userInitial}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    className="profile-trigger flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 cursor-pointer"
+                    aria-expanded={isProfileOpen}
+                    aria-label="User Profile menu"
+                  >
+                    {userImage ? (
+                      <Image src={userImage} alt="Avatar" width={32} height={32} className="h-8 w-8 rounded-full border border-emerald-500/20" referrerPolicy="no-referrer" unoptimized />
+                    ) : (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-[9px] font-black uppercase text-emerald-100">
+                        {userInitial}
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Desktop Profile Popover */}
+                  <div className={`profile-popover absolute left-1/2 -translate-x-1/2 top-[calc(100%+24px)] z-[100] w-48 rounded-xl border border-white/10 bg-slate-950/95 p-3 shadow-xl backdrop-blur-sm transition-all duration-500 origin-top hidden md:block ${
+                    isProfileOpen
+                      ? 'translate-y-0 opacity-100 scale-100 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] pointer-events-auto'
+                      : '-translate-y-2 opacity-0 scale-75 pointer-events-none ease-[cubic-bezier(0.6,-0.28,0.735,0.045)]'
+                  }`}>
+                    {/* Tooltip Arrow Pointer */}
+                    <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-slate-950 border-t border-l border-white/10 pointer-events-none" />
+                    
+                    <div className="relative z-10 space-y-1 text-center">
+                      <p className="truncate text-[10px] font-bold uppercase tracking-wider text-white">
+                        {session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "Developer"}
+                      </p>
+                      <p className="truncate text-[9px] text-zinc-500 font-mono lowercase">
+                        {session.user.email}
+                      </p>
                     </div>
-                  )}
-                </button>
+                  </div>
+                </div>
                 <button
                   onClick={handleSignOut}
                   className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 text-slate-400 transition-all hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/70"
@@ -145,9 +166,13 @@ export function Navbar({ session }: { session: Session | null }) {
             )}
           </button>
 
-          {/* Profile Popover */}
-          {isProfileOpen && session && (
-            <div className="profile-popover absolute right-3 top-[calc(100%+8px)] z-[100] w-64 rounded-2xl border border-white/10 bg-slate-950/95 p-4 shadow-xl backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-200">
+          {/* Profile Popover (Mobile only) */}
+          {session && (
+            <div className={`profile-popover absolute right-3 top-[calc(100%+8px)] z-[100] w-64 rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-xl backdrop-blur-sm transition-all duration-500 origin-top-right md:hidden ${
+              isProfileOpen
+                ? 'translate-y-0 opacity-100 scale-100 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] pointer-events-auto'
+                : '-translate-y-2 opacity-0 scale-75 pointer-events-none ease-[cubic-bezier(0.6,-0.28,0.735,0.045)]'
+            }`}>
               <div className="space-y-3">
                 <div className="border-b border-white/5 pb-2">
                   <p className="truncate text-xs font-black uppercase tracking-wider text-white">

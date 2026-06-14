@@ -5,7 +5,7 @@ import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOri
 import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { getJsonObject, validateGitHubRepoUrl } from "@/lib/request-validation";
 import { isUuid } from "@/lib/security-core";
-import { createIngestionJob, getIngestionJob, runIngestionJob } from "@/lib/services/ingestion-job.service";
+import { createIngestionJob, formatIngestionJob, getIngestionJob, runIngestionJob } from "@/lib/services/ingestion-job.service";
 import { validateApiKey } from "@/lib/services/api-key.service";
 
 const corsOptions = {
@@ -47,17 +47,11 @@ export async function GET(request: Request) {
   try {
     const keyData = await validateApiKey(apiKey);
     const job = await getIngestionJob({ jobId, keyData });
+    const formattedJob = formatIngestionJob(job);
     return NextResponse.json(
       {
         success: true,
-        jobId: job.id,
-        status: job.status,
-        error: job.error,
-        filesCount: job.files_count,
-        chunksCount: job.chunks_count,
-        createdAt: job.created_at,
-        startedAt: job.started_at,
-        completedAt: job.completed_at,
+        ...formattedJob,
       },
       { headers: corsHeaders }
     );
@@ -113,8 +107,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-        jobId: job.id,
-        status: job.status,
+        ...formatIngestionJob(job),
       },
       { headers: corsHeaders }
     );

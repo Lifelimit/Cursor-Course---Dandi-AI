@@ -87,9 +87,9 @@ export default function DashboardClient({
 
   // Dynamic Tier Logic - Using the most recent session data available
   const currentPlan = realtimePlan || initialPlan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby";
-  const { monthlyLimit: currentLimit, isUnlimited } = getPlanLimits(currentPlan);
+  const { monthlyLimit: currentLimit, isUnlimited, maxLimitCap } = getPlanLimits(currentPlan);
 
-  const alerts = computeSidebarAlerts(usageData?.keys || apiKeys);
+  const alerts = computeSidebarAlerts(usageData?.keys || apiKeys, maxLimitCap);
 
   const { toast, showToast } = useToast();
 
@@ -519,7 +519,7 @@ export default function DashboardClient({
               isOpen={isModalOpen}
               onClose={() => setIsModalOpen(false)}
               initialData={editingKey}
-              planMonthlyLimit={isUnlimited ? null : currentLimit}
+              planMonthlyLimit={maxLimitCap}
               onSubmit={handleModalSubmit}
             />
             <RevocationModal

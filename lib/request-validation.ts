@@ -38,9 +38,12 @@ export function validateMonthlyLimit(value: unknown, plan: string) {
   if (value === undefined) return undefined;
 
   const planLimit = getPlanLimit(plan);
-  const parsed = clampInteger(value, { min: 1, max: planLimit ?? undefined });
+  const resolved = resolvePlan(plan);
+  const maxCap = resolved.maxLimitCap;
+
+  const parsed = clampInteger(value, { min: 1, max: maxCap });
   if (parsed === null) {
-    throw new Error(planLimit === null ? "Monthly limit must be a positive integer." : `Monthly limit must be between 1 and ${planLimit}.`);
+    throw new Error(planLimit === null ? `Monthly limit must be a positive integer between 1 and ${maxCap.toLocaleString()}.` : `Monthly limit must be between 1 and ${planLimit}.`);
   }
   return parsed;
 }

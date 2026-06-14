@@ -36,10 +36,11 @@ export function getEffectiveAlertThresholdPct(limit: number | null, threshold: n
   return Math.round((triggerCount / limit) * 100);
 }
 
-export function hasCrossedAlertThreshold(key: AlertableKey) {
-  if (!key.is_active || key.alert_threshold === null || key.monthly_limit === null) return false;
+export function hasCrossedAlertThreshold(key: AlertableKey, planMaxCap?: number) {
+  const limit = key.monthly_limit ?? planMaxCap ?? 1000;
+  if (!key.is_active || key.alert_threshold === null) return false;
 
-  const triggerCount = getAlertTriggerCount(key.monthly_limit, key.alert_threshold);
+  const triggerCount = getAlertTriggerCount(limit, key.alert_threshold);
   return triggerCount !== null && key.usage_count >= triggerCount;
 }
 
@@ -48,18 +49,19 @@ export function hasCrossedAlertThreshold(key: AlertableKey) {
  * Small limits are evaluated by whole request count so UI labels like 75% (3 req)
  * match alert-state behavior for limits such as 3/4.
  */
-export function computeSidebarAlerts(keys: AlertableKey[]): SidebarAlert[] {
+export function computeSidebarAlerts(keys: AlertableKey[], planMaxCap?: number): SidebarAlert[] {
   return (keys || [])
-    .filter(k => k.alert_channels?.includes('in-page') && hasCrossedAlertThreshold(k))
+    .filter(k => k.alert_channels?.includes('in-page') && hasCrossedAlertThreshold(k, planMaxCap))
     .map(k => {
-      const pct = k.monthly_limit ? (k.usage_count / k.monthly_limit) * 100 : 0;
-      const threshold = getEffectiveAlertThresholdPct(k.monthly_limit, k.alert_threshold) ?? k.alert_threshold!;
+      const limit = k.monthly_limit ?? planMaxCap ?? 1000;
+      const pct = (k.usage_count / limit) * 100;
+      const threshold = getEffectiveAlertThresholdPct(limit, k.alert_threshold) ?? k.alert_threshold!;
       return { 
         id: k.id, 
         keyName: k.name, 
         pct, 
         threshold,
-        currentLimit: k.monthly_limit || 1000,
+        currentLimit: limit,
         usageCount: k.usage_count,
         dailyTrend: k.dailyTrend || []
       };

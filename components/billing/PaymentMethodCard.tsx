@@ -79,7 +79,7 @@ export function PaymentMethodCard({
     const brandLabel = brand.toUpperCase();
 
     return (
-      <div className="inline-flex h-8 min-w-12 max-w-24 items-center justify-center overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-300/10 px-2.5 text-[7px] font-black italic leading-none tracking-normal text-emerald-200 shadow-sm">
+      <div className="inline-flex h-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-200">
         <span className="max-w-full truncate">{brandLabel}</span>
       </div>
     );
@@ -100,17 +100,17 @@ export function PaymentMethodCard({
       style={{
         transform: hasPointerMotion ? "translateY(-2px) scale(1.01)" : undefined,
         boxShadow: hasPointerMotion
-          ? '0 24px 60px -20px rgba(16, 185, 129, 0.22), 0 0 1px 1px rgba(52,211,153,0.18)' 
-          : '0 18px 50px -24px rgba(0, 0, 0, 0.5), 0 0 1px 0 rgba(255,255,255,0.12)',
+          ? '0 20px 40px -15px rgba(0, 0, 0, 0.7), 0 0 1px 0 rgba(255, 255, 255, 0.15)' 
+          : '0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 1px 0 rgba(255, 255, 255, 0.1)',
         transition: prefersReducedMotion ? undefined : 'transform 0.15s ease-out, box-shadow 0.2s ease-out, opacity 0.3s ease-out, filter 0.3s ease-out',
       }}
-      className={`group relative overflow-hidden rounded-[22px] border p-5 backdrop-blur-xl select-none sm:rounded-[24px] sm:p-6 ${
+      className={`group relative overflow-hidden rounded-[24px] p-5 select-none bg-[var(--command-panel-solid)] sm:p-6 ${
         !isActive 
-          ? 'border-white/5 bg-slate-950/45 shadow-sm cursor-pointer hover:border-white/10 hover:bg-slate-950/60'
+          ? 'opacity-30 hover:opacity-60 cursor-pointer border border-white/5'
           : isDefault 
-            ? 'border-emerald-300/35 bg-slate-950/90 ring-1 ring-emerald-300/30 shadow-lg' 
-            : 'border-white/10 bg-slate-950/75 shadow-sm'
-      } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950`}
+            ? 'border border-emerald-500/30 ring-1 ring-emerald-500/15' 
+            : 'border border-white/10'
+      } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950`}
     >
       {/* Light sheen overlay */}
       {!prefersReducedMotion && isActive && (
@@ -157,10 +157,10 @@ export function PaymentMethodCard({
               disabled={!isActive}
               tabIndex={isActive ? 0 : -1}
               aria-label={`Set ${brand} card ending in ${last4} as default payment method`}
-              className={`rounded-full border px-3 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+              className={`rounded-full border px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                 isActive
-                  ? "pointer-events-auto border-emerald-300/25 bg-emerald-300/10 text-emerald-100 hover:border-emerald-300/45 hover:bg-emerald-300/20"
-                  : "pointer-events-none border-white/5 bg-white/[0.03] text-slate-600 opacity-0"
+                  ? "pointer-events-auto border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/10 hover:text-white"
+                  : "pointer-events-none border-white/5 bg-white/[0.02] text-slate-600 opacity-0"
               }`}
             >
               Set Default
@@ -190,7 +190,7 @@ export function PaymentMethodCard({
       </div>
       
       {!prefersReducedMotion && isActive && (
-        <div className="absolute -right-8 -bottom-8 h-24 w-24 rounded-full bg-emerald-300/10 transition-transform group-hover:scale-125 pointer-events-none" />
+        <div className="absolute -right-8 -bottom-8 h-24 w-24 rounded-full bg-white/[0.01] transition-transform group-hover:scale-125 pointer-events-none" />
       )}
     </div>
   );

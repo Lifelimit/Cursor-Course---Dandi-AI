@@ -171,9 +171,10 @@ export function FeatureGrid() {
         <p className="mx-auto max-w-xl text-slate-400 md:mx-0">Dandi helps developers summarize repositories, inspect metadata, manage API access, and test requests quickly.</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-6 h-auto">
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="contents lg:block lg:space-y-6">
         {/* Bento Item 1: Interactive repository summary */}
-        <div className="group relative col-span-full flex min-h-[480px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-8 md:p-10 lg:col-span-3">
+        <div className="group relative order-1 flex min-h-[480px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-8 md:p-10">
           <div className="relative z-10 space-y-5">
             <div className="flex items-center gap-4">
               <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-950/20 border border-emerald-500/20 shadow-sm">
@@ -358,66 +359,8 @@ export function FeatureGrid() {
           <div className="absolute -bottom-10 -right-10 -z-10 h-40 w-40 rounded-full bg-emerald-950/5"></div>
         </div>
 
-        {/* Bento Item 2: Usage Alerts */}
-        <div className="group relative col-span-full flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 text-white shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-10 lg:col-span-3">
-          <div className="relative z-10 space-y-4 w-full lg:max-w-[calc(100%-260px)]">
-            <h3 className="font-serif text-2xl font-bold">Usage Alerts</h3>
-            <p className="text-sm leading-relaxed text-slate-400">Set alert thresholds for API usage and get notified before a project reaches its monthly plan limit.</p>
-            
-            {/* Real alert channels tag list */}
-            <div className="flex flex-wrap gap-2 pt-2 select-none">
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/60 border border-white/5 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
-                Email Alerts
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/60 border border-white/5 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
-                Dashboard Alerts
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/60 border border-white/5 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
-                Usage Log
-              </span>
-            </div>
-          </div>
-          
-          {/* Floating Glassmorphic Alert Box (Relative on mobile/tablet, absolute on lg desktop screens) */}
-          <div className="relative mx-auto mt-6 w-full select-none rounded-2xl border border-amber-500/15 bg-slate-950/82 p-4 shadow-xl transition-colors duration-300 group-hover:border-amber-500/30 lg:absolute lg:bottom-8 lg:right-6 lg:mt-0 lg:w-[240px]">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="flex h-1.5 w-1.5 rounded-full bg-amber-500 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
-              </span>
-              <span className="text-[8px] font-black uppercase tracking-widest text-amber-500">80% Quota Alert</span>
-            </div>
-            
-            <div className="space-y-2">
-              <p className="truncate font-mono text-[7.5px] text-slate-500">KEY: dandi_sk_live_8f0a21...</p>
-              <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
-                <div className="h-full bg-amber-500 rounded-full w-4/5 animate-pulse" />
-              </div>
-              <div className="flex justify-between text-[7px] font-bold text-slate-500">
-                <span>Usage: 4,000 reqs</span>
-                <span>Limit: 5,000 reqs</span>
-              </div>
-            </div>
-
-            <div className="mt-3 flex items-center justify-between border-t border-slate-900/70 pt-2 text-[7.5px] font-bold text-slate-500">
-              <span>Notification:</span>
-              <span className="text-emerald-400 flex items-center gap-1 font-sans">
-                <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3">
-                  <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                Email Sent
-              </span>
-            </div>
-          </div>
-          
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-800/10 via-zinc-900/0 to-transparent pointer-events-none" />
-        </div>
-
         {/* Bento Item 3 (Large): Live Playground */}
-        <div className="group relative col-span-full flex min-h-[300px] flex-col gap-6 overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-8 md:p-10 lg:col-span-4 lg:flex-row lg:items-center">
+        <div className="group relative order-3 flex min-h-[300px] flex-col gap-6 overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-8 md:p-10 lg:flex-row lg:items-center">
           <div className="space-y-4 lg:w-5/12 relative z-10">
             <h3 className="text-2xl font-bold text-white">Live Playground</h3>
             <p className="text-sm leading-relaxed text-slate-400">Test requests before you ship. Inspect raw JSON responses, review request state, and generate snippets quickly.</p>
@@ -548,8 +491,69 @@ export function FeatureGrid() {
           </div>
         </div>
 
+        </div>
+
+        <div className="contents lg:block lg:space-y-6">
+        {/* Bento Item 2: Usage Alerts */}
+        <div className="group relative order-2 flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 text-white shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-10">
+          <div className="relative z-10 space-y-4 w-full lg:max-w-[calc(100%-260px)]">
+            <h3 className="font-serif text-2xl font-bold">Usage Alerts</h3>
+            <p className="text-sm leading-relaxed text-slate-400">Set alert thresholds for API usage and get notified before a project reaches its monthly plan limit.</p>
+            
+            {/* Real alert channels tag list */}
+            <div className="flex flex-wrap gap-2 pt-2 select-none">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/60 border border-white/5 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
+                Email Alerts
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/60 border border-white/5 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
+                Dashboard Alerts
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/60 border border-white/5 px-2 py-1 text-[8px] font-bold text-zinc-300 tracking-wider">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)] animate-pulse" />
+                Usage Log
+              </span>
+            </div>
+          </div>
+          
+          {/* Floating Glassmorphic Alert Box (Relative on mobile/tablet, absolute on lg desktop screens) */}
+          <div className="relative mx-auto mt-6 w-full select-none rounded-2xl border border-amber-500/15 bg-slate-950/82 p-4 shadow-xl transition-colors duration-300 group-hover:border-amber-500/30 lg:absolute lg:bottom-8 lg:right-6 lg:mt-0 lg:w-[240px]">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-amber-500 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
+              </span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-amber-500">80% Quota Alert</span>
+            </div>
+            
+            <div className="space-y-2">
+              <p className="truncate font-mono text-[7.5px] text-slate-500">KEY: dandi_sk_live_8f0a21...</p>
+              <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
+                <div className="h-full bg-amber-500 rounded-full w-4/5 animate-pulse" />
+              </div>
+              <div className="flex justify-between text-[7px] font-bold text-slate-500">
+                <span>Usage: 4,000 reqs</span>
+                <span>Limit: 5,000 reqs</span>
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between border-t border-slate-900/70 pt-2 text-[7.5px] font-bold text-slate-500">
+              <span>Notification:</span>
+              <span className="text-emerald-400 flex items-center gap-1 font-sans">
+                <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3">
+                  <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Email Sent
+              </span>
+            </div>
+          </div>
+          
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-800/10 via-zinc-900/0 to-transparent pointer-events-none" />
+        </div>
+
         {/* Bento Item 4: API Developer First */}
-        <div className="group relative col-span-full flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-10 lg:col-span-2">
+        <div className="group relative order-4 flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-10">
           <div className="relative z-10 space-y-2 text-left">
             <p className="text-5xl font-black italic font-serif tracking-tighter text-white">API</p>
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Developer First</p>
@@ -571,6 +575,7 @@ export function FeatureGrid() {
           </div>
           
           <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-emerald-500/5 blur-3xl group-hover:bg-emerald-500/10 transition-colors duration-1000 pointer-events-none" />
+        </div>
         </div>
       </div>
     </section>

@@ -136,16 +136,15 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
       title="dandi-request-log v1.0.4"
       status={terminalStatus}
       maxHeight="48rem"
-      className="border-emerald-300/15 shadow-[0_28px_90px_rgba(0,0,0,0.34)]"
     >
       <div className="space-y-3">
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-          <StatusPill tone={terminalStatus === "error" ? "danger" : terminalStatus === "running" ? "warning" : "success"} pulse={terminalStatus === "running"} compact>
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--command-border)] bg-[var(--command-bg)]/40 px-4 py-3">
+          <StatusPill tone={terminalStatus === "error" ? "danger" : terminalStatus === "running" ? "warning" : terminalStatus === "idle" ? "neutral" : "success"} pulse={terminalStatus === "running"} compact>
             Request Log
           </StatusPill>
           {logs.length > 0 && (
-            <div className="flex items-center gap-2 text-[9px] font-bold text-zinc-400">
-              <span className="font-mono text-zinc-500">
+            <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400">
+              <span className="font-mono text-slate-500">
                 Total Latency:
               </span>
               <span className="font-mono font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
@@ -154,9 +153,9 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
             </div>
           )}
         </div>
-
+ 
       {/* Request Progress Stepper Track */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 px-3 py-6 select-none sm:px-6 md:py-8">
+      <div className="relative overflow-hidden rounded-2xl border border-[var(--command-border)] bg-[var(--command-bg)]/20 px-3 py-6 select-none sm:px-6 md:py-8">
         {/* Style Block for custom animations */}
         <style dangerouslySetInnerHTML={{__html: `
           @keyframes pulse-flow {
@@ -198,13 +197,13 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
             }
           }
         `}} />
-
+ 
         {/* SVG Connector Lines */}
         <svg className="absolute inset-0 h-full w-full pointer-events-none z-0" xmlns="http://www.w3.org/2000/svg">
           {/* Track 1: Auth to Repo Fetch */}
           <line 
             x1="16.6%" y1="42%" x2="50%" y2="42%" 
-            stroke={authStatus === "success" ? "#10b981" : "#27272a"} 
+            stroke={authStatus === "success" ? "#10b981" : "var(--command-border)"} 
             strokeWidth={authStatus === "success" ? "2.5" : "2"}
             className="transition-all duration-500" 
           />
@@ -217,11 +216,11 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
               className="animate-pulse-flow"
             />
           )}
-
+ 
           {/* Track 2: Repo Fetch to AI Processing */}
           <line 
             x1="50%" y1="42%" x2="83.3%" y2="42%" 
-            stroke={repoStatus === "success" ? "#10b981" : "#27272a"} 
+            stroke={repoStatus === "success" ? "#10b981" : "var(--command-border)"} 
             strokeWidth={repoStatus === "success" ? "2.5" : "2"}
             className="transition-all duration-500" 
           />
@@ -235,12 +234,12 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
             />
           )}
         </svg>
-
+ 
         {/* Steps Wrapper */}
         <div className="relative z-10 mx-auto flex max-w-2xl items-center justify-between px-0 sm:px-8">
           {/* Step 1: Authentication */}
           <div className="flex flex-col items-center gap-2.5 text-center flex-1">
-            <div className="relative flex h-11 w-11 items-center justify-center rounded-full border bg-zinc-950 transition-all duration-500 z-10 border-transparent">
+            <div className="relative flex h-11 w-11 items-center justify-center rounded-full border bg-[var(--command-bg)] transition-all duration-500 z-10 border-transparent">
               {/* Outer Pulsing Ring */}
               <div className={`absolute -inset-1.5 rounded-full opacity-0 transition-opacity duration-500 ${
                 authStatus === "pending" ? "bg-amber-400/10 border border-amber-400/20 opacity-100 animate-pulse-ring" : 
@@ -252,7 +251,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                 authStatus === "success" ? "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.2)]" :
                 authStatus === "error" ? "border-rose-500/50 bg-rose-500/10 shadow-[0_0_12px_rgba(239,68,68,0.2)] animate-shake" :
                 authStatus === "pending" ? "border-amber-400 bg-amber-400/10 shadow-[0_0_12px_rgba(251,191,36,0.25)] scale-110" :
-                "border-zinc-800 bg-zinc-900/60"
+                "border-slate-800 bg-slate-900/60 text-slate-500"
               }`}>
                 <AuthIcon status={authStatus} />
               </div>
@@ -261,33 +260,33 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
               <span className={`text-[9px] font-black uppercase tracking-widest block transition-colors duration-300 ${
                 authStatus === "success" ? "text-emerald-400" :
                 authStatus === "error" ? "text-rose-500 font-extrabold" :
-                authStatus === "pending" ? "text-amber-400 font-extrabold" : "text-zinc-500"
+                authStatus === "pending" ? "text-amber-400 font-extrabold" : "text-slate-500"
               }`}>
                 Authentication
               </span>
-              <span className="text-[7px] font-bold font-mono tracking-wide text-zinc-600 block uppercase select-none">
+              <span className="text-[7px] font-bold font-mono tracking-wide text-slate-600 block uppercase select-none">
                 {authStatus === "success" ? "Verified" :
                  authStatus === "error" ? "Failed" :
                  authStatus === "pending" ? "Checking" : "Offline"}
               </span>
             </div>
           </div>
-
+ 
           {/* Step 2: Repo Fetch */}
           <div className="flex flex-col items-center gap-2.5 text-center flex-1">
-            <div className="relative flex h-11 w-11 items-center justify-center rounded-full border bg-zinc-950 transition-all duration-500 z-10 border-transparent">
+            <div className="relative flex h-11 w-11 items-center justify-center rounded-full border bg-[var(--command-bg)] transition-all duration-500 z-10 border-transparent">
               {/* Outer Pulsing Ring */}
               <div className={`absolute -inset-1.5 rounded-full opacity-0 transition-opacity duration-500 ${
                 repoStatus === "pending" ? "bg-amber-400/10 border border-amber-400/20 opacity-100 animate-pulse-ring" : 
                 repoStatus === "success" ? "bg-emerald-500/5 border border-emerald-500/15 opacity-100" :
                 repoStatus === "error" ? "bg-rose-500/10 border border-rose-500/25 opacity-100 animate-pulse-ring" : ""
               }`} />
-
+ 
               <div className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-500 ${
                 repoStatus === "success" ? "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.2)]" :
                 repoStatus === "error" ? "border-rose-500/50 bg-rose-500/10 shadow-[0_0_12px_rgba(239,68,68,0.2)] animate-shake" :
                 repoStatus === "pending" ? "border-amber-400 bg-amber-400/10 shadow-[0_0_12px_rgba(251,191,36,0.25)] scale-110" :
-                "border-zinc-800 bg-zinc-900/60"
+                "border-slate-800 bg-slate-900/60 text-slate-500"
               }`}>
                 <RepoIcon status={repoStatus} />
               </div>
@@ -296,33 +295,33 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
               <span className={`text-[9px] font-black uppercase tracking-widest block transition-colors duration-300 ${
                 repoStatus === "success" ? "text-emerald-400" :
                 repoStatus === "error" ? "text-rose-500 font-extrabold" :
-                repoStatus === "pending" ? "text-amber-400 font-extrabold" : "text-zinc-500"
+                repoStatus === "pending" ? "text-amber-400 font-extrabold" : "text-slate-500"
               }`}>
                 Repository Fetch
               </span>
-              <span className="text-[7px] font-bold font-mono tracking-wide text-zinc-600 block uppercase select-none">
+              <span className="text-[7px] font-bold font-mono tracking-wide text-slate-600 block uppercase select-none">
                 {repoStatus === "success" ? "Retrieved" :
                  repoStatus === "error" ? "Failed" :
                  repoStatus === "pending" ? "Fetching" : "Offline"}
               </span>
             </div>
           </div>
-
+ 
           {/* Step 3: AI Processing */}
           <div className="flex flex-col items-center gap-2.5 text-center flex-1">
-            <div className="relative flex h-11 w-11 items-center justify-center rounded-full border bg-zinc-950 transition-all duration-500 z-10 border-transparent">
+            <div className="relative flex h-11 w-11 items-center justify-center rounded-full border bg-[var(--command-bg)] transition-all duration-500 z-10 border-transparent">
               {/* Outer Pulsing Ring */}
               <div className={`absolute -inset-1.5 rounded-full opacity-0 transition-opacity duration-500 ${
                 aiStatus === "pending" ? "bg-amber-400/10 border border-amber-400/20 opacity-100 animate-pulse-ring" : 
                 aiStatus === "success" ? "bg-emerald-500/5 border border-emerald-500/15 opacity-100" :
                 aiStatus === "error" ? "bg-rose-500/10 border border-rose-500/25 opacity-100 animate-pulse-ring" : ""
               }`} />
-
+ 
               <div className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-500 ${
                 aiStatus === "success" ? "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.2)]" :
                 aiStatus === "error" ? "border-rose-500/50 bg-rose-500/10 shadow-[0_0_12px_rgba(239,68,68,0.2)] animate-shake" :
                 aiStatus === "pending" ? "border-amber-400 bg-amber-400/10 shadow-[0_0_12px_rgba(251,191,36,0.25)] scale-110" :
-                "border-zinc-800 bg-zinc-900/60"
+                "border-slate-800 bg-slate-900/60 text-slate-500"
               }`}>
                 <AiIcon status={aiStatus} />
               </div>
@@ -331,11 +330,11 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
               <span className={`text-[9px] font-black uppercase tracking-widest block transition-colors duration-300 ${
                 aiStatus === "success" ? "text-emerald-400" :
                 aiStatus === "error" ? "text-rose-500 font-extrabold" :
-                aiStatus === "pending" ? "text-amber-400 font-extrabold" : "text-zinc-500"
+                aiStatus === "pending" ? "text-amber-400 font-extrabold" : "text-slate-500"
               }`}>
                 AI Processing
               </span>
-              <span className="text-[7px] font-bold font-mono tracking-wide text-zinc-600 block uppercase select-none">
+              <span className="text-[7px] font-bold font-mono tracking-wide text-slate-600 block uppercase select-none">
                 {aiStatus === "success" ? "Complete" :
                  aiStatus === "error" ? "Failed" :
                  aiStatus === "pending" ? "Analyzing" : "Offline"}
@@ -344,21 +343,21 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
           </div>
         </div>
       </div>
-
+ 
       {/* Terminal Screen Area */}
-      <div className="min-h-[120px] rounded-2xl border border-white/10 bg-[#09090b] p-3 font-mono text-xs text-zinc-300 sm:p-4">
+      <div className="min-h-[120px] rounded-2xl border border-[var(--command-border)] bg-[var(--command-bg)] p-3 font-mono text-xs text-slate-300 sm:p-4">
         {logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center space-y-2">
             <div className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-zinc-600 animate-pulse" />
-              <span className="text-[10px] font-semibold text-zinc-500 tracking-widest uppercase">
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-600 animate-pulse" />
+              <span className="text-[10px] font-semibold text-slate-500 tracking-widest uppercase">
                 Request Log Ready
               </span>
             </div>
-            <p className="text-[11px] text-zinc-600 leading-relaxed font-mono">
+            <p className="text-[11px] text-slate-600 leading-relaxed font-mono">
               dandi@api:~$ waiting for a request...
             </p>
-            <div className="h-4 w-1.5 bg-zinc-600 animate-pulse mt-2" />
+            <div className="h-4 w-1.5 bg-slate-600 animate-pulse mt-2" />
           </div>
         ) : (
           <div className="space-y-2">
@@ -371,8 +370,8 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                   key={log.id} 
                   className={`overflow-hidden rounded-2xl border transition-all duration-300 ${
                     isExpanded 
-                      ? "border-zinc-800 bg-[#0e0e11] shadow-lg" 
-                      : "border-transparent bg-zinc-950/40 hover:bg-zinc-900/20"
+                      ? "border-slate-800 bg-slate-900/40 shadow-lg" 
+                      : "border-transparent bg-slate-950/20 hover:bg-slate-900/10"
                   }`}
                 >
                   {/* Step Row Header */}
@@ -394,20 +393,20 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                             : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)]"
                         }`} />
                       </div>
-
+ 
                       <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
-                        <span className="text-[9px] text-zinc-500 tabular-nums">
+                        <span className="text-[9px] text-slate-500 tabular-nums">
                           [{new Date(log.timestamp).toLocaleTimeString()}]
                         </span>
-                        <span className="truncate text-[10px] font-extrabold uppercase tracking-wider text-zinc-200">
+                        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-200">
                           {log.label}
                         </span>
                       </div>
                     </div>
-
+ 
                     <div className="flex shrink-0 items-center gap-2 sm:gap-4">
                       {/* Visual Micro Latency Line Bar */}
-                      <div className="h-1 w-24 overflow-hidden rounded-full bg-zinc-900 hidden md:block">
+                      <div className="h-1 w-24 overflow-hidden rounded-full bg-slate-900 hidden md:block">
                         <div 
                           className={`h-full rounded-full transition-all duration-1000 ${
                             log.status === "success" ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" : 
@@ -427,8 +426,8 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                         
                         <svg 
                           viewBox="0 0 24 24" 
-                          className={`h-3 w-3 text-zinc-500 transition-transform duration-300 ${
-                            isExpanded ? "rotate-180 text-zinc-300" : ""
+                          className={`h-3 w-3 text-slate-500 transition-transform duration-300 ${
+                            isExpanded ? "rotate-180 text-slate-300" : ""
                           }`}
                           fill="none" 
                           stroke="currentColor" 
@@ -439,21 +438,21 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                       </div>
                     </div>
                   </div>
-
+ 
                   {/* Expanded Detail Panel */}
                   <div 
                     className={`transition-all duration-300 overflow-hidden ${
-                      isExpanded ? "max-h-[800px] border-t border-zinc-900" : "max-h-0 pointer-events-none"
+                      isExpanded ? "max-h-[800px] border-t border-slate-900" : "max-h-0 pointer-events-none"
                     }`}
                   >
                     {/* Expand Panel Tabs */}
-                    <div className="flex flex-col gap-3 border-b border-zinc-900/60 bg-zinc-950 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-2">
+                    <div className="flex flex-col gap-3 border-b border-slate-900/60 bg-slate-950 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-2">
                       <div className="flex min-w-0 gap-4 overflow-x-auto scrollbar-hide">
                         <button
                           type="button"
                           onClick={() => setActiveTab(log.id, "request")}
                           className={`text-[9px] font-bold uppercase tracking-widest transition-colors ${
-                            activeTab === "request" ? "text-emerald-400 border-b border-emerald-400 pb-1 pt-1" : "text-zinc-500 hover:text-zinc-300 py-1"
+                            activeTab === "request" ? "text-emerald-400 border-b border-emerald-400 pb-1 pt-1" : "text-slate-500 hover:text-slate-300 py-1"
                           }`}
                         >
                           Request Context
@@ -463,13 +462,13 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                           onClick={() => setActiveTab(log.id, "response")}
                           disabled={log.status === "pending"}
                           className={`text-[9px] font-bold uppercase tracking-widest transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                            activeTab === "response" ? "text-emerald-400 border-b border-emerald-400 pb-1 pt-1" : "text-zinc-500 hover:text-zinc-300 py-1"
+                            activeTab === "response" ? "text-emerald-400 border-b border-emerald-400 pb-1 pt-1" : "text-slate-500 hover:text-slate-300 py-1"
                           }`}
                         >
                           Response Context
                         </button>
                       </div>
-
+ 
                       {/* Copy actions for the respective tab */}
                       {activeTab === "request" ? (
                         <div className="flex min-w-0 items-center gap-2 overflow-x-auto scrollbar-hide">
@@ -486,45 +485,45 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                         </div>
                       ) : (
                         <CopyIconButton
-                          onCopy={() => copyToClipboard(JSON.stringify(log.responseBody || {}, null, 2), "Response JSON copied!")}
+                           onCopy={() => copyToClipboard(JSON.stringify(log.responseBody || {}, null, 2), "Response JSON copied!")}
                         >
                           Copy Response
                         </CopyIconButton>
                       )}
                     </div>
-
+ 
                     {/* Tab Panels */}
                     <div className="max-h-[400px] space-y-4 overflow-y-auto p-3 font-mono text-[10px] sm:p-4">
                       {activeTab === "request" ? (
                         <div className="space-y-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-zinc-900 pb-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-900 pb-2">
                             <div className="flex items-center gap-2">
                               <span className="bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20 px-1.5 py-0.5 rounded text-[9px]">
                                 {log.method || "POST"}
                               </span>
-                              <span className="text-zinc-300 font-semibold truncate max-w-[200px] sm:max-w-md">
+                              <span className="text-slate-300 font-semibold truncate max-w-[200px] sm:max-w-md">
                                 {log.url || "/api/github-summarizer"}
                               </span>
                             </div>
-                            <span className="text-zinc-500 text-[9px] uppercase">
+                            <span className="text-slate-500 text-[9px] uppercase">
                               Protocol: HTTPS/1.1
                             </span>
                           </div>
-
+ 
                           <div className="grid gap-4 lg:grid-cols-2">
                             <div className="min-w-0">
-                              <h5 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">
+                              <h5 className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-widest mb-1.5">
                                 Headers
                               </h5>
-                              <div className="bg-zinc-950/80 rounded-xl p-3 border border-zinc-900">
+                              <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-900">
                                 <SyntaxHighlightedJSON data={log.requestHeaders} />
                               </div>
                             </div>
                             <div className="min-w-0">
-                              <h5 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">
+                              <h5 className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-widest mb-1.5">
                                 Body Payload
                               </h5>
-                              <div className="bg-zinc-950/80 rounded-xl p-3 border border-zinc-900">
+                              <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-900">
                                 <SyntaxHighlightedJSON data={log.requestBody} />
                               </div>
                             </div>
@@ -532,7 +531,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                         </div>
                       ) : (
                         <div className="space-y-4 animate-in fade-in duration-200">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-zinc-900 pb-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-900 pb-2">
                             <div className="flex items-center gap-2">
                               <span className={`font-bold border px-1.5 py-0.5 rounded text-[9px] ${
                                 log.statusCode === 200 
@@ -541,29 +540,29 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                               }`}>
                                 {log.statusCode || 200}
                               </span>
-                              <span className="text-zinc-300 font-semibold">
+                              <span className="text-slate-300 font-semibold">
                                 {log.statusText || "OK"}
                               </span>
                             </div>
-                            <span className="text-zinc-500 text-[9px]">
+                            <span className="text-slate-500 text-[9px]">
                               Server: Dandi API
                             </span>
                           </div>
-
+ 
                           <div className="grid gap-4 lg:grid-cols-2">
                             <div className="min-w-0">
-                              <h5 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">
+                              <h5 className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-widest mb-1.5">
                                 Response Headers
                               </h5>
-                              <div className="bg-zinc-950/80 rounded-xl p-3 border border-zinc-900">
+                              <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-900">
                                 <SyntaxHighlightedJSON data={log.responseHeaders} />
                               </div>
                             </div>
                             <div className="min-w-0">
-                              <h5 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-1.5">
+                              <h5 className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-widest mb-1.5">
                                 Response Body
                               </h5>
-                              <div className="bg-zinc-950/80 rounded-xl p-3 border border-zinc-900">
+                              <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-900">
                                 <SyntaxHighlightedJSON data={log.responseBody} />
                               </div>
                             </div>

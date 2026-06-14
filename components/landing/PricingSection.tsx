@@ -120,7 +120,7 @@ export function PricingSection({
           </div>
 
           {/* Billing Toggle */}
-          <div className="flex items-start justify-center gap-4">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-4 w-full max-w-[280px] mx-auto">
             <div className="flex flex-col items-center gap-1.5">
               <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "month" ? "text-zinc-100" : "text-zinc-500"}`}>Monthly</span>
               <span className="invisible text-[8px] px-1.5 py-0.5 select-none">20% OFF</span>

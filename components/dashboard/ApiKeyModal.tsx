@@ -95,8 +95,11 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
     const parsedValue = Number.parseInt(nextValue, 10);
     if (Number.isNaN(parsedValue)) return;
 
-    const minimumClamped = Math.max(minimumMonthlyLimit, parsedValue);
-    setMonthlyLimit(String(maximumMonthlyLimit === null ? minimumClamped : Math.min(maximumMonthlyLimit, minimumClamped)));
+    if (maximumMonthlyLimit !== null && parsedValue > maximumMonthlyLimit) {
+      setMonthlyLimit(String(maximumMonthlyLimit));
+    } else {
+      setMonthlyLimit(nextValue);
+    }
   };
 
   const handleMonthlyLimitBlur = () => {
@@ -237,13 +240,13 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
 
         {/* Monitoring & Limits */}
         <div className="grid gap-8 sm:grid-cols-2">
-          <div className="space-y-4">
+          <div className="space-y-4 flex flex-col">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Usage Constraints</p>
-            <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-6 space-y-4">
-              <label className="flex items-center gap-3 rounded-xl text-xs font-bold text-slate-300 cursor-pointer focus-within:ring-2 focus-within:ring-emerald-300 focus-within:ring-offset-2 focus-within:ring-offset-slate-950">
+            <div className="flex-1 rounded-3xl border border-white/10 bg-slate-950/40 p-6 space-y-4">
+              <label className="flex items-center gap-3 rounded-xl text-xs font-bold text-slate-300 cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-emerald-300 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-slate-950">
                 <input type="checkbox" className="sr-only" checked={hasUsageLimit} onChange={(e) => setHasUsageLimit(e.target.checked)} />
-                <div className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${hasUsageLimit ? "bg-slate-100 text-slate-950 border-slate-100" : "bg-slate-950 border-white/10"}`}>
-                  {hasUsageLimit && <svg viewBox="0 0 24 24" className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth="4"><path d="M5 13l4 4L19 7" /></svg>}
+                <div className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${hasUsageLimit ? "bg-slate-100 text-slate-950 border-slate-100" : "bg-slate-900 border-white/20"}`}>
+                  {hasUsageLimit && <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="4"><path d="M5 13l4 4L19 7" /></svg>}
                 </div>
                 Hard Monthly Limit
               </label>
@@ -251,6 +254,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
                 <input
                   type="text"
                   inputMode="numeric"
+                  id="monthlyLimit"
                   pattern="[0-9]*"
                   value={monthlyLimit}
                   onChange={handleMonthlyLimitChange}
@@ -266,24 +270,26 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 flex flex-col">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Alert Threshold</p>
-            <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-6 space-y-4">
+            <div className="flex-1 rounded-3xl border border-white/10 bg-slate-950/40 p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-300">Threshold Alert</span>
                 <span className="text-[10px] font-black text-emerald-300 bg-emerald-950/30 px-2 py-0.5 rounded-full">
                   {alertThreshold}% {currentLimit !== null && !isNaN(currentLimit) && `(${isSmallLimit ? sliderValue : Math.floor((thresholdPct / 100) * currentLimit)} req)`}
                 </span>
               </div>
-              <input 
-                type="range" 
-                min={minRequests} 
-                max={maxRequests} 
-                step={stepRequests}
-                value={sliderValue}
-                onChange={handleSliderChange}
-                className="w-full accent-emerald-400 h-1 bg-slate-900 rounded-lg appearance-none cursor-pointer disabled:opacity-30"
-              />
+              <div className="flex items-center h-12">
+                <input 
+                  type="range" 
+                  min={minRequests} 
+                  max={maxRequests} 
+                  step={stepRequests}
+                  value={sliderValue}
+                  onChange={handleSliderChange}
+                  className="w-full accent-emerald-400 h-1 bg-slate-900 rounded-lg appearance-none cursor-pointer disabled:opacity-30"
+                />
+              </div>
               <div className="flex gap-2">
                 {["email", "in-page"].map(ch => (
                   <button

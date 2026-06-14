@@ -10,19 +10,28 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 const LOCK_TTL_SEC = 900;
 
 export type IngestionJobStatus = "queued" | "running" | "completed" | "failed";
+export type IngestionJobStep = "queued" | "cloning" | "analyzing" | "summarizing" | "indexing" | "ready" | "failed";
 
 export type IngestionJob = {
   id: string;
   user_id: string;
   api_key_id: string | null;
   repo_url: string;
+  repo_name: string | null;
   status: IngestionJobStatus;
+  current_step: IngestionJobStep | null;
   error: string | null;
+  error_message: string | null;
   files_count: number | null;
   chunks_count: number | null;
+  indexed_file_count: number | null;
+  chunk_count: number | null;
+  summary_available: boolean | null;
+  index_available: boolean | null;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  failed_at: string | null;
   updated_at: string;
 };
 
@@ -61,6 +70,82 @@ function activeJobQuery(userId: string, repoUrl: string) {
 
 function toIngestionJob(value: unknown): IngestionJob {
   return value as IngestionJob;
+}
+
+function getRepoName(repoUrl: string) {
+  try {
+    const url = new URL(repoUrl);
+    const [owner, repo] = url.pathname.split("/").filter(Boolean);
+    return owner && repo ? `${owner}/${repo.replace(/\.git$/i, "")}` : null;
+  } catch {
+    return null;
+  }
+}
+
+function deriveCurrentStep(job: IngestionJob): IngestionJobStep {
+  if (job.current_step) return job.current_step;
+  if (job.status === "completed") return "ready";
+  if (job.status === "failed") return "failed";
+  if (job.status === "running") return "indexing";
+  return "queued";
+}
+
+function getIndexedFileCount(job: IngestionJob) {
+  return job.indexed_file_count ?? job.files_count;
+}
+
+function getChunkCount(job: IngestionJob) {
+  return job.chunk_count ?? job.chunks_count;
+}
+
+function sanitizeIngestionError(err: unknown) {
+  if (isGeminiEmbeddingRateLimitError(err)) {
+    return "Gemini embedding rate limit reached during ingestion. Please retry this repository after the quota window resets.";
+  }
+
+  const message = err instanceof Error ? err.message : String(err);
+  const lowerMessage = message.toLowerCase();
+
+  if (lowerMessage.includes("no queryable text or code assets")) {
+    return "No queryable text or code assets found in this repository.";
+  }
+
+  if (lowerMessage.includes("failed to fetch repository tree")) {
+    return "Dandi could not read the repository file tree from GitHub.";
+  }
+
+  if (lowerMessage.includes("failed to insert repository chunks") || lowerMessage.includes("supabase")) {
+    return "Dandi could not persist the repository index.";
+  }
+
+  return message || "Repository ingestion failed.";
+}
+
+export function formatIngestionJob(job: IngestionJob) {
+  const indexedFileCount = getIndexedFileCount(job);
+  const chunkCount = getChunkCount(job);
+  const errorMessage = job.error_message ?? job.error;
+
+  return {
+    jobId: job.id,
+    status: job.status,
+    currentStep: deriveCurrentStep(job),
+    repoUrl: job.repo_url,
+    repoName: job.repo_name ?? getRepoName(job.repo_url),
+    error: job.error,
+    errorMessage,
+    filesCount: job.files_count,
+    chunksCount: job.chunks_count,
+    indexedFileCount,
+    chunkCount,
+    summaryAvailable: Boolean(job.summary_available),
+    indexAvailable: Boolean(job.index_available) || job.status === "completed",
+    createdAt: job.created_at,
+    startedAt: job.started_at,
+    completedAt: job.completed_at,
+    failedAt: job.failed_at,
+    updatedAt: job.updated_at,
+  };
 }
 
 function splitIntoChunks(text: string, path: string, chunkSize = 1000, overlap = 150): string[] {
@@ -173,7 +258,9 @@ export async function createIngestionJob(input: {
       user_id: input.keyData.user_id,
       api_key_id: isUuid(input.keyData.id) ? input.keyData.id : null,
       repo_url: input.repoUrl,
+      repo_name: getRepoName(input.repoUrl),
       status: "queued",
+      current_step: "queued",
     })
     .select("*")
     .single();
@@ -209,6 +296,25 @@ export async function getIngestionJob(input: {
   return toIngestionJob(data);
 }
 
+export async function listRecentIngestionJobs(input: {
+  userId: string;
+  limit?: number;
+}) {
+  const limit = Math.min(Math.max(input.limit ?? 10, 1), 50);
+  const { data, error } = await supabaseAdmin
+    .from("ingestion_jobs")
+    .select("*")
+    .eq("user_id", input.userId)
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Failed to load ingestion jobs: ${error.message}`);
+  }
+
+  return (data ?? []).map(toIngestionJob);
+}
+
 export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetry) {
   const startTime = Date.now();
   let lockAcquired = false;
@@ -228,12 +334,20 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
 
     job = await updateJob(job.id, {
       status: "running",
+      current_step: "cloning",
       error: null,
+      error_message: null,
+      failed_at: null,
+      index_available: false,
       started_at: job.started_at ?? new Date().toISOString(),
     });
 
     const branch = await fetchGitHubBranch(job.repo_url);
     const tree = await fetchGitHubRepoTree(job.repo_url, branch);
+    job = await updateJob(job.id, {
+      current_step: "analyzing",
+      repo_name: job.repo_name ?? getRepoName(job.repo_url),
+    });
     const filesToIngest = selectRagFiles(tree);
 
     if (filesToIngest.length === 0) {
@@ -262,6 +376,10 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
       result.chunks.map((content) => ({ path: result.path, content }))
     );
 
+    job = await updateJob(job.id, {
+      current_step: "indexing",
+    });
+
     if (allChunks.length > 0) {
       const { embeddings, model } = await googleBatchEmbedWithModel(allChunks.map((chunk) => chunk.content));
       const rowsToInsert = allChunks.map((chunk, index) => ({
@@ -285,8 +403,12 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
 
     const completedJob = await updateJob(job.id, {
       status: "completed",
+      current_step: "ready",
       files_count: filesToIngest.length,
       chunks_count: allChunks.length,
+      indexed_file_count: filesToIngest.length,
+      chunk_count: allChunks.length,
+      index_available: true,
       completed_at: new Date().toISOString(),
     });
 
@@ -302,14 +424,13 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
 
     return completedJob;
   } catch (err) {
-    const message = isGeminiEmbeddingRateLimitError(err)
-      ? "Gemini embedding rate limit reached during ingestion. Please retry this repository after the quota window resets."
-      : err instanceof Error
-        ? err.message
-        : String(err);
+    const message = sanitizeIngestionError(err);
     await updateJob(job.id, {
       status: "failed",
+      current_step: "failed",
       error: message,
+      error_message: message,
+      failed_at: new Date().toISOString(),
       completed_at: new Date().toISOString(),
     });
 

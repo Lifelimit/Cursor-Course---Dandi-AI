@@ -303,7 +303,7 @@ export function Sidebar({
       <div className={`${isMobileNavOpen ? "block px-0.5 pb-2" : "hidden"} relative md:block`}>
         <SidebarAlerts
           alerts={alerts}
-          planMonthlyLimit={isUnlimited ? null : limit}
+          plan={plan}
           onUpdate={onUpdate}
         />
       </div>
@@ -335,10 +335,6 @@ export function Sidebar({
                 {user.email}
               </p>
             </div>
-            {/* Dropdown Chevron indicator */}
-            <svg viewBox="0 0 24 24" className="h-3 w-3 text-zinc-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
           </div>
           <div className="h-px bg-white/5" />
           <button
@@ -357,22 +353,22 @@ export function Sidebar({
 
       {/* Quota Widget */}
       <div className={`${isMobileNavOpen ? "block mx-0.5 mb-2 mt-4" : "hidden"} relative rounded-2xl border border-white/5 bg-slate-900/10 p-4 md:block md:mx-0 md:mb-0 md:mt-2`}>
-        <div className="mb-3.5 flex items-start justify-between gap-3">
-          <div className="min-w-0">
+        <div className="mb-3.5 flex flex-col gap-1">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500">Current Plan</p>
-            <p className="mt-1 truncate font-serif text-sm font-bold uppercase tracking-[0.12em] text-white">
-              {plan}
-            </p>
+            <span
+              className={`shrink-0 rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-wider ${
+                usageTone === "critical" ? "border-rose-400/25 bg-rose-400/10 text-rose-300" :
+                usageTone === "warning" ? "border-amber-400/25 bg-amber-400/10 text-amber-300" :
+                "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
+              }`}
+            >
+              {usageLabel}
+            </span>
           </div>
-          <span
-            className={`shrink-0 rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-wider ${
-              usageTone === "critical" ? "border-rose-400/25 bg-rose-400/10 text-rose-300" :
-              usageTone === "warning" ? "border-amber-400/25 bg-amber-400/10 text-amber-300" :
-              "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
-            }`}
-          >
-            {usageLabel}
-          </span>
+          <p className="font-serif text-sm font-bold uppercase tracking-wider text-white">
+            {plan}
+          </p>
         </div>
 
         <div className="mb-2.5 flex items-end justify-between gap-3">

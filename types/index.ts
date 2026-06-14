@@ -31,6 +31,8 @@ export interface PlanDetail {
   monthlyLimit: number | null;
   /** Number of active API keys allowed; null = unlimited */
   keyLimit: number | null;
+  /** Maximum limit that can be requested for a single API key */
+  maxKeyLimitCap: number;
 }
 
 export interface CountryData {

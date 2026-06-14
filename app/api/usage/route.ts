@@ -197,12 +197,13 @@ export async function GET() {
         .slice(0, 5);
 
       const limit = key.monthly_limit ?? monthlyLimit;
+      const pctLimit = limit ?? resolved.maxLimitCap;
 
       return {
         ...key,
         usage_count: actualUsage,
         monthly_limit: limit,
-        pct: limit ? Math.min((actualUsage / limit) * 100, 100) : 0,
+        pct: pctLimit ? Math.min((actualUsage / pctLimit) * 100, 100) : 0,
         dailyTrend,
         topRepos
       };

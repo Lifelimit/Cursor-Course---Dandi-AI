@@ -37,6 +37,20 @@ export function QuotaHealthGrid({
   const [newLimit, setNewLimit] = useState<string>("");
   const [updatingLimitKeyId, setUpdatingLimitKeyId] = useState<string | null>(null);
   const [limitError, setLimitError] = useState<{ keyId: string; message: string } | null>(null);
+
+  React.useEffect(() => {
+    if (limitEditorKeyId) {
+      const timer = setTimeout(() => {
+        const visibleInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[inputmode="numeric"]'));
+        const activeInput = visibleInputs.find(input => input.offsetWidth > 0 || input.offsetHeight > 0);
+        if (activeInput) {
+          activeInput.focus();
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [limitEditorKeyId]);
+
   const activeKeys = keys.filter(k => k.is_active);
   const deadKeys = keys.filter(k => !k.is_active);
 
@@ -384,8 +398,11 @@ export function QuotaHealthGrid({
                               return;
                             }
                             const parsed = parseInt(digits, 10);
-                            const capped = planMonthlyLimit === null ? parsed : Math.min(parsed, planMonthlyLimit);
-                            setNewLimit(String(capped));
+                            if (planMonthlyLimit !== null && parsed > planMonthlyLimit) {
+                              setNewLimit(String(planMonthlyLimit));
+                            } else {
+                              setNewLimit(digits);
+                            }
                             setLimitError(null);
                           }}
                           disabled={!hasPlanHeadroom}
@@ -433,7 +450,7 @@ export function QuotaHealthGrid({
                     initialThreshold={key.alert_threshold}
                     initialChannels={key.alert_channels || ['in-page']}
                     initialPhone={key.alert_phone || ''}
-                    limit={key.monthly_limit}
+                    limit={key.monthly_limit ?? planMonthlyLimit}
                     onUpdate={onUpdate}
                   />
                 </div>
@@ -454,76 +471,104 @@ export function QuotaHealthGrid({
           </div>
           
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {deadKeys.map((key) => (
-              <div key={key.id} className="group relative rounded-[32px] border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/10 p-6 sm:p-8 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all">
-                {confirmingDeleteId === key.id && (
-                  <div className="absolute inset-0 z-[20] flex flex-col items-center justify-center rounded-[32px] bg-zinc-900/95 p-6 sm:p-8 text-white backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
-                    <div className="mb-4 rounded-full bg-red-500/20 p-4 border border-red-500/50">
-                      <svg viewBox="0 0 24 24" className="h-8 w-8 text-red-500" fill="none" stroke="currentColor">
-                        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+            {deadKeys.map((key) => {
+              const limitDisplay = key.monthly_limit ? key.monthly_limit.toLocaleString() : "∞";
+              return (
+                <CommandPanel 
+                  key={key.id} 
+                  padding="none"
+                  className="group relative flex flex-col overflow-hidden p-6 sm:p-8 border-white/5 bg-slate-950/20 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:border-amber-500/20 hover:bg-slate-950/40 transition-all duration-300"
+                >
+                  <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-16 h-36 w-36 rounded-full bg-amber-500/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  
+                  {confirmingDeleteId === key.id && (
+                    <div className="absolute inset-0 z-[20] flex flex-col items-center justify-center rounded-[32px] bg-zinc-900/95 p-6 sm:p-8 text-white backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
+                      <div className="mb-4 rounded-full bg-red-500/20 p-4 border border-red-500/50">
+                        <svg viewBox="0 0 24 24" className="h-8 w-8 text-red-500" fill="none" stroke="currentColor">
+                          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <h3 className="mb-2 font-serif text-xl font-bold italic tracking-tight">PERMANENT PURGE?</h3>
+                      <p className="mb-8 text-center text-[10px] font-black uppercase tracking-[0.2em] text-white/50">
+                        This will erase <br/> 
+                        <span className="text-white">&quot;{key.name}&quot;</span> <br/>
+                        forever.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                        <button 
+                          onClick={() => setConfirmingDeleteId(null)}
+                          className="rounded-2xl bg-white/20 border border-white/40 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-white/30 transition-all active:scale-95 backdrop-blur-md"
+                        >
+                          Abort
+                        </button>
+                        <button 
+                          onClick={async () => {
+                            await fetch(`/api/keys/${key.id}`, { method: 'DELETE' });
+                            setConfirmingDeleteId(null);
+                            await onUpdate();
+                          }}
+                          className="rounded-2xl bg-red-600 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-red-700 transition-all active:scale-95 shadow-xl shadow-red-900/40"
+                        >
+                          Confirm
+                        </button>
+                      </div>
                     </div>
-                    <h3 className="mb-2 font-serif text-xl font-bold italic tracking-tight">PERMANENT PURGE?</h3>
-                    <p className="mb-8 text-center text-[10px] font-black uppercase tracking-[0.2em] text-white/50">
-                      This will erase <br/> 
-                      <span className="text-white">&quot;{key.name}&quot;</span> <br/>
-                      forever.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-                      <button 
-                        onClick={() => setConfirmingDeleteId(null)}
-                        className="rounded-2xl bg-white/20 border border-white/40 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-white/30 transition-all active:scale-95 backdrop-blur-md"
-                      >
-                        Abort
-                      </button>
-                      <button 
-                        onClick={async () => {
-                          await fetch(`/api/keys/${key.id}`, { method: 'DELETE' });
-                          setConfirmingDeleteId(null);
-                          await onUpdate();
-                        }}
-                        className="rounded-2xl bg-red-600 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-red-700 transition-all active:scale-95 shadow-xl shadow-red-900/40"
-                      >
-                        Confirm
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="space-y-1">
-                    <h3 className="font-serif text-lg font-bold text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100">{key.name}</h3>
-                    <p className="text-[10px] font-black text-zinc-300 dark:text-zinc-500 uppercase tracking-widest">Service Deactivated</p>
-                  </div>
-                  <div className="h-1.5 w-1.5 rounded-full bg-zinc-300 dark:bg-zinc-500 group-hover:bg-zinc-400 dark:group-hover:bg-zinc-300" />
-                </div>
-                
-                <div className="mb-6 flex flex-wrap items-baseline justify-between gap-2 opacity-40">
-                   <span className="text-xl font-serif font-bold italic">{key.usage_count.toLocaleString()}</span>
-                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">/ {key.monthly_limit?.toLocaleString()} Credits</span>
-                </div>
+                  )}
 
-                <div className="grid grid-cols-2 gap-2">
-                  <button 
-                    onClick={() => handleToggleStatus(key.id, false)}
-                    disabled={updatingKeyId === key.id}
-                    className="flex items-center justify-center rounded-xl bg-zinc-900 dark:bg-zinc-100 px-2 py-3 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-900 shadow-xl hover:scale-[1.02] transition-all disabled:opacity-60 disabled:cursor-wait"
-                  >
-                    <span className="truncate">{updatingKeyId === key.id ? "Re-enabling..." : "Re-enable"}</span>
-                  </button>
-                  <button 
-                    onClick={() => setConfirmingDeleteId(key.id)}
-                    className="flex items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2 py-3 text-[8px] font-black uppercase tracking-widest text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                  >
-                    Delete
-                  </button>
-                </div>
+                  <div className="flex items-start justify-between mb-6 gap-4">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-serif text-lg font-bold text-zinc-400 group-hover:text-white truncate transition-colors">{key.name}</h3>
+                        <StatusPill tone={key.key_type === "production" ? "info" : "warning"} compact>
+                          {key.key_type === 'production' ? 'PROD' : 'DEV'}
+                        </StatusPill>
+                      </div>
+                      <p className="text-[10px] font-black text-amber-500/60 uppercase tracking-widest flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500/40" />
+                        Deactivated
+                      </p>
+                    </div>
+                    <div className="h-2 w-2 rounded-full bg-amber-500/20" />
+                  </div>
+
+                  <div className="space-y-4 mb-6">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2 opacity-50">
+                      <span className="text-2xl font-serif font-bold italic text-slate-300">
+                        {key.usage_count.toLocaleString()}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">
+                         / {limitDisplay} <br/>Credits
+                      </span>
+                    </div>
+                    {/* Visual grayed out progress bar */}
+                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-full bg-slate-500/20 w-0" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mt-auto">
+                    <button 
+                      onClick={() => handleToggleStatus(key.id, false)}
+                      disabled={updatingKeyId === key.id}
+                      className="flex min-h-11 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-2 py-3 text-[9px] font-black uppercase tracking-widest text-emerald-300 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:text-emerald-200 transition-all active:scale-[0.97] disabled:opacity-60 disabled:cursor-wait cursor-pointer"
+                    >
+                      <span className="truncate">{updatingKeyId === key.id ? "Enabling..." : "Re-enable"}</span>
+                    </button>
+                    <button 
+                      onClick={() => setConfirmingDeleteId(key.id)}
+                      className="flex min-h-11 items-center justify-center rounded-2xl border border-rose-500/20 bg-rose-500/5 px-2 py-3 text-[9px] font-black uppercase tracking-widest text-rose-300 hover:bg-rose-500/10 hover:border-rose-500/40 hover:text-rose-200 transition-all active:scale-[0.97] cursor-pointer"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 {statusError?.keyId === key.id && (
                   <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-bold text-red-600 dark:border-red-950/50 dark:bg-red-950/20 dark:text-red-400">
                     {statusError.message}
                   </p>
                 )}
-              </div>
-            ))}
+                </CommandPanel>
+              );
+            })}
           </div>
         </div>
       )}

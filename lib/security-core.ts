@@ -42,7 +42,7 @@ export function normalizeAlertChannels(value: unknown): AlertChannel[] {
     typeof channel === "string" && ALERT_CHANNELS.includes(channel as AlertChannel)
   );
 
-  return Array.from(new Set(channels.length > 0 ? channels : ["in-page"]));
+  return Array.from(new Set(channels));
 }
 
 export function normalizeGitHubRepoUrl(value: unknown): string | null {

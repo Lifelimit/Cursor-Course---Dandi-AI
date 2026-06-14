@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { experimental_useObject } from "@ai-sdk/react";
 import { z } from "zod";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
@@ -13,6 +13,7 @@ import type { User } from "@supabase/supabase-js";
 import type { ApiKey } from "@/types/api";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
+import { ApiKeyDropdown } from "@/components/playground/ApiKeyDropdown";
 import { CodeSnippet } from "@/components/playground/CodeSnippet";
 import { JsonViewer } from "@/components/playground/JsonViewer";
 import { NetworkLog, type LogEntry } from "@/components/playground/NetworkLog";
@@ -27,6 +28,27 @@ import {
 
 import { PLAN_DETAILS } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
+
+type IngestionJobSummary = {
+  jobId: string;
+  status: "queued" | "running" | "completed" | "failed";
+  currentStep?: "queued" | "cloning" | "analyzing" | "summarizing" | "indexing" | "ready" | "failed";
+  repoUrl: string;
+  repoName?: string | null;
+  error?: string | null;
+  errorMessage?: string | null;
+  filesCount?: number | null;
+  chunksCount?: number | null;
+  indexedFileCount?: number | null;
+  chunkCount?: number | null;
+  summaryAvailable?: boolean;
+  indexAvailable?: boolean;
+  createdAt?: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  failedAt?: string | null;
+  updatedAt?: string;
+};
 
 export default function PlaygroundClient({ 
   initialUser,
@@ -66,7 +88,8 @@ export default function PlaygroundClient({
   const [selectValue, setSelectValue] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
   const [viewMode, setViewMode] = useState<"visual" | "json">("visual");
-  const [requestLogs, setRequestLogs] = useState<LogEntry[]>([]);
+  const [summaryRequestLogs, setSummaryRequestLogs] = useState<LogEntry[]>([]);
+  const [indexedRequestLogs, setIndexedRequestLogs] = useState<LogEntry[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [summaryStatus, setSummaryStatus] = useState<"idle" | "streaming" | "success" | "empty" | "error">("idle");
   const [summaryIssue, setSummaryIssue] = useState("");
@@ -82,13 +105,21 @@ export default function PlaygroundClient({
   // RAG & Tab States
   const [activeTab, setActiveTab] = useState<"summary" | "rag">("summary");
   const [ingestStatus, setIngestStatus] = useState<"idle" | "crawling" | "embedding" | "completed" | "error">("idle");
+  const [indexingAttemptedRepo, setIndexingAttemptedRepo] = useState<string | null>(null);
   const [ingestedRepo, setIngestedRepo] = useState<string | null>(null);
   const [indexedRepositoryStats, setIndexedRepositoryStats] = useState<{
     repoUrl: string;
     jobId?: string;
     status?: string;
+    currentStep?: string;
     filesCount?: number;
     chunksCount?: number;
+    indexedFileCount?: number;
+    chunkCount?: number;
+    indexAvailable?: boolean;
+    completedAt?: string | null;
+    failedAt?: string | null;
+    updatedAt?: string;
     error?: string;
   } | null>(null);
   const [ragMessages, setRagMessages] = useState<{ role: "user" | "assistant"; content: string; sources?: { filePath: string; similarity: number }[] }[]>([]);
@@ -132,7 +163,7 @@ export default function PlaygroundClient({
         setSummaryStatus("error");
         setSummaryIssue(message);
         setErrorMessage(message);
-        setLogState("ai_processing", {
+        setSummaryLogState("ai_processing", {
           status: "error",
           duration: Math.round(performance.now() - ((window as any).__dandi_stream_start || performance.now())),
           statusCode: 422,
@@ -149,7 +180,7 @@ export default function PlaygroundClient({
 
       setSummaryStatus(hasData ? "success" : "empty");
       setSummaryIssue(hasData ? "" : "No summary was returned.");
-      setLogState("ai_processing", {
+      setSummaryLogState("ai_processing", {
         status: hasData ? "success" : "error",
         duration: Math.round(performance.now() - ((window as any).__dandi_stream_start || performance.now())),
         statusCode: hasData ? 200 : 204,
@@ -163,7 +194,7 @@ export default function PlaygroundClient({
       setSummaryStatus("error");
       setSummaryIssue(message);
       setErrorMessage(message);
-      setLogState("ai_processing", {
+      setSummaryLogState("ai_processing", {
         status: "error",
         duration: Math.round(performance.now() - ((window as any).__dandi_stream_start || performance.now())),
         statusCode: 500,
@@ -174,26 +205,116 @@ export default function PlaygroundClient({
     }
   });
 
-  const setLogState = (id: string, updates: Partial<LogEntry>) => {
-    setRequestLogs(prev => {
-      const index = prev.findIndex(l => l.id === id);
-      if (index === -1) {
-        return [...prev, {
-          id,
-          label: updates.label || "",
-          duration: updates.duration || 0,
-          status: updates.status || "pending",
-          timestamp: Date.now(),
-          ...updates
-        } as LogEntry];
-      }
-      const updated = [...prev];
-      updated[index] = { ...updated[index], ...updates };
-      return updated;
-    });
+  const updateLogEntries = (entries: LogEntry[], id: string, updates: Partial<LogEntry>) => {
+    const index = entries.findIndex(l => l.id === id);
+    if (index === -1) {
+      return [...entries, {
+        id,
+        label: updates.label || "",
+        duration: updates.duration || 0,
+        status: updates.status || "pending",
+        timestamp: Date.now(),
+        ...updates
+      } as LogEntry];
+    }
+    const updated = [...entries];
+    updated[index] = { ...updated[index], ...updates };
+    return updated;
+  };
+
+  const setSummaryLogState = (id: string, updates: Partial<LogEntry>) => {
+    setSummaryRequestLogs(prev => updateLogEntries(prev, id, updates));
+  };
+
+  const setIndexedLogState = (id: string, updates: Partial<LogEntry>) => {
+    setIndexedRequestLogs(prev => updateLogEntries(prev, id, updates));
   };
 
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const toLocalIngestStatus = (job: IngestionJobSummary): "idle" | "crawling" | "embedding" | "completed" | "error" => {
+    if (job.status === "completed") return "completed";
+    if (job.status === "failed") return "error";
+    if (job.currentStep === "indexing") return "embedding";
+    if (job.status === "running" || job.status === "queued") return "crawling";
+    return "idle";
+  };
+
+  const applyDurableJobState = (job: IngestionJobSummary) => {
+    const filesCount = job.indexedFileCount ?? job.filesCount ?? undefined;
+    const chunksCount = job.chunkCount ?? job.chunksCount ?? undefined;
+    const localStatus = toLocalIngestStatus(job);
+
+    setIndexedRepositoryStats({
+      repoUrl: job.repoUrl,
+      jobId: job.jobId,
+      status: job.status,
+      currentStep: job.currentStep,
+      filesCount,
+      chunksCount,
+      indexedFileCount: job.indexedFileCount ?? undefined,
+      chunkCount: job.chunkCount ?? undefined,
+      indexAvailable: job.indexAvailable,
+      completedAt: job.completedAt,
+      failedAt: job.failedAt,
+      updatedAt: job.updatedAt,
+      error: job.errorMessage || job.error || undefined,
+    });
+
+    setIngestStatus(localStatus);
+    if (job.status === "completed") {
+      setIngestedRepo(job.repoUrl);
+      if (ragMessages.length === 0) {
+        setRagMessages([
+          {
+            role: "assistant",
+            content: `Repository indexed: **${job.repoName || getRepoPath(job.repoUrl)}**.
+
+Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files into ${typeof chunksCount === "number" ? chunksCount : "confirmed"} searchable chunks. Ask a retrieval-backed question to use this durable index.`
+          }
+        ]);
+      }
+    }
+
+    // Restored failed jobs provide diagnostics, but should not make a fresh workbench look failed.
+  };
+
+  useEffect(() => {
+    if (ingestStatus === "crawling" || ingestStatus === "embedding" || isChatLoading) return;
+
+    let cancelled = false;
+    const loadJobs = async () => {
+      try {
+        const headers: Record<string, string> = {};
+        if (apiKey) headers["x-api-key"] = apiKey;
+        const res = await fetch("/api/rag/jobs?limit=10", {
+          cache: "no-store",
+          headers,
+        });
+        const data = await res.json();
+        if (!res.ok) return;
+        const jobs = Array.isArray(data.jobs) ? data.jobs as IngestionJobSummary[] : [];
+        if (cancelled) return;
+
+        const matchingJob = githubUrl
+          ? jobs.find((job) => job.repoUrl === githubUrl)
+          : jobs[0];
+        if (!matchingJob) return;
+        if (!githubUrl && matchingJob.repoUrl) {
+          setGithubUrl(matchingJob.repoUrl);
+        }
+        applyDurableJobState(matchingJob);
+      } catch {
+        // Durable restoration is best-effort and must not block the Playground.
+      }
+    };
+
+    loadJobs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiKey, githubUrl]);
 
   useEffect(() => {
     if (chatBottomRef.current) {
@@ -215,7 +336,8 @@ export default function PlaygroundClient({
 
     setErrorMessage("");
     setIngestStatus("crawling");
-    setRequestLogs([]);
+    setIndexingAttemptedRepo(githubUrl);
+    setIndexedRequestLogs([]);
     setIndexedRepositoryStats(null);
 
     const maskedKey = apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`;
@@ -233,7 +355,7 @@ export default function PlaygroundClient({
     const startTime = performance.now();
 
     // 1. Auth Log
-    setLogState("auth", {
+    setIndexedLogState("auth", {
       label: "Authentication Check",
       status: "pending",
       method: "POST",
@@ -244,7 +366,7 @@ export default function PlaygroundClient({
 
     try {
       await sleep(350);
-      setLogState("auth", {
+      setIndexedLogState("auth", {
         status: "success",
         duration: Math.round(performance.now() - startTime),
         statusCode: 200,
@@ -255,7 +377,7 @@ export default function PlaygroundClient({
 
       // 2. Repo Crawl & Fetch Log
       const crawlStartTime = performance.now();
-      setLogState("repo_fetch", {
+      setIndexedLogState("repo_fetch", {
         label: "Recursive Tree Crawl",
         status: "pending",
         method: "POST",
@@ -283,9 +405,16 @@ export default function PlaygroundClient({
         repoUrl: githubUrl,
         jobId: data.jobId,
         status: data.status || "queued",
+        currentStep: data.currentStep,
+        filesCount: data.indexedFileCount ?? data.filesCount,
+        chunksCount: data.chunkCount ?? data.chunksCount,
+        indexedFileCount: data.indexedFileCount,
+        chunkCount: data.chunkCount,
+        indexAvailable: data.indexAvailable,
+        updatedAt: data.updatedAt,
       });
 
-      setLogState("repo_fetch", {
+      setIndexedLogState("repo_fetch", {
         status: "success",
         duration: Math.round(performance.now() - crawlStartTime),
         statusCode: 200,
@@ -294,14 +423,15 @@ export default function PlaygroundClient({
         responseBody: {
           success: true,
           jobId: data.jobId,
-          status: data.status
+          status: data.status,
+          currentStep: data.currentStep
         }
       });
 
       // 3. AI Processing Log
       setIngestStatus("embedding");
       const embeddingStartTime = performance.now();
-      setLogState("ai_processing", {
+      setIndexedLogState("ai_processing", {
         label: "Index Repository Content",
         status: "pending",
         method: "INSERT",
@@ -322,20 +452,30 @@ export default function PlaygroundClient({
           throw new Error(statusData.error || "Failed to check ingestion job status.");
         }
 
-        setLogState("ai_processing", {
+        setIndexedLogState("ai_processing", {
           responseBody: {
             jobId: data.jobId,
             status: statusData.status,
+            currentStep: statusData.currentStep,
             filesCount: statusData.filesCount,
-            chunksCount: statusData.chunksCount
+            chunksCount: statusData.chunksCount,
+            indexedFileCount: statusData.indexedFileCount,
+            chunkCount: statusData.chunkCount
           }
         });
         setIndexedRepositoryStats({
           repoUrl: githubUrl,
           jobId: data.jobId,
           status: statusData.status,
-          filesCount: statusData.filesCount,
-          chunksCount: statusData.chunksCount,
+          currentStep: statusData.currentStep,
+          filesCount: statusData.indexedFileCount ?? statusData.filesCount,
+          chunksCount: statusData.chunkCount ?? statusData.chunksCount,
+          indexedFileCount: statusData.indexedFileCount,
+          chunkCount: statusData.chunkCount,
+          indexAvailable: statusData.indexAvailable,
+          completedAt: statusData.completedAt,
+          failedAt: statusData.failedAt,
+          updatedAt: statusData.updatedAt,
         });
 
         if (statusData.status === "completed") {
@@ -352,7 +492,7 @@ export default function PlaygroundClient({
         throw new Error("Ingestion job is still running. Please check again in a moment.");
       }
 
-      setLogState("ai_processing", {
+      setIndexedLogState("ai_processing", {
         status: "success",
         duration: Math.round(performance.now() - embeddingStartTime),
         statusCode: 200,
@@ -363,7 +503,9 @@ export default function PlaygroundClient({
           dimension: 768,
           indexType: "HNSW",
           filesCount: completedJob.filesCount,
-          chunksCount: completedJob.chunksCount
+          chunksCount: completedJob.chunksCount,
+          indexedFileCount: completedJob.indexedFileCount,
+          chunkCount: completedJob.chunkCount
         }
       });
 
@@ -373,8 +515,14 @@ export default function PlaygroundClient({
         repoUrl: githubUrl,
         jobId: data.jobId,
         status: "completed",
-        filesCount: completedJob.filesCount,
-        chunksCount: completedJob.chunksCount,
+        currentStep: completedJob.currentStep,
+        filesCount: completedJob.indexedFileCount ?? completedJob.filesCount,
+        chunksCount: completedJob.chunkCount ?? completedJob.chunksCount,
+        indexedFileCount: completedJob.indexedFileCount,
+        chunkCount: completedJob.chunkCount,
+        indexAvailable: completedJob.indexAvailable,
+        completedAt: completedJob.completedAt,
+        updatedAt: completedJob.updatedAt,
       });
       setRagMessages([
         {
@@ -387,24 +535,30 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       showToast("success", "Repository indexed and ready for questions.");
       refreshKeys();
     } catch (err: any) {
-      console.error(err);
+      console.warn("Indexed Q&A request failed:", err);
       const errMsg = err.message || "Ingestion process encountered an error.";
+      const diagnosticError = {
+        status: "failed",
+        detail: "Indexed Q&A request failed. See the Repository Chat error card for the reason and next action.",
+      };
       setErrorMessage(errMsg);
       setIngestStatus("error");
       setIndexedRepositoryStats(prev => ({
         repoUrl: githubUrl,
         jobId: prev?.repoUrl === githubUrl ? prev.jobId : undefined,
         status: "failed",
+        currentStep: "failed",
         filesCount: prev?.repoUrl === githubUrl ? prev.filesCount : undefined,
         chunksCount: prev?.repoUrl === githubUrl ? prev.chunksCount : undefined,
+        failedAt: prev?.repoUrl === githubUrl ? prev.failedAt : undefined,
         error: errMsg,
       }));
       
-      setLogState("repo_fetch", { status: "error", responseBody: { error: errMsg } });
-      setLogState("ai_processing", {
+      setIndexedLogState("repo_fetch", { status: "error", responseBody: diagnosticError });
+      setIndexedLogState("ai_processing", {
         status: "error",
         statusText: errMsg.includes("rate limit") ? "Rate Limited" : "Failed",
-        responseBody: { error: errMsg }
+        responseBody: diagnosticError
       });
       showToast("error", "Failed to ingest codebase.");
     }
@@ -432,7 +586,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     const startTime = performance.now();
     const maskedKey = apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`;
 
-    setLogState("auth", {
+    setIndexedLogState("auth", {
       label: "Validate API Key",
       status: "pending",
       method: "POST",
@@ -443,7 +597,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
 
     try {
       await sleep(150);
-      setLogState("auth", {
+      setIndexedLogState("auth", {
         status: "success",
         duration: 150,
         statusCode: 200,
@@ -452,7 +606,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         responseBody: { valid: true }
       });
 
-      setLogState("repo_fetch", {
+      setIndexedLogState("repo_fetch", {
         label: "pgvector Semantic Search",
         status: "pending",
         method: "RPC",
@@ -490,7 +644,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         }
       }
 
-      setLogState("repo_fetch", {
+      setIndexedLogState("repo_fetch", {
         status: "success",
         duration: Math.round(performance.now() - startTime),
         statusCode: 200,
@@ -502,7 +656,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         responseBody: sources
       });
 
-      setLogState("ai_processing", {
+      setIndexedLogState("ai_processing", {
         label: "Gemini Contextual Stream",
         status: "pending",
         method: "POST",
@@ -545,7 +699,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         }
       }
 
-      setLogState("ai_processing", {
+      setIndexedLogState("ai_processing", {
         status: "success",
         duration: Math.round(performance.now() - startTime),
         statusCode: 200,
@@ -559,7 +713,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       console.error(err);
       const errMsg = err.message || "Failed to stream answer.";
       setErrorMessage(errMsg);
-      setLogState("ai_processing", {
+      setIndexedLogState("ai_processing", {
         status: "error",
         statusText: errMsg.includes("rate limit") ? "Rate Limited" : "Stream Error",
         responseBody: { error: errMsg }
@@ -584,16 +738,52 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
   // Modern UI custom message formatter
   const renderTextWithInlineCode = (text: string) => {
     if (!text) return null;
+    const filePathPattern = /(?:^|[\s(["'])((?:\.\/)?(?:app|src|lib|components|hooks|types|tests|scripts|supabase|docs|public|pages|api|styles|utils|server|client)\/[A-Za-z0-9._@/+-]+\.[A-Za-z0-9]+)(?=$|[\s)\].,;:'"`])/g;
     const parts = text.split(/(`[^`]+`)/g);
+
+    const renderFilePathChips = (value: string, keyPrefix: string) => {
+      const nodes: ReactNode[] = [];
+      let lastIndex = 0;
+      let match: RegExpExecArray | null;
+
+      while ((match = filePathPattern.exec(value)) !== null) {
+        const fullMatch = match[0];
+        const filePath = match[1];
+        const prefixLength = fullMatch.length - filePath.length;
+        const fileStart = match.index + prefixLength;
+
+        if (fileStart > lastIndex) {
+          nodes.push(value.slice(lastIndex, fileStart));
+        }
+
+        nodes.push(
+          <span
+            key={`${keyPrefix}-file-${fileStart}`}
+            className="mx-0.5 inline-flex max-w-full items-center rounded-lg border border-emerald-300/20 bg-emerald-300/[0.08] px-1.5 py-0.5 align-baseline font-mono text-[0.82em] font-bold text-emerald-200"
+          >
+            {filePath}
+          </span>
+        );
+        lastIndex = fileStart + filePath.length;
+      }
+
+      if (lastIndex < value.length) {
+        nodes.push(value.slice(lastIndex));
+      }
+
+      filePathPattern.lastIndex = 0;
+      return nodes;
+    };
+
     return parts.map((part, index) => {
       if (part.startsWith("`") && part.endsWith("`")) {
         return (
-          <code key={index} className="bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/60 rounded px-1.5 py-0.5 font-mono text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+          <code key={index} className="rounded-md border border-emerald-300/20 bg-emerald-300/[0.08] px-1.5 py-0.5 font-mono text-[0.86em] font-bold text-emerald-200">
             {part.slice(1, -1)}
           </code>
         );
       }
-      return part;
+      return renderFilePathChips(part, `${index}`);
     });
   };
 
@@ -623,8 +813,8 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         const code = match ? match[2] : part.slice(3, -3);
 
         return (
-          <div key={index} className="my-3 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-950 font-mono text-[11px] text-zinc-300">
-            <div className="bg-zinc-900 px-4 py-1.5 border-b border-zinc-800 text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex justify-between items-center select-none">
+          <div key={index} className="my-5 overflow-hidden rounded-2xl border border-[var(--command-border)] bg-slate-950 font-mono text-xs text-slate-300 shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
+            <div className="flex items-center justify-between border-b border-[var(--command-border)] bg-white/[0.03] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 select-none">
               <span>{language || "code"}</span>
               <button
                 type="button"
@@ -632,73 +822,131 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                   navigator.clipboard.writeText(code.trim());
                   showToast("success", "Code snippet copied!");
                 }}
-                className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="rounded-full border border-white/10 px-2 py-1 text-[9px] text-slate-400 transition-colors hover:border-emerald-300/30 hover:text-emerald-200"
               >
                 Copy
               </button>
             </div>
-            <pre className="p-4 overflow-x-auto"><code>{code.trim()}</code></pre>
+            <pre className="overflow-x-auto p-4 leading-6"><code>{code.trim()}</code></pre>
           </div>
         );
       } else {
         const lines = part.split("\n");
-        return lines.map((line, lIdx) => {
+        const rendered: React.ReactNode[] = [];
+        let lIdx = 0;
+
+        while (lIdx < lines.length) {
+          const line = lines[lIdx];
           const trimmedLine = line.trim();
+
+          if (!trimmedLine) {
+            rendered.push(<div key={`${index}-${lIdx}`} className="h-2" />);
+            lIdx += 1;
+            continue;
+          }
 
           // 1. Headings
           if (trimmedLine.startsWith("### ")) {
-            return (
-              <h4 key={`${index}-${lIdx}`} className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mt-4 mb-2 leading-snug">
+            rendered.push(
+              <h4 key={`${index}-${lIdx}`} className="mt-7 mb-2 text-base font-black leading-snug text-emerald-100">
                 {renderLineText(trimmedLine.substring(4))}
               </h4>
             );
+            lIdx += 1;
+            continue;
           }
           if (trimmedLine.startsWith("## ")) {
-            return (
-              <h3 key={`${index}-${lIdx}`} className="text-base font-extrabold text-zinc-900 dark:text-zinc-100 mt-5 mb-2.5 leading-snug">
+            rendered.push(
+              <h3 key={`${index}-${lIdx}`} className="mt-8 mb-3 text-xl font-black leading-tight text-white">
                 {renderLineText(trimmedLine.substring(3))}
               </h3>
             );
+            lIdx += 1;
+            continue;
           }
           if (trimmedLine.startsWith("# ")) {
-            return (
-              <h2 key={`${index}-${lIdx}`} className="text-lg font-black text-zinc-900 dark:text-zinc-100 mt-6 mb-3 leading-snug">
+            rendered.push(
+              <h2 key={`${index}-${lIdx}`} className="mt-8 mb-4 font-serif text-2xl font-bold leading-tight text-white">
                 {renderLineText(trimmedLine.substring(2))}
               </h2>
             );
+            lIdx += 1;
+            continue;
+          }
+
+          if (trimmedLine.startsWith("> ")) {
+            const quoteLines: string[] = [];
+            while (lIdx < lines.length && lines[lIdx].trim().startsWith("> ")) {
+              quoteLines.push(lines[lIdx].trim().substring(2));
+              lIdx += 1;
+            }
+            rendered.push(
+              <blockquote key={`${index}-${lIdx}-quote`} className="my-5 border-l-2 border-emerald-300/45 bg-emerald-300/[0.04] px-4 py-3 text-sm font-semibold leading-7 text-slate-300">
+                {quoteLines.map((quote, quoteIdx) => (
+                  <p key={quoteIdx}>{renderLineText(quote)}</p>
+                ))}
+              </blockquote>
+            );
+            continue;
           }
 
           // 2. Bullet list items
           if (trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ")) {
-            return (
-              <ul key={`${index}-${lIdx}`} className="list-disc pl-5 my-1.5 space-y-1">
-                <li className="text-zinc-700 dark:text-zinc-300">
-                  {renderLineText(trimmedLine.substring(2))}
-                </li>
+            const items: string[] = [];
+            while (lIdx < lines.length) {
+              const current = lines[lIdx].trim();
+              if (!(current.startsWith("- ") || current.startsWith("* "))) break;
+              items.push(current.substring(2));
+              lIdx += 1;
+            }
+            rendered.push(
+              <ul key={`${index}-${lIdx}-ul`} className="my-5 space-y-2.5">
+                {items.map((item, itemIdx) => (
+                  <li key={itemIdx} className="flex gap-3 text-[15px] leading-7 text-slate-200">
+                    <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.45)]" />
+                    <span>{renderLineText(item)}</span>
+                  </li>
+                ))}
               </ul>
             );
+            continue;
           }
 
           // 3. Numbered list items
           const numListMatch = trimmedLine.match(/^(\d+)\.\s(.*)/);
           if (numListMatch) {
-            const text = numListMatch[2];
-            return (
-              <ol key={`${index}-${lIdx}`} className="list-decimal pl-5 my-1.5 space-y-1">
-                <li className="text-zinc-700 dark:text-zinc-300">
-                  {renderLineText(text)}
-                </li>
+            const items: { number: string; text: string }[] = [];
+            while (lIdx < lines.length) {
+              const currentMatch = lines[lIdx].trim().match(/^(\d+)\.\s(.*)/);
+              if (!currentMatch) break;
+              items.push({ number: currentMatch[1], text: currentMatch[2] });
+              lIdx += 1;
+            }
+            rendered.push(
+              <ol key={`${index}-${lIdx}-ol`} className="my-5 space-y-3">
+                {items.map((item, itemIdx) => (
+                  <li key={itemIdx} className="flex gap-3 text-[15px] leading-7 text-slate-200">
+                    <span className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-300/[0.08] text-[10px] font-black text-emerald-200">
+                      {item.number}
+                    </span>
+                    <span>{renderLineText(item.text)}</span>
+                  </li>
+                ))}
               </ol>
             );
+            continue;
           }
 
           // 4. Paragraph
-          return line.trim() ? (
-            <p key={`${index}-${lIdx}`} className="my-1.5 text-zinc-700 dark:text-zinc-300 leading-relaxed">
+          rendered.push(
+            <p key={`${index}-${lIdx}`} className="my-4 text-[15px] font-medium leading-8 text-slate-200 sm:text-base sm:leading-8">
               {renderLineText(line)}
             </p>
-          ) : <div key={`${index}-${lIdx}`} className="h-2" />;
-        });
+          );
+          lIdx += 1;
+        }
+
+        return rendered;
       }
     });
   };
@@ -715,29 +963,10 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
   const handleSummarize = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
-    setRequestLogs([]);
+    setSummaryRequestLogs([]);
     setRepoMetadata(null);
     setSummaryStatus("streaming");
     setSummaryIssue("");
-
-    const setLogState = (id: string, updates: Partial<LogEntry>) => {
-      setRequestLogs(prev => {
-        const index = prev.findIndex(l => l.id === id);
-        if (index === -1) {
-          return [...prev, {
-            id,
-            label: updates.label || "",
-            duration: updates.duration || 0,
-            status: updates.status || "pending",
-            timestamp: Date.now(),
-            ...updates
-          } as LogEntry];
-        }
-        const updated = [...prev];
-        updated[index] = { ...updated[index], ...updates };
-        return updated;
-      });
-    };
 
     const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -759,7 +988,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     window.__dandi_stream_start = startTime;
 
     // --- STEP 1: AUTHENTICATION (START) ---
-    setLogState("auth", {
+    setSummaryLogState("auth", {
       label: "Authentication",
       status: "pending",
       method: "POST",
@@ -774,7 +1003,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     try {
       await sleep(350);
       
-      setLogState("auth", {
+      setSummaryLogState("auth", {
         status: "success",
         duration: Math.round(performance.now() - startTime),
         statusCode: 200,
@@ -792,7 +1021,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       });
 
       // --- STEP 2: REPOSITORY FETCH (START) ---
-      setLogState("repo_fetch", {
+      setSummaryLogState("repo_fetch", {
         label: "Repository Fetch",
         status: "pending",
         method: "GET",
@@ -806,7 +1035,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
 
       await sleep(450);
 
-      setLogState("repo_fetch", {
+      setSummaryLogState("repo_fetch", {
         status: "success",
         duration: 450,
         statusCode: 200,
@@ -822,7 +1051,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       });
 
       // --- STEP 3: AI PROCESSING (START) ---
-      setLogState("ai_processing", {
+      setSummaryLogState("ai_processing", {
         label: "AI Processing",
         status: "pending",
         method: "POST",
@@ -878,22 +1107,6 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
   const summaryFacts = (summaryResult?.cool_facts || []).filter((fact): fact is string => typeof fact === "string" && fact.trim().length > 0);
   const summaryHasData = Boolean(summaryResult?.summary?.trim() || summaryFacts.length > 0);
   const summaryStreamMessage = streamError?.message || summaryIssue;
-  const summaryJsonData = summaryHasData
-    ? {
-        success: true,
-        message: `Successfully summarized ${githubUrl || "repository"}`,
-        data: {
-          owner: activeKeyData?.name || "API Key Owner",
-          repo: githubUrl || "",
-          metadata: repoMetadata || {},
-          summary: summaryResult?.summary || "",
-          cool_facts: summaryFacts
-        }
-      }
-    : {
-        status: summaryStatus,
-        message: summaryStatus === "empty" ? "No summary was returned." : summaryStreamMessage || "Awaiting summary stream.",
-      };
   const shouldShowSummaryResults = activeTab === "summary" && (
     summaryHasData ||
     isLoadingSummary ||
@@ -901,6 +1114,13 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     summaryStatus === "error" ||
     Boolean(streamError)
   );
+  const requestLogs = activeTab === "summary" ? summaryRequestLogs : indexedRequestLogs;
+  const hasIndexingAttemptForCurrentRepo = Boolean(githubUrl && indexingAttemptedRepo === githubUrl);
+  const hasIndexingFailure = hasIndexingAttemptForCurrentRepo && ingestStatus === "error";
+  const shouldShowTopLevelError = Boolean(errorMessage) && !(activeTab === "rag" && hasIndexingFailure);
+  const isIndexingActive = ingestStatus === "crawling" || ingestStatus === "embedding";
+  const activeLogsHavePending = requestLogs.some((entry) => entry.status === "pending");
+  const activeLogsHaveError = requestLogs.some((entry) => entry.status === "error");
   const getPipelineStatus = (id: string): "idle" | "active" | "done" | "error" => {
     const log = requestLogs.find((entry) => entry.id === id);
     if (!log) return "idle";
@@ -909,15 +1129,13 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     return "error";
   };
   const isPipelineActive =
-    isLoadingSummary ||
-    ingestStatus === "crawling" ||
-    ingestStatus === "embedding" ||
-    isChatLoading ||
-    requestLogs.some((entry) => entry.status === "pending");
+    activeTab === "summary"
+      ? isLoadingSummary || activeLogsHavePending
+      : isIndexingActive || isChatLoading || activeLogsHavePending;
   const hasPipelineError =
-    summaryStatus === "error" ||
-    ingestStatus === "error" ||
-    requestLogs.some((entry) => entry.status === "error");
+    activeTab === "summary"
+      ? summaryStatus === "error" || activeLogsHaveError
+      : hasIndexingFailure || activeLogsHaveError;
   const pipelineSteps = [
     {
       id: "request",
@@ -953,7 +1171,11 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       id: "response",
       label: "Response",
       sublabel: hasPipelineError ? "Inspect failure details" : "Output inspector",
-      status: hasPipelineError ? "error" : summaryHasData || ingestStatus === "completed" || ragMessages.length > 0 ? "done" : isPipelineActive ? "active" : "idle",
+      status: hasPipelineError
+        ? "error"
+        : activeTab === "summary"
+          ? summaryHasData ? "done" : isPipelineActive ? "active" : "idle"
+          : ingestStatus === "completed" || ragMessages.length > 0 ? "done" : isPipelineActive ? "active" : "idle",
     },
   ] satisfies Parameters<typeof PipelineFlow>[0]["steps"];
   const summaryProcessingSteps = [
@@ -1005,13 +1227,13 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       id: "rag-index",
       label: "Indexing",
       sublabel: "Chunk files and store embeddings",
-      status: ingestStatus === "embedding" || ingestStatus === "crawling" ? "active" : ingestStatus === "completed" ? "done" : ingestStatus === "error" ? "error" : "idle",
+      status: ingestStatus === "embedding" || ingestStatus === "crawling" ? "active" : ingestStatus === "completed" ? "done" : hasIndexingFailure ? "error" : "idle",
     },
     {
       id: "rag-ready",
       label: "Ready",
       sublabel: "Ask retrieval-backed questions",
-      status: ingestStatus === "completed" ? "done" : ingestStatus === "error" ? "error" : "idle",
+      status: ingestStatus === "completed" ? "done" : hasIndexingFailure ? "error" : "idle",
     },
   ] satisfies Parameters<typeof PipelineFlow>[0]["steps"];
   const hasSourceEvidence = ragMessages.some((message) => (message.sources?.length || 0) > 0);
@@ -1020,6 +1242,29 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
   const indexedFilesLabel = typeof currentIndexStats?.filesCount === "number" ? currentIndexStats.filesCount.toLocaleString() : "Not reported";
   const indexedChunksLabel = typeof currentIndexStats?.chunksCount === "number" ? currentIndexStats.chunksCount.toLocaleString() : "Not reported";
   const hasIndexedCounts = typeof currentIndexStats?.filesCount === "number" || typeof currentIndexStats?.chunksCount === "number";
+  const currentIngestionStep = currentIndexStats?.currentStep;
+  const visibleRagMessages = ragMessages.filter((message, index) => {
+    const hasPreviousQuestion = ragMessages.slice(0, index).some((candidate) => candidate.role === "user");
+    return message.role === "user" || hasPreviousQuestion;
+  });
+  const conversationTurns = visibleRagMessages.reduce<Array<{
+    question?: typeof ragMessages[number];
+    answer?: typeof ragMessages[number];
+  }>>((turns, message) => {
+    if (message.role === "user") {
+      turns.push({ question: message });
+      return turns;
+    }
+
+    const lastTurn = turns[turns.length - 1];
+    if (lastTurn && !lastTurn.answer) {
+      lastTurn.answer = message;
+    } else {
+      turns.push({ answer: message });
+    }
+    return turns;
+  }, []);
+  const hasConversationTurns = conversationTurns.length > 0;
   const lifecycleSteps = [
     {
       id: "lifecycle-queued",
@@ -1031,7 +1276,13 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       id: "lifecycle-cloning",
       label: "Cloning",
       sublabel: activeTab === "summary" ? "Fetching public GitHub metadata" : "Starting repository ingestion job",
-      status: getPipelineStatus("repo_fetch"),
+      status: activeTab === "summary"
+        ? getPipelineStatus("repo_fetch")
+        : currentIngestionStep === "cloning"
+          ? "active"
+          : ["analyzing", "indexing", "ready"].includes(currentIngestionStep || "") || ingestStatus === "embedding" || ingestStatus === "completed"
+            ? "done"
+            : getPipelineStatus("repo_fetch"),
     },
     {
       id: "lifecycle-analyzing",
@@ -1039,25 +1290,39 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       sublabel: activeTab === "summary" ? "Reading repository context for the summary" : "Selecting eligible files for chunks",
       status: activeTab === "summary"
         ? getPipelineStatus("ai_processing")
-        : ingestStatus === "crawling" ? "active" : ingestStatus === "embedding" || ingestStatus === "completed" ? "done" : ingestStatus === "error" ? "error" : "idle",
+        : currentIngestionStep === "analyzing"
+          ? "active"
+          : ["indexing", "ready"].includes(currentIngestionStep || "") || ingestStatus === "embedding" || ingestStatus === "completed"
+            ? "done"
+            : ingestStatus === "crawling" ? "active" : hasIndexingFailure ? "error" : "idle",
     },
     {
       id: "lifecycle-summarizing",
       label: "Summarizing",
       sublabel: summaryHasData ? "Summary returned" : activeTab === "summary" ? "Structured summary response" : "Optional summary step",
-      status: summaryStatus === "error" || summaryStatus === "empty" ? "error" : summaryHasData ? "done" : activeTab === "summary" && isLoadingSummary ? "active" : "idle",
+      status: activeTab === "summary"
+        ? summaryStatus === "error" || summaryStatus === "empty" ? "error" : summaryHasData ? "done" : isLoadingSummary ? "active" : "idle"
+        : "idle",
     },
     {
       id: "lifecycle-indexing",
       label: "Indexing",
-      sublabel: currentIndexStats?.status === "completed" ? `${indexedFilesLabel} files / ${indexedChunksLabel} chunks` : ingestStatus === "embedding" ? "Creating searchable chunks" : "Run Indexed Q&A when needed",
-      status: ingestStatus === "completed" && currentIndexStats?.status === "completed" ? "done" : ingestStatus === "embedding" || ingestStatus === "crawling" ? "active" : ingestStatus === "error" ? "error" : "idle",
+      sublabel: activeTab === "summary"
+        ? "Summary mode does not index repositories"
+        : currentIndexStats?.status === "completed" ? `${indexedFilesLabel} files / ${indexedChunksLabel} chunks` : currentIngestionStep === "indexing" || ingestStatus === "embedding" ? "Creating searchable chunks" : "Start indexing to enable retrieval-backed questions",
+      status: activeTab === "summary"
+        ? "idle"
+        : currentIngestionStep === "ready" || ingestStatus === "completed" && currentIndexStats?.status === "completed" ? "done" : currentIngestionStep === "indexing" || ingestStatus === "embedding" || ingestStatus === "crawling" ? "active" : hasIndexingFailure ? "error" : "idle",
     },
     {
       id: "lifecycle-ready",
       label: "Ready",
-      sublabel: ingestStatus === "completed" ? "Repository can answer retrieval-backed questions" : summaryHasData ? "Summary is ready; index not required" : "No repository result yet",
-      status: ingestStatus === "completed" || summaryHasData ? "done" : hasPipelineError ? "error" : "idle",
+      sublabel: activeTab === "summary"
+        ? summaryHasData ? "Summary is ready; index not required" : "No summary result yet"
+        : ingestStatus === "completed" ? "Repository can answer retrieval-backed questions" : "This repository has not been indexed yet.",
+      status: activeTab === "summary"
+        ? summaryHasData ? "done" : hasPipelineError ? "error" : "idle"
+        : ingestStatus === "completed" ? "done" : hasIndexingFailure ? "error" : "idle",
     },
   ] satisfies Parameters<typeof PipelineFlow>[0]["steps"];
   const transparencyRows = [
@@ -1070,12 +1335,12 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     },
     {
       label: "Indexed",
-      value: ingestStatus === "completed" && hasIndexedCounts ? `${indexedFilesLabel} files / ${indexedChunksLabel} chunks` : ingestStatus === "error" ? "Failed" : "Not ready",
+      value: ingestStatus === "completed" && hasIndexedCounts ? `${indexedFilesLabel} files / ${indexedChunksLabel} chunks` : hasIndexingFailure ? "Failed" : "Not indexed yet",
       detail: ingestStatus === "completed"
         ? "These counts come from the completed ingestion job. They describe searchable chunks available to retrieval."
-        : ingestStatus === "error"
+        : hasIndexingFailure
           ? currentIndexStats?.error || "Indexing did not complete. Retrieval-backed answers are not available for this repository."
-          : "Run Indexed Q&A to create searchable chunks. Summary mode does not create a repository index.",
+          : "This repository has not been indexed yet. Start indexing to enable retrieval-backed questions.",
     },
     {
       label: "Not indexed",
@@ -1113,6 +1378,91 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       detail: isPipelineActive ? "Latency updates as request steps complete." : hasPipelineError ? "Open the network log for details." : "No active request.",
     },
   ];
+  const transparencyStatusTone: "neutral" | "success" | "warning" | "danger" | "info" =
+    isPipelineActive
+      ? "warning"
+      : hasPipelineError
+        ? "danger"
+        : activeTab === "rag"
+          ? ingestStatus === "completed" ? "success" : "neutral"
+          : "info";
+  const transparencyStatusLabel =
+    isPipelineActive
+      ? "Updating"
+      : hasPipelineError
+        ? "Needs review"
+        : activeTab === "rag"
+          ? ingestStatus === "completed" ? "Indexed" : "Not indexed"
+          : "Tracked";
+  const summaryJsonData = summaryHasData
+    ? {
+        success: true,
+        message: `Successfully summarized ${githubUrl || "repository"}`,
+        data: {
+          owner: activeKeyData?.name || "API Key Owner",
+          repo: githubUrl || "",
+          metadata: repoMetadata || {},
+          summary: summaryResult?.summary || "",
+          cool_facts: summaryFacts,
+          repository: {
+            url: githubUrl || "",
+            path: githubUrl ? getRepoPath(githubUrl) : "",
+            metadata: repoMetadata || null,
+          },
+          result: {
+            status: isLoadingSummary ? "generating" : summaryStatus === "success" ? "generated" : "awaiting_result",
+            summary: summaryResult?.summary || "",
+            key_findings: summaryFacts,
+          },
+          result_context: {
+            searchable_index: ingestedRepo === githubUrl && ingestStatus === "completed" ? "available" : "use_indexed_q_and_a",
+            evidence: hasSourceEvidence ? "sources_returned" : retrievalAttempted ? "no_sources_returned" : "returned_in_rag_answers",
+          },
+          analysis_scope: {
+            used: [
+              "Public repository URL",
+              "GitHub metadata when available",
+              "Structured summary returned by the API",
+            ],
+            limitations: [
+              "Summary mode does not create a searchable index.",
+              "Summary mode does not return a skipped-file manifest.",
+              "Use Indexed Q&A for file/chunk counts and source-backed answers.",
+            ],
+            current_index: currentIndexStats?.status === "completed"
+              ? {
+                  status: "completed",
+                  files: currentIndexStats.filesCount ?? null,
+                  chunks: currentIndexStats.chunksCount ?? null,
+                  indexed_file_count: currentIndexStats.indexedFileCount ?? currentIndexStats.filesCount ?? null,
+                  chunk_count: currentIndexStats.chunkCount ?? currentIndexStats.chunksCount ?? null,
+                  completed_at: currentIndexStats.completedAt ?? null,
+                  updated_at: currentIndexStats.updatedAt ?? null,
+                }
+              : {
+                  status: hasIndexingFailure ? "failed" : "not_started",
+                  message: hasIndexingFailure
+                    ? currentIndexStats?.error || "Indexing did not complete."
+                    : "This repository has not been indexed yet. Start indexing to enable retrieval-backed questions.",
+                },
+          },
+          transparency: transparencyRows,
+          processing: {
+            pipeline: pipelineSteps,
+            summary_steps: summaryProcessingSteps,
+            lifecycle: lifecycleSteps,
+            latency: latencyRows,
+          },
+        }
+      }
+    : {
+        status: summaryStatus,
+        message: summaryStatus === "empty" ? "No summary was returned." : summaryStreamMessage || "Awaiting summary stream.",
+        context: {
+          repository: githubUrl ? getRepoPath(githubUrl) : "No repository",
+          current_state: isPipelineActive ? "Running" : hasPipelineError ? "Needs review" : "Ready",
+        },
+      };
 
   return (
     <>
@@ -1153,102 +1503,6 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
             />
           </DashboardPageHeader>
 
-          <CommandPanel padding="none" className="p-4 sm:p-5">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Execution Pipeline</p>
-                <p className="mt-1 text-xs font-medium text-slate-500">
-                  {"Request -> Auth -> Quota -> Context -> Gemini -> Response"}
-                </p>
-              </div>
-              <LiveIndicator active={isPipelineActive} tone={hasPipelineError ? "danger" : isPipelineActive ? "warning" : "success"} label={isPipelineActive ? "live" : "standby"} />
-            </div>
-            <PipelineFlow steps={pipelineSteps} orientation="auto" />
-          </CommandPanel>
-
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.55fr)]">
-            <CommandPanel padding="none" className="p-4 sm:p-5">
-              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Repository Intelligence Workflow</p>
-                  <p className="mt-1 max-w-3xl text-xs font-medium leading-relaxed text-slate-500">
-                    Lifecycle state is derived from the current request, ingestion job status, and returned evidence. Dandi only marks a step ready when that state exists.
-                  </p>
-                </div>
-                <StatusPill tone={hasSourceEvidence ? "success" : ingestStatus === "completed" ? "info" : "neutral"} compact>
-                  {hasSourceEvidence ? "Evidence visible" : ingestStatus === "completed" ? "Ready for Q&A" : "Guided flow"}
-                </StatusPill>
-              </div>
-              <PipelineFlow steps={lifecycleSteps} orientation="auto" />
-            </CommandPanel>
-
-            <CommandPanel className="p-4 sm:p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Latency</p>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-500">Measured from completed request steps in this session.</p>
-                </div>
-                <StatusPill tone={isPipelineActive ? "warning" : completedLogs.length ? "success" : "neutral"} compact>
-                  {isPipelineActive ? "Measuring" : completedLogs.length ? "Measured" : "Idle"}
-                </StatusPill>
-              </div>
-              <div className="space-y-3">
-                {latencyRows.map((row) => (
-                  <div key={row.label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{row.label}</span>
-                      <span className="text-xs font-black tabular-nums text-slate-100">{row.value}</span>
-                    </div>
-                    <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-500">{row.detail}</p>
-                  </div>
-                ))}
-              </div>
-            </CommandPanel>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
-            <CommandPanel padding="none" className="p-4 sm:p-5">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">
-                    {activeTab === "summary" ? "Summary Output" : "Repository Processing"}
-                  </p>
-                  <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">
-                    {activeTab === "summary"
-                      ? "Summary gives a readable overview of repository metadata and selected content. Use Indexed Q&A when you need retrieval against stored chunks."
-                      : "Indexing prepares repository files for retrieval-backed answers. Stages are derived from the current ingestion request and job status."}
-                  </p>
-                </div>
-                <StatusPill tone={activeTab === "summary" ? "info" : ingestStatus === "completed" ? "success" : ingestStatus === "error" ? "danger" : "warning"} compact>
-                  {activeTab === "summary" ? "Overview Only" : ingestStatus === "completed" ? "Index Ready" : ingestStatus === "error" ? "Index Failed" : "Index Required"}
-                </StatusPill>
-              </div>
-              <PipelineFlow steps={activeTab === "summary" ? summaryProcessingSteps : ragProcessingSteps} orientation="auto" />
-            </CommandPanel>
-
-            <CommandPanel className="p-4 sm:p-5">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Repository Transparency</p>
-                <LiveIndicator
-                  active={isLoadingSummary || ingestStatus === "crawling" || ingestStatus === "embedding" || isChatLoading}
-                  tone={hasPipelineError ? "danger" : "success"}
-                  label={hasPipelineError ? "needs review" : "tracked"}
-                />
-              </div>
-              <div className="space-y-3">
-                {transparencyRows.map((item) => (
-                  <div key={item.label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{item.label}</span>
-                      <span className="text-xs font-black text-slate-100">{item.value}</span>
-                    </div>
-                    <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-500">{item.detail}</p>
-                  </div>
-                ))}
-              </div>
-            </CommandPanel>
-          </div>
-
           <div className="flex flex-col gap-8 xl:flex-row">
             {/* Left Column (flex-1) */}
             <div className="flex-1 min-w-0 space-y-8">
@@ -1256,14 +1510,14 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
               {activeTab === "rag" && ingestedRepo === githubUrl && ingestStatus === "completed" ? (
                 /* RAG Chat room box */
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                  <CommandPanel className="flex min-h-[500px] flex-col p-5 sm:p-8">
+                  <CommandPanel tone="elevated" interactive className="flex min-h-[560px] flex-col p-5 sm:p-8">
                     {/* Header of Chat Room */}
-                    <div className="mb-6 flex flex-col gap-4 border-b border-white/10 pb-5 select-none sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-4 border-b border-[var(--command-border)] pb-5 select-none sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold font-serif text-lg">D</div>
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 font-serif text-lg font-bold text-emerald-200 shadow-[0_0_28px_rgba(52,211,153,0.12)]">D</div>
                         <div className="min-w-0">
-                          <h3 className="font-serif text-md font-bold text-white">Repository Q&A</h3>
-                          <span className="text-[9px] font-black text-emerald-300 uppercase tracking-widest">Retrieval-backed chat</span>
+                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Repository Q&A</p>
+                          <h3 className="mt-1 font-serif text-2xl font-bold text-white">Ask the indexed repository</h3>
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -1273,7 +1527,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                             setIngestStatus("idle");
                             setIngestedRepo(null);
                           }}
-                          className="text-[9px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors border border-white/10 px-3 py-1.5 rounded-lg cursor-pointer"
+                          className="rounded-full border border-[var(--command-border)] bg-white/[0.03] px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-400 transition-all hover:border-emerald-300/30 hover:text-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/40 cursor-pointer"
                         >
                           Change Repo
                         </button>
@@ -1295,96 +1549,154 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                               }
                             ]);
                           }}
-                          className="text-[9px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors border border-white/10 px-3 py-1.5 rounded-lg cursor-pointer"
+                          className="rounded-full border border-[var(--command-border)] bg-white/[0.03] px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-400 transition-all hover:border-emerald-300/30 hover:text-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/40 cursor-pointer"
                         >
                           Clear History
                         </button>
                       </div>
                     </div>
 
-                    {/* Scrollable messages list */}
-                    <div className="flex-1 max-h-[450px] overflow-y-auto pr-2 space-y-4 mb-4 scroll-smooth min-h-[300px]">
-                      {ragMessages.map((msg, idx) => (
-                        <div 
-                          key={idx} 
-                          className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"} gap-1.5`}
-                        >
-                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 select-none px-2">
-                            {msg.role === "user" ? "You (Developer)" : "Dandi AI RAG"}
-                          </span>
-                          
-                          <div 
-                            className={`rounded-2xl px-5 py-3.5 text-sm font-medium leading-relaxed ${
-                              msg.role === "user" 
-                                ? "bg-white/10 border border-white/10 text-slate-100 max-w-[80%]" 
-                                : "bg-emerald-300/10 border border-emerald-300/15 text-slate-200 max-w-[90%]"
-                            }`}
-                          >
-                            {msg.role === "assistant" ? renderMessageContent(msg.content) : renderTextWithInlineCode(msg.content)}
+                    <div className={`${hasConversationTurns ? "my-4 p-3" : "my-5 p-4"} rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_0_32px_rgba(52,211,153,0.08)]`}>
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <LiveIndicator active={false} tone="success" label="ready" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/80">Indexed and ready</p>
+                          </div>
+                          <p className="truncate text-sm font-bold text-slate-100" title={getRepoPath(githubUrl)}>
+                            Repository indexed: <span className="font-mono text-emerald-200">{getRepoPath(githubUrl)}</span>
+                          </p>
+                          <p className="mt-1 text-xs font-medium leading-relaxed text-slate-300">
+                            {typeof currentIndexStats?.filesCount === "number" && typeof currentIndexStats?.chunksCount === "number"
+                              ? `${currentIndexStats.filesCount.toLocaleString()} files processed into ${currentIndexStats.chunksCount.toLocaleString()} searchable chunks.`
+                              : "The repository index is ready for retrieval-backed questions."}
+                          </p>
+                        </div>
+                        <StatusPill tone="success" compact>
+                          Ready
+                        </StatusPill>
+                      </div>
+                    </div>
 
-                            {msg.role === "assistant" && msg.sources && (
-                              <div className="mt-4 border-t border-white/10 pt-3">
-                                {msg.sources.length > 0 ? (
-                                  <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-3">
-                                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                      <div>
-                                        <p className="text-[8px] font-black uppercase tracking-[0.18em] text-emerald-300/80 select-none">Retrieved Evidence</p>
-                                        <p className="mt-0.5 text-[10px] font-medium text-slate-500">
-                                          {msg.sources.length} source{msg.sources.length === 1 ? "" : "s"} matched by semantic retrieval before the answer streamed.
-                                        </p>
-                                      </div>
-                                      <StatusPill tone="success" compact>
-                                        Top {Math.max(...msg.sources.map((src) => Math.round(src.similarity * 100)))}%
-                                      </StatusPill>
-                                    </div>
-                                    <div className="mb-3 rounded-xl border border-white/10 bg-slate-950/50 p-3">
-                                      <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-500">Answer basis</p>
-                                      <p className="mt-1 text-[10px] font-medium leading-relaxed text-slate-500">
-                                        Dandi retrieved these files from the current repository index, then generated the answer using the matched context and your question. Similarity shows retrieval relevance, not a guarantee of correctness.
-                                      </p>
-                                    </div>
-                                    <ScrollFrame axis="y" maxHeight="160px" label="Retrieved source files">
-                                      <div className="space-y-2">
-                                        {msg.sources.map((src, sIdx) => (
-                                          <div
-                                            key={`${src.filePath}-${sIdx}`}
-                                            className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2"
-                                            title={`Similarity match: ${Math.round(src.similarity * 100)}%`}
-                                          >
-                                            <div className="min-w-0">
-                                              <p className="truncate font-mono text-[11px] font-bold text-slate-200">{src.filePath}</p>
-                                              <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-600">
-                                                Source {sIdx + 1} · semantic match to your question
-                                              </p>
-                                            </div>
-                                            <span className="shrink-0 rounded-lg border border-emerald-300/15 bg-emerald-300/10 px-2 py-1 text-[10px] font-black tabular-nums text-emerald-300">
-                                              {Math.round(src.similarity * 100)}%
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </ScrollFrame>
-                                  </div>
+                    {/* Scrollable messages list */}
+                    <div className="mb-4 flex-1 space-y-6 overflow-y-auto rounded-[28px] border border-[var(--command-border)] bg-[var(--command-bg)]/35 p-3 pr-2 scroll-smooth sm:max-h-[620px] sm:min-h-[420px] sm:p-5">
+                      {!hasConversationTurns ? (
+                        <div className="rounded-3xl border border-[var(--command-border)] bg-slate-950/55 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
+                          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Start with a repository question</p>
+                              <h4 className="mt-2 font-serif text-2xl font-bold text-white">Ask about the codebase</h4>
+                            </div>
+                            <StatusPill tone="success" compact>
+                              Retrieval Ready
+                            </StatusPill>
+                          </div>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {["Architecture", "Data flow", "Key components", "Security model", "Build process"].map((topic) => (
+                              <div key={topic} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm font-semibold text-slate-200">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.45)]" />
+                                {topic}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        conversationTurns.map((turn, idx) => (
+                          <article key={idx} className="space-y-4">
+                            {turn.question && (
+                              <section className="ml-auto max-w-[92%] rounded-3xl border border-white/10 bg-white/[0.06] p-4 shadow-[0_20px_70px_rgba(0,0,0,0.20)] sm:p-5">
+                                <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/10 pb-3">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">User Question</p>
+                                  <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400">You</span>
+                                </div>
+                                <p className="text-base font-semibold leading-7 text-slate-100 sm:text-lg">
+                                  {renderTextWithInlineCode(turn.question.content)}
+                                </p>
+                              </section>
+                            )}
+
+                            <section className="max-w-full rounded-[28px] border border-emerald-300/18 bg-slate-950/72 p-4 shadow-[0_26px_90px_rgba(0,0,0,0.30),0_0_38px_rgba(52,211,153,0.07)] sm:p-6">
+                              <div className="mb-5 flex flex-col gap-3 border-b border-emerald-300/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/80">Dandi Answer</p>
+                                  <p className="mt-1 text-xs font-semibold text-slate-500">Generated from retrieved repository context</p>
+                                </div>
+                                {turn.answer?.sources && turn.answer.sources.length > 0 && (
+                                  <StatusPill tone="success" compact>
+                                    {turn.answer.sources.length} source{turn.answer.sources.length === 1 ? "" : "s"}
+                                  </StatusPill>
+                                )}
+                              </div>
+
+                              <div className="prose-dandi max-w-none">
+                                {turn.answer?.content ? (
+                                  renderMessageContent(turn.answer.content)
                                 ) : (
-                                  <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.05] p-3">
-                                    <p className="text-[8px] font-black uppercase tracking-[0.18em] text-amber-300/80">Evidence Not Returned</p>
-                                    <p className="mt-1 text-[10px] font-medium leading-relaxed text-slate-500">
-                                      The answer streamed successfully, but the API did not return source metadata for this response. Treat this answer as uncited and ask a narrower question if you need source-backed evidence.
-                                    </p>
+                                  <div className="flex items-center gap-3 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-4 text-sm font-semibold text-emerald-100">
+                                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-300/25 border-t-emerald-200" />
+                                    Retrieving indexed context and drafting an answer...
                                   </div>
                                 )}
                               </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+
+                              {turn.answer?.sources && (
+                                <div className="mt-6 border-t border-emerald-300/10 pt-5">
+                                  {turn.answer.sources.length > 0 ? (
+                                    <div className="space-y-3">
+                                      <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div>
+                                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/80">Sources</p>
+                                          <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">
+                                            Evidence returned by retrieval. Expand a source to inspect the match score.
+                                          </p>
+                                        </div>
+                                        <StatusPill tone="success" compact>
+                                          Top {Math.max(...turn.answer.sources.map((src) => Math.round(src.similarity * 100)))}%
+                                        </StatusPill>
+                                      </div>
+                                      <div className="space-y-2">
+                                        {turn.answer.sources.map((src, sIdx) => (
+                                          <details
+                                            key={`${src.filePath}-${sIdx}`}
+                                            className="group rounded-2xl border border-white/10 bg-white/[0.03] p-3 transition-colors open:border-emerald-300/25 open:bg-emerald-300/[0.04]"
+                                          >
+                                            <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                                              <div className="min-w-0">
+                                                <p className="truncate font-mono text-xs font-bold text-slate-100">{src.filePath}</p>
+                                                <p className="mt-1 text-[9px] font-black uppercase tracking-[0.18em] text-slate-600">Source {sIdx + 1}</p>
+                                              </div>
+                                              <span className="shrink-0 rounded-lg border border-emerald-300/15 bg-emerald-300/10 px-2 py-1 text-[10px] font-black tabular-nums text-emerald-300">
+                                                {Math.round(src.similarity * 100)}%
+                                              </span>
+                                            </summary>
+                                            <p className="mt-3 rounded-xl border border-white/10 bg-slate-950/60 p-3 text-xs font-medium leading-6 text-slate-400">
+                                              Semantic retrieval matched this file before generation. Similarity indicates relevance to the question, not a correctness guarantee.
+                                            </p>
+                                          </details>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.05] p-4">
+                                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300/80">Sources not returned</p>
+                                      <p className="mt-2 text-xs font-medium leading-relaxed text-slate-400">
+                                        The answer streamed successfully, but the API did not return source metadata for this response. Treat it as uncited and ask a narrower question if you need file-level evidence.
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </section>
+                          </article>
+                        ))
+                      )}
                       <div ref={chatBottomRef} />
                     </div>
 
                     {/* Suggestions / Prompt template pills */}
-                    {ragMessages.length <= 1 && (
-                      <div className="mb-4 select-none">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-2">Quick Prompts:</p>
+                    {!hasConversationTurns && (
+                      <div className="mb-4 select-none rounded-2xl border border-[var(--command-border)] bg-white/[0.025] p-3">
+                        <p className="mb-3 text-[9px] font-black uppercase tracking-[0.2em] text-emerald-300/70">Quick Prompts</p>
                         <div className="flex flex-wrap gap-2">
                           {[
                             "Explain the repository structure & primary entry points",
@@ -1398,9 +1710,9 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                               onClick={() => {
                                 setChatInput(p);
                               }}
-                              className="text-[10px] font-semibold text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40 rounded-xl px-3.5 py-2 transition-colors text-left cursor-pointer"
+                              className="group rounded-xl border border-[var(--command-border)] bg-slate-950/60 px-3.5 py-2 text-left text-[10px] font-bold leading-relaxed text-slate-300 transition-all hover:border-emerald-300/35 hover:bg-emerald-300/[0.06] hover:text-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/40 cursor-pointer"
                             >
-                              {p} →
+                              {p} <span className="text-emerald-300/70 transition-transform group-hover:translate-x-0.5 inline-block">→</span>
                             </button>
                           ))}
                         </div>
@@ -1408,24 +1720,25 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                     )}
 
                     {/* Chat Input form */}
-                    <form onSubmit={handleChatSubmit} className="flex gap-3 pt-3 border-t border-white/10">
+                    <form onSubmit={handleChatSubmit} className="flex gap-3 border-t border-[var(--command-border)] pt-4">
                       <input
                         type="text"
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         disabled={isChatLoading}
                         placeholder={isChatLoading ? "Retrieving indexed context..." : "Ask a question about the indexed repository..."}
-                        className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600 focus:border-emerald-300/40 focus:ring-4 focus:ring-emerald-300/10"
+                        className="min-w-0 flex-1 rounded-2xl border border-[var(--command-border)] bg-slate-950/80 px-5 py-4 text-sm font-medium text-slate-100 outline-none transition-all placeholder:text-slate-600 disabled:cursor-not-allowed disabled:opacity-70 focus:border-emerald-300/45 focus:ring-4 focus:ring-emerald-300/10"
                       />
                       <button
                         type="submit"
                         disabled={isChatLoading || !chatInput.trim()}
-                        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 text-white disabled:text-zinc-400 transition-colors shadow-lg shadow-emerald-950/10 disabled:shadow-none cursor-pointer"
+                        className="group flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-emerald-300/25 bg-emerald-400 text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.18)] transition-all hover:bg-emerald-300 hover:shadow-[0_0_32px_rgba(52,211,153,0.24)] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-slate-900 disabled:text-slate-600 disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/50"
+                        aria-label="Send question"
                       >
                         {isChatLoading ? (
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white"></div>
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950"></div>
                         ) : (
-                          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <svg viewBox="0 0 24 24" className="h-5 w-5 transition-transform group-hover:translate-x-0.5 group-disabled:translate-x-0" fill="none" stroke="currentColor" strokeWidth="2.5">
                             <path d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
@@ -1458,29 +1771,15 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                           {apiKeys.length > 0 && (
                             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                               <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Quick Select</span>
-                              <select 
+                              <ApiKeyDropdown
+                                apiKeys={apiKeys}
                                 value={selectValue}
-                                onChange={(e) => {
-                                  const val = e.target.value;
+                                onChange={(val) => {
                                   setApiKey(val);
                                   setSelectedKey(val);
                                   setSelectValue(val);
                                 }}
-                                className="text-[10px] font-bold uppercase tracking-widest text-emerald-300 bg-emerald-300/10 hover:bg-emerald-300/15 px-2.5 py-1 rounded-lg outline-none border border-emerald-300/15 cursor-pointer transition-colors dark:color-scheme-dark"
-                              >
-                                <option value="__demo__" hidden className="dark:bg-zinc-900 dark:text-zinc-100">Demo</option>
-                                <option value="" className="dark:bg-zinc-900 dark:text-zinc-100">Custom Key</option>
-                                {apiKeys.map(k => {
-                                  const usageLabel = k.monthly_limit
-                                    ? `${k.usage_count}/${k.monthly_limit}`
-                                    : `${k.usage_count}/∞`;
-                                  return (
-                                    <option key={k.id} value={k.key_value} className="dark:bg-zinc-900 dark:text-zinc-100">
-                                      {k.name} ({usageLabel})
-                                    </option>
-                                  );
-                                })}
-                              </select>
+                              />
                             </div>
                           )}
                         </div>
@@ -1607,7 +1906,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                   </form>
                   </CommandPanel>
 
-                  {errorMessage && (
+                  {shouldShowTopLevelError && (
                     <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-950/30 dark:bg-red-950/10 dark:text-red-400">
                       <p className="font-bold">{activeTab === "rag" ? "Repository processing did not complete." : "Repository summary did not complete."}</p>
                       <p className="mt-1">{errorMessage}</p>
@@ -1621,46 +1920,56 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
 
                   {/* Render the landing card only when idle or error (hide it when crawling/embedding to focus on request logs) */}
                   {activeTab === "rag" && (ingestStatus === "idle" || ingestStatus === "error") && (
-                    <CommandPanel className="p-5 text-center space-y-6 animate-in fade-in duration-500 sm:p-8">
-                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 select-none">
-                        <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                    <CommandPanel tone="elevated" className="space-y-5 animate-in fade-in duration-500 p-5 sm:p-8">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex min-w-0 gap-4">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-300/10 text-emerald-300 shadow-[0_0_28px_rgba(52,211,153,0.10)] select-none">
+                            <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.5">
+                              <path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Repository Q&A</p>
+                            <h3 className="mt-1 font-serif text-2xl font-bold text-white">Repository Chat</h3>
+                            <p className="mt-2 max-w-xl text-sm font-medium leading-relaxed text-slate-300">
+                              This repository has not been indexed yet. Start indexing to enable retrieval-backed questions.
+                            </p>
+                          </div>
+                        </div>
+                        <StatusPill tone={hasIndexingFailure ? "danger" : "neutral"} compact>
+                          {hasIndexingFailure ? "Needs retry" : "Not indexed"}
+                        </StatusPill>
                       </div>
-                      <div className="space-y-2 select-none">
-                        <h3 className="font-serif text-2xl font-bold text-white">Repository Chat</h3>
-                        <p className="text-sm font-medium text-slate-400 max-w-lg mx-auto leading-relaxed">
-                          Index a repository before asking retrieval-backed questions. Summary mode creates an overview; Indexed Q&A creates searchable chunks and returns source matches when the API provides them.
-                        </p>
-                      </div>
-                      <div className="mx-auto grid max-w-3xl gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
+
+                      {hasIndexingFailure && (
+                        <div className="rounded-2xl border border-rose-400/25 bg-rose-950/20 p-4 text-left shadow-[0_0_28px_rgba(244,63,94,0.08)]">
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-300">Indexing failed</p>
+                          <p className="mt-2 text-sm font-semibold leading-relaxed text-rose-100">{errorMessage || "Process interrupted."}</p>
+                          <p className="mt-2 text-xs font-medium leading-relaxed text-rose-200/75">
+                            The repository is not ready for retrieval-backed answers. Review the request log status, then retry indexing with a reachable public repository.
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="grid gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
                         {[
                           ["1", "Index", "Dandi reads eligible code and markdown files."],
                           ["2", "Retrieve", "Questions search the indexed chunks for relevant context."],
                           ["3", "Answer", "Responses include matched source files when available."],
                           ["4", "Verify", "Use source paths and match scores to inspect the answer basis."]
                         ].map(([step, label, detail]) => (
-                          <div key={label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                          <div key={label} className="rounded-2xl border border-[var(--command-border)] bg-slate-950/60 p-4">
                             <div className="mb-2 flex items-center gap-2">
                               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-300/10 text-[10px] font-black text-emerald-300">{step}</span>
                               <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-200">{label}</span>
                             </div>
-                            <p className="text-[11px] font-medium leading-relaxed text-slate-500">{detail}</p>
+                            <p className="text-[11px] font-medium leading-relaxed text-slate-400">{detail}</p>
                           </div>
                         ))}
                       </div>
-                      <p className="mx-auto max-w-2xl text-xs font-medium leading-relaxed text-slate-500">
+                      <p className="max-w-2xl text-xs font-medium leading-relaxed text-slate-500">
                         Dandi shows confirmed file and chunk counts after indexing completes. The current API does not return a full skipped-file manifest, so unavailable or excluded files are not listed individually.
                       </p>
-                      {ingestStatus === "error" && (
-                        <div className="mx-auto max-w-md rounded-xl border border-red-200 bg-red-50 p-4 text-left text-xs font-semibold text-red-700 dark:border-red-950/30 dark:bg-red-950/10 dark:text-red-400">
-                          <p className="font-black uppercase tracking-widest">Indexing failed</p>
-                          <p className="mt-1">{errorMessage || "Process interrupted."}</p>
-                          <p className="mt-2 leading-relaxed text-red-600/80 dark:text-red-300/80">
-                            The repository is not ready for retrieval-backed answers. Review the network log, then retry indexing with a reachable public repository.
-                          </p>
-                        </div>
-                      )}
                     </CommandPanel>
                   )}
 
@@ -1823,6 +2132,26 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                   )}
                 </>
               )}
+
+              <CommandPanel className="p-4 sm:p-5">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Repository Transparency</p>
+                  <StatusPill tone={transparencyStatusTone} pulse={isPipelineActive} compact>
+                    {transparencyStatusLabel}
+                  </StatusPill>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {transparencyRows.map((item) => (
+                    <div key={item.label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{item.label}</span>
+                        <span className="text-right text-xs font-black text-slate-100">{item.value}</span>
+                      </div>
+                      <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-500">{item.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </CommandPanel>
             </div>
 
             {/* Right Column */}
@@ -1861,6 +2190,68 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                     </>
                   )}
                 </p>
+              </CommandPanel>
+
+              <CommandPanel padding="none" className="overflow-hidden">
+                <details>
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70 transition-colors hover:text-emerald-200 sm:p-5">
+                    Developer Diagnostics
+                    <StatusPill tone={isPipelineActive ? "warning" : hasPipelineError ? "danger" : "neutral"} compact>
+                      {isPipelineActive ? "Running" : hasPipelineError ? "Review" : "Collapsed"}
+                    </StatusPill>
+                  </summary>
+                  <div className="space-y-5 border-t border-white/10 p-4 sm:p-5">
+                    <section className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Execution Pipeline</p>
+                        <LiveIndicator active={isPipelineActive} tone={hasPipelineError ? "danger" : isPipelineActive ? "warning" : "success"} label={isPipelineActive ? "live" : "standby"} />
+                      </div>
+                      <PipelineFlow steps={pipelineSteps} orientation="vertical" />
+                    </section>
+
+                    <section className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Repository Intelligence Workflow</p>
+                        <StatusPill tone={hasSourceEvidence ? "success" : ingestStatus === "completed" ? "info" : "neutral"} compact>
+                          {hasSourceEvidence ? "Evidence" : ingestStatus === "completed" ? "Ready" : "Idle"}
+                        </StatusPill>
+                      </div>
+                      <PipelineFlow steps={lifecycleSteps} orientation="vertical" />
+                    </section>
+
+                    <section className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                          {activeTab === "summary" ? "Summary Output Workflow" : "Repository Processing Workflow"}
+                        </p>
+                        <StatusPill tone={activeTab === "summary" ? "info" : ingestStatus === "completed" ? "success" : hasIndexingFailure ? "danger" : "neutral"} compact>
+                          {activeTab === "summary" ? "Summary" : ingestStatus === "completed" ? "Indexed" : hasIndexingFailure ? "Failed" : "Not started"}
+                        </StatusPill>
+                      </div>
+                      <PipelineFlow steps={activeTab === "summary" ? summaryProcessingSteps : ragProcessingSteps} orientation="vertical" />
+                    </section>
+
+                    <section className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Latency</p>
+                        <StatusPill tone={isPipelineActive ? "warning" : completedLogs.length ? "success" : "neutral"} compact>
+                          {isPipelineActive ? "Measuring" : completedLogs.length ? "Measured" : "Idle"}
+                        </StatusPill>
+                      </div>
+                      <div className="space-y-3">
+                        {latencyRows.map((row) => (
+                          <div key={row.label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{row.label}</span>
+                              <span className="text-xs font-black tabular-nums text-slate-100">{row.value}</span>
+                            </div>
+                            <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-500">{row.detail}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  </div>
+                </details>
               </CommandPanel>
             </div>
           </div>
