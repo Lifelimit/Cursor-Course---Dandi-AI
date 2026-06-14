@@ -1,13 +1,16 @@
 import React from "react";
+import { Button } from "@/components/ui/PrimaryButton";
 
 type ModalCloseButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
 
 export function ModalCloseButton({ className = "", "aria-label": ariaLabel = "Close modal", ...props }: ModalCloseButtonProps) {
   return (
-    <button
+    <Button
       type="button"
+      variant="icon"
+      size="icon"
       aria-label={ariaLabel}
-      className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors active:scale-95 ${className}`}
+      className={className}
       {...props}
     >
       <svg
@@ -21,6 +24,6 @@ export function ModalCloseButton({ className = "", "aria-label": ariaLabel = "Cl
       >
         <path d="M6 18L18 6M6 6l12 12" />
       </svg>
-    </button>
+    </Button>
   );
 }

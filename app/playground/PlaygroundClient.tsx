@@ -20,6 +20,7 @@ import {
   CommandPanel,
   LiveIndicator,
   PipelineFlow,
+  ScrollFrame,
   StatusPill,
   TabsBar,
 } from "@/components/command";
@@ -82,6 +83,14 @@ export default function PlaygroundClient({
   const [activeTab, setActiveTab] = useState<"summary" | "rag">("summary");
   const [ingestStatus, setIngestStatus] = useState<"idle" | "crawling" | "embedding" | "completed" | "error">("idle");
   const [ingestedRepo, setIngestedRepo] = useState<string | null>(null);
+  const [indexedRepositoryStats, setIndexedRepositoryStats] = useState<{
+    repoUrl: string;
+    jobId?: string;
+    status?: string;
+    filesCount?: number;
+    chunksCount?: number;
+    error?: string;
+  } | null>(null);
   const [ragMessages, setRagMessages] = useState<{ role: "user" | "assistant"; content: string; sources?: { filePath: string; similarity: number }[] }[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -207,6 +216,7 @@ export default function PlaygroundClient({
     setErrorMessage("");
     setIngestStatus("crawling");
     setRequestLogs([]);
+    setIndexedRepositoryStats(null);
 
     const maskedKey = apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`;
     const getRepoPath = (url: string) => {
@@ -269,6 +279,12 @@ export default function PlaygroundClient({
         throw new Error(data.error || "Failed to ingest repository");
       }
 
+      setIndexedRepositoryStats({
+        repoUrl: githubUrl,
+        jobId: data.jobId,
+        status: data.status || "queued",
+      });
+
       setLogState("repo_fetch", {
         status: "success",
         duration: Math.round(performance.now() - crawlStartTime),
@@ -283,9 +299,10 @@ export default function PlaygroundClient({
       });
 
       // 3. AI Processing Log
+      setIngestStatus("embedding");
       const embeddingStartTime = performance.now();
       setLogState("ai_processing", {
-        label: "Vector Ingestion (pgvector)",
+        label: "Index Repository Content",
         status: "pending",
         method: "INSERT",
         url: `repository_chunks`,
@@ -312,6 +329,13 @@ export default function PlaygroundClient({
             filesCount: statusData.filesCount,
             chunksCount: statusData.chunksCount
           }
+        });
+        setIndexedRepositoryStats({
+          repoUrl: githubUrl,
+          jobId: data.jobId,
+          status: statusData.status,
+          filesCount: statusData.filesCount,
+          chunksCount: statusData.chunksCount,
         });
 
         if (statusData.status === "completed") {
@@ -345,21 +369,36 @@ export default function PlaygroundClient({
 
       setIngestStatus("completed");
       setIngestedRepo(githubUrl);
+      setIndexedRepositoryStats({
+        repoUrl: githubUrl,
+        jobId: data.jobId,
+        status: "completed",
+        filesCount: completedJob.filesCount,
+        chunksCount: completedJob.chunksCount,
+      });
       setRagMessages([
         {
           role: "assistant",
-          content: `Hi! I have successfully ingested and semantic-indexed **${repoPath}** (${completedJob.filesCount} files, ${completedJob.chunksCount} code chunks).
+          content: `Repository indexed: **${repoPath}**.
           
-Feel free to ask me technical questions about this repository's codebase! I'll perform real-time RAG matching across the pgvector database and answer based on the precise code contents.`
+Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} searchable chunks. Ask about architecture, important files, data flow, API behavior, or implementation risks. When the API returns matches, answers include the retrieved source files used as evidence.`
         }
       ]);
-      showToast("success", "Codebase successfully semantic-indexed!");
+      showToast("success", "Repository indexed and ready for questions.");
       refreshKeys();
     } catch (err: any) {
       console.error(err);
       const errMsg = err.message || "Ingestion process encountered an error.";
       setErrorMessage(errMsg);
       setIngestStatus("error");
+      setIndexedRepositoryStats(prev => ({
+        repoUrl: githubUrl,
+        jobId: prev?.repoUrl === githubUrl ? prev.jobId : undefined,
+        status: "failed",
+        filesCount: prev?.repoUrl === githubUrl ? prev.filesCount : undefined,
+        chunksCount: prev?.repoUrl === githubUrl ? prev.chunksCount : undefined,
+        error: errMsg,
+      }));
       
       setLogState("repo_fetch", { status: "error", responseBody: { error: errMsg } });
       setLogState("ai_processing", {
@@ -376,7 +415,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
     e.preventDefault();
     if (!chatInput.trim() || isChatLoading) return;
     if (!apiKey || !githubUrl) {
-      showToast("error", "Token and repository URL are required.");
+      showToast("error", "API key and repository URL are required.");
       return;
     }
 
@@ -388,7 +427,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
     setRagMessages(newMessages);
 
     // Add empty assistant response to stream into
-    setRagMessages(prev => [...prev, { role: "assistant" as const, content: "Thinking..." }]);
+    setRagMessages(prev => [...prev, { role: "assistant" as const, content: "Retrieving relevant files and preparing an answer..." }]);
 
     const startTime = performance.now();
     const maskedKey = apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`;
@@ -664,6 +703,15 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
     });
   };
 
+  const getRepoPath = (url: string) => {
+    try {
+      const match = url.match(/github\.com\/([^\/]+\/[^\/]+)/);
+      return match ? match[1] : "unknown/repository";
+    } catch {
+      return "unknown/repository";
+    }
+  };
+
   const handleSummarize = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
@@ -908,6 +956,163 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
       status: hasPipelineError ? "error" : summaryHasData || ingestStatus === "completed" || ragMessages.length > 0 ? "done" : isPipelineActive ? "active" : "idle",
     },
   ] satisfies Parameters<typeof PipelineFlow>[0]["steps"];
+  const summaryProcessingSteps = [
+    {
+      id: "summary-request",
+      label: "Repository URL",
+      sublabel: githubUrl ? getRepoPath(githubUrl) : "Waiting for a GitHub repository",
+      status: githubUrl ? "done" : "idle",
+    },
+    {
+      id: "summary-auth",
+      label: "API Key",
+      sublabel: "Validate quota and access",
+      status: getPipelineStatus("auth"),
+    },
+    {
+      id: "summary-fetch",
+      label: "Repository Data",
+      sublabel: "Fetch public metadata and selected files",
+      status: getPipelineStatus("repo_fetch"),
+    },
+    {
+      id: "summary-generate",
+      label: "Summary",
+      sublabel: summaryStatus === "success" ? "Structured result returned" : "Generate readable overview",
+      status: summaryStatus === "error" || summaryStatus === "empty" ? "error" : summaryStatus === "success" ? "done" : isLoadingSummary ? "active" : "idle",
+    },
+  ] satisfies Parameters<typeof PipelineFlow>[0]["steps"];
+  const ragProcessingSteps = [
+    {
+      id: "rag-url",
+      label: "Repository",
+      sublabel: githubUrl ? getRepoPath(githubUrl) : "Waiting for repository URL",
+      status: githubUrl ? "done" : "idle",
+    },
+    {
+      id: "rag-auth",
+      label: "API Key",
+      sublabel: "Validate request access",
+      status: getPipelineStatus("auth"),
+    },
+    {
+      id: "rag-queue",
+      label: "Queued",
+      sublabel: "Create ingestion job",
+      status: ingestStatus === "idle" ? "idle" : getPipelineStatus("repo_fetch"),
+    },
+    {
+      id: "rag-index",
+      label: "Indexing",
+      sublabel: "Chunk files and store embeddings",
+      status: ingestStatus === "embedding" || ingestStatus === "crawling" ? "active" : ingestStatus === "completed" ? "done" : ingestStatus === "error" ? "error" : "idle",
+    },
+    {
+      id: "rag-ready",
+      label: "Ready",
+      sublabel: "Ask retrieval-backed questions",
+      status: ingestStatus === "completed" ? "done" : ingestStatus === "error" ? "error" : "idle",
+    },
+  ] satisfies Parameters<typeof PipelineFlow>[0]["steps"];
+  const hasSourceEvidence = ragMessages.some((message) => (message.sources?.length || 0) > 0);
+  const retrievalAttempted = ragMessages.some((message) => message.sources !== undefined);
+  const currentIndexStats = indexedRepositoryStats?.repoUrl === githubUrl ? indexedRepositoryStats : null;
+  const indexedFilesLabel = typeof currentIndexStats?.filesCount === "number" ? currentIndexStats.filesCount.toLocaleString() : "Not reported";
+  const indexedChunksLabel = typeof currentIndexStats?.chunksCount === "number" ? currentIndexStats.chunksCount.toLocaleString() : "Not reported";
+  const hasIndexedCounts = typeof currentIndexStats?.filesCount === "number" || typeof currentIndexStats?.chunksCount === "number";
+  const lifecycleSteps = [
+    {
+      id: "lifecycle-queued",
+      label: "Queued",
+      sublabel: requestLogs.length > 0 ? "Request accepted by the workbench" : githubUrl ? "Ready to submit" : "Waiting for repository URL",
+      status: requestLogs.length > 0 ? "done" : githubUrl ? "idle" : "idle",
+    },
+    {
+      id: "lifecycle-cloning",
+      label: "Cloning",
+      sublabel: activeTab === "summary" ? "Fetching public GitHub metadata" : "Starting repository ingestion job",
+      status: getPipelineStatus("repo_fetch"),
+    },
+    {
+      id: "lifecycle-analyzing",
+      label: "Analyzing",
+      sublabel: activeTab === "summary" ? "Reading repository context for the summary" : "Selecting eligible files for chunks",
+      status: activeTab === "summary"
+        ? getPipelineStatus("ai_processing")
+        : ingestStatus === "crawling" ? "active" : ingestStatus === "embedding" || ingestStatus === "completed" ? "done" : ingestStatus === "error" ? "error" : "idle",
+    },
+    {
+      id: "lifecycle-summarizing",
+      label: "Summarizing",
+      sublabel: summaryHasData ? "Summary returned" : activeTab === "summary" ? "Structured summary response" : "Optional summary step",
+      status: summaryStatus === "error" || summaryStatus === "empty" ? "error" : summaryHasData ? "done" : activeTab === "summary" && isLoadingSummary ? "active" : "idle",
+    },
+    {
+      id: "lifecycle-indexing",
+      label: "Indexing",
+      sublabel: currentIndexStats?.status === "completed" ? `${indexedFilesLabel} files / ${indexedChunksLabel} chunks` : ingestStatus === "embedding" ? "Creating searchable chunks" : "Run Indexed Q&A when needed",
+      status: ingestStatus === "completed" && currentIndexStats?.status === "completed" ? "done" : ingestStatus === "embedding" || ingestStatus === "crawling" ? "active" : ingestStatus === "error" ? "error" : "idle",
+    },
+    {
+      id: "lifecycle-ready",
+      label: "Ready",
+      sublabel: ingestStatus === "completed" ? "Repository can answer retrieval-backed questions" : summaryHasData ? "Summary is ready; index not required" : "No repository result yet",
+      status: ingestStatus === "completed" || summaryHasData ? "done" : hasPipelineError ? "error" : "idle",
+    },
+  ] satisfies Parameters<typeof PipelineFlow>[0]["steps"];
+  const transparencyRows = [
+    {
+      label: "Analyzed",
+      value: githubUrl ? getRepoPath(githubUrl) : "No repository",
+      detail: activeTab === "summary"
+        ? "The summary request uses the public GitHub repository URL, repository metadata, and the summarizer response returned by the API."
+        : "The indexing request uses the public GitHub repository URL and the eligible files selected by the RAG ingestion service.",
+    },
+    {
+      label: "Indexed",
+      value: ingestStatus === "completed" && hasIndexedCounts ? `${indexedFilesLabel} files / ${indexedChunksLabel} chunks` : ingestStatus === "error" ? "Failed" : "Not ready",
+      detail: ingestStatus === "completed"
+        ? "These counts come from the completed ingestion job. They describe searchable chunks available to retrieval."
+        : ingestStatus === "error"
+          ? currentIndexStats?.error || "Indexing did not complete. Retrieval-backed answers are not available for this repository."
+          : "Run Indexed Q&A to create searchable chunks. Summary mode does not create a repository index.",
+    },
+    {
+      label: "Not indexed",
+      value: "Not fully enumerated",
+      detail: "The current API does not return a skipped-file manifest or branch-by-branch coverage, so Dandi only shows confirmed indexed counts when ingestion completes.",
+    },
+    {
+      label: "Evidence",
+      value: hasSourceEvidence ? "Sources returned" : retrievalAttempted ? "No sources returned" : "Not requested",
+      detail: hasSourceEvidence
+        ? "Matched source files are shown under the answer and come from the RAG response metadata."
+        : retrievalAttempted
+          ? "The answer streamed, but the API did not return source metadata. Treat it as uncited."
+          : "Ask a question after indexing to see whether retrieval returns source evidence.",
+    },
+  ];
+  const completedLogs = requestLogs.filter((log) => log.status !== "pending" && log.duration > 0);
+  const observedLatency = completedLogs.reduce((total, log) => total + log.duration, 0);
+  const lastCompletedLog = completedLogs[completedLogs.length - 1];
+  const formatDuration = (duration: number) => duration >= 1000 ? `${(duration / 1000).toFixed(1)}s` : `${duration}ms`;
+  const latencyRows = [
+    {
+      label: "Request total",
+      value: completedLogs.length ? formatDuration(observedLatency) : "Not measured",
+      detail: completedLogs.length ? `${completedLogs.length} completed step${completedLogs.length === 1 ? "" : "s"}` : "Run a request to measure latency.",
+    },
+    {
+      label: "Last step",
+      value: lastCompletedLog ? formatDuration(lastCompletedLog.duration) : "Pending",
+      detail: lastCompletedLog ? lastCompletedLog.label : "No completed request step yet.",
+    },
+    {
+      label: "Current state",
+      value: isPipelineActive ? "Running" : hasPipelineError ? "Needs review" : "Ready",
+      detail: isPipelineActive ? "Latency updates as request steps complete." : hasPipelineError ? "Open the network log for details." : "No active request.",
+    },
+  ];
 
   return (
     <>
@@ -927,7 +1132,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
           <DashboardPageHeader
             eyebrow="Environment / Testing"
             title="API Playground"
-            description="Validate API keys, run repository summary requests, and inspect the request pipeline."
+            description="Validate API keys, summarize repositories, index code for retrieval, and inspect the request pipeline."
             rightAction={
               <StatusPill tone={isPipelineActive ? "warning" : hasPipelineError ? "danger" : "success"} pulse={isPipelineActive}>
                 {isPipelineActive ? "Pipeline Running" : hasPipelineError ? "Action Required" : "Workbench Ready"}
@@ -936,8 +1141,8 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
           >
             <TabsBar
               tabs={[
-                { id: "summary", label: "Summary Engine" },
-                { id: "rag", label: "Repository Chat (RAG)" },
+                { id: "summary", label: "Repository Summary" },
+                { id: "rag", label: "Indexed Q&A (RAG)" },
               ]}
               activeId={activeTab}
               onChange={(id) => {
@@ -953,13 +1158,96 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Execution Pipeline</p>
                 <p className="mt-1 text-xs font-medium text-slate-500">
-                  Request → Auth → Quota → Context → Gemini → Response
+                  {"Request -> Auth -> Quota -> Context -> Gemini -> Response"}
                 </p>
               </div>
               <LiveIndicator active={isPipelineActive} tone={hasPipelineError ? "danger" : isPipelineActive ? "warning" : "success"} label={isPipelineActive ? "live" : "standby"} />
             </div>
             <PipelineFlow steps={pipelineSteps} orientation="auto" />
           </CommandPanel>
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.55fr)]">
+            <CommandPanel padding="none" className="p-4 sm:p-5">
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Repository Intelligence Workflow</p>
+                  <p className="mt-1 max-w-3xl text-xs font-medium leading-relaxed text-slate-500">
+                    Lifecycle state is derived from the current request, ingestion job status, and returned evidence. Dandi only marks a step ready when that state exists.
+                  </p>
+                </div>
+                <StatusPill tone={hasSourceEvidence ? "success" : ingestStatus === "completed" ? "info" : "neutral"} compact>
+                  {hasSourceEvidence ? "Evidence visible" : ingestStatus === "completed" ? "Ready for Q&A" : "Guided flow"}
+                </StatusPill>
+              </div>
+              <PipelineFlow steps={lifecycleSteps} orientation="auto" />
+            </CommandPanel>
+
+            <CommandPanel className="p-4 sm:p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Latency</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">Measured from completed request steps in this session.</p>
+                </div>
+                <StatusPill tone={isPipelineActive ? "warning" : completedLogs.length ? "success" : "neutral"} compact>
+                  {isPipelineActive ? "Measuring" : completedLogs.length ? "Measured" : "Idle"}
+                </StatusPill>
+              </div>
+              <div className="space-y-3">
+                {latencyRows.map((row) => (
+                  <div key={row.label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{row.label}</span>
+                      <span className="text-xs font-black tabular-nums text-slate-100">{row.value}</span>
+                    </div>
+                    <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-500">{row.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </CommandPanel>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
+            <CommandPanel padding="none" className="p-4 sm:p-5">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">
+                    {activeTab === "summary" ? "Summary Output" : "Repository Processing"}
+                  </p>
+                  <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">
+                    {activeTab === "summary"
+                      ? "Summary gives a readable overview of repository metadata and selected content. Use Indexed Q&A when you need retrieval against stored chunks."
+                      : "Indexing prepares repository files for retrieval-backed answers. Stages are derived from the current ingestion request and job status."}
+                  </p>
+                </div>
+                <StatusPill tone={activeTab === "summary" ? "info" : ingestStatus === "completed" ? "success" : ingestStatus === "error" ? "danger" : "warning"} compact>
+                  {activeTab === "summary" ? "Overview Only" : ingestStatus === "completed" ? "Index Ready" : ingestStatus === "error" ? "Index Failed" : "Index Required"}
+                </StatusPill>
+              </div>
+              <PipelineFlow steps={activeTab === "summary" ? summaryProcessingSteps : ragProcessingSteps} orientation="auto" />
+            </CommandPanel>
+
+            <CommandPanel className="p-4 sm:p-5">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Repository Transparency</p>
+                <LiveIndicator
+                  active={isLoadingSummary || ingestStatus === "crawling" || ingestStatus === "embedding" || isChatLoading}
+                  tone={hasPipelineError ? "danger" : "success"}
+                  label={hasPipelineError ? "needs review" : "tracked"}
+                />
+              </div>
+              <div className="space-y-3">
+                {transparencyRows.map((item) => (
+                  <div key={item.label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{item.label}</span>
+                      <span className="text-xs font-black text-slate-100">{item.value}</span>
+                    </div>
+                    <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-500">{item.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </CommandPanel>
+          </div>
 
           <div className="flex flex-col gap-8 xl:flex-row">
             {/* Left Column (flex-1) */}
@@ -974,8 +1262,8 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="h-10 w-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold font-serif text-lg">D</div>
                         <div className="min-w-0">
-                          <h3 className="font-serif text-md font-bold text-white">RAG Codebase Companion</h3>
-                          <span className="text-[9px] font-black text-emerald-300 uppercase tracking-widest">Active Chat</span>
+                          <h3 className="font-serif text-md font-bold text-white">Repository Q&A</h3>
+                          <span className="text-[9px] font-black text-emerald-300 uppercase tracking-widest">Retrieval-backed chat</span>
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -1003,7 +1291,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                             setRagMessages([
                               {
                                 role: "assistant",
-                                content: `Hi! The repository codebase **${getRepoPath(githubUrl)}** is active. Ask me any technical questions about the codebase!`
+                                content: `The repository **${getRepoPath(githubUrl)}** is indexed. Ask a question and Dandi will retrieve matching repository context before answering.`
                               }
                             ]);
                           }}
@@ -1034,25 +1322,57 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                           >
                             {msg.role === "assistant" ? renderMessageContent(msg.content) : renderTextWithInlineCode(msg.content)}
 
-                            {/* Sources Badge matched */}
-                            {msg.role === "assistant" && msg.sources && msg.sources.length > 0 && (
-                              <div className="mt-4 pt-3 border-t border-zinc-200/60 dark:border-zinc-800/60 flex flex-wrap gap-2 items-center">
-                                <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 select-none">Sources Matched:</span>
-                                {msg.sources.map((src, sIdx) => (
-                                  <span 
-                                    key={sIdx} 
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2 py-0.5 text-[9px] font-mono font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-help"
-                                    title={`Cosine Similarity Match: ${Math.round(src.similarity * 100)}%`}
-                                  >
-                                    <svg viewBox="0 0 24 24" className="h-2.5 w-2.5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                      <path d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3M3 12a9 9 0 019-9m0 18a9 9 0 01-9-9" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-                                    {src.filePath.split("/").pop()}
-                                    <span className="text-[7px] font-extrabold text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 px-1 rounded">
-                                      {Math.round(src.similarity * 100)}%
-                                    </span>
-                                  </span>
-                                ))}
+                            {msg.role === "assistant" && msg.sources && (
+                              <div className="mt-4 border-t border-white/10 pt-3">
+                                {msg.sources.length > 0 ? (
+                                  <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-3">
+                                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                      <div>
+                                        <p className="text-[8px] font-black uppercase tracking-[0.18em] text-emerald-300/80 select-none">Retrieved Evidence</p>
+                                        <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                                          {msg.sources.length} source{msg.sources.length === 1 ? "" : "s"} matched by semantic retrieval before the answer streamed.
+                                        </p>
+                                      </div>
+                                      <StatusPill tone="success" compact>
+                                        Top {Math.max(...msg.sources.map((src) => Math.round(src.similarity * 100)))}%
+                                      </StatusPill>
+                                    </div>
+                                    <div className="mb-3 rounded-xl border border-white/10 bg-slate-950/50 p-3">
+                                      <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-500">Answer basis</p>
+                                      <p className="mt-1 text-[10px] font-medium leading-relaxed text-slate-500">
+                                        Dandi retrieved these files from the current repository index, then generated the answer using the matched context and your question. Similarity shows retrieval relevance, not a guarantee of correctness.
+                                      </p>
+                                    </div>
+                                    <ScrollFrame axis="y" maxHeight="160px" label="Retrieved source files">
+                                      <div className="space-y-2">
+                                        {msg.sources.map((src, sIdx) => (
+                                          <div
+                                            key={`${src.filePath}-${sIdx}`}
+                                            className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2"
+                                            title={`Similarity match: ${Math.round(src.similarity * 100)}%`}
+                                          >
+                                            <div className="min-w-0">
+                                              <p className="truncate font-mono text-[11px] font-bold text-slate-200">{src.filePath}</p>
+                                              <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-600">
+                                                Source {sIdx + 1} · semantic match to your question
+                                              </p>
+                                            </div>
+                                            <span className="shrink-0 rounded-lg border border-emerald-300/15 bg-emerald-300/10 px-2 py-1 text-[10px] font-black tabular-nums text-emerald-300">
+                                              {Math.round(src.similarity * 100)}%
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </ScrollFrame>
+                                  </div>
+                                ) : (
+                                  <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.05] p-3">
+                                    <p className="text-[8px] font-black uppercase tracking-[0.18em] text-amber-300/80">Evidence Not Returned</p>
+                                    <p className="mt-1 text-[10px] font-medium leading-relaxed text-slate-500">
+                                      The answer streamed successfully, but the API did not return source metadata for this response. Treat this answer as uncited and ask a narrower question if you need source-backed evidence.
+                                    </p>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1094,7 +1414,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         disabled={isChatLoading}
-                        placeholder={isChatLoading ? "Gemini is searching & thinking..." : "Ask RAG Companion a question about codebase..."}
+                        placeholder={isChatLoading ? "Retrieving indexed context..." : "Ask a question about the indexed repository..."}
                         className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600 focus:border-emerald-300/40 focus:ring-4 focus:ring-emerald-300/10"
                       />
                       <button
@@ -1237,7 +1557,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                           {isLoadingSummary ? (
                             <>
                               <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950"></div>
-                              Processing Repo...
+                              Fetching Summary...
                             </>
                           ) : isOverLimit ? (
                             <>
@@ -1268,7 +1588,7 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                             </>
                           ) : (
                             <>
-                              {ingestedRepo === githubUrl && ingestStatus === "completed" ? "Re-index Repository" : "Ingest & Index Codebase"}
+                              {ingestedRepo === githubUrl && ingestStatus === "completed" ? "Re-index Repository" : "Index Repository"}
                               <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
                                 <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                               </svg>
@@ -1288,8 +1608,12 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                   </CommandPanel>
 
                   {errorMessage && (
-                    <div className="rounded-2xl border border-red-200 dark:border-red-950/30 bg-red-50 dark:bg-red-950/10 p-4 text-sm font-medium text-red-700 dark:text-red-400">
-                      {errorMessage}
+                    <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-950/30 dark:bg-red-950/10 dark:text-red-400">
+                      <p className="font-bold">{activeTab === "rag" ? "Repository processing did not complete." : "Repository summary did not complete."}</p>
+                      <p className="mt-1">{errorMessage}</p>
+                      <p className="mt-2 text-xs leading-relaxed text-red-600/80 dark:text-red-300/80">
+                        Check the API key, repository URL, quota, and network log details. If indexing failed after a job was created, retrying will start a fresh ingestion request.
+                      </p>
                     </div>
                   )}
 
@@ -1306,12 +1630,35 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                       <div className="space-y-2 select-none">
                         <h3 className="font-serif text-2xl font-bold text-white">Repository Chat</h3>
                         <p className="text-sm font-medium text-slate-400 max-w-lg mx-auto leading-relaxed">
-                          Ingest a repository, index up to 40 code and markdown files, and ask questions against the indexed context.
+                          Index a repository before asking retrieval-backed questions. Summary mode creates an overview; Indexed Q&A creates searchable chunks and returns source matches when the API provides them.
                         </p>
                       </div>
+                      <div className="mx-auto grid max-w-3xl gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
+                        {[
+                          ["1", "Index", "Dandi reads eligible code and markdown files."],
+                          ["2", "Retrieve", "Questions search the indexed chunks for relevant context."],
+                          ["3", "Answer", "Responses include matched source files when available."],
+                          ["4", "Verify", "Use source paths and match scores to inspect the answer basis."]
+                        ].map(([step, label, detail]) => (
+                          <div key={label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                            <div className="mb-2 flex items-center gap-2">
+                              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-300/10 text-[10px] font-black text-emerald-300">{step}</span>
+                              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-200">{label}</span>
+                            </div>
+                            <p className="text-[11px] font-medium leading-relaxed text-slate-500">{detail}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mx-auto max-w-2xl text-xs font-medium leading-relaxed text-slate-500">
+                        Dandi shows confirmed file and chunk counts after indexing completes. The current API does not return a full skipped-file manifest, so unavailable or excluded files are not listed individually.
+                      </p>
                       {ingestStatus === "error" && (
-                        <div className="rounded-xl border border-red-200 dark:border-red-950/30 bg-red-50 dark:bg-red-950/10 p-4 text-xs font-semibold text-red-700 dark:text-red-400 max-w-md mx-auto">
-                          ⚠️ Ingestion failure: {errorMessage || "Process interrupted."}
+                        <div className="mx-auto max-w-md rounded-xl border border-red-200 bg-red-50 p-4 text-left text-xs font-semibold text-red-700 dark:border-red-950/30 dark:bg-red-950/10 dark:text-red-400">
+                          <p className="font-black uppercase tracking-widest">Indexing failed</p>
+                          <p className="mt-1">{errorMessage || "Process interrupted."}</p>
+                          <p className="mt-2 leading-relaxed text-red-600/80 dark:text-red-300/80">
+                            The repository is not ready for retrieval-backed answers. Review the network log, then retry indexing with a reachable public repository.
+                          </p>
                         </div>
                       )}
                     </CommandPanel>
@@ -1359,16 +1706,13 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                             <div className="min-w-0 flex-1 space-y-6">
                               <div className="space-y-1">
                                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/80">Repository Summary</p>
-                                <h2 className="font-serif text-3xl font-bold italic text-white">Repository Insights</h2>
+                                <h2 className="font-serif text-3xl font-bold italic text-white">What Dandi Found</h2>
                               </div>
                               
                               <div className="flex flex-wrap gap-4">
                                 <div className="flex items-center gap-2 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 select-none">
-                                  <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                  </span>
-                                  Live Stream
+                                  <LiveIndicator active={isLoadingSummary} tone={summaryStatus === "error" ? "danger" : "success"} />
+                                  {isLoadingSummary ? "Generating" : summaryStatus === "success" ? "Generated" : "Awaiting Result"}
                                 </div>
                                 {repoMetadata && (
                                   <>
@@ -1404,14 +1748,14 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                                     ? "No summary was returned."
                                     : summaryStatus === "error" || streamError
                                       ? "The summary could not be displayed. See the alert above for details."
-                                      : "Analyzing repository and streaming results..."
+                                      : "Fetching repository data and generating the summary..."
                                 )}
                               </p>
                             </div>
 
                             <div className="w-full space-y-6 lg:w-80 lg:shrink-0">
                               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-6">
-                                <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Cool Facts</h3>
+                                <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Key Findings</h3>
                                 {summaryFacts.length > 0 ? (
                                   <ul className="space-y-4">
                                     {summaryFacts.map((fact: string, i: number) => (
@@ -1423,9 +1767,51 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                                   </ul>
                                 ) : (
                                   <p className="text-sm font-medium leading-relaxed text-zinc-500 dark:text-zinc-400">
-                                    {isLoadingSummary ? "Cool facts will appear as the stream completes." : "No cool facts were returned."}
+                                    {isLoadingSummary ? "Findings will appear as the stream completes." : "No findings were returned."}
                                   </p>
                                 )}
+                              </div>
+                              <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-6">
+                                <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Result Context</h3>
+                                <div className="space-y-3 text-sm font-medium text-slate-400">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <span className="text-slate-500">Repository</span>
+                                    <span className="min-w-0 truncate text-right font-mono text-xs text-slate-200" title={githubUrl}>{githubUrl ? getRepoPath(githubUrl) : "Not set"}</span>
+                                  </div>
+                                  <div className="flex items-start justify-between gap-3">
+                                    <span className="text-slate-500">Searchable index</span>
+                                    <span className="text-right text-xs font-bold text-slate-200">{ingestedRepo === githubUrl && ingestStatus === "completed" ? "Available" : "Use Indexed Q&A"}</span>
+                                  </div>
+                                  <div className="flex items-start justify-between gap-3">
+                                    <span className="text-slate-500">Evidence</span>
+                                    <span className="text-right text-xs font-bold text-slate-200">Returned in RAG answers</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-6">
+                                <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Analysis Scope</h3>
+                                <div className="space-y-3 text-sm font-medium text-slate-400">
+                                  <div>
+                                    <p className="text-xs font-bold text-slate-200">What Dandi used</p>
+                                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                                      Public repository URL, GitHub metadata when available, and the structured summary returned by the API.
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-bold text-slate-200">What this does not prove</p>
+                                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                                      Summary mode does not create a searchable index and does not return a skipped-file manifest. Use Indexed Q&A for file/chunk counts and source-backed answers.
+                                    </p>
+                                  </div>
+                                  {currentIndexStats?.status === "completed" && (
+                                    <div>
+                                      <p className="text-xs font-bold text-slate-200">Current index</p>
+                                      <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                                        {indexedFilesLabel} files were split into {indexedChunksLabel} searchable chunks for this repository.
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1457,8 +1843,8 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
               <CommandPanel className="p-6 text-white space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-emerald-300">
-                    <LiveIndicator active tone="success" />
-                  Live Simulation
+                    <LiveIndicator active={isPipelineActive} tone={hasPipelineError ? "danger" : isPipelineActive ? "warning" : "success"} />
+                    Endpoint Context
                   </div>
                   <StatusPill tone={activeTab === "summary" ? "info" : "success"} compact>
                     {activeTab === "summary" ? "REST" : "RAG"}
@@ -1467,13 +1853,11 @@ Feel free to ask me technical questions about this repository's codebase! I'll p
                 <p className="text-[11px] leading-relaxed text-slate-400">
                   {activeTab === "summary" ? (
                     <>
-                      Testing against our <span className="text-white font-mono">/api/github-summarizer</span> endpoint.
-                      Requests made here consume your active monthly quota.
+                      This workbench calls <span className="text-white font-mono">/api/github-summarizer</span> with your selected key and repository URL. Successful requests count toward your monthly quota.
                     </>
                   ) : (
                     <>
-                      Testing against our <span className="text-white font-mono">/api/rag/ingest</span> and <span className="text-white font-mono">/api/rag/chat</span> endpoints.
-                      Requests made here consume your active monthly quota.
+                      Indexed Q&A uses <span className="text-white font-mono">/api/rag/ingest</span> to prepare repository chunks, then <span className="text-white font-mono">/api/rag/chat</span> to retrieve context and stream an answer. Successful requests count toward your monthly quota.
                     </>
                   )}
                 </p>

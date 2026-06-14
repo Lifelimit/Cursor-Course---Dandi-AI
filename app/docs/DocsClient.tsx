@@ -7,7 +7,7 @@ import { Navbar } from "@/components/landing/Navbar";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { Footer } from "@/components/landing/Footer";
-import { CodeWindow, CommandPanel, ScrollFrame } from "@/components/command";
+import { CodeWindow, CommandPanel, ScrollFrame, StatusPill } from "@/components/command";
 
 const getCodeExamples = (apiBaseUrl: string) => {
   const endpoint = `${apiBaseUrl}/api/github-summarizer`;
@@ -83,6 +83,36 @@ func main() {
 
 type CodeExampleTab = "curl" | "javascript" | "python" | "go";
 
+const docsNav = [
+  {
+    label: "Start",
+    items: [
+      { href: "#quickstart", label: "Quickstart" },
+      { href: "#authentication", label: "Authentication" },
+    ],
+  },
+  {
+    label: "API Reference",
+    items: [
+      { href: "#summarizer", label: "Summarizer" },
+      { href: "#rag-ingest", label: "RAG Ingest" },
+      { href: "#rag-chat", label: "RAG Chat" },
+      { href: "#code-explorer", label: "Code Examples" },
+      { href: "#response-schema", label: "Response Schema" },
+      { href: "#error-codes", label: "Errors" },
+    ],
+  },
+];
+
+const intelligenceWorkflow = [
+  ["Repository", "Send a public GitHub repository URL."],
+  ["Summary", "Generate a readable repository overview."],
+  ["Knowledge Index", "Ingest repository content for retrieval."],
+  ["Retrieval", "Ask questions against indexed chunks."],
+  ["Sources", "Review returned evidence when available."],
+  ["Answer", "Use the streamed response in your workflow."],
+];
+
 function DocsTableSurface({ children, label }: { children: ReactNode; label: string }) {
   return (
     <CommandPanel
@@ -93,6 +123,104 @@ function DocsTableSurface({ children, label }: { children: ReactNode; label: str
         {children}
       </ScrollFrame>
     </CommandPanel>
+  );
+}
+
+function DocsCopyButton({
+  label,
+  onClick,
+  compact = false,
+}: {
+  label: string;
+  onClick: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] font-black uppercase tracking-widest text-slate-400 transition hover:border-emerald-300/30 hover:text-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/45 ${
+        compact ? "px-2 py-1 text-[8px]" : "px-3 py-1.5 text-[9px]"
+      }`}
+      aria-label={label}
+      title={label}
+    >
+      <svg viewBox="0 0 24 24" className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} fill="none" stroke="currentColor">
+        <path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      Copy
+    </button>
+  );
+}
+
+function DocsSectionHeader({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="space-y-2 border-b border-white/10 pb-4">
+      {eyebrow && <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">{eyebrow}</p>}
+      <h2 className="text-2xl font-bold tracking-tight text-white">{title}</h2>
+      {description && <p className="max-w-3xl text-sm leading-relaxed text-slate-400">{description}</p>}
+    </div>
+  );
+}
+
+function EndpointHeader({
+  title,
+  path,
+  description,
+  onCopy,
+}: {
+  title: string;
+  path: string;
+  description: string;
+  onCopy: () => void;
+}) {
+  return (
+    <CommandPanel className="space-y-4 p-4 sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill tone="success" compact>POST</StatusPill>
+            <code className="min-w-0 truncate rounded-lg border border-white/10 bg-slate-950/70 px-2.5 py-1 font-mono text-xs text-slate-200">
+              {path}
+            </code>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-white">{title}</h2>
+          <p className="max-w-3xl text-sm leading-relaxed text-slate-400">{description}</p>
+        </div>
+        <DocsCopyButton label={`Copy ${path} endpoint path`} onClick={onCopy} />
+      </div>
+    </CommandPanel>
+  );
+}
+
+function DocsCallout({
+  title,
+  children,
+  tone = "info",
+}: {
+  title: string;
+  children: ReactNode;
+  tone?: "info" | "warning";
+}) {
+  return (
+    <div
+      className={`rounded-2xl border p-4 ${
+        tone === "warning"
+          ? "border-amber-300/15 bg-amber-300/[0.05]"
+          : "border-cyan-300/15 bg-cyan-300/[0.04]"
+      }`}
+    >
+      <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${tone === "warning" ? "text-amber-300" : "text-cyan-300"}`}>{title}</p>
+      <div className="mt-2 text-xs font-medium leading-relaxed text-slate-400">{children}</div>
+    </div>
   );
 }
 
@@ -130,33 +258,34 @@ export default function DocsClient({ initialSession }: { initialSession: Session
       <Navbar session={initialSession} />
 
       <main className="mx-auto max-w-7xl px-4 pt-32 pb-24 sm:px-6 md:pt-40">
-        <div className="grid gap-12 lg:grid-cols-12">
+        <div className="grid gap-10 lg:grid-cols-12">
           
           {/* Left Navigation Sidebar */}
-          <aside className="lg:col-span-3 lg:sticky lg:top-36 h-fit space-y-8 hidden lg:block">
-            <div className="space-y-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Getting Started</p>
-              <ul className="space-y-2 text-xs font-bold uppercase tracking-wider text-zinc-400">
-                <li><a href="#quickstart" className="hover:text-white transition">Quickstart</a></li>
-                <li><a href="#authentication" className="hover:text-white transition">Authentication</a></li>
-              </ul>
-            </div>
-            
-            <div className="space-y-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">API Reference</p>
-              <ul className="space-y-2 text-xs font-bold uppercase tracking-wider text-zinc-400">
-                <li><a href="#summarizer" className="hover:text-white transition">POST Summarizer</a></li>
-                <li><a href="#rag-ingest" className="hover:text-white transition">POST RAG Ingest</a></li>
-                <li><a href="#rag-chat" className="hover:text-white transition">POST RAG Chat</a></li>
-                <li><a href="#code-explorer" className="hover:text-white transition">Code Explorer</a></li>
-                <li><a href="#response-schema" className="hover:text-white transition">Response Schema</a></li>
-                <li><a href="#error-codes" className="hover:text-white transition">Error Handling</a></li>
-              </ul>
-            </div>
+          <aside className="hidden h-fit space-y-6 lg:sticky lg:top-36 lg:col-span-3 lg:block">
+            {docsNav.map((group) => (
+              <div key={group.label} className="space-y-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{group.label}</p>
+                <ul className="space-y-2 text-xs font-bold uppercase tracking-wider text-zinc-400">
+                  {group.items.map((item) => (
+                    <li key={item.href}>
+                      <a href={item.href} className="block rounded-lg px-2 py-1.5 transition hover:bg-white/[0.03] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/40">
+                        {item.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            <CommandPanel className="p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/70">API v1</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                Use the Playground to test requests with your own key before integrating.
+              </p>
+            </CommandPanel>
           </aside>
 
           {/* Right Main Content Panel */}
-          <div className="min-w-0 max-w-3xl space-y-16 lg:col-span-9">
+          <div className="min-w-0 space-y-16 lg:col-span-9">
             
             {/* Intro Header */}
             <header className="space-y-4">
@@ -165,93 +294,119 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               </div>
               <h1 className="font-serif text-4xl font-bold md:text-5xl tracking-tight text-white animate-in fade-in slide-in-from-top-4 duration-500">API Reference Guide</h1>
               <p className="text-zinc-400 text-sm leading-relaxed md:text-base">
-                Welcome to the Dandi AI API documentation. Learn how to fetch repository summaries, read metadata, and integrate results into your workflow.
+                Build repository summaries and retrieval-backed answers with the Dandi API. These docs cover authentication, endpoint contracts, response shapes, and how summary generation differs from indexed Q&A.
               </p>
             </header>
 
+            <div className="lg:hidden">
+              <ScrollFrame axis="x" label="Documentation sections">
+                <div className="flex min-w-max gap-2 pb-1">
+                  {docsNav.flatMap((group) => group.items).map((item) => (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 transition hover:border-emerald-300/30 hover:text-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/40"
+                    >
+                      {item.label}
+                    </a>
+                  ))}
+                </div>
+              </ScrollFrame>
+            </div>
+
+            <CommandPanel className="p-4 sm:p-5">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Repository Intelligence Flow</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-400">
+                    Use the summary endpoint for a readable overview. Use RAG ingest and chat when you need retrieval-backed answers with source evidence.
+                  </p>
+                </div>
+                <StatusPill tone="info" compact>Docs map</StatusPill>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {intelligenceWorkflow.map(([label, detail], index) => (
+                  <div key={label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-300/10 text-[10px] font-black text-emerald-300">{index + 1}</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-200">{label}</span>
+                    </div>
+                    <p className="text-xs leading-relaxed text-slate-500">{detail}</p>
+                  </div>
+                ))}
+              </div>
+            </CommandPanel>
+
             {/* Quickstart Section */}
             <section id="quickstart" className="space-y-6 scroll-mt-28">
-              <div className="border-b border-white/5 pb-3">
-                <h2 className="text-xl font-bold tracking-tight text-white">Quickstart Guide</h2>
-              </div>
+              <DocsSectionHeader
+                eyebrow="Start here"
+                title="Quickstart"
+                description="Create an account, generate an API key, then send a repository URL to either the summary endpoint or the indexed Q&A workflow."
+              />
               <div className="grid gap-6 sm:grid-cols-3">
-                <div className="bg-slate-950/40 p-5 rounded-2xl border border-white/5 shadow-xl space-y-2">
+                <CommandPanel className="space-y-2 p-5">
                   <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">Step 01</span>
                   <h4 className="font-bold text-sm text-slate-200">Create Account</h4>
                   <p className="text-[11px] text-zinc-500 leading-relaxed">
                     Create your account via email or Google to access your developer dashboard.
                   </p>
-                </div>
-                <div className="bg-slate-950/40 p-5 rounded-2xl border border-white/5 shadow-xl space-y-2">
+                </CommandPanel>
+                <CommandPanel className="space-y-2 p-5">
                   <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">Step 02</span>
                   <h4 className="font-bold text-sm text-slate-200">Get API Keys</h4>
                   <p className="text-[11px] text-zinc-500 leading-relaxed">
                     Create and manage API keys from the <Link href="/dashboards" className="text-slate-300 underline hover:text-emerald-400">Dashboard</Link>.
                   </p>
-                </div>
-                <div className="bg-slate-950/40 p-5 rounded-2xl border border-white/5 shadow-xl space-y-2">
+                </CommandPanel>
+                <CommandPanel className="space-y-2 p-5">
                   <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">Step 03</span>
                   <h4 className="font-bold text-sm text-slate-200">Send Request</h4>
                   <p className="text-[11px] text-zinc-500 leading-relaxed">
-                    Invoke the summarizer endpoint using your API key in the headers.
+                    Call the API with your key in the request headers and a public GitHub URL in the JSON body.
                   </p>
-                </div>
+                </CommandPanel>
               </div>
             </section>
 
             {/* Authentication Section */}
-            <section id="authentication" className="space-y-4 scroll-mt-28">
-              <div className="border-b border-white/5 pb-3">
-                <h2 className="text-xl font-bold tracking-tight text-white">Authentication</h2>
-              </div>
+            <section id="authentication" className="space-y-5 scroll-mt-28">
+              <DocsSectionHeader
+                title="Authentication"
+                description="Every API request must include your Dandi API key in the x-api-key header."
+              />
               <p className="text-xs leading-relaxed text-zinc-400">
                 All requests to the Dandi AI server must authenticate by passing your API key in the custom <code className="bg-slate-900/80 px-1.5 py-0.5 rounded text-[11px] font-mono text-slate-300 border border-white/5">x-api-key</code> header.
               </p>
-              <div className="group relative flex min-w-0 flex-col gap-3 rounded-2xl border border-white/5 bg-slate-950/40 p-4 font-mono text-xs sm:flex-row sm:items-center sm:justify-between">
+              <DocsCallout title="Keep API keys server-side" tone="warning">
+                Do not expose live API keys in browser bundles or public repositories. Use a server route or backend job to call Dandi from production applications.
+              </DocsCallout>
+              <div className="relative flex min-w-0 flex-col gap-3 rounded-2xl border border-white/5 bg-slate-950/40 p-4 font-mono text-xs sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 overflow-x-auto">
                   <span className="text-zinc-500">x-api-key: </span>
                   <span className="text-emerald-400">dandi_live_57cf89e0231ab42ef89c...</span>
                 </div>
-                <button 
+                <DocsCopyButton
+                  label="Copy example API key"
                   onClick={() => {
                     navigator.clipboard.writeText("dandi_live_57cf89e0231ab42ef89c...");
                     showToast("success", "Example API key copied.");
                   }}
-                  className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-zinc-500 hover:text-white transition-opacity cursor-pointer"
-                  title="Copy example key"
-                  aria-label="Copy example API key"
-                >
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                    <path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
+                />
               </div>
             </section>
 
             {/* Summarizer Endpoint */}
             <section id="summarizer" className="space-y-6 scroll-mt-28">
-              <div className="border-b border-white/5 pb-3">
-                <h2 className="text-xl font-bold tracking-tight text-white">POST Summarizer Endpoint</h2>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded bg-emerald-500 text-zinc-950 px-2 py-1 text-[9px] font-bold uppercase tracking-widest">POST</span>
-                <div className="group relative flex min-w-0 items-center gap-2 rounded bg-slate-900/80 px-3 py-1 font-mono text-xs text-slate-300 border border-white/5">
-                  <code className="min-w-0 truncate">/api/github-summarizer</code>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText("/api/github-summarizer");
-                      showToast("success", "Endpoint path copied to clipboard.");
-                    }}
-                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-zinc-500 hover:text-white transition-opacity ml-1.5 cursor-pointer"
-                    title="Copy path"
-                    aria-label="Copy endpoint path"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor">
-                      <path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
+              <EndpointHeader
+                title="Repository Summary"
+                path="/api/github-summarizer"
+                description="Generate a structured overview from a public GitHub repository. Use this when you need metadata, a readable summary, and key findings without creating a searchable index."
+                onCopy={() => {
+                  navigator.clipboard.writeText("/api/github-summarizer");
+                  showToast("success", "Endpoint path copied to clipboard.");
+                }}
+              />
 
               <div className="space-y-4">
                 <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">Request Headers</h3>
@@ -267,21 +422,18 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                     </thead>
                     <tbody>
                       <tr className="border-b border-white/5 text-zinc-400">
-                        <td className="py-3 font-mono font-bold text-slate-200 flex items-center gap-2 group">
+                        <td className="py-3 font-mono font-bold text-slate-200">
+                          <div className="flex items-center gap-2">
                           <span>x-api-key</span>
-                          <button 
+                          <DocsCopyButton
+                            compact
+                            label="Copy x-api-key header"
                             onClick={() => {
                               navigator.clipboard.writeText("x-api-key");
                               showToast("success", "Header name copied to clipboard.");
                             }}
-                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-zinc-500 hover:text-white transition-opacity cursor-pointer"
-                            title="Copy header"
-                            aria-label="Copy header key"
-                          >
-                            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
-                              <path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </button>
+                          />
+                          </div>
                         </td>
                         <td className="py-3 font-mono text-zinc-500">string</td>
                         <td className="py-3 font-bold text-rose-400">Yes</td>
@@ -352,33 +504,23 @@ export default function DocsClient({ initialSession }: { initialSession: Session
 
             {/* RAG Ingest Endpoint */}
             <section id="rag-ingest" className="space-y-6 scroll-mt-28">
-              <div className="border-b border-white/5 pb-3">
-                <h2 className="text-xl font-bold tracking-tight text-white">POST RAG Ingest Endpoint</h2>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded bg-emerald-500 text-zinc-950 px-2 py-1 text-[9px] font-bold uppercase tracking-widest">POST</span>
-                <div className="group relative flex min-w-0 items-center gap-2 rounded bg-slate-900/80 px-3 py-1 font-mono text-xs text-slate-300 border border-white/5">
-                  <code className="min-w-0 truncate">/api/rag/ingest</code>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText("/api/rag/ingest");
-                      showToast("success", "Endpoint path copied to clipboard.");
-                    }}
-                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-zinc-500 hover:text-white transition-opacity ml-1.5 cursor-pointer"
-                    title="Copy path"
-                    aria-label="Copy endpoint path"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor">
-                      <path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
+              <EndpointHeader
+                title="RAG Ingest"
+                path="/api/rag/ingest"
+                description="Create a retrieval-ready index for a public GitHub repository. Run this before asking repository-specific questions with the RAG Chat endpoint."
+                onCopy={() => {
+                  navigator.clipboard.writeText("/api/rag/ingest");
+                  showToast("success", "Endpoint path copied to clipboard.");
+                }}
+              />
 
               <div className="space-y-4">
                 <p className="text-xs leading-relaxed text-zinc-400">
                   Submits a GitHub repository for vector embedding ingestion. Required before chatting with a repository using the RAG Chat endpoint. You can check the ingestion status by making a <code className="font-mono bg-slate-900/80 px-1 py-0.5 rounded text-[10px] text-slate-300 border border-white/5">GET</code> request to this same endpoint with the <code className="font-mono bg-slate-900/80 px-1 py-0.5 rounded text-[10px] text-slate-300 border border-white/5">jobId</code> query parameter.
                 </p>
+                <DocsCallout title="Indexing before retrieval">
+                  Ingestion stores repository chunks for later retrieval. A summary response is not the same as an indexed repository.
+                </DocsCallout>
                 <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">JSON Body Parameters</h3>
                 <DocsTableSurface label="RAG ingest JSON body parameters">
                   <table className="w-full text-left border-collapse text-xs min-w-[500px]">
@@ -407,33 +549,23 @@ export default function DocsClient({ initialSession }: { initialSession: Session
 
             {/* RAG Chat Endpoint */}
             <section id="rag-chat" className="space-y-6 scroll-mt-28">
-              <div className="border-b border-white/5 pb-3">
-                <h2 className="text-xl font-bold tracking-tight text-white">POST RAG Chat Endpoint</h2>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded bg-emerald-500 text-zinc-950 px-2 py-1 text-[9px] font-bold uppercase tracking-widest">POST</span>
-                <div className="group relative flex min-w-0 items-center gap-2 rounded bg-slate-900/80 px-3 py-1 font-mono text-xs text-slate-300 border border-white/5">
-                  <code className="min-w-0 truncate">/api/rag/chat</code>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText("/api/rag/chat");
-                      showToast("success", "Endpoint path copied to clipboard.");
-                    }}
-                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-zinc-500 hover:text-white transition-opacity ml-1.5 cursor-pointer"
-                    title="Copy path"
-                    aria-label="Copy endpoint path"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor">
-                      <path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
+              <EndpointHeader
+                title="RAG Chat"
+                path="/api/rag/chat"
+                description="Ask questions against an indexed repository. Responses stream back to the client and may include matched source files through response metadata."
+                onCopy={() => {
+                  navigator.clipboard.writeText("/api/rag/chat");
+                  showToast("success", "Endpoint path copied to clipboard.");
+                }}
+              />
 
               <div className="space-y-4">
                 <p className="text-xs leading-relaxed text-zinc-400">
                   Chat with an ingested GitHub repository using Retrieval-Augmented Generation (RAG). Returns a streaming text response.
                 </p>
+                <DocsCallout title="Evidence availability">
+                  When source metadata is returned, Dandi surfaces matched repository files with similarity scores in the Playground and through the response headers.
+                </DocsCallout>
                 <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">JSON Body Parameters</h3>
                 <DocsTableSurface label="RAG chat JSON body parameters">
                   <table className="w-full text-left border-collapse text-xs min-w-[500px]">
@@ -470,12 +602,10 @@ export default function DocsClient({ initialSession }: { initialSession: Session
 
             {/* Code Snippets Explorer */}
             <section id="code-explorer" className="space-y-6 scroll-mt-28">
-              <div className="border-b border-white/5 pb-3">
-                <h2 className="text-xl font-bold tracking-tight text-white">Code Explorer</h2>
-              </div>
-              <p className="text-xs leading-relaxed text-zinc-400">
-                View integration code snippets in your language of choice:
-              </p>
+              <DocsSectionHeader
+                title="Code Examples"
+                description="Copy a working request in your preferred language. Examples use the summarizer endpoint and the current site origin."
+              />
 
               <CodeWindow
                 title="integration-explorer"
@@ -550,12 +680,10 @@ export default function DocsClient({ initialSession }: { initialSession: Session
 
             {/* Response Schema Viewer */}
             <section id="response-schema" className="space-y-6 scroll-mt-28">
-              <div className="border-b border-white/5 pb-3">
-                <h2 className="text-xl font-bold tracking-tight text-white">Response Payload Schema</h2>
-              </div>
-              <p className="text-xs leading-relaxed text-zinc-400">
-                The API returns a structured JSON object enclosing repository metadata and summaries. Expand/collapse tree branches below to inspect properties:
-              </p>
+              <DocsSectionHeader
+                title="Response Payload Schema"
+                description="The summarizer returns a structured JSON object with repository metadata, a summary, and repository notes. Expand the tree to inspect the shape."
+              />
 
               {/* Collapsible JSON Tree */}
               <CodeWindow
@@ -680,12 +808,10 @@ export default function DocsClient({ initialSession }: { initialSession: Session
 
             {/* Errors Section */}
             <section id="error-codes" className="space-y-6 scroll-mt-28">
-              <div className="border-b border-white/5 pb-3">
-                <h2 className="text-xl font-bold tracking-tight text-white">Error Handling Reference</h2>
-              </div>
-              <p className="text-xs leading-relaxed text-zinc-400">
-                Standard error responses returned by the Dandi AI server when verification or limit checks fail:
-              </p>
+              <DocsSectionHeader
+                title="Error Handling"
+                description="Standard error responses returned when validation, authentication, rate limits, or generation fail."
+              />
 
               <div className="space-y-6">
                 <DocsTableSurface label="API error handling reference">

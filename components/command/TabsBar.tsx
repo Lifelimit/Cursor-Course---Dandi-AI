@@ -51,7 +51,7 @@ export function TabsBar({
               aria-selected={selected}
               onClick={() => onChange(tab.id)}
               className={cx(
-                "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.18em] transition",
+                "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.18em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950",
                 variant === "underline" &&
                   "border-b-2 px-3 pb-3 pt-1 " +
                     (selected

@@ -4,6 +4,8 @@ import React from "react";
 
 import { UsageSparkline } from "../usage/UsageSparkline";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
+import { Button } from "@/components/ui/PrimaryButton";
+import { StatusPill } from "@/components/command";
 
 type Alert = {
   id: string;
@@ -28,8 +30,6 @@ export function SidebarAlerts({
   const [flyoutKey, setFlyoutKey] = React.useState<string | null>(null);
   const [newLimit, setNewLimit] = React.useState<string>("");
   const [isUpdating, setIsUpdating] = React.useState(false);
-
-  if (peekingKey === null && peekingKey !== undefined) {} // lint keep
 
   if (alerts.length === 0) return null;
 
@@ -59,8 +59,11 @@ export function SidebarAlerts({
   return (
     <div className="mt-8 space-y-4">
       <div className="flex items-center justify-between px-2">
-        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">System Alerts</h4>
-        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-zinc-900 dark:bg-zinc-100 text-[8px] font-bold text-white dark:text-zinc-900 animate-in zoom-in duration-500">
+        <div>
+          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Action Needed</h4>
+          <p className="mt-0.5 text-[8px] font-medium text-zinc-500">Usage alerts with a next step.</p>
+        </div>
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] px-1 text-[8px] font-bold text-white">
           {alerts.length}
         </span>
       </div>
@@ -70,6 +73,12 @@ export function SidebarAlerts({
           const isMaxed = alert.pct >= 100;
           const isCritical = alert.pct >= 95;
           const isWarning = alert.pct >= 80 && alert.pct < 95;
+          const severityLabel = isMaxed ? "Critical" : isCritical ? "Critical" : isWarning ? "Warning" : "Notice";
+          const severityTone = isMaxed || isCritical ? "danger" : isWarning ? "warning" : "info";
+          const reasonText = isMaxed
+            ? "This key has reached its monthly request limit."
+            : `This key crossed its ${Math.round(alert.threshold)}% usage alert.`;
+          const actionText = isMaxed ? "Increase the key limit or upgrade the plan." : "Increase the key limit before traffic is blocked.";
           const isPeeking = peekingKey === alert.id;
           const isFlying = flyoutKey === alert.id;
           const parsedNewLimit = parseInt(newLimit.replace(/,/g, ''), 10);
@@ -93,45 +102,64 @@ export function SidebarAlerts({
             ? `Allowed: ${(minimumLimit + 1).toLocaleString()} - ${planMonthlyLimit === null ? "unlimited" : planMonthlyLimit.toLocaleString()} credits.`
             : "This key is already at your plan maximum. Upgrade the account plan to raise it further.";
           
-          const dotColor = isMaxed ? 'bg-red-600 animate-pulse' :
-                          isCritical ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 
+          const dotColor = isMaxed ? 'bg-red-600 command-pulse' :
+                          isCritical ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' :
                           isWarning ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]' : 
                           'bg-zinc-400';
+          const cardClasses = isMaxed || isCritical
+            ? "border-red-500/25 bg-red-950/10"
+            : isWarning
+              ? "border-amber-400/20 bg-amber-950/10"
+              : "border-white/10 bg-slate-950/50";
 
           return (
             <div key={alert.id} className="relative group">
               {/* Main Card */}
               <div 
-                className={`relative z-10 block rounded-2xl border bg-white dark:bg-zinc-900/60 p-3 transition-all duration-500 ${
-                  isMaxed ? 'border-red-200 dark:border-red-900/50 shadow-lg shadow-red-50/50 dark:shadow-none' : 'border-zinc-100 dark:border-zinc-800'
-                } ${isFlying ? 'md:translate-x-[-20px] md:opacity-40 md:grayscale' : ''}`}
+                className={`relative z-10 block rounded-2xl border p-3 transition-all duration-500 ${cardClasses} ${isFlying ? 'md:translate-x-[-20px] md:opacity-40 md:grayscale' : ''}`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
                   <div className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColor}`} />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                       <span className="block truncate text-[10px] font-black uppercase tracking-tight text-zinc-900 dark:text-zinc-100">
                         {alert.keyName}
                       </span>
-                      {isMaxed && <span className="text-[8px] font-black text-red-600 dark:text-red-400 uppercase">[CRITICAL]</span>}
+                      <StatusPill tone={severityTone} compact>
+                        {severityLabel}
+                      </StatusPill>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-[9px] font-bold text-zinc-400">{Math.round(alert.pct)}%</p>
-                      <button 
+                    <p className="mt-1 text-[9px] font-semibold leading-relaxed text-zinc-400">
+                      {reasonText}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <p className="font-mono text-[9px] font-bold tabular-nums text-zinc-300">{Math.round(alert.pct)}% used</p>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
                         onClick={() => {
                           setNewLimit("");
                           setFlyoutKey(isFlying ? null : alert.id);
                         }}
-                        className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:underline transition-all active:scale-95"
+                        className="border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[8px] text-emerald-300 hover:border-emerald-300/40 hover:bg-emerald-400/15"
+                        aria-expanded={isFlying}
+                        aria-label={`${isFlying ? "Cancel quota update" : "Increase monthly limit"} for ${alert.keyName}`}
                       >
-                        {isFlying ? 'Cancel' : '+ Increase'}
-                      </button>
+                        {isFlying ? 'Cancel' : 'Increase Limit'}
+                      </Button>
                     </div>
+                    <p className="mt-2 text-[8px] font-medium leading-relaxed text-zinc-500">
+                      {actionText}
+                    </p>
                   </div>
                   
                   <button 
+                    type="button"
                     onClick={() => setPeekingKey(isPeeking ? null : alert.id)}
-                    className={`rounded-full p-1 transition-all ${isPeeking ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rotate-90' : 'text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100'}`}
+                    className={`rounded-full p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 ${isPeeking ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rotate-90' : 'text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100'}`}
+                    aria-expanded={isPeeking}
+                    aria-label={`${isPeeking ? "Hide" : "Show"} usage trend for ${alert.keyName}`}
                   >
                     <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                       <path d="M9 18l6-6-6-6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -144,7 +172,7 @@ export function SidebarAlerts({
                   <div className="space-y-3 pt-2 border-t border-zinc-50 dark:border-zinc-800">
                     <div className="flex items-center justify-between">
                       <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Activity Trend</span>
-                      <span className="text-[8px] font-bold text-zinc-900 dark:text-zinc-100">{alert.currentLimit.toLocaleString()} Limit</span>
+                      <span className="text-[8px] font-bold text-zinc-900 dark:text-zinc-100">{alert.usageCount.toLocaleString()} / {alert.currentLimit.toLocaleString()}</span>
                     </div>
                     <UsageSparkline data={alert.dailyTrend} color={isMaxed ? "#ef4444" : isWarning ? "#fbbf24" : "#10b981"} />
                   </div>
@@ -164,7 +192,7 @@ export function SidebarAlerts({
                         onChange={(e) => handleNewLimitChange(e.target.value)}
                         disabled={!hasPlanHeadroom}
                         placeholder="500"
-                        className="w-full rounded-2xl border border-white/5 bg-slate-950/70 px-4 py-4 font-serif text-2xl font-bold text-white placeholder-zinc-700 focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all"
+                        className="dandi-field px-4 py-4 font-serif text-2xl font-bold"
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black text-zinc-400 uppercase">Credits</span>
                     </div>
@@ -193,14 +221,17 @@ export function SidebarAlerts({
                         </p>
                       )}
                     </div>
-                    <button 
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="lg"
                       onClick={() => handleIncrease(alert)}
                       disabled={isSubmitDisabled}
-                      className="group relative w-full overflow-hidden rounded-2xl bg-[#18181b] dark:bg-zinc-100 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white dark:text-zinc-900 shadow-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+                      className="relative w-full overflow-hidden py-4 text-[10px] tracking-[0.2em]"
                     >
-                      <span className="relative z-10">{isUpdating ? 'Synchronizing...' : 'Update Quota'}</span>
+                      <span className="relative z-10">{isUpdating ? 'Updating...' : 'Update Limit'}</span>
                       <div className="absolute inset-0 z-0 bg-gradient-to-r from-emerald-600 to-teal-600 opacity-0 transition-opacity group-hover:opacity-10" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -233,8 +264,8 @@ export function SidebarAlerts({
                 <div className="flex flex-col gap-5 rounded-[24px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-none min-w-[240px] relative z-10">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex flex-col">
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 leading-none">Management</span>
-                      <span className="mt-1 text-[8px] font-bold text-zinc-300 uppercase italic">Quota Increase</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 leading-none">Resolve Alert</span>
+                      <span className="mt-1 text-[8px] font-bold text-zinc-300 uppercase italic">Increase monthly key limit</span>
                     </div>
                     <ModalCloseButton
                       onClick={() => setFlyoutKey(null)}
@@ -254,7 +285,7 @@ export function SidebarAlerts({
                         onChange={(e) => handleNewLimitChange(e.target.value)}
                         disabled={!hasPlanHeadroom}
                         placeholder="500"
-                        className="w-full rounded-2xl border border-white/5 bg-slate-950/70 px-4 py-4 font-serif text-2xl font-bold text-white placeholder-zinc-700 focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all"
+                        className="dandi-field px-4 py-4 font-serif text-2xl font-bold"
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black text-zinc-300 uppercase">Credits</span>
                     </div>
@@ -285,14 +316,17 @@ export function SidebarAlerts({
                     </div>
                   </div>
 
-                  <button 
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="lg"
                     onClick={() => handleIncrease(alert)}
                     disabled={isSubmitDisabled}
-                    className="group relative w-full overflow-hidden rounded-2xl bg-[#18181b] dark:bg-zinc-100 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white dark:text-zinc-900 shadow-xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+                    className="relative w-full overflow-hidden py-4 text-[10px] tracking-[0.2em]"
                   >
-                    <span className="relative z-10">{isUpdating ? 'Synchronizing...' : 'Update Quota'}</span>
+                    <span className="relative z-10">{isUpdating ? 'Updating...' : 'Update Limit'}</span>
                     <div className="absolute inset-0 z-0 bg-gradient-to-r from-emerald-600 to-teal-600 opacity-0 transition-opacity group-hover:opacity-10" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>

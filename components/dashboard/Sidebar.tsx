@@ -116,6 +116,22 @@ export function Sidebar({
   const userInitial = user?.email?.[0]?.toUpperCase() || "U";
   const activeNavItem = NAV_ITEMS.find((item) => item.href === pathname);
   const activeMobileLabel = activeNavItem?.mobileName || "Menu";
+  const usagePct = isUnlimited || limit <= 0 ? 0 : Math.min((totalUsage / limit) * 100, 100);
+  const usageRemaining = isUnlimited ? null : Math.max(limit - totalUsage, 0);
+  const usageTone =
+    isUnlimited ? "success" :
+    usagePct >= 100 ? "critical" :
+    usagePct >= 80 ? "warning" :
+    "healthy";
+  const usageLabel =
+    usageTone === "critical" ? "Limit reached" :
+    usageTone === "warning" ? "Review usage" :
+    isUnlimited ? "No monthly cap" :
+    "Usage healthy";
+  const progressColor =
+    usageTone === "critical" ? "from-rose-500 via-red-500 to-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.35)]" :
+    usageTone === "warning" ? "from-amber-400 via-orange-400 to-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.35)]" :
+    "from-emerald-500 via-cyan-500 to-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.3)]";
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -341,38 +357,64 @@ export function Sidebar({
 
       {/* Quota Widget */}
       <div className={`${isMobileNavOpen ? "block mx-0.5 mb-2 mt-4" : "hidden"} relative rounded-2xl border border-white/5 bg-slate-900/10 p-4 md:block md:mx-0 md:mb-0 md:mt-2`}>
-        {/* Plan name row */}
-        <div className="flex items-center gap-2 mb-3.5">
-          <span className="relative flex h-1.5 w-1.5 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-          </span>
-          <span className="text-[10px] font-serif font-bold uppercase tracking-[0.12em] text-white truncate">
-            {plan}
+        <div className="mb-3.5 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500">Current Plan</p>
+            <p className="mt-1 truncate font-serif text-sm font-bold uppercase tracking-[0.12em] text-white">
+              {plan}
+            </p>
+          </div>
+          <span
+            className={`shrink-0 rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-wider ${
+              usageTone === "critical" ? "border-rose-400/25 bg-rose-400/10 text-rose-300" :
+              usageTone === "warning" ? "border-amber-400/25 bg-amber-400/10 text-amber-300" :
+              "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
+            }`}
+          >
+            {usageLabel}
           </span>
         </div>
 
-        {/* Progress bar */}
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-950 border border-white/5">
+        <div className="mb-2.5 flex items-end justify-between gap-3">
+          <div>
+            <p className="font-mono text-lg font-black tabular-nums text-white">
+              {totalUsage.toLocaleString()}
+            </p>
+            <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-500">Requests used</p>
+          </div>
+          <div className="min-w-0 text-right">
+            <p className="font-mono text-xs font-bold tabular-nums text-slate-200">
+              {isUnlimited ? "Unlimited" : `${usageRemaining?.toLocaleString()} left`}
+            </p>
+            <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-500">
+              {isUnlimited ? "Plan limit" : `${Math.round(usagePct)}% used`}
+            </p>
+          </div>
+        </div>
+
+        <div className="h-1.5 w-full overflow-hidden rounded-full border border-white/5 bg-slate-950">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-cyan-500 to-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.4)] transition-all duration-500"
-            style={{ width: `${isUnlimited ? 100 : Math.min((totalUsage / limit) * 100, 100)}%` }}
+            className={`h-full rounded-full bg-gradient-to-r transition-all duration-500 ${progressColor}`}
+            style={{ width: `${isUnlimited ? 100 : usagePct}%` }}
           />
         </div>
 
-        {/* Usage figures */}
-        <div className="mt-2.5 flex justify-between items-center gap-3 text-[9px] font-mono tracking-wider text-zinc-500">
+        <div className="mt-3 flex items-center justify-between gap-3">
           {isUnlimited ? (
-            <>
-              <span className="text-zinc-300">{totalUsage.toLocaleString()} reqs</span>
-              <span className="rounded-full border border-cyan-500/20 bg-cyan-500/5 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-cyan-400">Unlimited</span>
-            </>
+            <p className="min-w-0 text-[9px] font-medium leading-relaxed text-slate-500">
+              Your plan does not enforce a monthly request cap.
+            </p>
           ) : (
-            <>
-              <span className="text-zinc-300">{totalUsage.toLocaleString()} reqs</span>
-              <span>/ {limit.toLocaleString()} max</span>
-            </>
+            <p className="min-w-0 text-[9px] font-medium leading-relaxed text-slate-500">
+              Limit: <span className="font-mono text-slate-300">{limit.toLocaleString()}</span> requests this cycle.
+            </p>
           )}
+          <Link
+            href={usageTone === "critical" ? "/billing" : "/usage"}
+            className="shrink-0 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[8px] font-black uppercase tracking-wider text-slate-300 transition hover:border-emerald-300/25 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+          >
+            {usageTone === "critical" ? "Upgrade" : "Details"}
+          </Link>
         </div>
       </div>
     </aside>

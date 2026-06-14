@@ -246,7 +246,7 @@ export function ApiKeyTable({
             placeholder="Search keys by name or signature..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-11 py-3 text-xs text-slate-100 outline-none transition-all placeholder:text-slate-500 focus:border-emerald-300/40 focus:ring-4 focus:ring-emerald-300/10"
+            className="dandi-field px-11 py-3 text-xs"
           />
         </div>
         <div className="flex items-center gap-3 px-2">
