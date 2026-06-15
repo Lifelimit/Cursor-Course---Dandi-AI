@@ -6,6 +6,7 @@ import { Toast } from "@/components/ui/Toast";
 import { SyntaxHighlightedJSON } from "@/components/ui/SyntaxHighlightedJSON";
 import { CopyIconButton } from "@/components/ui/CopyIconButton";
 import { MockTerminal, StatusPill } from "@/components/command";
+import { getToastErrorMessage } from "@/lib/error-guidance";
 
 export type LogEntry = {
   id: string;
@@ -99,7 +100,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
   const copyToClipboard = (text: string, message: string) => {
     navigator.clipboard.writeText(text)
       .then(() => triggerToast("success", message))
-      .catch(() => triggerToast("error", "Failed to copy to clipboard"));
+      .catch(() => triggerToast("error", getToastErrorMessage("account", "Failed to copy to clipboard")));
   };
 
   const generateCurl = (log: LogEntry) => {
@@ -355,7 +356,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
               </span>
             </div>
             <p className="text-[11px] text-slate-600 leading-relaxed font-mono">
-              dandi@api:~$ waiting for a request...
+              dandi@api:~$ run a repository summary or Ask request to see validation, request, and response steps here.
             </p>
             <div className="h-4 w-1.5 bg-slate-600 animate-pulse mt-2" />
           </div>

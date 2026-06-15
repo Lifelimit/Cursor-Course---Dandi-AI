@@ -1,7 +1,7 @@
-import type { ReactNode, CSSProperties } from "react";
+import type { ReactNode, CSSProperties, HTMLAttributes } from "react";
 import { cx } from "./utils";
 
-export type CommandPanelProps = {
+export type CommandPanelProps = HTMLAttributes<HTMLDivElement> & {
   children: ReactNode;
   tone?: "default" | "elevated" | "solid" | "danger";
   padding?: "sm" | "md" | "lg" | "none";
@@ -31,6 +31,7 @@ export function CommandPanel({
   interactive = false,
   className,
   style,
+  ...props
 }: CommandPanelProps) {
   return (
     <div
@@ -43,6 +44,7 @@ export function CommandPanel({
         className,
       )}
       style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)", ...style }}
+      {...props}
     >
       {children}
     </div>

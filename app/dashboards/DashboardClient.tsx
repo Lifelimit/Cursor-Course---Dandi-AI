@@ -17,16 +17,29 @@ import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
 import { RevocationModal } from "@/components/dashboard/RevocationModal";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
+import { GettingStartedChecklist } from "@/components/dashboard/GettingStartedChecklist";
 import { EyeOffIcon, ShieldIcon, CopyLockedIcon, CopyCheckIcon } from "@/components/icons";
+import { GuidedError } from "@/components/ui/GuidedError";
+import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
 
 import { DecryptingKeyText } from "@/components/ui/DecryptingKeyText";
+type DandiOnboardingMetadata = {
+  started?: boolean;
+  askedRepository?: boolean;
+  reviewedUsage?: boolean;
+  dismissed?: boolean;
+};
+
 export default function DashboardClient({
   initialUser,
   initialKeys = [],
   initialPlan = "Hobby",
   initialAvgLatency = 0,
   initialSuccessRate = 100,
-  initialResetDate = null
+  initialResetDate = null,
+  initialHasSuccessfulRepositoryAnalysis = false,
+  initialHasAskedRepository = false
 }: {
   initialUser: User | null;
   initialKeys?: ApiKey[];
@@ -34,8 +47,11 @@ export default function DashboardClient({
   initialAvgLatency?: number;
   initialSuccessRate?: number;
   initialResetDate?: string | null;
+  initialHasSuccessfulRepositoryAnalysis?: boolean;
+  initialHasAskedRepository?: boolean;
 }) {
   const router = useRouter();
+  const supabase = createClient();
   const activeUser = initialUser;
 
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey, refreshKeys } = useApiKeys(initialKeys);
@@ -52,6 +68,10 @@ export default function DashboardClient({
   const successRate = typeof usageData?.successRate === 'number' ? usageData.successRate : initialSuccessRate;
   const resetDate = usageData?.resetDate || initialResetDate;
   const isSyncing = isValidating;
+  const successfulRepositoryAnalysis =
+    initialHasSuccessfulRepositoryAnalysis ||
+    totalUsage > 0 ||
+    (usageData?.globalTopRepos?.length || 0) > 0;
 
   // ─── Real sparklines & trends derived from dailyAnalytics ────────────────
   type DailyPoint = { date: string; count: number; success: number; error: number; avgLatency: number };
@@ -98,6 +118,43 @@ export default function DashboardClient({
   const [createdPlainKey, setCreatedPlainKey] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [isPlainKeyVisible, setIsPlainKeyVisible] = useState(true);
+  const [onboardingMetadata, setOnboardingMetadata] = useState<DandiOnboardingMetadata>(() => {
+    const metadata = activeUser?.user_metadata as { dandi_onboarding?: DandiOnboardingMetadata } | undefined;
+    return metadata?.dandi_onboarding || {};
+  });
+
+  const persistOnboardingMetadata = async (patch: DandiOnboardingMetadata) => {
+    const nextMetadata = { ...onboardingMetadata, ...patch };
+    setOnboardingMetadata(nextMetadata);
+
+    if (!activeUser) return;
+
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        ...(activeUser.user_metadata || {}),
+        dandi_onboarding: nextMetadata,
+      },
+    });
+
+    if (error) {
+      showToast("error", getToastErrorMessage("account", "Could not save getting started progress."));
+    }
+  };
+
+  const hasCompletedOnboarding = Boolean(
+    apiKeys.length > 0 &&
+    successfulRepositoryAnalysis &&
+    (initialHasAskedRepository || onboardingMetadata.askedRepository) &&
+    onboardingMetadata.reviewedUsage
+  );
+  const shouldShowGettingStarted = Boolean(
+    !onboardingMetadata.dismissed &&
+    (onboardingMetadata.started || (!hasCompletedOnboarding && (!apiKeys.length || !successfulRepositoryAnalysis)))
+  );
+
+  const markGettingStartedActive = () => {
+    void persistOnboardingMetadata({ started: true });
+  };
 
   const handleOpenCreateModal = () => {
     setEditingKey(null);
@@ -122,7 +179,7 @@ export default function DashboardClient({
       showToast("success", "API key copied to clipboard.");
       setTimeout(() => setCopiedKey(false), 2000);
     } catch {
-      showToast("error", "Failed to copy API key.");
+      showToast("error", getToastErrorMessage("api-key", "Failed to copy API key."));
     }
   };
 
@@ -187,7 +244,7 @@ export default function DashboardClient({
         setIsModalOpen(true);
       }
     } else {
-      showToast("error", result.error || "Revocation failed.");
+      showToast("error", getToastErrorMessage("api-key", result.error || "Revocation failed."));
     }
   };
 
@@ -218,9 +275,12 @@ export default function DashboardClient({
               title="Overview"
               description={
                 errorMessage ? (
-                  <div className="mt-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/20 dark:text-red-400">
-                    {errorMessage}
-                  </div>
+                  <GuidedError
+                    {...getErrorGuidance({ workflow: "api-key", message: errorMessage })}
+                    technicalDetails={errorMessage}
+                    compact
+                    className="mt-2"
+                  />
                 ) : (
                   "Review usage, plan status, and API key activity."
                 )
@@ -243,6 +303,34 @@ export default function DashboardClient({
                 </div>
               }
             />
+
+            {shouldShowGettingStarted && (
+              <GettingStartedChecklist
+                hasApiKey={apiKeys.length > 0}
+                hasSuccessfulRepositoryAnalysis={successfulRepositoryAnalysis}
+                hasAskedRepository={Boolean(initialHasAskedRepository || onboardingMetadata.askedRepository)}
+                hasReviewedUsage={Boolean(onboardingMetadata.reviewedUsage)}
+                onCreateApiKey={() => {
+                  markGettingStartedActive();
+                  handleOpenCreateModal();
+                }}
+                onOpenSummary={() => {
+                  markGettingStartedActive();
+                  router.push("/playground?mode=summary");
+                }}
+                onOpenAskRepository={() => {
+                  markGettingStartedActive();
+                  router.push("/playground?mode=ask");
+                }}
+                onOpenUsage={() => {
+                  void persistOnboardingMetadata({ started: true, reviewedUsage: true });
+                  router.push("/usage");
+                }}
+                onDismiss={() => {
+                  void persistOnboardingMetadata({ dismissed: true });
+                }}
+              />
+            )}
 
             {/* Metric Tiles Row */}
             <div className="grid gap-6 md:grid-cols-3">

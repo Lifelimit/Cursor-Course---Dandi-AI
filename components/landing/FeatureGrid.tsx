@@ -199,6 +199,10 @@ export function FeatureGrid() {
                   type="button"
                   disabled={isOrchestrating}
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  aria-haspopup="listbox"
+                  aria-expanded={isDropdownOpen}
+                  aria-controls="landing-repo-preview-listbox"
+                  aria-label="Select repository preview"
                   className="w-full cursor-pointer appearance-none rounded-xl border border-white/10 bg-slate-950 py-3 pl-4 pr-10 text-left text-xs font-bold text-slate-200 outline-none transition hover:border-white/20 focus-visible:border-emerald-300/60 focus-visible:ring-2 focus-visible:ring-emerald-300/30 disabled:opacity-50 active:scale-[0.99]"
                 >
                   {selectedRepo.replace("/", " / ")}
@@ -211,6 +215,9 @@ export function FeatureGrid() {
                 
                 {/* Custom animated dropdown */}
                 <div
+                  id="landing-repo-preview-listbox"
+                  role="listbox"
+                  aria-label="Repository preview options"
                   className={`absolute left-0 right-0 top-full z-50 mt-2 origin-top rounded-2xl border border-white/10 bg-slate-950/98 p-1.5 shadow-xl backdrop-blur-sm transition-all duration-200 ${
                     isDropdownOpen
                       ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
@@ -223,6 +230,8 @@ export function FeatureGrid() {
                       <button
                         key={repo}
                         type="button"
+                        role="option"
+                        aria-selected={isSelected}
                         className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer ${
                           isSelected
                             ? "bg-emerald-500/10 text-emerald-400"
@@ -238,7 +247,7 @@ export function FeatureGrid() {
                       >
                         <span>{repo.replace("/", " / ")}</span>
                         {isSelected && (
-                          <svg viewBox="0 0 24 24" className="h-4 w-4 text-emerald-500 animate-in zoom-in duration-200" fill="none" stroke="currentColor" strokeWidth="3">
+                          <svg viewBox="0 0 24 24" className="h-4 w-4 text-emerald-500 animate-in zoom-in duration-200" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true">
                             <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
@@ -251,11 +260,12 @@ export function FeatureGrid() {
               <button
                 onClick={startOrchestration}
                 disabled={isOrchestrating}
+                aria-busy={isOrchestrating || undefined}
                 className="flex items-center justify-center gap-2 rounded-xl bg-emerald-400 px-6 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-950 shadow-md transition-all hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50"
               >
                 {isOrchestrating ? (
                   <>
-                    <span className="h-3 w-3 animate-spin rounded-full border border-zinc-400 border-t-zinc-950" />
+                    <span className="h-3 w-3 animate-spin rounded-full border border-zinc-400 border-t-zinc-950" aria-hidden="true" />
                     Analyzing...
                   </>
                 ) : (
@@ -322,7 +332,10 @@ export function FeatureGrid() {
                         {currentRepoInfo.coolFacts.map((_, idx) => (
                           <button
                             key={idx}
+                            type="button"
                             onClick={() => setActiveFactIdx(idx)}
+                            aria-pressed={activeFactIdx === idx}
+                            aria-label={`Show implementation note ${idx + 1}`}
                             className={`px-2 py-0.5 rounded text-[8px] font-bold tracking-widest uppercase transition ${
                               activeFactIdx === idx
                                 ? "border border-slate-700 bg-slate-800 text-white"
@@ -346,7 +359,7 @@ export function FeatureGrid() {
                         className="text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1"
                       >
                         Try in Playground
-                        <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
+                        <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" aria-hidden="true">
                           <path d="M5 12h14m-7-7l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </Link>
@@ -381,7 +394,10 @@ export function FeatureGrid() {
                   {/* Mobile tabs selector */}
                   <div className="flex sm:hidden ml-3 bg-zinc-900 border border-white/5 rounded-lg p-0.5 select-none">
                     <button
+                      type="button"
                       onClick={() => setPlaygroundTab("request")}
+                      aria-pressed={playgroundTab === "request"}
+                      aria-label="Show request preview"
                       className={`px-2 py-0.5 text-[8px] font-bold uppercase rounded-md transition cursor-pointer ${
                         playgroundTab === "request"
                           ? "bg-zinc-800 text-white shadow-xs"
@@ -391,7 +407,10 @@ export function FeatureGrid() {
                       Req
                     </button>
                     <button
+                      type="button"
                       onClick={() => setPlaygroundTab("response")}
+                      aria-pressed={playgroundTab === "response"}
+                      aria-label="Show response preview"
                       className={`px-2 py-0.5 text-[8px] font-bold uppercase rounded-md transition cursor-pointer ${
                         playgroundTab === "response"
                           ? "bg-zinc-800 text-white shadow-xs"
@@ -407,7 +426,9 @@ export function FeatureGrid() {
                 <div className="flex items-center gap-2">
                   {playgroundState === "idle" && (
                     <button
+                      type="button"
                       onClick={runPlaygroundSimulator}
+                    aria-label="Run playground preview"
                     className="cursor-pointer rounded-lg bg-emerald-500 px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-white shadow-sm transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 active:scale-95"
                     >
                       Run
@@ -415,16 +436,20 @@ export function FeatureGrid() {
                   )}
                   {playgroundState === "running" && (
                     <button
+                      type="button"
                       disabled
+                      aria-busy="true"
                       className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-zinc-500 bg-zinc-800 rounded-lg flex items-center gap-1 select-none"
                     >
-                      <span className="h-1.5 w-1.5 animate-spin rounded-full border border-zinc-400 border-t-slate-300" />
+                      <span className="h-1.5 w-1.5 animate-spin rounded-full border border-zinc-400 border-t-slate-300" aria-hidden="true" />
                       Run
                     </button>
                   )}
                   {playgroundState === "completed" && (
                     <button
+                      type="button"
                       onClick={resetPlaygroundSimulator}
+                      aria-label="Reset playground preview"
                       className="cursor-pointer rounded-lg border border-white/10 bg-slate-900 px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-slate-200 shadow-sm transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 active:scale-95"
                     >
                       Reset
@@ -452,10 +477,12 @@ export function FeatureGrid() {
                   {playgroundState === "idle" && (
                     <div className="absolute inset-0 flex flex-col justify-center items-center gap-1.5 p-4 text-center select-none bg-zinc-950/60 animate-in fade-in duration-300">
                       <button 
+                        type="button"
                         onClick={runPlaygroundSimulator}
+                        aria-label="Run request preview"
                         className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 shadow-xs transition-all hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 active:scale-95"
                       >
-                        <svg viewBox="0 0 24 24" className="h-3 w-3 fill-current ml-0.5">
+                        <svg viewBox="0 0 24 24" className="h-3 w-3 fill-current ml-0.5" aria-hidden="true">
                           <path d="M8 5v14l11-7z" />
                         </svg>
                       </button>
@@ -466,7 +493,7 @@ export function FeatureGrid() {
 
                   {playgroundState === "running" && (
                     <div className="absolute inset-0 flex flex-col justify-center items-center gap-1.5 p-4 text-center select-none bg-zinc-950/60 animate-in fade-in duration-300">
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-800 border-t-emerald-500" />
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-800 border-t-emerald-500" aria-hidden="true" />
                       <p className="text-[7.5px] font-bold uppercase tracking-widest text-zinc-500 animate-pulse mt-1">Executing fetch...</p>
                     </div>
                   )}
@@ -524,7 +551,7 @@ export function FeatureGrid() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
               </span>
-              <span className="text-[8px] font-black uppercase tracking-widest text-amber-500">80% Quota Alert</span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-amber-500">80% Request Usage Alert</span>
             </div>
             
             <div className="space-y-2">
@@ -541,7 +568,7 @@ export function FeatureGrid() {
             <div className="mt-3 flex items-center justify-between border-t border-slate-900/70 pt-2 text-[7.5px] font-bold text-slate-500">
               <span>Notification:</span>
               <span className="text-emerald-400 flex items-center gap-1 font-sans">
-                <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3">
+                <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true">
                   <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 Email Sent

@@ -8,6 +8,7 @@ import dynamic from "next/dynamic";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { Footer } from "@/components/landing/Footer";
+import { getToastErrorMessage } from "@/lib/error-guidance";
 
 // Lazy load below-the-fold components to improve First Contentful Paint (FCP)
 const FeatureGrid = dynamic(() => import("@/components/landing/FeatureGrid").then(mod => mod.FeatureGrid), {
@@ -42,7 +43,7 @@ export default function LandingClient({ initialSession }: { initialSession: Sess
       <PricingSection 
         session={session} 
         onSuccess={(msg) => showToast("success", msg)}
-        onError={(msg) => showToast("error", msg)}
+        onError={(msg) => showToast("error", getToastErrorMessage("billing", msg))}
       />
 
       {/* Final CTA - Personalized depending on session state */}

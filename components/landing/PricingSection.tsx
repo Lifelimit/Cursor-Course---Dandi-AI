@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { PLANS } from "@/lib/constants";
 import Link from "next/link";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
+import { ModalFrame } from "@/components/command/ModalFrame";
 
 import { Session } from "@supabase/supabase-js";
 
@@ -168,9 +169,12 @@ export function PricingSection({
             <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "month" ? "text-zinc-100" : "text-zinc-500"}`}>Monthly</span>
             <button
               onClick={() => setBillingInterval(billingInterval === "month" ? "year" : "month")}
+              role="switch"
+              aria-checked={billingInterval === "year"}
+              aria-label={`Billing interval: ${billingInterval === "year" ? "annual" : "monthly"}`}
               className="relative h-6 w-12 cursor-pointer rounded-full border border-white/10 bg-slate-800 p-1 transition-colors hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
             >
-              <div className={`h-4 w-4 rounded-full bg-emerald-300 shadow-sm transition-transform ${billingInterval === "year" ? "translate-x-6" : "translate-x-0"}`} />
+              <div className={`h-4 w-4 rounded-full bg-emerald-300 shadow-sm transition-transform ${billingInterval === "year" ? "translate-x-6" : "translate-x-0"}`} aria-hidden="true" />
             </button>
             <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "year" ? "text-zinc-100" : "text-zinc-500"}`}>Annual</span>
             <span className="col-start-3 justify-self-center rounded-full border border-emerald-500/10 bg-emerald-950/40 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-emerald-400">20% OFF</span>
@@ -190,9 +194,9 @@ export function PricingSection({
                   <div>
                     <p className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Estimated Usage</p>
                     <h4 className="mt-1 text-base font-bold text-white">
-                      {formatUsage(estimatedMonthlyUsage)} repository summaries / month
+                      {formatUsage(estimatedMonthlyUsage)} monthly requests
                     </h4>
-                    <p className="mt-1 text-[11px] font-semibold text-slate-400">≈ {estimatedDailyUsage.toLocaleString()} summaries / day</p>
+                    <p className="mt-1 text-[11px] font-semibold text-slate-400">≈ {estimatedDailyUsage.toLocaleString()} requests / day</p>
                   </div>
                   <div className="rounded-2xl border border-emerald-400/20 bg-emerald-950/20 px-4 py-3">
                     <p className="text-[8px] font-bold uppercase tracking-widest text-emerald-300/80">Recommended Plan</p>
@@ -233,10 +237,13 @@ export function PricingSection({
 
             <div className="space-y-4">
               <input
+                id="pricing-usage-estimator"
                 type="range" 
                 min="0" 
                 max="4" 
                 value={sliderIndex}
+                aria-label="Estimated monthly repository requests"
+                aria-valuetext={`${formatUsage(estimatedMonthlyUsage)} monthly requests, ${recommendedPlanId} recommended`}
                 onChange={(e) => setSliderIndex(parseInt(e.target.value))}
                 className="h-1.5 w-full cursor-pointer rounded-lg bg-slate-800 accent-emerald-400"
               />
@@ -244,7 +251,10 @@ export function PricingSection({
                 {SLIDER_STEPS.map((step, idx) => (
                   <button
                     key={idx}
+                    type="button"
                     onClick={() => setSliderIndex(idx)}
+                    aria-pressed={sliderIndex === idx}
+                    aria-label={`Set estimated usage to ${step.label} monthly requests, ${step.tier}`}
                     className={`rounded px-1 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 ${sliderIndex === idx ? "text-white" : "text-slate-500 hover:text-slate-300"}`}
                   >
                     <span className="block text-[8px] font-black uppercase tracking-wider sm:text-[9px] sm:tracking-widest">{step.tier}</span>
@@ -256,7 +266,7 @@ export function PricingSection({
 
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950 p-4 text-left">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-400 text-slate-950">
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" aria-hidden="true">
                   <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
@@ -352,6 +362,7 @@ export function PricingSection({
                   <button
                     onClick={() => handleUpdatePlan(plan.id)}
                     disabled={isCurrent || isLoading}
+                    aria-busy={isLoading || undefined}
                     className={`w-full rounded-2xl py-4 text-[10px] font-black uppercase tracking-[0.14em] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                       isCurrent
                         ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-white/10"
@@ -360,7 +371,7 @@ export function PricingSection({
                   >
                     {isLoading ? (
                       <span className="inline-flex items-center justify-center gap-2">
-                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-400 border-t-white" />
+                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-400 border-t-white" aria-hidden="true" />
                         Reviewing Plan
                       </span>
                     ) : isCurrent ? "Current Plan" : isUpgrade ? "Upgrade Now" : "Downgrade"}
@@ -397,21 +408,15 @@ export function PricingSection({
       />
 
       {/* Unified Cancel Subscription Modal */}
-      {isCancelModalOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6">
-          <div 
-            className="absolute inset-0 bg-black/65 backdrop-blur-sm transition-opacity"
-            onClick={() => setIsCancelModalOpen(false)}
-          />
-          <div className="relative w-full max-w-lg overflow-hidden rounded-[28px] border border-white/10 bg-slate-950 p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 sm:p-10">
+      <ModalFrame open={isCancelModalOpen} onClose={() => setIsCancelModalOpen(false)} size="md" titleId="cancel-subscription-title">
             <div className="flex flex-col items-center text-center">
-              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-950/20 text-red-400 border border-red-500/10">
+              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-950/20 text-red-400 border border-red-500/10" aria-hidden="true">
                 <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor">
                   <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
               
-              <h3 className="mb-2 text-2xl font-black tracking-tight text-white">Cancel Subscription?</h3>
+              <h3 id="cancel-subscription-title" className="mb-2 text-2xl font-black tracking-tight text-white">Cancel Subscription?</h3>
               <p className="mb-8 text-sm leading-relaxed text-zinc-400">
                 Your <span className="font-bold text-white">{currentPlanId}</span> plan will remain active until the end of your current term. After that, you&apos;ll be downgraded to the Hobby plan.
               </p>
@@ -428,6 +433,7 @@ export function PricingSection({
                     return (
                       <button
                         key={key.id}
+                        type="button"
                         onClick={() => {
                           if (isSelected) {
                             setKeysToKeep(prev => prev.filter(id => id !== key.id));
@@ -435,7 +441,8 @@ export function PricingSection({
                             setKeysToKeep(prev => [...prev, key.id]);
                           }
                         }}
-                        className={`flex items-center justify-between rounded-xl border p-4 transition-all cursor-pointer ${
+                        aria-pressed={isSelected}
+                        className={`flex items-center justify-between rounded-xl border p-4 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                           isSelected 
                             ? 'border-zinc-100 bg-zinc-100 text-zinc-950 shadow-md' 
                             : 'border-white/5 bg-zinc-950/40 text-zinc-300 hover:border-white/10'
@@ -446,7 +453,7 @@ export function PricingSection({
                           <p className="text-[9px] text-zinc-500 mt-0.5">{key.usage_count} requests this month</p>
                         </div>
                         {isSelected && (
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" aria-hidden="true">
                             <path d="M5 13l4 4L19 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
@@ -454,19 +461,26 @@ export function PricingSection({
                     );
                   })}
                   {userKeys.length === 0 && (
-                    <div className="py-4 text-center text-[10px] font-bold uppercase tracking-widest text-zinc-500 italic">No keys found</div>
+                    <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/45 p-4 text-center">
+                      <p className="text-xs font-bold text-slate-300">No API keys to choose from.</p>
+                      <p className="mt-1 text-[11px] font-medium leading-5 text-zinc-500">
+                        You have not created keys yet, so there is nothing to disable during downgrade.
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
               
               <div className="flex w-full gap-3">
                 <button 
+                  type="button"
                   onClick={() => setIsCancelModalOpen(false)}
-                  className="flex-1 rounded-2xl border border-white/5 py-4 text-xs font-black uppercase tracking-widest text-zinc-500 transition-all hover:bg-white/5 hover:text-white"
+                  className="flex-1 rounded-2xl border border-white/5 py-4 text-xs font-black uppercase tracking-widest text-zinc-400 transition-all hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                 >
                   Go Back
                 </button>
                 <button 
+                  type="button"
                   disabled={keysToKeep.length !== 3 && userKeys.length >= 3}
                   onClick={async () => {
                     try {
@@ -489,15 +503,13 @@ export function PricingSection({
                       setLoadingPlanId(null);
                     }
                   }}
-                  className="flex-1 rounded-2xl bg-zinc-100 py-4 text-xs font-black uppercase tracking-widest text-zinc-950 shadow-none transition-all hover:bg-zinc-200 disabled:opacity-50"
+                  className="flex-1 rounded-2xl bg-zinc-100 py-4 text-xs font-black uppercase tracking-widest text-zinc-950 shadow-none transition-all hover:bg-zinc-200 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                 >
                   Confirm Downgrade
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalFrame>
     </section>
   );
 }

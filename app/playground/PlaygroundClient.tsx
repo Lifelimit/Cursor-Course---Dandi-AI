@@ -6,7 +6,7 @@ import { experimental_useObject } from "@ai-sdk/react";
 import { z } from "zod";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import type { User } from "@supabase/supabase-js";
@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { LoadingStages, type LoadingStage, type LoadingStageStatus } from "@/components/ui/LoadingStages";
 import { CardSkeleton } from "@/components/ui/SkeletonBlocks";
+import { GuidedError } from "@/components/ui/GuidedError";
 import { ApiKeyDropdown } from "@/components/playground/ApiKeyDropdown";
 import { CodeSnippet } from "@/components/playground/CodeSnippet";
 import { JsonViewer } from "@/components/playground/JsonViewer";
@@ -30,6 +31,15 @@ import {
 
 import { PLAN_DETAILS } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
+import { createClient } from "@/lib/supabase/client";
+import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
+
+type DandiOnboardingMetadata = {
+  started?: boolean;
+  askedRepository?: boolean;
+  reviewedUsage?: boolean;
+  dismissed?: boolean;
+};
 
 type IngestionJobSummary = {
   jobId: string;
@@ -69,6 +79,7 @@ export default function PlaygroundClient({
   initialPlan?: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [realtimePlan, setRealtimePlan] = useState<string | null>(null);
   
   const { apiKeys, refreshKeys } = useApiKeys(initialKeys);
@@ -111,7 +122,7 @@ export default function PlaygroundClient({
   } | null>(null);
   const { toast, showToast } = useToast();
 
-  // RAG & Tab States
+  // Repository question tab state
   const [activeTab, setActiveTab] = useState<"summary" | "rag">("summary");
   const [ingestStatus, setIngestStatus] = useState<"idle" | "crawling" | "embedding" | "completed" | "error">("idle");
   const [indexingAttemptedRepo, setIndexingAttemptedRepo] = useState<string | null>(null);
@@ -138,6 +149,42 @@ export default function PlaygroundClient({
   const requestProgressRef = useRef<HTMLDivElement>(null);
   const repositoryChatRef = useRef<HTMLDivElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const askedRepositoryTrackedRef = useRef(
+    Boolean((initialUser?.user_metadata as { dandi_onboarding?: DandiOnboardingMetadata } | undefined)?.dandi_onboarding?.askedRepository)
+  );
+
+  const markAskedRepositoryComplete = async () => {
+    if (!initialUser || askedRepositoryTrackedRef.current) return;
+
+    askedRepositoryTrackedRef.current = true;
+    const metadata = initialUser.user_metadata as { dandi_onboarding?: DandiOnboardingMetadata };
+    const supabase = createClient();
+
+    await supabase.auth.updateUser({
+      data: {
+        ...(initialUser.user_metadata || {}),
+        dandi_onboarding: {
+          ...(metadata.dandi_onboarding || {}),
+          started: true,
+          askedRepository: true,
+        },
+      },
+    });
+  };
+
+  useEffect(() => {
+    const mode = searchParams.get("mode");
+    if (mode === "ask") {
+      setActiveTab("rag");
+      setErrorMessage("");
+      return;
+    }
+
+    if (mode === "summary") {
+      setActiveTab("summary");
+      setErrorMessage("");
+    }
+  }, [searchParams]);
 
   const scrollToSection = (target: React.RefObject<HTMLElement | null>) => {
     window.requestAnimationFrame(() => {
@@ -295,7 +342,7 @@ export default function PlaygroundClient({
             role: "assistant",
             content: `Repository indexed: **${job.repoName || getRepoPath(job.repoUrl)}**.
 
-Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files into ${typeof chunksCount === "number" ? chunksCount : "confirmed"} searchable chunks. Ask a retrieval-backed question to use this durable index.`
+Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files into ${typeof chunksCount === "number" ? chunksCount : "confirmed"} searchable chunks. Ask source-backed questions about this repository.`
           }
         ]);
       }
@@ -341,7 +388,7 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
     };
   }, [apiKey, githubUrl]);
 
-  // Ingestion Handler for RAG
+  // Repository preparation handler
   const handleIngest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!apiKey) {
@@ -555,11 +602,11 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       showToast("success", "Repository indexed and ready for questions.");
       refreshKeys();
     } catch (err: any) {
-      console.warn("Indexed Q&A request failed:", err);
+      console.warn("Ask a Repository request failed:", err);
       const errMsg = err.message || "Ingestion process encountered an error.";
       const diagnosticError = {
         status: "failed",
-        detail: "Indexed Q&A request failed. See the Repository Chat error card for the reason and next action.",
+        detail: "Ask a Repository request failed. See the Repository Chat error card for the reason and next action.",
       };
       setErrorMessage(errMsg);
       setIngestStatus("error");
@@ -580,16 +627,16 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         statusText: errMsg.includes("rate limit") ? "Rate Limited" : "Failed",
         responseBody: diagnosticError
       });
-      showToast("error", "Failed to ingest codebase.");
+      showToast("error", getToastErrorMessage("repository-indexing", errMsg));
     }
   };
 
-  // Chat Submission Handler for RAG
+  // Repository question submission handler
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim() || isChatLoading) return;
     if (!apiKey || !githubUrl) {
-      showToast("error", "API key and repository URL are required.");
+      showToast("error", getToastErrorMessage("repository-chat", "API key and repository URL are required."));
       return;
     }
 
@@ -669,7 +716,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "RAG chat request failed.");
+        throw new Error(errorData.error || "Repository question request failed.");
       }
 
       // Read sources from header
@@ -679,7 +726,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         try {
           sources = JSON.parse(sourcesHeader);
         } catch (e) {
-          console.error("Failed to parse RAG sources header", e);
+          console.error("Failed to parse repository sources header", e);
         }
       }
       setChatProgressStep("context");
@@ -750,6 +797,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       });
       setChatProgressStep("sources");
 
+      void markAskedRepositoryComplete();
       refreshKeys();
     } catch (err: any) {
       console.error(err);
@@ -764,14 +812,15 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       setRagMessages(prev => {
         const updated = [...prev];
         if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
+          const guidance = getErrorGuidance({ workflow: "repository-chat", message: errMsg });
           updated[updated.length - 1] = {
             role: "assistant",
-            content: `⚠️ Error: ${errMsg}`
+            content: `**${guidance.title}**\n\n${guidance.explanation}\n\n${guidance.nextAction}`
           };
         }
         return updated;
       });
-      showToast("error", "Error streaming RAG response.");
+      showToast("error", getToastErrorMessage("repository-chat", errMsg));
     } finally {
       setIsChatLoading(false);
       window.setTimeout(() => setChatProgressStep("idle"), 300);
@@ -1272,7 +1321,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     setGithubUrl("https://github.com/facebook/react");
     setSelectedKey("__demo__");
     setSelectValue("__demo__");
-    showToast("success", "Demo data populated. Hit Summarize!");
+    showToast("success", "Demo Mode loaded a sample public repository. Hit Summarize.");
   };
 
   const activeKeyData = apiKeys.find(k => k.key_value === apiKey);
@@ -1324,7 +1373,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     {
       id: "summary-access",
       label: "Checking access & limits",
-      detail: "Validating API key and quota",
+      detail: "Validating API key and request limit",
       status: summaryAuthStage,
     },
     {
@@ -1364,7 +1413,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     {
       id: "request",
       label: "Request",
-      sublabel: activeTab === "summary" ? "Repository summary payload" : "RAG workbench payload",
+      sublabel: activeTab === "summary" ? "Repository summary payload" : "Ask a Repository payload",
       status: requestLogs.length > 0 ? "done" : isPipelineActive ? "active" : "idle",
     },
     {
@@ -1375,14 +1424,14 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     },
     {
       id: "quota",
-      label: "Quota",
+      label: "Request limit",
       sublabel: isOverLimit ? "Limit exceeded" : "Usage gate clear",
       status: isOverLimit ? "error" : requestLogs.length > 0 ? "done" : "idle",
     },
     {
       id: "context",
-      label: activeTab === "rag" ? "Context/RAG" : "Repository",
-      sublabel: activeTab === "rag" ? "pgvector context retrieval" : "GitHub metadata fetch",
+      label: activeTab === "rag" ? "Repository context" : "Repository",
+      sublabel: activeTab === "rag" ? "Source matching" : "GitHub metadata fetch",
       status: getPipelineStatus("repo_fetch"),
     },
     {
@@ -1412,7 +1461,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     {
       id: "summary-auth",
       label: "API Key",
-      sublabel: "Validate quota and access",
+      sublabel: "Validate request limit and access",
       status: getPipelineStatus("auth"),
     },
     {
@@ -1456,7 +1505,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     {
       id: "rag-ready",
       label: "Ready",
-      sublabel: "Ask retrieval-backed questions",
+      sublabel: "Ask source-backed questions",
       status: ingestStatus === "completed" ? "done" : hasIndexingFailure ? "error" : "idle",
     },
   ] satisfies Parameters<typeof PipelineFlow>[0]["steps"];
@@ -1484,7 +1533,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     {
       id: "index-chunks",
       label: "Creating searchable chunks",
-      detail: currentIndexStats?.filesCount ? `${indexedFilesLabel} files selected` : "Splitting eligible files into retrieval units",
+      detail: currentIndexStats?.filesCount ? `${indexedFilesLabel} files selected` : "Splitting eligible files into searchable sections",
       status: ingestStatus === "crawling" ? "active" : ingestStatus === "embedding" || ingestStatus === "completed" ? "done" : hasIndexingFailure ? "error" : "idle",
     },
     {
@@ -1495,14 +1544,14 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     },
     {
       id: "index-store",
-      label: "Storing retrieval index",
+      label: "Preparing repository for questions",
       detail: currentIndexStats?.chunksCount ? `${indexedChunksLabel} searchable chunks` : "Saving chunks and vector index",
       status: ingestStatus === "completed" ? "done" : ingestStatus === "embedding" ? "active" : hasIndexingFailure ? "error" : "idle",
     },
     {
       id: "index-ready",
       label: "Repository ready",
-      detail: "Q&A can now retrieve repository evidence",
+      detail: "Questions can now use repository evidence",
       status: ingestStatus === "completed" ? "done" : hasIndexingFailure ? "error" : "idle",
     },
   ];
@@ -1534,7 +1583,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     {
       id: "chat-sources",
       label: "Preparing sources",
-      detail: "Attaching retrieved evidence when useful",
+      detail: "Attaching source evidence when useful",
       status: chatProgressStep === "sources" ? "active" : "idle",
     },
   ];
@@ -1604,7 +1653,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       label: "Indexing",
       sublabel: activeTab === "summary"
         ? "Summary mode does not index repositories"
-        : currentIndexStats?.status === "completed" ? `${indexedFilesLabel} files / ${indexedChunksLabel} chunks` : currentIngestionStep === "indexing" || ingestStatus === "embedding" ? "Creating searchable chunks" : "Start indexing to enable retrieval-backed questions",
+        : currentIndexStats?.status === "completed" ? `${indexedFilesLabel} files / ${indexedChunksLabel} chunks` : currentIngestionStep === "indexing" || ingestStatus === "embedding" ? "Creating searchable chunks" : "Index a repository once to ask source-backed questions",
       status: activeTab === "summary"
         ? "idle"
         : currentIngestionStep === "ready" || ingestStatus === "completed" && currentIndexStats?.status === "completed" ? "done" : currentIngestionStep === "indexing" || ingestStatus === "embedding" || ingestStatus === "crawling" ? "active" : hasIndexingFailure ? "error" : "idle",
@@ -1614,7 +1663,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       label: "Ready",
       sublabel: activeTab === "summary"
         ? summaryHasData ? "Summary is ready; index not required" : "No summary result yet"
-        : ingestStatus === "completed" ? "Repository can answer retrieval-backed questions" : "This repository has not been indexed yet.",
+        : ingestStatus === "completed" ? "Repository is ready for source-backed questions" : "This repository has not been prepared for questions yet.",
       status: activeTab === "summary"
         ? summaryHasData ? "done" : hasPipelineError ? "error" : "idle"
         : ingestStatus === "completed" ? "done" : hasIndexingFailure ? "error" : "idle",
@@ -1626,16 +1675,16 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       value: githubUrl ? getRepoPath(githubUrl) : "No repository",
       detail: activeTab === "summary"
         ? "The summary request uses the public GitHub repository URL, repository metadata, and the summarizer response returned by the API."
-        : "The indexing request uses the public GitHub repository URL and the eligible files selected by the RAG ingestion service.",
+        : "Ask a Repository uses the public GitHub repository URL and eligible files selected for source-backed answers.",
     },
     {
       label: "Indexed",
       value: ingestStatus === "completed" && hasIndexedCounts ? `${indexedFilesLabel} files / ${indexedChunksLabel} chunks` : hasIndexingFailure ? "Failed" : "Not indexed yet",
       detail: ingestStatus === "completed"
-        ? "These counts come from the completed ingestion job. They describe searchable chunks available to retrieval."
+        ? "These counts come from the completed preparation job. They describe searchable chunks available for questions."
         : hasIndexingFailure
-          ? currentIndexStats?.error || "Indexing did not complete. Retrieval-backed answers are not available for this repository."
-          : "This repository has not been indexed yet. Start indexing to enable retrieval-backed questions.",
+          ? currentIndexStats?.error || "Repository preparation did not complete. Source-backed answers are not available for this repository."
+          : "This repository has not been prepared yet. Index it once to ask source-backed questions.",
     },
     {
       label: "Not indexed",
@@ -1646,10 +1695,10 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       label: "Evidence",
       value: hasSourceEvidence ? "Sources returned" : retrievalAttempted ? "No sources returned" : "Not requested",
       detail: hasSourceEvidence
-        ? "Matched source files are shown under the answer and come from the RAG response metadata."
+        ? "Matched source files are shown under the answer and come from response metadata."
         : retrievalAttempted
           ? "The answer streamed, but the API did not return source metadata. Treat it as uncited."
-          : "Ask a question after indexing to see whether retrieval returns source evidence.",
+          : "Ask a question after indexing to see whether Dandi returns source evidence.",
     },
   ];
   const completedLogs = requestLogs.filter((log) => log.status !== "pending" && log.duration > 0);
@@ -1711,7 +1760,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
           },
           result_context: {
             searchable_index: ingestedRepo === githubUrl && ingestStatus === "completed" ? "available" : "use_indexed_q_and_a",
-            evidence: hasSourceEvidence ? "sources_returned" : retrievalAttempted ? "no_sources_returned" : "returned_in_rag_answers",
+            evidence: hasSourceEvidence ? "sources_returned" : retrievalAttempted ? "no_sources_returned" : "returned_in_source_backed_answers",
           },
           analysis_scope: {
             used: [
@@ -1720,9 +1769,9 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
               "Structured summary returned by the API",
             ],
             limitations: [
-              "Summary mode does not create a searchable index.",
+              "Summary mode does not prepare a repository for follow-up questions.",
               "Summary mode does not return a skipped-file manifest.",
-              "Use Indexed Q&A for file/chunk counts and source-backed answers.",
+              "Use Ask a Repository for file/chunk counts and source-backed answers.",
             ],
             current_index: currentIndexStats?.status === "completed"
               ? {
@@ -1738,7 +1787,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                   status: hasIndexingFailure ? "failed" : "not_started",
                   message: hasIndexingFailure
                     ? currentIndexStats?.error || "Indexing did not complete."
-                    : "This repository has not been indexed yet. Start indexing to enable retrieval-backed questions.",
+                    : "This repository has not been prepared yet. Index it once to ask source-backed questions.",
                 },
           },
           transparency: transparencyRows,
@@ -1777,7 +1826,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
           <DashboardPageHeader
             eyebrow="Environment / Testing"
             title="API Playground"
-            description="Validate API keys, summarize repositories, index code for retrieval, and inspect the request pipeline."
+            description="Validate API keys, summarize repositories, prepare code for questions, and inspect the request pipeline."
             rightAction={
               <StatusPill tone={isPipelineActive ? "warning" : hasPipelineError ? "danger" : "success"} pulse={isPipelineActive}>
                 {isPipelineActive ? "Pipeline Running" : hasPipelineError ? "Action Required" : "Workbench Ready"}
@@ -1786,8 +1835,8 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
           >
             <TabsBar
               tabs={[
-                { id: "summary", label: "Repository Summary" },
-                { id: "rag", label: "Indexed Q&A (RAG)" },
+                { id: "summary", label: "Repository Summary", controlsId: "playground-summary-panel" },
+                { id: "rag", label: "Ask a Repository", controlsId: "playground-rag-panel" },
               ]}
               activeId={activeTab}
               onChange={(id) => {
@@ -1800,10 +1849,15 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
 
           <div className="flex flex-col gap-8 xl:flex-row">
             {/* Left Column (flex-1) */}
-            <div className="flex-1 min-w-0 space-y-8">
+            <div
+              id={activeTab === "summary" ? "playground-summary-panel" : "playground-rag-panel"}
+              role="tabpanel"
+              aria-labelledby={`${activeTab}-tab`}
+              className="flex-1 min-w-0 space-y-8"
+            >
               {/* Conditional Panel Rendering */}
               {activeTab === "rag" && ingestedRepo === githubUrl && ingestStatus === "completed" ? (
-                /* RAG Chat room box */
+                /* Repository chat room box */
                 <div ref={repositoryChatRef} className="space-y-6 scroll-mt-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
                   <CommandPanel tone="elevated" interactive className="flex min-h-[560px] flex-col p-5 sm:p-8">
                     {/* Header of Chat Room */}
@@ -1840,7 +1894,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                             setRagMessages([
                               {
                                 role: "assistant",
-                                content: `The repository **${getRepoPath(githubUrl)}** is indexed. Ask a question and Dandi will retrieve matching repository context before answering.`
+                                content: `The repository **${getRepoPath(githubUrl)}** is ready. Ask a question and Dandi will use matching repository context before answering.`
                               }
                             ]);
                           }}
@@ -1856,7 +1910,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                         <div className="min-w-0">
                           <div className="mb-2 flex flex-wrap items-center gap-2">
                             <LiveIndicator active={false} tone="success" label="ready" />
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/80">Indexed and ready</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/80">Ready for questions</p>
                           </div>
                           <p className="truncate text-sm font-bold text-slate-100" title={getRepoPath(githubUrl)}>
                             Repository indexed: <span className="font-mono text-emerald-200">{getRepoPath(githubUrl)}</span>
@@ -1864,7 +1918,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                           <p className="mt-1 text-xs font-medium leading-relaxed text-slate-300">
                             {typeof currentIndexStats?.filesCount === "number" && typeof currentIndexStats?.chunksCount === "number"
                               ? `${currentIndexStats.filesCount.toLocaleString()} files processed into ${currentIndexStats.chunksCount.toLocaleString()} searchable chunks.`
-                              : "The repository index is ready for retrieval-backed questions."}
+                              : "The repository is ready for source-backed questions."}
                           </p>
                         </div>
                         <StatusPill tone="success" compact>
@@ -1949,7 +2003,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                                 ) : (
                                   <LoadingStages
                                     title="Answer in progress"
-                                    description="Dandi is retrieving context before writing the final response."
+                                    description="Dandi is finding source context before writing the final response."
                                     stages={chatLoadingStages}
                                     className="mx-auto max-w-3xl"
                                   />
@@ -1969,14 +2023,14 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                                     </div>
                                     {lowConfidence && (
                                       <span className="rounded-full border border-amber-300/15 bg-amber-300/[0.06] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-amber-200">
-                                        Low-confidence retrieval
+                                        Low-confidence source match
                                       </span>
                                     )}
                                   </summary>
 
                                   {lowConfidence && (
                                     <p className="mt-3 rounded-xl border border-amber-300/15 bg-amber-300/[0.045] px-3 py-2 text-xs font-medium leading-6 text-amber-100/80">
-                                      Low-confidence retrieval · sources may only be loosely related.
+                                      Low-confidence source match. Sources may only be loosely related.
                                     </p>
                                   )}
 
@@ -2007,7 +2061,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                                               {src.preview ? (
                                                 <p>{src.preview}</p>
                                               ) : (
-                                                <p>This source matched the question during semantic retrieval, but no chunk preview was returned.</p>
+                                                <p>This source matched the question, but no chunk preview was returned.</p>
                                               )}
                                             </div>
                                           </div>
@@ -2057,7 +2111,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                           {[
                             "Explain the repository structure & primary entry points",
                             "How is API key validation designed?",
-                            "Are there any rate limiting or quota guardrails implemented?",
+                            "Are there any rate limits or monthly request guardrails implemented?",
                             "Show how the database migration schema is set up"
                           ].map((p, pIdx) => (
                             <button
@@ -2082,7 +2136,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         disabled={isChatLoading}
-                        placeholder={isChatLoading ? "Retrieving indexed context..." : "Ask a question about the indexed repository..."}
+                        placeholder={isChatLoading ? "Finding source context..." : "Ask a question about this repository..."}
                         className="min-w-0 flex-1 rounded-2xl border border-[var(--command-border)] bg-slate-950/80 px-5 py-4 text-sm font-medium text-slate-100 outline-none transition-all placeholder:text-slate-600 disabled:cursor-not-allowed disabled:opacity-70 focus:border-emerald-300/45 focus:ring-4 focus:ring-emerald-300/10"
                       />
                       <button
@@ -2111,11 +2165,16 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Request Builder</p>
                         <h2 className="mt-1 font-serif text-2xl font-bold text-white">
-                          {activeTab === "summary" ? "Repository Summary Request" : "RAG Indexing Request"}
+                          {activeTab === "summary" ? "Repository Summary Request" : "Ask a Repository Request"}
                         </h2>
+                        <p className="mt-2 max-w-2xl text-xs font-semibold leading-relaxed text-slate-400">
+                          {activeTab === "summary"
+                            ? "Get an overview of a repository's structure, purpose, and key components."
+                            : "Index a repository once, then ask source-backed questions."}
+                        </p>
                       </div>
                       <StatusPill tone={activeTab === "summary" ? "info" : "success"} compact>
-                        {activeTab === "summary" ? "Summarizer" : "RAG Mode"}
+                        {activeTab === "summary" ? "Summarizer" : "Ask Mode"}
                       </StatusPill>
                     </div>
                     <div className="grid gap-8 lg:grid-cols-2">
@@ -2148,6 +2207,18 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                           placeholder="sk_live_..."
                           className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-6 py-4 font-mono text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600 focus:border-emerald-300/40 focus:ring-4 focus:ring-emerald-300/10"
                         />
+                        {apiKey === "__demo__" ? (
+                          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3">
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Demo Mode</p>
+                            <p className="mt-1 text-xs font-medium leading-relaxed text-emerald-100/75">
+                              Uses a limited demo key for public repositories only.
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="px-1 text-[11px] font-medium leading-relaxed text-slate-500">
+                            Use Demo Mode for a sample public repository, or paste a user-created API key for your own request usage.
+                          </p>
+                        )}
                         {/* Usage badge — shown only when a real user key is selected (not demo, not custom) */}
                         {(() => {
                           const k = apiKeys.find(k => k.key_value === selectedKey);
@@ -2202,12 +2273,12 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-4 sm:flex-row">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
                       {activeTab === "summary" ? (
                         <button
                           type="submit"
                           disabled={isLoadingSummary || isOverLimit}
-                          className="group flex flex-1 items-center justify-center gap-3 rounded-2xl bg-emerald-400 px-8 py-5 text-xs font-black uppercase tracking-widest text-slate-950 transition-all hover:bg-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_24px_rgba(52,211,153,0.18)] cursor-pointer"
+                          className="group flex flex-1 items-center justify-center gap-2.5 rounded-2xl bg-emerald-400 px-5 py-4 text-[10px] font-black uppercase tracking-[0.16em] text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.18)] transition-all hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-3 sm:px-8 sm:py-5 sm:text-xs sm:tracking-widest cursor-pointer"
                         >
                           {isLoadingSummary ? (
                             <>
@@ -2220,7 +2291,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                             </>
                           ) : isOverLimit ? (
                             <>
-                              Quota Exceeded
+                              Request Limit Exceeded
                               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
                                 <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                               </svg>
@@ -2238,7 +2309,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                         <button
                           type="submit"
                           disabled={ingestStatus === "crawling" || ingestStatus === "embedding" || isOverLimit}
-                          className="group flex flex-1 items-center justify-center gap-3 rounded-2xl bg-emerald-400 px-8 py-5 text-xs font-black uppercase tracking-widest text-slate-950 transition-all hover:bg-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_24px_rgba(52,211,153,0.18)] cursor-pointer"
+                          className="group flex flex-1 items-center justify-center gap-2.5 rounded-2xl bg-emerald-400 px-5 py-4 text-[10px] font-black uppercase tracking-[0.16em] text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.18)] transition-all hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-3 sm:px-8 sm:py-5 sm:text-xs sm:tracking-widest cursor-pointer"
                         >
                           {ingestStatus === "crawling" || ingestStatus === "embedding" ? (
                             <>
@@ -2258,22 +2329,29 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                       <button
                         type="button"
                         onClick={handleDemoMode}
-                        className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] px-8 py-5 text-xs font-bold uppercase tracking-widest text-slate-400 transition-all hover:border-emerald-300/25 hover:text-emerald-200 shadow-sm cursor-pointer"
+                        className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 shadow-sm transition-all hover:border-emerald-300/25 hover:text-emerald-200 sm:px-8 sm:py-5 sm:text-xs sm:tracking-widest cursor-pointer"
                       >
-                        Try with Demo Key
+                        Try Sample Repository
                       </button>
                     </div>
+                    <p className="text-center text-[11px] font-medium leading-relaxed text-slate-500 sm:text-left">
+                      Demo Mode uses a limited demo key for public repositories only. User-created API keys count successful requests toward your monthly request usage.
+                    </p>
                   </form>
                   </CommandPanel>
 
                   {shouldShowTopLevelError && (
-                    <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700 dark:border-red-950/30 dark:bg-red-950/10 dark:text-red-400">
-                      <p className="font-bold">{activeTab === "rag" ? "Repository processing did not complete." : "Repository summary did not complete."}</p>
-                      <p className="mt-1">{errorMessage}</p>
-                      <p className="mt-2 text-xs leading-relaxed text-red-600/80 dark:text-red-300/80">
-                        Check the API key, repository URL, quota, and network log details. If indexing failed after a job was created, retrying will start a fresh ingestion request.
-                      </p>
-                    </div>
+                    <GuidedError
+                      {...getErrorGuidance({
+                        workflow: activeTab === "rag" ? "repository-chat" : "repository-summary",
+                        message: errorMessage,
+                      })}
+                      technicalDetails={{
+                        message: errorMessage,
+                        activeTab,
+                        requestLogs: requestLogs.filter((entry) => entry.status === "error"),
+                      }}
+                    />
                   )}
 
                   <div ref={requestProgressRef} className="scroll-mt-24">
@@ -2287,8 +2365,8 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                     )}
                     {activeTab === "rag" && (isIndexingActive || indexedRequestLogs.length > 0) && (
                       <LoadingStages
-                        title={isIndexingActive ? "Indexing repository" : "Indexing workflow"}
-                        description="Dandi prepares searchable repository evidence for retrieval-backed questions."
+                        title={isIndexingActive ? "Preparing repository" : "Repository preparation workflow"}
+                        description="Dandi prepares searchable repository evidence for source-backed questions."
                         stages={indexingLoadingStages}
                         className="mb-4"
                       />
@@ -2310,7 +2388,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Repository Q&A</p>
                             <h3 className="mt-1 font-serif text-2xl font-bold text-white">Repository Chat</h3>
                             <p className="mt-2 max-w-xl text-sm font-medium leading-relaxed text-slate-300">
-                              This repository has not been indexed yet. Start indexing to enable retrieval-backed questions.
+                              Index a repository once, then ask source-backed questions.
                             </p>
                           </div>
                         </div>
@@ -2320,19 +2398,22 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                       </div>
 
                       {hasIndexingFailure && (
-                        <div className="rounded-2xl border border-rose-400/25 bg-rose-950/20 p-4 text-left shadow-[0_0_28px_rgba(244,63,94,0.08)]">
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-300">Indexing failed</p>
-                          <p className="mt-2 text-sm font-semibold leading-relaxed text-rose-100">{errorMessage || "Process interrupted."}</p>
-                          <p className="mt-2 text-xs font-medium leading-relaxed text-rose-200/75">
-                            The repository is not ready for retrieval-backed answers. Review the request log status, then retry indexing with a reachable public repository.
-                          </p>
-                        </div>
+                        <GuidedError
+                          {...getErrorGuidance({ workflow: "repository-indexing", message: errorMessage })}
+                          technicalDetails={{
+                            message: errorMessage || "Process interrupted.",
+                            repository: githubUrl,
+                            stats: indexedRepositoryStats,
+                            requestLogs: indexedRequestLogs.filter((entry) => entry.status === "error"),
+                          }}
+                          compact
+                        />
                       )}
 
                       <div className="grid gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
                         {[
                           ["1", "Index", "Dandi reads eligible code and markdown files."],
-                          ["2", "Retrieve", "Questions search the indexed chunks for relevant context."],
+                          ["2", "Search", "Questions search the prepared repository sections for relevant context."],
                           ["3", "Answer", "Responses include matched source files when available."],
                           ["4", "Verify", "Use source paths and match scores to inspect the answer basis."]
                         ].map(([step, label, detail]) => (
@@ -2357,8 +2438,8 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <TabsBar
                           tabs={[
-                            { id: "visual", label: "Visual Results" },
-                            { id: "json", label: "JSON Results" },
+                            { id: "visual", label: "Visual Results", controlsId: "summary-visual-panel" },
+                            { id: "json", label: "JSON Results", controlsId: "summary-json-panel" },
                           ]}
                           activeId={viewMode}
                           onChange={(id) => setViewMode(id as "visual" | "json")}
@@ -2366,6 +2447,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                         />
                         {viewMode === "json" && summaryHasData && (
                           <button
+                            type="button"
                             onClick={() => {
                               const blob = new Blob([JSON.stringify(summaryJsonData, null, 2)], { type: "application/json" });
                               const url = URL.createObjectURL(blob);
@@ -2375,9 +2457,9 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                               a.click();
                               URL.revokeObjectURL(url);
                             }}
-                            className="flex items-center gap-1.5 rounded-full bg-zinc-900 dark:bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white dark:text-zinc-900 transition hover:bg-zinc-800 dark:hover:bg-zinc-200"
+                            className="flex items-center gap-1.5 rounded-full bg-zinc-900 dark:bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white dark:text-zinc-900 transition hover:bg-zinc-800 dark:hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                           >
-                            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                               <polyline points="7 10 12 15 17 10" />
                               <line x1="12" y1="15" x2="12" y2="3" />
@@ -2388,7 +2470,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                       </div>
 
                       {viewMode === "visual" ? (
-                        <CommandPanel className="p-5 sm:p-8">
+                        <CommandPanel id="summary-visual-panel" role="tabpanel" aria-labelledby="visual-tab" className="p-5 sm:p-8">
                           <div className="flex flex-col gap-8 lg:flex-row">
                             <div className="min-w-0 flex-1 space-y-6">
                               <div className="space-y-1">
@@ -2420,13 +2502,24 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                               </div>
 
                               {(summaryStatus === "empty" || summaryStatus === "error" || streamError) && !summaryHasData && (
-                                <div className={`rounded-2xl border p-4 text-sm font-semibold ${
-                                  summaryStatus === "empty" && !streamError
-                                    ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-950/40 dark:bg-amber-950/15 dark:text-amber-300"
-                                    : "border-red-200 bg-red-50 text-red-700 dark:border-red-950/30 dark:bg-red-950/10 dark:text-red-400"
-                                }`}>
-                                  {summaryStatus === "empty" && !streamError ? "No summary was returned." : summaryStreamMessage || "Streaming failed."}
-                                </div>
+                                summaryStatus === "empty" && !streamError ? (
+                                  <div className="rounded-2xl border border-amber-300/25 bg-amber-950/15 p-4 text-sm font-semibold leading-relaxed text-amber-200">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">No summary returned</p>
+                                    <p className="mt-2">The request completed, but the response did not include summary content.</p>
+                                    <p className="mt-1 text-xs font-medium text-amber-100/75">Try again, or check the JSON and request log to confirm what the API returned.</p>
+                                  </div>
+                                ) : (
+                                  <GuidedError
+                                    {...getErrorGuidance({ workflow: "repository-summary", message: summaryStreamMessage })}
+                                    technicalDetails={{
+                                      message: summaryStreamMessage || "Streaming failed.",
+                                      streamError: streamError?.message,
+                                      summaryIssue,
+                                      requestLogs: summaryRequestLogs.filter((entry) => entry.status === "error"),
+                                    }}
+                                    compact
+                                  />
+                                )
                               )}
 
                               {summaryResult?.summary ? (
@@ -2448,7 +2541,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                                     ? "No summary was returned."
                                     : summaryStatus === "error" || streamError
                                       ? "The summary could not be displayed. See the alert above for details."
-                                      : "No summary has been requested yet."}
+                                      : "No repository summary yet. Select Demo Mode or paste an API key, enter a public GitHub URL, then run the summary request."}
                                 </p>
                               )}
                             </div>
@@ -2467,7 +2560,9 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                                   </ul>
                                 ) : (
                                   <p className="text-sm font-medium leading-relaxed text-zinc-500 dark:text-zinc-400">
-                                    {isLoadingSummary ? "Findings will appear as the stream completes." : "No findings were returned."}
+                                    {isLoadingSummary
+                                      ? "Findings will appear as the stream completes."
+                                      : "Key findings appear after a successful repository summary. Run a summary request to populate this panel."}
                                   </p>
                                 )}
                               </div>
@@ -2479,12 +2574,12 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                                     <span className="min-w-0 truncate text-right font-mono text-xs text-slate-200" title={githubUrl}>{githubUrl ? getRepoPath(githubUrl) : "Not set"}</span>
                                   </div>
                                   <div className="flex items-start justify-between gap-3">
-                                    <span className="text-slate-500">Searchable index</span>
-                                    <span className="text-right text-xs font-bold text-slate-200">{ingestedRepo === githubUrl && ingestStatus === "completed" ? "Available" : "Use Indexed Q&A"}</span>
+                                    <span className="text-slate-500">Prepared for questions</span>
+                                    <span className="text-right text-xs font-bold text-slate-200">{ingestedRepo === githubUrl && ingestStatus === "completed" ? "Available" : "Use Ask a Repository"}</span>
                                   </div>
                                   <div className="flex items-start justify-between gap-3">
                                     <span className="text-slate-500">Evidence</span>
-                                    <span className="text-right text-xs font-bold text-slate-200">Returned in RAG answers</span>
+                                    <span className="text-right text-xs font-bold text-slate-200">Returned in source-backed answers</span>
                                   </div>
                                 </div>
                               </div>
@@ -2500,7 +2595,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                                   <div>
                                     <p className="text-xs font-bold text-slate-200">What this does not prove</p>
                                     <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                                      Summary mode does not create a searchable index and does not return a skipped-file manifest. Use Indexed Q&A for file/chunk counts and source-backed answers.
+                                      Summary mode does not prepare a repository for follow-up questions and does not return a skipped-file manifest. Use Ask a Repository for file/chunk counts and source-backed answers.
                                     </p>
                                   </div>
                                   {currentIndexStats?.status === "completed" && (
@@ -2517,7 +2612,9 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                           </div>
                         </CommandPanel>
                       ) : (
-                        <JsonViewer data={summaryJsonData} />
+                        <div id="summary-json-panel" role="tabpanel" aria-labelledby="json-tab">
+                          <JsonViewer data={summaryJsonData} />
+                        </div>
                       )}
                     </div>
                   )}
@@ -2567,17 +2664,17 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                     Endpoint Context
                   </div>
                   <StatusPill tone={activeTab === "summary" ? "info" : "success"} compact>
-                    {activeTab === "summary" ? "REST" : "RAG"}
+                    {activeTab === "summary" ? "REST" : "Ask"}
                   </StatusPill>
                 </div>
                 <p className="text-[11px] leading-relaxed text-slate-400">
                   {activeTab === "summary" ? (
                     <>
-                      This workbench calls <span className="text-white font-mono">/api/github-summarizer</span> with your selected key and repository URL. Successful requests count toward your monthly quota.
+                      This workbench calls <span className="text-white font-mono">/api/github-summarizer</span> with your selected key and repository URL. Successful requests count toward your monthly request usage.
                     </>
                   ) : (
                     <>
-                      Indexed Q&A uses <span className="text-white font-mono">/api/rag/ingest</span> to prepare repository chunks, then <span className="text-white font-mono">/api/rag/chat</span> to retrieve context and stream an answer. Successful requests count toward your monthly quota.
+                      Ask a Repository uses <span className="text-white font-mono">/api/rag/ingest</span> to prepare repository chunks, then <span className="text-white font-mono">/api/rag/chat</span> to find source context and stream an answer. Successful requests count toward your monthly request usage.
                     </>
                   )}
                 </p>

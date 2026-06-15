@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import Link from "next/link";
 import { CommandPanel, MetricCard, ScrollFrame, StatusPill } from "@/components/command";
 
 type DailyData = {
@@ -50,6 +51,7 @@ export function AnalyticsDashboard({
   const chartRef = useRef<SVGSVGElement | null>(null);
   const resizeRef = useRef<HTMLDivElement | null>(null);
   const [chartWidth, setChartWidth] = useState<number>(600);
+  const hasAnyUsageData = keys.some((key) => key.usage_count > 0) || dailyAnalytics.some((day) => day.count > 0);
 
   // Click outside to close custom resource context dropdown
   useEffect(() => {
@@ -465,9 +467,19 @@ export function AnalyticsDashboard({
               <svg viewBox="0 0 24 24" className="h-8 w-8 text-slate-600 mb-3" fill="none" stroke="currentColor">
                 <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 01-2 2h-2a2 2 0 01-2-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 select-none">
-                Not enough usage data yet
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300/70 select-none">
+                Usage History Empty
               </p>
+              <h4 className="mt-2 text-sm font-bold text-slate-200">No trend line yet.</h4>
+              <p className="mt-1 max-w-md text-center text-xs font-medium leading-5 text-slate-500">
+                Charts need successful requests across at least two days or request events. Analyze a repository to start filling this timeline.
+              </p>
+              <Link
+                href="/playground?mode=summary"
+                className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15"
+              >
+                Open Playground
+              </Link>
             </div>
           ) : (
             <svg
@@ -659,13 +671,25 @@ export function AnalyticsDashboard({
               <span className="text-[10px] font-bold text-white/50">ROBUSTNESS</span>
             </div>
             <h3 className="font-serif text-3xl font-bold italic tracking-tight mb-4 text-white">Efficiency Ledger</h3>
-            <p className="text-sm leading-relaxed text-zinc-400 mb-6">
-              Your API architecture processed <strong className="text-white font-mono">{currentTotalRequests}</strong> transactions in the current billing epoch with a target reliability index of <strong className="text-white font-mono">{currentSuccessRate}%</strong>. 
-            </p>
+            {hasAnyUsageData ? (
+              <p className="text-sm leading-relaxed text-zinc-400 mb-6">
+                Your API architecture processed <strong className="text-white font-mono">{currentTotalRequests}</strong> transactions in the current billing epoch with a target reliability index of <strong className="text-white font-mono">{currentSuccessRate}%</strong>. 
+              </p>
+            ) : (
+              <p className="text-sm leading-relaxed text-zinc-400 mb-6">
+                No request activity has been recorded yet. Run your first repository analysis and Dandi will turn request history into latency, reliability, and repository insights.
+              </p>
+            )}
           </div>
           <div className="border-t border-white/10 pt-6 mt-4">
             <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Suggested Action</p>
-            <p className="text-xs font-bold text-emerald-400 mt-1">✓ Your key usage profile is optimized. No rate limit leaks detected.</p>
+            {hasAnyUsageData ? (
+              <p className="text-xs font-bold text-emerald-400 mt-1">Your key usage profile is optimized. No rate limit leaks detected.</p>
+            ) : (
+              <Link href="/playground?mode=summary" className="mt-2 inline-flex text-xs font-bold text-emerald-300 hover:underline">
+                Analyze your first repository
+              </Link>
+            )}
           </div>
         </CommandPanel>
 
@@ -681,9 +705,15 @@ export function AnalyticsDashboard({
 
           <div className="space-y-4">
             {globalTopRepos.length === 0 ? (
-              <p className="text-xs font-medium text-slate-400 p-4 border border-dashed border-white/10 rounded-2xl text-center">
-                No active repositories tracked yet in this period.
-              </p>
+              <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/45 p-5 text-center">
+                <p className="text-sm font-bold text-slate-200">No repository analytics yet.</p>
+                <p className="mt-2 text-xs font-medium leading-5 text-slate-500">
+                  This list appears after successful repository summaries or source-backed questions.
+                </p>
+                <Link href="/playground?mode=summary" className="mt-4 inline-flex text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
+                  Open Playground
+                </Link>
+              </div>
             ) : (
               globalTopRepos.slice(0, 5).map((repo, i) => {
                 const maxCount = globalTopRepos[0]?.count || 1;

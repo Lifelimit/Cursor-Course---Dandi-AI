@@ -238,11 +238,12 @@ export function ApiKeyTable({
       {/* Search & Control Bar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
-          <svg viewBox="0 0 24 24" className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor">
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor">
             <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <input 
             type="text" 
+            aria-label="Search API keys by name or signature"
             placeholder="Search keys by name or signature..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -256,7 +257,161 @@ export function ApiKeyTable({
         </div>
       </div>
 
-      <CommandPanel padding="none" className="animate-in fade-in duration-300">
+      <div className="space-y-3 md:hidden">
+        {isLoading ? (
+          [1, 2, 3].map((i) => (
+            <CommandPanel key={i} className="space-y-4 p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-2 w-2 shrink-0 rounded-full shimmer-cell" />
+                <div className="h-4 w-32 rounded-lg shimmer-cell" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="h-12 rounded-xl shimmer-cell" />
+                <div className="h-12 rounded-xl shimmer-cell" />
+              </div>
+            </CommandPanel>
+          ))
+        ) : filteredKeys.length === 0 ? (
+          <CommandPanel className="border-dashed p-5 text-center">
+            <p className="text-sm font-bold text-slate-200">No API keys match this search.</p>
+            <p className="mt-2 text-xs font-medium leading-5 text-slate-500">
+              Your keys are still available. Clear the search to return to the full API key list.
+            </p>
+            <button
+              type="button"
+              onClick={() => setSearchTerm("")}
+              className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15"
+            >
+              Clear Search
+            </button>
+          </CommandPanel>
+        ) : (
+          filteredKeys.map((key) => {
+            const currentLimit = key.monthly_limit;
+            const usagePercent = currentLimit ? Math.min((key.usage_count / currentLimit) * 100, 100) : 0;
+            const intensityColor = !key.is_active
+              ? "bg-zinc-500 text-zinc-500"
+              : usagePercent > 90
+                ? "bg-rose-500 text-rose-500"
+                : usagePercent > 70
+                  ? "bg-amber-500 text-amber-500"
+                  : "bg-emerald-500 text-emerald-500";
+
+            return (
+              <CommandPanel
+                key={key.id}
+                className={`space-y-4 p-4 ${!key.is_active ? "border-amber-300/15 bg-amber-300/5 opacity-80" : ""}`}
+              >
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <LiveIndicator active={key.is_active} tone={key.is_active ? "success" : "warning"} />
+                      <h3 className={`truncate text-sm font-black ${key.is_active ? "text-white" : "text-slate-500"}`} title={key.name}>
+                        {key.name}
+                      </h3>
+                    </div>
+                    <p className="break-all font-mono text-[10px] font-semibold text-slate-500">{maskApiKey(key.key_value)}</p>
+                  </div>
+                  <StatusPill tone={key.type === "production" ? "info" : "warning"} compact>
+                    {key.type === "production" ? "Prod" : "Dev"}
+                  </StatusPill>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-white/10 bg-slate-950/50 p-3">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">Usage</p>
+                    <p className="mt-1 font-mono text-xs font-black text-slate-100">
+                      {key.usage_count.toLocaleString()} / {key.monthly_limit ? key.monthly_limit.toLocaleString() : "∞"}
+                    </p>
+                    <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+                      <div className={`h-full rounded-full ${intensityColor}`} style={{ width: `${usagePercent}%` }} />
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-slate-950/50 p-3">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">Storage</p>
+                    <button
+                      type="button"
+                      onClick={() => setSecurityPromptKeyId(securityPromptKeyId === key.id ? null : key.id)}
+                      className="mt-1 inline-flex items-center gap-1 rounded-lg border border-emerald-300/15 bg-emerald-300/10 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-300/80"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0110 0v4" />
+                      </svg>
+                      Hashed
+                    </button>
+                  </div>
+                </div>
+
+                {securityPromptKeyId === key.id && (
+                  <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/5 p-4">
+                    <p className="text-xs font-bold text-cyan-100">API Key Details</p>
+                    <p className="mt-1 text-xs leading-relaxed text-cyan-100/70">
+                      Existing keys are cryptographically hashed and cannot be recovered or revealed.
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2 min-[380px]:flex-row">
+                      <button
+                        type="button"
+                        onClick={() => setSecurityPromptKeyId(null)}
+                        className="rounded-full border border-cyan-300/20 bg-slate-950 px-4 py-2 text-[9px] font-black uppercase tracking-widest text-cyan-300"
+                      >
+                        Dismiss
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSecurityPromptKeyId(null);
+                          onDelete(key, { replace: true });
+                        }}
+                        className="rounded-full bg-cyan-300 px-4 py-2 text-[9px] font-black uppercase tracking-widest text-slate-950"
+                      >
+                        Revoke & Replace
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!key.is_active && promptedKeyId === key.id && (
+                  <div className="rounded-2xl border border-amber-300/15 bg-amber-300/5 p-4">
+                    <p className="text-xs font-medium leading-relaxed text-amber-100">
+                      <span className="font-bold">{key.name}</span> is disabled. {isHobby ? "Upgrade your plan to re-enable it." : "Open Usage Center to resume service."}
+                    </p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
+                  {!key.is_active ? (
+                    <button
+                      type="button"
+                      onClick={() => setPromptedKeyId(promptedKeyId === key.id ? null : key.id)}
+                      className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-3 text-[9px] font-black uppercase tracking-widest text-amber-200"
+                    >
+                      Details
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onEdit(key)}
+                      className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-[9px] font-black uppercase tracking-widest text-slate-200"
+                    >
+                      Edit
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onDelete(key)}
+                    className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-3 text-[9px] font-black uppercase tracking-widest text-rose-200"
+                  >
+                    Revoke
+                  </button>
+                </div>
+              </CommandPanel>
+            );
+          })
+        )}
+      </div>
+
+      <CommandPanel padding="none" className="hidden animate-in fade-in duration-300 md:block">
         <ScrollFrame axis="x" minWidth="800px" label="API keys table">
         <table className="w-full min-w-[800px] border-collapse text-left text-sm table-fixed">
           <thead className="bg-white/[0.03] text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
@@ -273,8 +428,20 @@ export function ApiKeyTable({
               <ApiKeyTableSkeleton />
             ) : filteredKeys.length === 0 ? (
               <tr>
-                <td className="px-8 py-12 text-sm text-zinc-400 italic text-center" colSpan={5}>
-                  No API keys found matching your search.
+                <td className="px-8 py-12 text-center" colSpan={5}>
+                  <div className="mx-auto max-w-md rounded-2xl border border-dashed border-white/10 bg-slate-950/50 p-6">
+                    <p className="text-sm font-bold text-slate-200">No API keys match this search.</p>
+                    <p className="mt-2 text-xs font-medium leading-5 text-slate-500">
+                      Your keys are still available. Clear the search to return to the full API key list.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSearchTerm("")}
+                      className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15"
+                    >
+                      Clear Search
+                    </button>
+                  </div>
                 </td>
               </tr>
             ) : null}

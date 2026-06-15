@@ -5,10 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
+import { GuidedError } from "@/components/ui/GuidedError";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import type { Session } from "@supabase/supabase-js";
 import { getPlanLimits } from "@/lib/constants";
 import { CommandPanel, StatusPill } from "@/components/command";
+import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
 
 function ProtectedContent() {
   const searchParams = useSearchParams();
@@ -17,6 +19,7 @@ function ProtectedContent() {
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const [keyName, setKeyName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     const initializeState = async () => {
@@ -24,9 +27,11 @@ function ProtectedContent() {
       setIsLoading(true);
       setIsValid(null);
       setKeyName(null);
+      setValidationError(null);
 
       if (!key) {
         setIsValid(false);
+        setValidationError("API key is missing from the protected route URL.");
         setIsLoading(false);
         return;
       }
@@ -45,11 +50,15 @@ function ProtectedContent() {
           showToast("success", `Valid API Key: ${data.name}`);
         } else {
           setIsValid(false);
-          showToast("error", "Invalid API key.");
+          const message = data.error || "Invalid API key.";
+          setValidationError(message);
+          showToast("error", getToastErrorMessage("api-key", message));
         }
-      } catch {
+      } catch (err) {
         setIsValid(false);
-        showToast("error", "Error validating key.");
+        const message = err instanceof Error ? err.message : "Error validating key.";
+        setValidationError(message);
+        showToast("error", getToastErrorMessage("api-key", message));
       } finally {
         setIsLoading(false);
       }
@@ -108,16 +117,15 @@ function ProtectedContent() {
             </div>
           </div>
         ) : (
-          <div className="rounded-[24px] border border-rose-500/20 bg-rose-950/20 p-10 text-rose-200 text-center space-y-6">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-500 text-white shadow-xl shadow-rose-500/20">
-              <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor">
-                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <div className="space-y-2">
-              <h2 className="font-serif text-3xl font-bold">API key invalid</h2>
-              <p className="text-sm font-medium opacity-70 text-rose-200">The provided API key is invalid or has been revoked.</p>
-            </div>
+          <div className="space-y-6">
+            <GuidedError
+              {...getErrorGuidance({ workflow: "api-key", message: validationError || "Invalid API key." })}
+              technicalDetails={{
+                message: validationError || "Invalid API key.",
+                route: "/protected",
+                hasKeyQueryParam: Boolean(key),
+              }}
+            />
             <button 
               onClick={() => window.history.back()}
               className="rounded-full bg-rose-500 px-8 py-3 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-rose-400 shadow-lg shadow-rose-500/20 hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] active:scale-95 cursor-pointer"

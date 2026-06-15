@@ -14,6 +14,7 @@ import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 import { CommandPanel, ModalFrame, StatusPill } from "@/components/command";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
+import { getToastErrorMessage } from "@/lib/error-guidance";
 
 
 
@@ -121,7 +122,7 @@ export default function BillingClient({
       fetchInvoices();
     } catch (err) {
       console.error(err);
-      showToast("error", "Failed to load billing information.");
+      showToast("error", getToastErrorMessage("billing", "Failed to load billing information."));
     } finally {
       setIsLoading(false);
     }
@@ -140,8 +141,9 @@ export default function BillingClient({
       } else {
         throw new Error("Failed to update default payment method.");
       }
-    } catch {
-      showToast("error", "Failed to update default payment method.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update default payment method.";
+      showToast("error", getToastErrorMessage("billing", message));
     }
   };
 
@@ -160,8 +162,9 @@ export default function BillingClient({
         const errorData = await res.json();
         throw new Error(errorData.error || "Failed to remove card.");
       }
-    } catch {
-      showToast("error", "Failed to remove card.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to remove card.";
+      showToast("error", getToastErrorMessage("billing", message));
     }
   };
 
@@ -311,8 +314,26 @@ export default function BillingClient({
                           onSetDefault={() => {}}
                         />
                       ) : (
-                        <CommandPanel className="flex h-[180px] items-center justify-center border-dashed text-center">
-                          <p className="text-sm font-medium text-slate-500">No primary payment method.</p>
+                        <CommandPanel className="flex min-h-[220px] items-center justify-center border-dashed p-6 text-center">
+                          <div className="max-w-md">
+                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Payment Method</p>
+                            <h3 className="mt-2 font-serif text-xl font-bold text-white">No primary card saved.</h3>
+                            <p className="mt-2 text-sm font-medium leading-6 text-slate-400">
+                              Add a payment method before upgrading so plan changes and renewals can complete without interruption.
+                            </p>
+                            <button
+                              type="button"
+                              disabled={isLoading}
+                              onClick={() => {
+                                setModalInitialView("update-payment");
+                                setModalPendingPlan(null);
+                                setIsModalOpen(true);
+                              }}
+                              className="mt-5 inline-flex min-h-10 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Add Card
+                            </button>
+                          </div>
                         </CommandPanel>
                       )}
                     </div>
@@ -484,7 +505,7 @@ export default function BillingClient({
           showToast("success", msg);
           fetchBillingData(); // Refresh data after any subscription change
         }}
-        onError={(msg) => showToast("error", msg)}
+        onError={(msg) => showToast("error", getToastErrorMessage("billing", msg))}
       />
 
       {/* Remove Card Confirmation Modal */}

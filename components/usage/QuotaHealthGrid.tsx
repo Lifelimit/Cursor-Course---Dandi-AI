@@ -5,6 +5,8 @@ import { UsageSparkline } from "./UsageSparkline";
 import { AlertThresholdControl } from "./AlertThresholdControl";
 import { hasCrossedAlertThreshold } from "@/lib/alerts";
 import { CommandPanel, StatusPill } from "@/components/command";
+import { GuidedError } from "@/components/ui/GuidedError";
+import { getErrorGuidance } from "@/lib/error-guidance";
 
 type KeyData = {
   id: string;
@@ -103,7 +105,7 @@ export function QuotaHealthGrid({
     if (isNaN(parsedLimit) || parsedLimit <= minimumLimit) {
       setLimitError({
         keyId: key.id,
-        message: `Enter a limit greater than ${minimumLimit.toLocaleString()} credits.`,
+        message: `Enter a request limit greater than ${minimumLimit.toLocaleString()} requests.`,
       });
       return;
     }
@@ -111,7 +113,7 @@ export function QuotaHealthGrid({
     if (planMonthlyLimit !== null && parsedLimit > planMonthlyLimit) {
       setLimitError({
         keyId: key.id,
-        message: `Limit cannot exceed your plan maximum of ${planMonthlyLimit.toLocaleString()} credits.`,
+        message: `Request limit cannot exceed your plan maximum of ${planMonthlyLimit.toLocaleString()} requests.`,
       });
       return;
     }
@@ -410,17 +412,19 @@ export function QuotaHealthGrid({
                           className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 pr-20 font-serif text-2xl font-bold text-zinc-100 outline-none transition focus:border-red-500/50"
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black uppercase tracking-widest text-zinc-500">
-                          Credits
+                          Requests
                         </span>
                       </div>
                       {limitError?.keyId === key.id ? (
-                        <p className="text-[10px] font-bold leading-relaxed text-red-300">
-                          {limitError.message}
-                        </p>
+                        <GuidedError
+                          {...getErrorGuidance({ workflow: "api-key", message: limitError.message })}
+                          technicalDetails={limitError.message}
+                          compact
+                        />
                       ) : (
                         <p className="text-[10px] font-medium leading-relaxed text-zinc-500">
                           {hasPlanHeadroom
-                            ? `Allowed range: ${(minimumLimit + 1).toLocaleString()} - ${planMonthlyLimit === null ? "unlimited" : planMonthlyLimit.toLocaleString()} credits.`
+                            ? `Allowed range: ${(minimumLimit + 1).toLocaleString()} - ${planMonthlyLimit === null ? "unlimited" : planMonthlyLimit.toLocaleString()} requests.`
                             : "This key is already at your plan maximum. Upgrade the account plan to raise it further."}
                         </p>
                       )}
@@ -562,9 +566,12 @@ export function QuotaHealthGrid({
                     </button>
                   </div>
                 {statusError?.keyId === key.id && (
-                  <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-bold text-red-600 dark:border-red-950/50 dark:bg-red-950/20 dark:text-red-400">
-                    {statusError.message}
-                  </p>
+                  <GuidedError
+                    {...getErrorGuidance({ workflow: "api-key", message: statusError.message })}
+                    technicalDetails={statusError.message}
+                    compact
+                    className="mt-3"
+                  />
                 )}
                 </CommandPanel>
               );

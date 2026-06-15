@@ -3,6 +3,8 @@ import { ApiKey } from "@/types/api";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { ModalFrame } from "@/components/command/ModalFrame";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
+import { GuidedError } from "@/components/ui/GuidedError";
+import { getErrorGuidance } from "@/lib/error-guidance";
 
 type ApiKeyModalProps = {
   isOpen: boolean;
@@ -31,6 +33,9 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditing = Boolean(initialData);
+  const errorId = "api-key-modal-error";
+  const monthlyLimitHelpId = "monthly-limit-help";
+  const alertThresholdId = "api-key-alert-threshold";
 
   useEffect(() => {
     if (isOpen) {
@@ -123,18 +128,18 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
     const parsedThreshold = Number.parseInt(alertThreshold, 10);
 
     if (hasUsageLimit && (parsedLimit === null || Number.isNaN(parsedLimit) || parsedLimit < minimumMonthlyLimit)) {
-      setErrorMessage(`Monthly limit must be at least ${minimumMonthlyLimit.toLocaleString()} credits.`);
+      setErrorMessage(`Monthly request limit must be at least ${minimumMonthlyLimit.toLocaleString()} requests.`);
       return;
     }
 
     if (hasUsageLimit && parsedLimit !== null && maximumMonthlyLimit !== null && parsedLimit > maximumMonthlyLimit) {
-      setErrorMessage(`Monthly limit cannot exceed your plan maximum of ${maximumMonthlyLimit.toLocaleString()} credits.`);
+      setErrorMessage(`Monthly request limit cannot exceed your plan maximum of ${maximumMonthlyLimit.toLocaleString()} requests.`);
       return;
     }
 
     if (isEditing && initialData && parsedLimit !== null) {
       if (parsedLimit <= initialData.usage_count) {
-        setErrorMessage(`New monthly limit must be strictly greater than the current usage of ${initialData.usage_count} credits.`);
+        setErrorMessage(`New monthly request limit must be strictly greater than the current usage of ${initialData.usage_count} requests.`);
         return;
       }
     }
@@ -181,15 +186,18 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
           <label htmlFor="modal-key-name" className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">
             API Key Name
           </label>
-          <input
-            id="modal-key-name"
-            type="text"
-            value={keyName}
-            onChange={(event) => setKeyName(event.target.value)}
-            placeholder="e.g. Production Mobile App"
-            className="h-14 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-6 text-sm font-medium text-white placeholder-zinc-600 outline-none transition focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 disabled:opacity-50"
-            disabled={isSubmitting}
-          />
+            <input
+              id="modal-key-name"
+              type="text"
+              value={keyName}
+              onChange={(event) => setKeyName(event.target.value)}
+              placeholder="e.g. Production Mobile App"
+              required
+              aria-invalid={errorMessage.toLowerCase().includes("name") || undefined}
+              aria-describedby={errorMessage ? errorId : undefined}
+              className="h-14 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-6 text-sm font-medium text-white placeholder-zinc-600 outline-none transition focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 disabled:opacity-50"
+              disabled={isSubmitting}
+            />
         </div>
 
         {/* Key Type Cards */}
@@ -199,6 +207,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
             <button
               type="button"
               onClick={() => setKeyType("development")}
+              aria-pressed={keyType === "development"}
               className={`flex flex-col items-start gap-4 rounded-3xl border p-6 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer ${
                 keyType === "development"
                   ? "border-amber-400/80 bg-slate-950/80 shadow-xl shadow-amber-500/5 ring-1 ring-amber-400/40"
@@ -206,7 +215,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
               }`}
             >
               <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${keyType === "development" ? "bg-amber-950/40 text-amber-400" : "bg-slate-900 text-slate-500 border border-white/5"}`}>
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" aria-hidden="true">
                   <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
@@ -219,6 +228,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
             <button
               type="button"
               onClick={() => setKeyType("production")}
+              aria-pressed={keyType === "production"}
               className={`flex flex-col items-start gap-4 rounded-3xl border p-6 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer ${
                 keyType === "production"
                   ? "border-indigo-400/80 bg-slate-950/80 shadow-xl shadow-indigo-500/5 ring-1 ring-indigo-400/40"
@@ -226,7 +236,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
               }`}
             >
               <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${keyType === "production" ? "bg-indigo-950/40 text-indigo-400" : "bg-slate-900 text-slate-500 border border-white/5"}`}>
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" aria-hidden="true">
                   <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
@@ -248,7 +258,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
                 <div className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${hasUsageLimit ? "bg-slate-100 text-slate-950 border-slate-100" : "bg-slate-900 border-white/20"}`}>
                   {hasUsageLimit && <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="4"><path d="M5 13l4 4L19 7" /></svg>}
                 </div>
-                Hard Monthly Limit
+                Hard Monthly Request Limit
               </label>
               <div className="relative">
                 <input
@@ -260,12 +270,14 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
                   onChange={handleMonthlyLimitChange}
                   onBlur={handleMonthlyLimitBlur}
                   disabled={!hasUsageLimit}
+                  aria-invalid={errorMessage.toLowerCase().includes("monthly request limit") || undefined}
+                  aria-describedby={`${monthlyLimitHelpId}${errorMessage ? ` ${errorId}` : ""}`}
                   className="h-12 w-full rounded-xl border border-white/10 bg-slate-950/50 px-4 pr-28 text-sm font-bold text-white tabular-nums outline-none transition focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 disabled:opacity-40"
                 />
                 <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black uppercase tracking-widest text-slate-400">Requests</span>
               </div>
-              <p className="text-[9px] font-bold leading-relaxed text-slate-400">
-                Allowed range: {minimumMonthlyLimit.toLocaleString()} - {maximumMonthlyLimit === null ? "unlimited" : maximumMonthlyLimit.toLocaleString()} credits
+              <p id={monthlyLimitHelpId} className="text-[9px] font-bold leading-relaxed text-slate-400">
+                Allowed range: {minimumMonthlyLimit.toLocaleString()} - {maximumMonthlyLimit === null ? "unlimited" : maximumMonthlyLimit.toLocaleString()} requests
               </p>
             </div>
           </div>
@@ -281,11 +293,14 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
               </div>
               <div className="flex items-center h-12">
                 <input 
+                  id={alertThresholdId}
                   type="range" 
                   min={minRequests} 
                   max={maxRequests} 
                   step={stepRequests}
                   value={sliderValue}
+                  aria-label="Alert threshold"
+                  aria-valuetext={`${alertThreshold}% usage threshold${currentLimit !== null && !isNaN(currentLimit) ? `, ${isSmallLimit ? sliderValue : Math.floor((thresholdPct / 100) * currentLimit)} requests` : ""}`}
                   onChange={handleSliderChange}
                   className="w-full accent-emerald-400 h-1 bg-slate-900 rounded-lg appearance-none cursor-pointer disabled:opacity-30"
                 />
@@ -296,6 +311,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
                     key={ch}
                     type="button"
                     onClick={() => setAlertChannels(prev => prev.includes(ch) ? prev.filter(c => c !== ch) : [...prev, ch])}
+                    aria-pressed={alertChannels.includes(ch)}
                     className={`rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 ${
                       alertChannels.includes(ch) ? "bg-emerald-500 text-slate-950" : "bg-slate-900 text-slate-400 hover:text-white"
                     }`}
@@ -309,9 +325,14 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
         </div>
 
         {errorMessage && (
-          <p className="rounded-2xl border border-rose-900/30 bg-rose-950/20 px-4 py-3 text-xs font-bold text-rose-400 animate-in shake-in-1">
-            {errorMessage}
-          </p>
+          <div id={errorId}>
+            <GuidedError
+              {...getErrorGuidance({ workflow: "api-key", message: errorMessage })}
+              technicalDetails={errorMessage}
+              compact
+              className="animate-in shake-in-1"
+            />
+          </div>
         )}
 
         {/* Action Footer */}

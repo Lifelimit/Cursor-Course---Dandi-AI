@@ -59,7 +59,7 @@ export async function GET() {
         keyInfo?.name || "Unknown",
         keyInfo?.key_type || "N/A",
         keyInfo?.key_value || "N/A",
-        limit ? `${limit.toLocaleString()} units` : "Unlimited",
+        limit ? `${limit.toLocaleString()} requests` : "Unlimited",
         log.status || "success",
         log.latency_ms ?? 0
       ];

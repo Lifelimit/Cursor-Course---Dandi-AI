@@ -55,7 +55,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
       if (settings.monthlyLimit <= usageCount) {
         return NextResponse.json(
-          { error: `New monthly limit must be strictly greater than the current usage of ${usageCount} credits.` },
+          { error: `New monthly request limit must be strictly greater than the current usage of ${usageCount} requests.` },
           { status: 400 }
         );
       }

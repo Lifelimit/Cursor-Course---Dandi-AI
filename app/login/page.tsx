@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { AuthForm } from "@/components/auth/AuthForm";
+import { GuidedError } from "@/components/ui/GuidedError";
+import { getErrorGuidance } from "@/lib/error-guidance";
 
 export default async function LoginPage({
   searchParams,
@@ -29,9 +31,11 @@ export default async function LoginPage({
         <div className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/72 p-6 shadow-2xl shadow-black/40 sm:p-8">
           <div className="space-y-6">
             {error && (
-              <div role="alert" className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm font-medium text-rose-200 animate-in fade-in slide-in-from-top-2 duration-500">
-                Authentication failed. Please try again.
-              </div>
+              <GuidedError
+                {...getErrorGuidance({ workflow: "auth", message: "OAuth callback failed to exchange the provider code for a session." })}
+                technicalDetails="auth-failed callback redirect"
+                compact
+              />
             )}
 
             <AuthForm defaultMode="login" />

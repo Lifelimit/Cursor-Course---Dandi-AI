@@ -5,7 +5,7 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
   Hobby: {
     id: "Hobby",
     price: "$0",
-    features: ["1,000 requests / mo", "3 Active API Keys", "Standard Summaries", "Basic Analytics"],
+    features: ["1,000 monthly requests", "3 Active API Keys", "Standard Summaries", "Basic Analytics"],
     nextBilling: "N/A",
     monthlyLimit: 1000,
     keyLimit: 3,
@@ -14,7 +14,7 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
   Premium: {
     id: "Premium",
     price: "$10",
-    features: ["5,000 requests / mo", "10 Active API Keys", "Advanced AI Context", "Priority Support"],
+    features: ["5,000 monthly requests", "10 Active API Keys", "Advanced AI Context", "Priority Support"],
     nextBilling: "May 24, 2026",
     monthlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID,
     yearlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY_PRICE_ID,
@@ -25,7 +25,7 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
   Researcher: {
     id: "Researcher",
     price: "$50",
-    features: ["Unlimited requests / mo", "Unlimited API Keys", "Custom Branding", "Priority Support"],
+    features: ["Unlimited monthly requests", "Unlimited API Keys", "Custom Branding", "Priority Support"],
     nextBilling: "May 24, 2026",
     monthlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID,
     yearlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID,
@@ -96,7 +96,7 @@ export const PLANS: Plan[] = [
     id: "Hobby",
     name: "The Hobbyist",
     price: "$0",
-    credits: "1,000 requests / mo",
+    credits: "1,000 monthly requests",
     features: [
       "Standard Summaries",
       "Basic Analytics",
@@ -115,7 +115,7 @@ export const PLANS: Plan[] = [
     name: "The Premium",
     price: "$10",
     yearlyPrice: "$8",
-    credits: "5,000 requests / mo",
+    credits: "5,000 monthly requests",
     features: [
       "Advanced AI Context",
       "Detailed Analytics",
@@ -138,7 +138,7 @@ export const PLANS: Plan[] = [
     name: "The Researcher",
     price: "$50",
     yearlyPrice: "$40",
-    credits: "Unlimited requests / mo",
+    credits: "Unlimited monthly requests",
     features: [
       "Deep Insight Engine",
       "Global Top Trends",

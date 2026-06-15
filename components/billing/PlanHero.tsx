@@ -85,10 +85,10 @@ export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, bil
         <div className="w-full min-w-0 max-w-md space-y-4">
           <div className="flex items-end justify-between">
             <div className="space-y-1">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Usage this Period</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Request Usage This Period</p>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-serif font-bold italic text-white">{usage.toLocaleString()}</span>
-                <span className="text-[10px] font-bold text-slate-500">/ {isUnlimited ? '∞' : limit.toLocaleString()} credits</span>
+                <span className="text-[10px] font-bold text-slate-500">/ {isUnlimited ? '∞' : limit.toLocaleString()} requests</span>
               </div>
             </div>
             <div className="text-right">

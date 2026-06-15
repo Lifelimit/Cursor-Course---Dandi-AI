@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { ProgressiveListFooter } from "@/components/ui/ProgressiveListFooter";
 import { CardSkeleton, TableRowsSkeleton } from "@/components/ui/SkeletonBlocks";
+import { GuidedError } from "@/components/ui/GuidedError";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { QuotaHealthGrid } from "@/components/usage/QuotaHealthGrid";
@@ -14,9 +15,11 @@ import { TopReposTable } from "@/components/usage/TopReposTable";
 import { AnalyticsDashboard } from "@/components/usage/AnalyticsDashboard";
 import { CommandPanel, StatusPill, TabsBar } from "@/components/command";
 import { useProgressiveList } from "@/hooks/useProgressiveList";
+import { createClient } from "@/lib/supabase/client";
 
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
+import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
 
 type UsageData = {
   totalUsage: number;
@@ -83,10 +86,38 @@ export default function UsageClient({
   const [isLoading, setIsLoading] = useState(initialData === null);
   const [recentJobs, setRecentJobs] = useState<IngestionJobSummary[]>([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [usageError, setUsageError] = useState<string | null>(null);
+  const [recentJobsError, setRecentJobsError] = useState<string | null>(null);
   const isHydrated = useRef(initialData !== null);
   const { toast, showToast } = useToast();
 
   const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    const user = activeSession?.user;
+    if (!user) return;
+
+    const metadata = user.user_metadata as {
+      dandi_onboarding?: {
+        started?: boolean;
+        reviewedUsage?: boolean;
+        dismissed?: boolean;
+      };
+    };
+
+    if (metadata.dandi_onboarding?.reviewedUsage) return;
+
+    const supabase = createClient();
+    void supabase.auth.updateUser({
+      data: {
+        ...(user.user_metadata || {}),
+        dandi_onboarding: {
+          ...(metadata.dandi_onboarding || {}),
+          reviewedUsage: true,
+        },
+      },
+    });
+  }, [activeSession]);
 
   const fetchUsageData = useCallback(async (background = false) => {
     try {
@@ -102,11 +133,14 @@ export default function UsageClient({
         throw new Error(json?.error || "Failed to load usage analytics.");
       }
       setData(json);
+      setUsageError(null);
       isHydrated.current = false;
     } catch (err) {
       console.error("Usage Fetch Error:", err);
+      const message = err instanceof Error ? err.message : "Failed to load usage analytics.";
       if (!background) {
-        showToast("error", "Failed to load usage analytics.");
+        setUsageError(message);
+        showToast("error", getToastErrorMessage("usage", message));
       }
     } finally {
       setIsLoading(false);
@@ -142,8 +176,10 @@ export default function UsageClient({
         throw new Error(json?.error || "Failed to load repository history.");
       }
       setRecentJobs(Array.isArray(json.jobs) ? json.jobs : []);
+      setRecentJobsError(null);
     } catch (err) {
       console.error("Repository History Fetch Error:", err);
+      setRecentJobsError(err instanceof Error ? err.message : "Failed to load repository history.");
     } finally {
       setIsLoadingJobs(false);
     }
@@ -268,7 +304,7 @@ export default function UsageClient({
           <DashboardPageHeader
             eyebrow="Usage / Analytics"
             title="Usage Center"
-            description="Track quota health, request activity, and repository usage trends."
+            description="Track request usage, API activity, and repository usage trends."
             rightAction={
               <>
                 <StatusPill tone={isSyncing ? "warning" : "success"} pulse={isSyncing}>
@@ -291,8 +327,8 @@ export default function UsageClient({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-8">
               <TabsBar
                 tabs={[
-                  { id: "credentials", label: "API Keys" },
-                  { id: "analytics", label: "Analytics & Trends" },
+                  { id: "credentials", label: "API Keys", controlsId: "usage-credentials-panel" },
+                  { id: "analytics", label: "Analytics & Trends", controlsId: "usage-analytics-panel" },
                 ]}
                 activeId={activeTab}
                 onChange={(id) => setActiveTab(id as "credentials" | "analytics")}
@@ -323,10 +359,24 @@ export default function UsageClient({
             </div>
           ) : (
             <div className="space-y-8">
+              {usageError && !currentData && (
+                <GuidedError
+                  {...getErrorGuidance({ workflow: "usage", message: usageError })}
+                  technicalDetails={usageError}
+                  onAction={() => fetchUsageData(false)}
+                  actionLabel="Refresh"
+                />
+              )}
+
               {/* Reset Info moved to Header */}
 
               {activeTab === "credentials" ? (
-                <div className="space-y-8 animate-in fade-in duration-500">
+                <div
+                  id="usage-credentials-panel"
+                  role="tabpanel"
+                  aria-labelledby="credentials-tab"
+                  className="space-y-8 animate-in fade-in duration-500"
+                >
                   {/* Quota Health Grid */}
                   {currentData?.keys && currentData.keys.length > 0 ? (
                     <QuotaHealthGrid
@@ -335,10 +385,14 @@ export default function UsageClient({
                       onUpdate={() => fetchUsageData(true)}
                     />
                   ) : (
-                    <CommandPanel className="border-dashed p-12 text-center">
-                      <p className="text-sm font-medium text-slate-400">No active API keys found for tracking.</p>
-                      <Link href="/dashboards" className="mt-4 inline-block text-[10px] font-black uppercase tracking-widest text-emerald-300 hover:underline">
-                        Create your first key →
+                    <CommandPanel className="border-dashed p-8 text-center sm:p-12">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Request Usage</p>
+                      <h3 className="mt-2 font-serif text-2xl font-bold text-white">No API keys are being tracked yet.</h3>
+                      <p className="mx-auto mt-2 max-w-xl text-sm font-medium leading-6 text-slate-400">
+                        Usage data appears after you create an API key and send successful repository requests. Start with a key, then analyze a repository in the Playground.
+                      </p>
+                      <Link href="/dashboards" className="mt-5 inline-flex min-h-10 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15">
+                        Create API Key
                       </Link>
                     </CommandPanel>
                   )}
@@ -364,10 +418,23 @@ export default function UsageClient({
                             <p className="text-xs font-semibold text-slate-400">Loading recent ingestion history...</p>
                             <TableRowsSkeleton rows={4} columns={3} />
                           </div>
+                        ) : recentJobsError ? (
+                          <GuidedError
+                            {...getErrorGuidance({ workflow: "usage", message: recentJobsError })}
+                            technicalDetails={recentJobsError}
+                            onAction={fetchRecentJobs}
+                            actionLabel="Refresh"
+                            compact
+                          />
                         ) : sortedIngestionJobs.length === 0 ? (
                           <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/50 p-5 text-sm font-medium text-slate-400">
-                            <p className="font-bold text-slate-300">No ingestion history yet.</p>
-                            <p className="mt-1">Indexed repositories will appear here.</p>
+                            <p className="font-bold text-slate-200">No repository preparation history yet.</p>
+                            <p className="mt-1 leading-6">
+                              Ask a Repository prepares code for source-backed questions. Completed and failed preparation jobs will appear here.
+                            </p>
+                            <Link href="/playground?mode=ask" className="mt-4 inline-flex text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
+                              Open Ask a Repository
+                            </Link>
                           </div>
                         ) : (
                           <div className="space-y-4">
@@ -427,17 +494,19 @@ export default function UsageClient({
                                             </StatusPill>
                                           </div>
                                           {job.status === "failed" && job.errorMessage && (
-                                            <div className="mt-3 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs font-semibold leading-relaxed text-rose-300">
-                                              <p className="truncate">{job.errorMessage}</p>
-                                              <details className="mt-2">
-                                                <summary className="cursor-pointer text-[9px] font-black uppercase tracking-widest text-rose-200 transition-colors hover:text-white">
-                                                  View Details
-                                                </summary>
-                                                <p className="mt-2 whitespace-pre-wrap break-words border-t border-rose-300/10 pt-2 text-rose-100/90">
-                                                  {job.errorMessage}
-                                                </p>
-                                              </details>
-                                            </div>
+                                            <GuidedError
+                                              {...getErrorGuidance({ workflow: "repository-indexing", message: job.errorMessage })}
+                                              technicalDetails={{
+                                                jobId: job.jobId,
+                                                repository: job.repoUrl,
+                                                status: job.status,
+                                                step: job.currentStep,
+                                                error: job.errorMessage,
+                                                failedAt: job.failedAt,
+                                              }}
+                                              compact
+                                              className="mt-3"
+                                            />
                                           )}
                                         </div>
                                       );
@@ -464,8 +533,8 @@ export default function UsageClient({
                       <CommandPanel className="p-6 sm:p-8">
                         <h3 className="font-serif text-xl font-bold mb-4 text-white">How usage works</h3>
                         <p className="text-sm leading-relaxed text-slate-400">
-                          We track repository summaries to help you manage monthly credits.
-                          Credits are consumed only on successful AI generation.
+                          We track repository summaries to help you manage monthly requests.
+                          Requests are counted only after successful AI generation.
                         </p>
                         <div className="mt-6 flex items-center gap-4">
                           <div className="h-px flex-1 bg-white/10" />
@@ -492,15 +561,21 @@ export default function UsageClient({
                   </div>
                 </div>
               ) : (
-                /* Analytics & Trends Tab */
-                <AnalyticsDashboard
-                  keys={currentData?.keys || []}
-                  globalTopRepos={currentData?.globalTopRepos || []}
-                  avgLatency={currentData?.avgLatency || 0}
-                  successRate={currentData?.successRate || 0}
-                  dailyAnalytics={currentData?.dailyAnalytics || []}
-                  onUpdate={fetchUsageData}
-                />
+                <div
+                  id="usage-analytics-panel"
+                  role="tabpanel"
+                  aria-labelledby="analytics-tab"
+                  className="animate-in fade-in duration-500"
+                >
+                  <AnalyticsDashboard
+                    keys={currentData?.keys || []}
+                    globalTopRepos={currentData?.globalTopRepos || []}
+                    avgLatency={currentData?.avgLatency || 0}
+                    successRate={currentData?.successRate || 0}
+                    dailyAnalytics={currentData?.dailyAnalytics || []}
+                    onUpdate={fetchUsageData}
+                  />
+                </div>
               )}
             </div>
           )}

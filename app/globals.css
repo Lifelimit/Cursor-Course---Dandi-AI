@@ -109,6 +109,11 @@ body {
   scrollbar-color: rgba(120, 120, 120, 0.2) transparent;
 }
 
+:where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus {
+  outline: 2px solid rgba(110, 231, 183, 0.82);
+  outline-offset: 3px;
+}
+
 @keyframes scale-up-center {
   0% { transform: scale(0.95); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
@@ -229,6 +234,8 @@ body {
 }
 
 .command-scroll {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable both-edges;
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.38) transparent;
 }

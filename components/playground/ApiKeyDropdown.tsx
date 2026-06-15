@@ -67,8 +67,8 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
   const listboxId = "api-key-quick-select-listbox";
 
   const options = useMemo<ApiKeyOption[]>(() => [
-    { id: "demo", value: "__demo__", label: "DEMO" },
-    { id: "custom", value: "", label: "CUSTOM KEY" },
+    { id: "demo", value: "__demo__", label: "DEMO MODE" },
+    { id: "custom", value: "", label: "USER API KEY" },
     ...apiKeys.map((key) => ({
       id: key.id,
       value: key.key_value,
@@ -127,6 +127,9 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
   const selectOption = (option: ApiKeyOption) => {
     onChange(option.value);
     setIsOpen(false);
+    window.requestAnimationFrame(() => {
+      buttonRef.current?.focus({ preventScroll: true });
+    });
   };
 
   const openMenu = () => {
@@ -174,9 +177,20 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
       return;
     }
 
+    if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      if (!isOpen) {
+        openMenu();
+        return;
+      }
+      setHighlightedIndex(event.key === "Home" ? 0 : options.length - 1);
+      return;
+    }
+
     if (event.key === "Escape") {
       event.preventDefault();
       setIsOpen(false);
+      buttonRef.current?.focus({ preventScroll: true });
     }
   };
 
@@ -218,12 +232,15 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
               const isHighlighted = index === highlightedIndex;
 
               return (
-                <li key={option.id} role="option" aria-selected={isSelected}>
+                <li key={option.id} role="none">
                   <button
+                    id={`${listboxId}-option-${index}`}
+                    role="option"
+                    aria-selected={isSelected}
                     type="button"
                     onMouseEnter={() => setHighlightedIndex(index)}
                     onClick={() => selectOption(option)}
-                    className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition-colors ${
+                    className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 ${
                       isHighlighted || isSelected
                         ? "bg-emerald-300/15 text-emerald-200"
                         : "text-slate-300 hover:bg-white/5 hover:text-white"

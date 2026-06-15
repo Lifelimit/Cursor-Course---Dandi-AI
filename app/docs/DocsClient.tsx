@@ -95,8 +95,8 @@ const docsNav = [
     label: "API Reference",
     items: [
       { href: "#summarizer", label: "Summarizer" },
-      { href: "#rag-ingest", label: "RAG Ingest" },
-      { href: "#rag-chat", label: "RAG Chat" },
+      { href: "#rag-ingest", label: "Prepare Repository" },
+      { href: "#rag-chat", label: "Ask a Repository" },
       { href: "#code-explorer", label: "Code Examples" },
       { href: "#response-schema", label: "Response Schema" },
       { href: "#error-codes", label: "Errors" },
@@ -107,8 +107,8 @@ const docsNav = [
 const intelligenceWorkflow = [
   ["Repository", "Send a public GitHub repository URL."],
   ["Summary", "Generate a readable repository overview."],
-  ["Knowledge Index", "Ingest repository content for retrieval."],
-  ["Retrieval", "Ask questions against indexed chunks."],
+  ["Prepare", "Index a repository once for source-backed questions."],
+  ["Ask", "Ask questions against prepared repository sections."],
   ["Sources", "Review returned evidence when available."],
   ["Answer", "Use the streamed response in your workflow."],
 ];
@@ -294,7 +294,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               </div>
               <h1 className="font-serif text-4xl font-bold md:text-5xl tracking-tight text-white animate-in fade-in slide-in-from-top-4 duration-500">API Reference Guide</h1>
               <p className="text-zinc-400 text-sm leading-relaxed md:text-base">
-                Build repository summaries and retrieval-backed answers with the Dandi API. These docs cover authentication, endpoint contracts, response shapes, and how summary generation differs from indexed Q&A.
+                Build repository summaries and source-backed answers with the Dandi API. These docs cover authentication, endpoint contracts, response shapes, and how summary generation differs from Ask a Repository.
               </p>
             </header>
 
@@ -319,7 +319,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Repository Intelligence Flow</p>
                   <p className="mt-1 text-sm leading-relaxed text-slate-400">
-                    Use the summary endpoint for a readable overview. Use RAG ingest and chat when you need retrieval-backed answers with source evidence.
+                    Use the summary endpoint for a readable overview. Use Ask a Repository when you need source-backed answers.
                   </p>
                 </div>
                 <StatusPill tone="info" compact>Docs map</StatusPill>
@@ -342,7 +342,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               <DocsSectionHeader
                 eyebrow="Start here"
                 title="Quickstart"
-                description="Create an account, generate an API key, then send a repository URL to either the summary endpoint or the indexed Q&A workflow."
+                description="Create an account, generate an API key, then send a repository URL to either the summary endpoint or the Ask a Repository workflow."
               />
               <div className="grid gap-6 sm:grid-cols-3">
                 <CommandPanel className="space-y-2 p-5">
@@ -401,7 +401,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               <EndpointHeader
                 title="Repository Summary"
                 path="/api/github-summarizer"
-                description="Generate a structured overview from a public GitHub repository. Use this when you need metadata, a readable summary, and key findings without creating a searchable index."
+                description="Get an overview of a repository's structure, purpose, and key components. Use this when you need metadata, a readable summary, and key findings without preparing the repository for follow-up questions."
                 onCopy={() => {
                   navigator.clipboard.writeText("/api/github-summarizer");
                   showToast("success", "Endpoint path copied to clipboard.");
@@ -502,12 +502,12 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               </div>
             </section>
 
-            {/* RAG Ingest Endpoint */}
+            {/* Prepare Repository Endpoint */}
             <section id="rag-ingest" className="space-y-6 scroll-mt-28">
               <EndpointHeader
-                title="RAG Ingest"
+                title="Prepare Repository"
                 path="/api/rag/ingest"
-                description="Create a retrieval-ready index for a public GitHub repository. Run this before asking repository-specific questions with the RAG Chat endpoint."
+                description="Index a public GitHub repository once, then ask source-backed questions with the Ask a Repository endpoint."
                 onCopy={() => {
                   navigator.clipboard.writeText("/api/rag/ingest");
                   showToast("success", "Endpoint path copied to clipboard.");
@@ -516,13 +516,13 @@ export default function DocsClient({ initialSession }: { initialSession: Session
 
               <div className="space-y-4">
                 <p className="text-xs leading-relaxed text-zinc-400">
-                  Submits a GitHub repository for vector embedding ingestion. Required before chatting with a repository using the RAG Chat endpoint. You can check the ingestion status by making a <code className="font-mono bg-slate-900/80 px-1 py-0.5 rounded text-[10px] text-slate-300 border border-white/5">GET</code> request to this same endpoint with the <code className="font-mono bg-slate-900/80 px-1 py-0.5 rounded text-[10px] text-slate-300 border border-white/5">jobId</code> query parameter.
+                  Submits a GitHub repository for preparation. Required before asking source-backed questions about a repository. You can check the preparation status by making a <code className="font-mono bg-slate-900/80 px-1 py-0.5 rounded text-[10px] text-slate-300 border border-white/5">GET</code> request to this same endpoint with the <code className="font-mono bg-slate-900/80 px-1 py-0.5 rounded text-[10px] text-slate-300 border border-white/5">jobId</code> query parameter.
                 </p>
-                <DocsCallout title="Indexing before retrieval">
-                  Ingestion stores repository chunks for later retrieval. A summary response is not the same as an indexed repository.
+                <DocsCallout title="Prepare before asking">
+                  Preparation stores repository chunks so Dandi can answer later questions with source evidence. A summary response is not the same as a prepared repository.
                 </DocsCallout>
                 <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">JSON Body Parameters</h3>
-                <DocsTableSurface label="RAG ingest JSON body parameters">
+                <DocsTableSurface label="Prepare repository JSON body parameters">
                   <table className="w-full text-left border-collapse text-xs min-w-[500px]">
                     <thead>
                       <tr className="border-b border-white/10 text-zinc-500">
@@ -547,10 +547,10 @@ export default function DocsClient({ initialSession }: { initialSession: Session
               </div>
             </section>
 
-            {/* RAG Chat Endpoint */}
+            {/* Ask a Repository Endpoint */}
             <section id="rag-chat" className="space-y-6 scroll-mt-28">
               <EndpointHeader
-                title="RAG Chat"
+                title="Ask a Repository"
                 path="/api/rag/chat"
                 description="Ask questions against an indexed repository. Responses stream back to the client and may include matched source files through response metadata."
                 onCopy={() => {
@@ -561,13 +561,13 @@ export default function DocsClient({ initialSession }: { initialSession: Session
 
               <div className="space-y-4">
                 <p className="text-xs leading-relaxed text-zinc-400">
-                  Chat with an ingested GitHub repository using Retrieval-Augmented Generation (RAG). Returns a streaming text response.
+                  Ask questions about a prepared GitHub repository. Returns a streaming text response.
                 </p>
                 <DocsCallout title="Evidence availability">
                   When source metadata is returned, Dandi surfaces matched repository files with similarity scores in the Playground and through the response headers.
                 </DocsCallout>
                 <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">JSON Body Parameters</h3>
-                <DocsTableSurface label="RAG chat JSON body parameters">
+                <DocsTableSurface label="Ask a Repository JSON body parameters">
                   <table className="w-full text-left border-collapse text-xs min-w-[500px]">
                     <thead>
                       <tr className="border-b border-white/10 text-zinc-500">
@@ -836,8 +836,8 @@ export default function DocsClient({ initialSession }: { initialSession: Session
                       </tr>
                       <tr className="border-b border-white/5">
                         <td className="py-3 font-mono font-bold text-rose-400">403 Forbidden</td>
-                        <td className="py-3 font-mono text-slate-300">Monthly credit limit exceeded</td>
-                        <td className="py-3 text-zinc-400">The active plan tier has depleted its allocated requests for the cycle.</td>
+                        <td className="py-3 font-mono text-slate-300">Monthly request limit exceeded</td>
+                        <td className="py-3 text-zinc-400">The active plan tier has used its allocated requests for the cycle.</td>
                       </tr>
                       <tr className="border-b border-white/5">
                         <td className="py-3 font-mono font-bold text-rose-400">429 Too Many Requests</td>

@@ -24,7 +24,7 @@ interface ServiceConfig {
 
 const SERVICES: Record<Service, ServiceConfig> = {
   chat: {
-    name: "RAG Chat",
+    name: "Ask a Repository",
     endpoint: "/api/rag/chat",
     provider: "Gemini 3.1 Flash-Lite",
     database: "Supabase pgvector",
@@ -33,17 +33,17 @@ const SERVICES: Record<Service, ServiceConfig> = {
     color: "bg-emerald-500",
     textColor: "text-emerald-500 dark:text-emerald-400",
     gradient: "from-emerald-600 to-teal-500",
-    promptLabel: "RAG Prompt",
-    buttonLabel: "Execute RAG Chat",
+    promptLabel: "Repository Question",
+    buttonLabel: "Ask Repository",
     prompt: "How does Dandi handle subscription changes?",
     response: "Subscription changes route through app/api/stripe/subscribe/route.ts. The handler builds a Stripe Subscription Schedule, postponing plan modifications until the current period end, and notifies the profile database upon period expiration.",
     logs: [
       "Client Request: POST /api/rag/chat",
       "API Key Match: Verified key hash in Supabase",
       "Rate Limit Check: Incremented window in Upstash Redis (Pass)",
-      "Similarity Search: Querying Supabase pgvector for codebase context...",
+      "Source Search: Querying Supabase pgvector for codebase context...",
       "Context Found: Injected stripe-billing-flow.service.ts source code",
-      "Prompt sent to gemini-3.1-flash-lite with RAG context..."
+      "Prompt sent to gemini-3.1-flash-lite with repository context..."
     ]
   },
   ingest: {
@@ -86,7 +86,7 @@ const SERVICES: Record<Service, ServiceConfig> = {
     logs: [
       "Request Header: Intercepted inbound authorization header",
       "Upstash Redis lookup: Matching active API key hash (Cache Hit)",
-      "Checking quota limit rules for tier 'Premium'...",
+      "Checking monthly request limit rules for tier 'Premium'...",
       "Upstash Redis increment: 942/1000 requests remaining",
       "Validation payload compiled and returned to origin proxy gateway"
     ]
@@ -197,7 +197,7 @@ export function WorkspaceMockup() {
                     {avatar.initials}
                   </div>
                   <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 -translate-x-1/2 opacity-0 transition-all duration-200 group-hover/avatar:opacity-100 group-hover/avatar:translate-y-0 translate-y-1">
-                    <div className="min-w-[120px] rounded-xl border border-white/10 bg-slate-950/95 p-2 text-center text-[8px] font-bold uppercase tracking-wider text-slate-100 shadow-lg backdrop-blur-sm">
+                    <div className="w-max max-w-[10rem] rounded-xl border border-white/10 bg-slate-950/95 p-2 text-center text-[8px] font-bold uppercase tracking-wider text-slate-100 shadow-lg backdrop-blur-sm">
                       <p className="font-serif text-[9px] normal-case leading-none text-white">{avatar.name}</p>
                       <p className="mt-1 font-mono text-[6px] tracking-widest text-slate-500">{avatar.role}</p>
                     </div>
@@ -238,15 +238,17 @@ export function WorkspaceMockup() {
                     return (
                       <button
                         key={s}
+                        type="button"
                         onClick={() => !isDisabled && setActiveService(s)}
                         disabled={isDisabled}
+                        aria-pressed={isSelected}
                         className={`group flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left font-sans transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 ${activeStyles} ${
                           isDisabled ? "opacity-50 cursor-not-allowed" : "active:scale-[0.99]"
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           {/* Bullet / Status dot */}
-                          <span className="relative flex h-2 w-2 rounded-full shrink-0">
+                          <span className="relative flex h-2 w-2 rounded-full shrink-0" aria-hidden="true">
                             {isSelected && (
                               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${svc.color} opacity-75`}></span>
                             )}
@@ -260,7 +262,7 @@ export function WorkspaceMockup() {
                         </div>
                         
                         {/* Micro indicator arrow */}
-                        <svg viewBox="0 0 24 24" className={`h-2.5 w-2.5 transition-all duration-300 ${isSelected ? "translate-x-0 opacity-80" : "opacity-0 translate-x-[-4px]"}`} fill="none" stroke="currentColor" strokeWidth="3">
+                        <svg viewBox="0 0 24 24" className={`h-2.5 w-2.5 transition-all duration-300 ${isSelected ? "translate-x-0 opacity-80" : "opacity-0 translate-x-[-4px]"}`} fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true">
                           <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </button>
@@ -299,13 +301,13 @@ export function WorkspaceMockup() {
                 </div>
                 <div className="my-1 h-px bg-white/8" />
                 <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-wider">
-                  <span className="text-slate-500">Quota Remaining</span>
+                  <span className="text-slate-500">Requests Remaining</span>
                   <span className="font-mono font-bold text-slate-300">
                     {activeService === "chat" 
                       ? "Unlimited" 
                       : activeService === "ingest" 
-                      ? `${ingestQuotaRemaining.toLocaleString()} / 5,000 reqs` 
-                      : `${shieldQuotaRemaining.toLocaleString()} / 1,000 reqs`}
+                      ? `${ingestQuotaRemaining.toLocaleString()} / 5,000 requests` 
+                      : `${shieldQuotaRemaining.toLocaleString()} / 1,000 requests`}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-[8px] font-bold uppercase tracking-wider">
@@ -323,6 +325,7 @@ export function WorkspaceMockup() {
               {/* Trigger Button */}
               {status === "idle" ? (
                 <button
+                  type="button"
                   onClick={runSimulator}
                   className={`w-full rounded-xl bg-gradient-to-r py-2 text-[10px] font-black uppercase tracking-wider text-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 ${currentService.gradient}`}
                 >
@@ -330,8 +333,10 @@ export function WorkspaceMockup() {
                 </button>
               ) : (
                 <button
+                  type="button"
                   onClick={handleReset}
                   disabled={status !== "complete"}
+                  aria-busy={status !== "complete" || undefined}
                   className={`w-full rounded-xl border border-white/10 bg-slate-900 py-2 text-[10px] font-black uppercase tracking-wider text-slate-200 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 ${
                     status !== "complete" ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-800"
                   }`}
@@ -406,7 +411,7 @@ export function WorkspaceMockup() {
                 ? "bg-purple-500/10 border-purple-500/40 text-purple-300"
                 : "border-white/10 bg-slate-900"
             }`}><span className="hidden sm:inline">Upstash </span>Redis</span>
-            <span className="text-[6px] text-slate-500/80">Rate/Quota</span>
+            <span className="text-[6px] text-slate-500/80">Rate/Requests</span>
           </div>
 
           <div className="relative mx-2 h-[2px] flex-1 overflow-hidden bg-slate-800">

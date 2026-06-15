@@ -97,12 +97,14 @@ export function AlertThresholdControl({
   const triggerCount = isSmallLimit
     ? sliderValue
     : Math.floor((threshold / 100) * limit);
+  const thresholdId = `alert-threshold-${keyId}`;
+  const phoneId = `alert-phone-${keyId}`;
 
   return (
     <div className="space-y-6 mt-4 pt-4 border-t border-white/10">
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
-          <label className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
+          <label htmlFor={thresholdId} className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
             Usage Alert Threshold
           </label>
           <span className={`text-[9px] font-black tabular-nums ${threshold >= 90 ? 'text-red-400' : 'text-slate-100'}`}>
@@ -112,16 +114,21 @@ export function AlertThresholdControl({
         
         <div className="flex items-center gap-4">
           <input
+            id={thresholdId}
             type="range"
             min={isSmallLimit ? 1 : 5}
             max={isSmallLimit ? limit : 100}
             step={isSmallLimit ? 1 : 5}
             value={sliderValue}
+            aria-valuetext={`${threshold}% threshold, ${triggerCount.toLocaleString()} requests`}
             onChange={handleThresholdChange}
-            className="h-1 flex-1 cursor-pointer appearance-none rounded-lg bg-white/10 accent-emerald-300 focus:outline-none"
+            className="h-1 flex-1 cursor-pointer appearance-none rounded-lg bg-white/10 accent-emerald-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
           />
           {isSaving && (
-            <div className="h-2 w-2 animate-spin rounded-full border border-white/20 border-t-emerald-300" />
+            <div role="status" aria-live="polite" className="flex items-center gap-2 text-[8px] font-bold uppercase tracking-widest text-emerald-300">
+              <span className="h-2 w-2 animate-spin rounded-full border border-white/20 border-t-emerald-300" aria-hidden="true" />
+              <span className="sr-only">Saving alert preferences</span>
+            </div>
           )}
         </div>
       </div>
@@ -132,8 +139,10 @@ export function AlertThresholdControl({
           {['email', 'phone', 'in-page'].map((channel) => (
             <button
               key={channel}
+              type="button"
               onClick={() => toggleChannel(channel)}
-              className={`flex-1 min-w-[70px] rounded-xl border px-2 py-2 sm:px-3 text-[8px] font-black uppercase tracking-widest transition-all ${
+              aria-pressed={channels.includes(channel)}
+              className={`flex-1 min-w-[70px] rounded-xl border px-2 py-2 sm:px-3 text-[8px] font-black uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 ${
                 channels.includes(channel)
                   ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-200 shadow-lg shadow-emerald-900/10'
                   : 'border-white/10 bg-slate-950/60 text-slate-500 hover:border-white/20 hover:text-slate-300'
@@ -147,13 +156,14 @@ export function AlertThresholdControl({
 
       {channels.includes('phone') && (
         <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
-          <p className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Phone Number</p>
+          <label htmlFor={phoneId} className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Phone Number</label>
           <input
+            id={phoneId}
             type="tel"
             placeholder="+1 (555) 000-0000"
             value={phone}
             onChange={handlePhoneChange}
-            className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-slate-100 outline-none transition-colors focus:border-emerald-300/40"
+            className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-slate-100 outline-none transition-colors focus:border-emerald-300/40 focus:ring-2 focus:ring-emerald-300/20"
           />
         </div>
       )}

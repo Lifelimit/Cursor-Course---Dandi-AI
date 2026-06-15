@@ -117,7 +117,7 @@ export function SidebarAlerts({
             }
           };
           const limitGuidance = hasPlanHeadroom
-            ? `Allowed: ${(minimumLimit + 1).toLocaleString()} - ${maxLimitCap.toLocaleString()} credits.`
+            ? `Allowed: ${(minimumLimit + 1).toLocaleString()} - ${maxLimitCap.toLocaleString()} requests.`
             : isUnlimited
               ? "This key is already at the maximum allowed usage limit."
               : "This key is already at your plan maximum. Upgrade the account plan to raise it further.";
@@ -167,8 +167,9 @@ export function SidebarAlerts({
                         setFlyoutKey(isFlying ? null : alert.id);
                       }}
                       className="w-full mt-3 justify-center border-emerald-400/20 bg-emerald-400/10 px-2 py-2 text-[8px] text-emerald-300 hover:border-emerald-300/40 hover:bg-emerald-400/15"
+                      aria-controls={`quota-limit-form-${alert.id}`}
                       aria-expanded={isFlying}
-                      aria-label={`${isFlying ? "Cancel quota update" : "Increase monthly limit"} for ${alert.keyName}`}
+                      aria-label={`${isFlying ? "Cancel request limit update" : "Increase monthly request limit"} for ${alert.keyName}`}
                     >
                       {isFlying ? 'Cancel' : 'Increase Limit'}
                     </Button>
@@ -178,17 +179,18 @@ export function SidebarAlerts({
                     type="button"
                     onClick={() => setPeekingKey(isPeeking ? null : alert.id)}
                     className={`rounded-full p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 ${isPeeking ? 'bg-white text-slate-950 rotate-90' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                    aria-controls={`usage-trend-${alert.id}`}
                     aria-expanded={isPeeking}
                     aria-label={`${isPeeking ? "Hide" : "Show"} usage trend for ${alert.keyName}`}
                   >
-                    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
                       <path d="M9 18l6-6-6-6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
                 </div>
 
                 {/* Vertical Stats Peek */}
-                <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isPeeking ? 'mt-4 max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div id={`usage-trend-${alert.id}`} className={`overflow-hidden transition-all duration-500 ease-in-out ${isPeeking ? 'mt-4 max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>
                   <div className="space-y-3 pt-2 border-t border-white/5">
                     <div className="flex items-center justify-between">
                       <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Activity Trend</span>
@@ -199,7 +201,7 @@ export function SidebarAlerts({
                 </div>
 
                 {/* Mobile Inline Quota Increase Form */}
-                <div className={`md:hidden overflow-hidden transition-all duration-500 ease-in-out ${isFlying ? 'mt-4 max-h-64 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+                <div id={`quota-limit-form-${alert.id}`} className={`md:hidden overflow-hidden transition-all duration-500 ease-in-out ${isFlying ? 'mt-4 max-h-64 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
                   <div className="space-y-3 pt-3 border-t border-white/5">
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] font-black text-white uppercase tracking-widest">New Monthly Limit</span>
@@ -208,6 +210,7 @@ export function SidebarAlerts({
                     <input
                       type="text"
                       inputMode="numeric"
+                      aria-label={`Debug new monthly limit for ${alert.keyName}`}
                       value={newLimit}
                       onChange={(e) => setNewLimit(e.target.value.replace(/\D/g, ""))}
                       onKeyDown={(e) => console.log("debug keydown", e.key, e.repeat)}
@@ -218,6 +221,7 @@ export function SidebarAlerts({
                       <input 
                         type="text" 
                         inputMode="numeric"
+                        aria-label={`New monthly limit for ${alert.keyName}`}
                         value={newLimit}
                         onChange={(e) => handleNewLimitChange(e.target.value)}
                         disabled={!hasPlanHeadroom}
@@ -232,12 +236,12 @@ export function SidebarAlerts({
                       </p>
                       {isNotIncrease && newLimit !== "" && (
                         <p className="px-1 text-[8px] font-bold text-red-500">
-                          Must be strictly greater than current limit/usage ({minimumLimit.toLocaleString()} credits).
+                          Must be strictly greater than current request limit/usage ({minimumLimit.toLocaleString()} requests).
                         </p>
                       )}
                       {!isNotIncrease && isAbovePlanLimit && (
                         <p className="px-1 text-[8px] font-bold text-red-500">
-                          Cannot exceed the maximum allowed limit of {maxLimitCap.toLocaleString()} credits.
+                          Cannot exceed the maximum allowed request limit of {maxLimitCap.toLocaleString()} requests.
                         </p>
                       )}
                       {!isNotIncrease && !isAbovePlanLimit && (
@@ -320,12 +324,12 @@ export function SidebarAlerts({
                       </p>
                       {isNotIncrease && newLimit !== "" && (
                         <p className="px-1 text-[8px] font-bold text-red-500">
-                          Must be strictly greater than current limit/usage ({minimumLimit.toLocaleString()} credits).
+                          Must be strictly greater than current request limit/usage ({minimumLimit.toLocaleString()} requests).
                         </p>
                       )}
                       {!isNotIncrease && isAbovePlanLimit && (
                         <p className="px-1 text-[8px] font-bold text-red-500">
-                          Cannot exceed the maximum allowed limit of {maxLimitCap.toLocaleString()} credits.
+                          Cannot exceed the maximum allowed request limit of {maxLimitCap.toLocaleString()} requests.
                         </p>
                       )}
                       {!isNotIncrease && !isAbovePlanLimit && (

@@ -42,7 +42,7 @@ export function StatusPill({
       )}
     >
       {pulse && (
-        <span className="relative flex h-1.5 w-1.5 shrink-0">
+        <span className="relative flex h-1.5 w-1.5 shrink-0" aria-hidden="true">
           <span className={cx("command-pulse absolute inline-flex h-full w-full rounded-full opacity-70", dotClasses[tone])} />
           <span className={cx("relative inline-flex h-1.5 w-1.5 rounded-full", dotClasses[tone])} />
         </span>

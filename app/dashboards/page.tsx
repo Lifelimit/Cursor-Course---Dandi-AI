@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import DashboardClient from "./DashboardClient";
 import { redirect } from "next/navigation";
 import { getServerUsageData } from "@/lib/services/server-data.service";
+import { listRecentIngestionJobs } from "@/lib/services/ingestion-job.service";
 import { mapApiKey } from "@/types/api";
 
 export default async function DashboardsPage() {
@@ -14,6 +15,17 @@ export default async function DashboardsPage() {
 
   const usageData = await getServerUsageData();
   const initialKeys = (usageData?.keys || []).map(mapApiKey);
+  const initialHasSuccessfulRepositoryAnalysis = Boolean(
+    (usageData?.totalUsage || 0) > 0 || (usageData?.globalTopRepos?.length || 0) > 0
+  );
+
+  let initialHasAskedRepository = false;
+  try {
+    const recentIngestionJobs = await listRecentIngestionJobs({ userId: user.id, limit: 20 });
+    initialHasAskedRepository = recentIngestionJobs.some((job) => job.status === "completed");
+  } catch {
+    initialHasAskedRepository = false;
+  }
 
   return (
     <DashboardClient 
@@ -23,6 +35,8 @@ export default async function DashboardsPage() {
       initialAvgLatency={usageData?.avgLatency || 0}
       initialSuccessRate={usageData?.successRate || 100}
       initialResetDate={usageData?.resetDate || null}
+      initialHasSuccessfulRepositoryAnalysis={initialHasSuccessfulRepositoryAnalysis}
+      initialHasAskedRepository={initialHasAskedRepository}
     />
   );
 }

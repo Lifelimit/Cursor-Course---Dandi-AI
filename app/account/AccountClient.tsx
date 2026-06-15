@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { useToast } from "@/hooks/useToast";
@@ -8,6 +9,7 @@ import { Toast } from "@/components/ui/Toast";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { ProgressiveListFooter } from "@/components/ui/ProgressiveListFooter";
 import { CardSkeleton, TableRowsSkeleton } from "@/components/ui/SkeletonBlocks";
+import { GuidedError } from "@/components/ui/GuidedError";
 import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { getPlanLimits } from "@/lib/constants";
@@ -15,6 +17,7 @@ import { computeSidebarAlerts } from "@/lib/alerts";
 import { splitAccountEnvironments } from "@/lib/account-environments";
 import { CommandPanel, MockTerminal, ScrollFrame, TabsBar } from "@/components/command";
 import { useProgressiveList } from "@/hooks/useProgressiveList";
+import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
 
 type ProfileData = {
   fullName: string;
@@ -69,6 +72,15 @@ type WebhookLogEntry = {
   responseHeaders: Record<string, string>;
   responseBody: unknown;
 };
+
+const GITHUB_REPOSITORY_OPTIONS = [
+  "dandi-ai/summarizer-sdk",
+  "my-username/nextjs-boilerplate",
+  "my-username/python-engine",
+  "my-username/ecom-dashboard",
+  "my-username/dandi-analytics-plugin",
+  "my-username/docker-configurations"
+];
 
 function formatEnvironmentAge(lastSeenAt: string | null, current: boolean) {
   if (current) return "Active now";
@@ -132,79 +144,12 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [accountLoadError, setAccountLoadError] = useState<string | null>(null);
 
   const [environments, setEnvironments] = useState<AccountEnvironment[]>([]);
 
   // Webhook delivery logs state
-  const [webhookLogs, setWebhookLogs] = useState<WebhookLogEntry[]>(() => [
-    {
-      id: "w1",
-      event: "quota.warning",
-      url: "https://api.yourdomain.com/webhooks/dandi",
-      status: 200,
-      latency: 52,
-      timestamp: Date.now() - 120000,
-      requestBody: {
-        event: "quota.warning",
-        userId: "usr_dev_dandi",
-        currentUsage: 8460,
-        limit: 10000,
-        percentage: 84.6
-      },
-      responseHeaders: {
-        "content-type": "application/json; charset=utf-8",
-        "connection": "keep-alive",
-        "x-powered-by": "Express"
-      },
-      responseBody: {
-        success: true,
-        received: true,
-        message: "Webhook event parsed and queued."
-      }
-    } as WebhookLogEntry,
-    {
-      id: "w2",
-      event: "key.revoked",
-      url: "https://api.yourdomain.com/webhooks/dandi",
-      status: 200,
-      latency: 47,
-      timestamp: Date.now() - 3600000,
-      requestBody: {
-        event: "key.revoked",
-        keyName: "Staging Test Key",
-        userId: "usr_dev_dandi",
-        revokedAt: new Date(Date.now() - 3600000).toISOString()
-      },
-      responseHeaders: {
-        "content-type": "application/json; charset=utf-8",
-        "server": "nginx"
-      },
-      responseBody: {
-        ok: true,
-        message: "Key revoked hook executed."
-      }
-    } as WebhookLogEntry,
-    {
-      id: "w3",
-      event: "quota.warning",
-      status: 500,
-      latency: 241,
-      url: "https://api.yourdomain.com/webhooks/dandi",
-      timestamp: Date.now() - 86400000,
-      requestBody: {
-        event: "quota.warning",
-        userId: "usr_dev_dandi",
-        currentUsage: 8012,
-        limit: 10000,
-        percentage: 80.12
-      },
-      responseHeaders: {
-        "content-type": "text/html; charset=utf-8",
-        "server": "nginx"
-      },
-      responseBody: "Internal Server Error"
-    } as WebhookLogEntry
-  ]);
+  const [webhookLogs, setWebhookLogs] = useState<WebhookLogEntry[]>([]);
 
   const [inspectedLog, setInspectedLog] = useState<WebhookLogEntry | null>(null);
   const [modalActiveTab, setModalActiveTab] = useState<"request" | "response">("request");
@@ -246,9 +191,12 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           telemetryAge: formatEnvironmentAge(environment.lastSeenAt, environment.current),
         })));
       }
+      setAccountLoadError(null);
     } catch (err) {
       console.error("Error loading account details:", err);
-      showToast("error", "Failed to fetch developer profile data.");
+      const message = err instanceof Error ? err.message : "Failed to fetch developer profile data.";
+      setAccountLoadError(message);
+      showToast("error", getToastErrorMessage("account", message));
     } finally {
       setIsLoading(false);
     }
@@ -274,6 +222,9 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   
   const alerts = computeSidebarAlerts(usage?.keys || []);
   const { apiAccessEnvironments, browserEnvironments } = splitAccountEnvironments(environments);
+  const filteredGithubRepositoryOptions = GITHUB_REPOSITORY_OPTIONS.filter(repo =>
+    repo.toLowerCase().includes(searchQuery.toLowerCase())
+  );
   const {
     visibleItems: visibleApiAccessEnvironments,
     visibleCount: visibleApiAccessCount,
@@ -309,10 +260,10 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         setProfile(prev => prev ? { ...prev, fullName: data.fullName, orgSlug: data.orgSlug } : null);
         showToast("success", "Developer profile settings saved successfully.");
       } else {
-        showToast("error", "Failed to update profile settings.");
+        showToast("error", getToastErrorMessage("account", "Failed to update profile settings."));
       }
     } catch {
-      showToast("error", "Connection error updating profile.");
+      showToast("error", getToastErrorMessage("account", "Connection error updating profile."));
     } finally {
       setIsSavingProfile(false);
     }
@@ -335,10 +286,10 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         setProfile(prev => prev ? { ...prev, webhookUrl: data.webhookUrl, webhookSecret: data.webhookSecret } : null);
         showToast("success", "Alert webhook configuration updated.");
       } else {
-        showToast("error", "Failed to save webhook settings.");
+        showToast("error", getToastErrorMessage("webhook", "Failed to save webhook settings."));
       }
     } catch {
-      showToast("error", "Error saving webhook settings.");
+      showToast("error", getToastErrorMessage("webhook", "Error saving webhook settings."));
     } finally {
       setIsSavingWebhook(false);
     }
@@ -363,10 +314,10 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           nextState ? "GitHub Developer Integration successfully connected." : "GitHub Integration disconnected."
         );
       } else {
-        showToast("error", "Failed to update GitHub connection status.");
+        showToast("error", getToastErrorMessage("github", "Failed to update GitHub connection status."));
       }
     } catch {
-      showToast("error", "Connection error communicating with auth server.");
+      showToast("error", getToastErrorMessage("github", "Connection error communicating with auth server."));
     } finally {
       setIsConnectingGithub(false);
     }
@@ -374,7 +325,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
   const handleRevokeEnvironment = async (environment: AccountEnvironment) => {
     if (!environment.apiKeyId || !environment.revocable) {
-      showToast("error", "This environment cannot be revoked from here.");
+      showToast("error", getToastErrorMessage("browser-session", "This environment cannot be revoked from here."));
       return;
     }
 
@@ -393,7 +344,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       setEnvironments(prev => prev.filter(env => env.apiKeyId !== environment.apiKeyId));
       showToast("success", "Developer environment access successfully revoked.");
     } catch (err) {
-      showToast("error", err instanceof Error ? err.message : "Failed to revoke environment.");
+      const message = err instanceof Error ? err.message : "Failed to revoke environment.";
+      showToast("error", getToastErrorMessage("browser-session", message));
     }
   };
 
@@ -401,18 +353,18 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      showToast("error", "Passwords do not match.");
+      showToast("error", getToastErrorMessage("account", "Passwords do not match."));
       return;
     }
     if (newPassword.length < 6) {
-      showToast("error", "Password must be at least 6 characters.");
+      showToast("error", getToastErrorMessage("account", "Password must be at least 6 characters."));
       return;
     }
     setIsSavingPassword(true);
     try {
       const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
       if (error) {
-        showToast("error", error.message);
+        showToast("error", getToastErrorMessage("account", error.message));
       } else {
         showToast("success", "Password updated successfully.");
         setNewPassword("");
@@ -420,7 +372,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       }
     } catch (err) {
       console.error(err);
-      showToast("error", "Error communicating with Supabase Auth.");
+      showToast("error", getToastErrorMessage("account", "Error communicating with Supabase Auth."));
     } finally {
       setIsSavingPassword(false);
     }
@@ -434,14 +386,14 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
     try {
       const { error } = await supabaseClient.auth.updateUser({ email: newEmail });
       if (error) {
-        showToast("error", error.message);
+        showToast("error", getToastErrorMessage("account", error.message));
       } else {
         showToast("success", "Confirmation emails sent. Please check both the old and new addresses to complete the email change.");
         setNewEmail("");
       }
     } catch (err) {
       console.error(err);
-      showToast("error", "Unable to send the test email.");
+      showToast("error", getToastErrorMessage("account", "Unable to send the email change confirmation."));
     } finally {
       setIsSavingEmail(false);
     }
@@ -450,7 +402,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   // Webhook tester trigger
   const runWebhookTest = () => {
     if (!webhookUrl) {
-      showToast("error", "Please configure and save a webhook endpoint URL first.");
+      showToast("error", getToastErrorMessage("webhook", "Webhook URL is required."));
       return;
     }
     setIsTestingWebhook(true);
@@ -503,6 +455,10 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
     });
   };
 
+  const focusWebhookUrlInput = () => {
+    document.getElementById("webhook-url-input")?.focus();
+  };
+
   return (
     <>
       <DashboardShell
@@ -522,16 +478,26 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           >
             <TabsBar
               tabs={[
-                { id: "profile", label: "Developer Profile" },
-                { id: "integrations", label: "Git Providers" },
-                { id: "webhooks", label: "Alert Webhooks" },
-                { id: "security", label: "Security & Sign-in" },
+                { id: "profile", label: "Developer Profile", controlsId: "account-profile-panel" },
+                { id: "integrations", label: "Git Providers", controlsId: "account-integrations-panel" },
+                { id: "webhooks", label: "Alert Webhooks", controlsId: "account-webhooks-panel" },
+                { id: "security", label: "Security & Sign-in", controlsId: "account-security-panel" },
               ]}
               activeId={activeTab}
               onChange={(id) => setActiveTab(id as typeof activeTab)}
               variant="pills"
             />
           </DashboardPageHeader>
+
+          {accountLoadError && (
+            <GuidedError
+              {...getErrorGuidance({ workflow: "account", message: accountLoadError })}
+              technicalDetails={accountLoadError}
+              onAction={loadData}
+              actionLabel="Refresh"
+              className="mb-8"
+            />
+          )}
 
           {isLoading ? (
             <div className="space-y-6" role="status" aria-live="polite" aria-busy="true">
@@ -556,7 +522,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
               
               {/* TAB 1: Profile Details */}
               {activeTab === "profile" && (
-                <CommandPanel className="space-y-8 p-8 md:p-10">
+                <CommandPanel id="account-profile-panel" role="tabpanel" aria-labelledby="profile-tab" className="space-y-8 p-8 md:p-10">
                   <div className="space-y-1">
                     <h3 className="font-serif text-2xl font-bold text-white">Developer Identity</h3>
                     <p className="text-sm text-slate-400">Configure personal tags and custom API slugs.</p>
@@ -564,8 +530,9 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
                   <form onSubmit={handleSaveProfile} className="space-y-6 max-w-xl">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Email Address</label>
+                      <label htmlFor="account-email" className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Email Address</label>
                       <input 
+                        id="account-email"
                         type="email" 
                         readOnly 
                         value={activeSession?.user?.email || ""} 
@@ -575,8 +542,9 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Full Name</label>
+                      <label htmlFor="account-full-name" className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Full Name</label>
                       <input 
+                        id="account-full-name"
                         type="text" 
                         required
                         placeholder="Developer Name"
@@ -587,8 +555,9 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Organization Namespace Slug</label>
+                      <label htmlFor="account-org-slug" className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Organization Namespace Slug</label>
                       <input 
+                        id="account-org-slug"
                         type="text" 
                         placeholder="my-cool-org"
                         value={orgSlug}
@@ -603,10 +572,11 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                       )}
                     </div>
 
-                    <button
-                      type="submit"
-                      disabled={isSavingProfile}
-                      className="rounded-full bg-emerald-500 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-95 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
+	                    <button
+	                      type="submit"
+	                      disabled={isSavingProfile}
+	                      aria-busy={isSavingProfile || undefined}
+	                      className="rounded-full bg-emerald-500 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-95 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
                     >
                       {isSavingProfile ? "Saving Details..." : "Save Profile Details"}
                     </button>
@@ -616,7 +586,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
               {/* TAB 2: Git Provider Integrations */}
               {activeTab === "integrations" && (
-                <CommandPanel className="space-y-8 p-8 md:p-10">
+                <CommandPanel id="account-integrations-panel" role="tabpanel" aria-labelledby="integrations-tab" className="space-y-8 p-8 md:p-10">
                   <div className="space-y-1">
                     <h3 className="font-serif text-2xl font-bold text-white">Git Provider Connections</h3>
                     <p className="text-sm text-slate-400">Manage OAuth access for repository summaries.</p>
@@ -771,16 +741,22 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
                             {/* Repos list checkboxes */}
                             <div className="rounded-2xl border border-white/5 bg-slate-950/40 divide-y divide-white/5 max-h-[180px] overflow-y-auto scrollbar-hide">
-                              {[
-                                "dandi-ai/summarizer-sdk",
-                                "my-username/nextjs-boilerplate",
-                                "my-username/python-engine",
-                                "my-username/ecom-dashboard",
-                                "my-username/dandi-analytics-plugin",
-                                "my-username/docker-configurations"
-                              ]
-                                .filter(repo => repo.toLowerCase().includes(searchQuery.toLowerCase()))
-                                .map(repo => {
+                              {filteredGithubRepositoryOptions.length === 0 ? (
+                                <div className="p-5 text-center">
+                                  <p className="text-xs font-bold text-slate-300">No repositories match this search.</p>
+                                  <p className="mt-1 text-[11px] font-medium leading-5 text-zinc-500">
+                                    Clear the filter to review the repositories available through this GitHub connection.
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSearchQuery("")}
+                                    className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15"
+                                  >
+                                    Clear Search
+                                  </button>
+                                </div>
+                              ) : (
+                                filteredGithubRepositoryOptions.map(repo => {
                                   const isChecked = selectedRepos.includes(repo);
                                   return (
                                     <label 
@@ -805,13 +781,13 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                                     </label>
                                   );
                                 })
-                              }
+                              )}
                             </div>
 
                             {/* Selected tags list */}
-                            {selectedRepos.length > 0 && (
-                              <div className="space-y-1.5 ml-1 pt-2">
-                                <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest block">Currently Selected Repositories</span>
+                            <div className="space-y-1.5 ml-1 pt-2">
+                              <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest block">Currently Selected Repositories</span>
+                              {selectedRepos.length > 0 ? (
                                 <div className="flex flex-wrap gap-1.5">
                                   {selectedRepos.map(repo => (
                                     <span key={repo} className="inline-flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md">
@@ -829,8 +805,25 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                                     </span>
                                   ))}
                                 </div>
-                              </div>
-                            )}
+                              ) : (
+                                <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/40 p-4">
+                                  <p className="text-xs font-bold text-slate-300">No repositories selected.</p>
+                                  <p className="mt-1 text-[11px] font-medium leading-5 text-zinc-500">
+                                    Select at least one repository or switch to all repositories before relying on private repository access.
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setGithubScope("all");
+                                      showToast("success", "Authorized scope updated to: All Repositories.");
+                                    }}
+                                    className="mt-3 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline"
+                                  >
+                                    Use All Repositories
+                                  </button>
+                                </div>
+                              )}
+                            </div>
 
                           </div>
                         )}
@@ -842,7 +835,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
               {/* TAB 3: Developer Webhooks */}
               {activeTab === "webhooks" && (
-                <CommandPanel className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
+                <CommandPanel id="account-webhooks-panel" role="tabpanel" aria-labelledby="webhooks-tab" className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
                   <div className="space-y-1">
                     <h3 className="font-serif text-xl font-bold text-white sm:text-2xl">Webhook Notifications</h3>
                     <p className="text-sm text-slate-400">Send account notifications and usage alerts to your own endpoint.</p>
@@ -850,9 +843,10 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
                   <form onSubmit={handleSaveWebhook} className="max-w-xl space-y-6">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Webhook Endpoint URL</label>
-                      <input 
-                        type="url" 
+                      <label htmlFor="webhook-url-input" className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Webhook Endpoint URL</label>
+                      <input
+                        id="webhook-url-input"
+                        type="url"
                         placeholder="https://api.yourdomain.com/webhooks/dandi"
                         value={webhookUrl}
                         onChange={(e) => setWebhookUrl(e.target.value)}
@@ -862,7 +856,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
                     {webhookSecret && (
                       <div className="space-y-2 animate-in fade-in duration-300">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Webhook Signature Secret Key</label>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Webhook Signature Secret Key</p>
                         <div className="flex flex-col gap-2 rounded-2xl border border-white/5 bg-slate-950/20 p-3 sm:flex-row sm:items-center sm:pl-6">
                           <code className="min-w-0 flex-1 break-all font-mono text-xs font-bold tracking-wider text-slate-300">
                             {webhookSecret}
@@ -873,10 +867,11 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                               navigator.clipboard.writeText(webhookSecret);
                               showToast("success", "Signature secret copied to clipboard.");
                             }}
-                            className="flex h-12 w-full shrink-0 items-center justify-center rounded-xl bg-slate-900 border border-white/10 text-slate-300 shadow transition hover:bg-white hover:text-zinc-950 sm:w-12 cursor-pointer"
+                            className="flex h-12 w-full shrink-0 items-center justify-center rounded-xl bg-slate-900 border border-white/10 text-slate-300 shadow transition hover:bg-white hover:text-zinc-950 sm:w-12 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                            aria-label="Copy webhook signature secret"
                             title="Copy secret key"
                           >
-                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                               <path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" />
                             </svg>
                           </button>
@@ -933,7 +928,10 @@ X-Dandi-Event: quota.warning`}
                           <div className="space-y-3 font-mono text-[10px]">
                             <div className="space-y-1.5 scrollbar-hide max-h-[140px] overflow-y-auto">
                               {testerLogs.length === 0 ? (
-                                <p className="text-zinc-600 italic">Log idle. Send a test webhook to see the response.</p>
+                                <div className="space-y-1 text-zinc-600">
+                                  <p className="font-bold uppercase tracking-widest">Webhook tester idle</p>
+                                  <p className="leading-relaxed">Trigger a test webhook to see request signing, delivery, and endpoint response details here.</p>
+                                </div>
                               ) : (
                                 testerLogs.map((log, idx) => (
                                   <p 
@@ -971,8 +969,19 @@ X-Dandi-Event: quota.warning`}
 
                     <div className="space-y-3 md:hidden">
                       {webhookLogs.length === 0 ? (
-                        <div className="rounded-2xl border border-white/5 bg-slate-950/20 p-5 text-center text-xs font-semibold text-zinc-500">
-                          No webhook delivery logs recorded yet. Configure URL and trigger a test to start tracking.
+                        <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/30 p-5 text-center">
+                          <p className="text-sm font-bold text-slate-200">No webhook deliveries yet.</p>
+                          <p className="mt-2 text-xs font-medium leading-5 text-zinc-500">
+                            Delivery logs appear after you save an endpoint and Dandi sends a test or alert webhook.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={webhookUrl ? runWebhookTest : focusWebhookUrlInput}
+                            disabled={isTestingWebhook}
+                            className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15 disabled:opacity-50"
+                          >
+                            {webhookUrl ? "Trigger Test Webhook" : "Configure Webhook URL"}
+                          </button>
                         </div>
                       ) : (
                         <>
@@ -1057,8 +1066,21 @@ X-Dandi-Event: quota.warning`}
                           <tbody className="divide-y divide-white/5 font-medium">
                             {webhookLogs.length === 0 ? (
                               <tr>
-                                <td colSpan={6} className="px-6 py-10 text-center text-zinc-500 italic">
-                                  No webhook delivery logs recorded yet. Configure URL and trigger a test to start tracking.
+                                <td colSpan={6} className="px-6 py-10 text-center">
+                                  <div className="mx-auto max-w-md rounded-2xl border border-dashed border-white/10 bg-slate-950/30 p-5">
+                                    <p className="text-sm font-bold text-slate-200">No webhook deliveries yet.</p>
+                                    <p className="mt-2 text-xs font-medium leading-5 text-zinc-500">
+                                      Delivery logs appear after you save an endpoint and Dandi sends a test or alert webhook.
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={webhookUrl ? runWebhookTest : focusWebhookUrlInput}
+                                      disabled={isTestingWebhook}
+                                      className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15 disabled:opacity-50"
+                                    >
+                                      {webhookUrl ? "Trigger Test Webhook" : "Configure Webhook URL"}
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ) : (
@@ -1117,7 +1139,7 @@ X-Dandi-Event: quota.warning`}
 
               {/* TAB 4: Security & Sign-in Activity */}
               {activeTab === "security" && (
-                <CommandPanel className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
+                <CommandPanel id="account-security-panel" role="tabpanel" aria-labelledby="security-tab" className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
                   <div className="space-y-1">
                     <h3 className="font-serif text-xl font-bold text-white sm:text-2xl">Security & Sign-in</h3>
                     <p className="text-sm text-slate-400">Manage password settings and review recent account access.</p>
@@ -1320,13 +1342,25 @@ X-Dandi-Event: quota.warning`}
                       )}
 
                       {accessView === "api" && apiAccessEnvironments.length === 0 && (
-                        <div className="rounded-2xl border border-white/5 bg-slate-950/20 p-5 text-center text-xs font-semibold text-zinc-500">
-                          No API keys or request activity found.
+                        <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/30 p-5 text-center">
+                          <p className="text-sm font-bold text-slate-200">No API access recorded yet.</p>
+                          <p className="mt-2 text-xs font-medium leading-5 text-zinc-500">
+                            API access appears after you create a key or send a repository request from an external client.
+                          </p>
+                          <Link href="/dashboards" className="mt-4 inline-flex text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
+                            Create API Key
+                          </Link>
                         </div>
                       )}
                       {accessView === "browser" && browserEnvironments.length === 0 && (
-                        <div className="rounded-2xl border border-white/5 bg-slate-950/20 p-5 text-center text-xs font-semibold text-zinc-500">
-                          No browser sessions found.
+                        <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/30 p-5 text-center">
+                          <p className="text-sm font-bold text-slate-200">No browser session telemetry yet.</p>
+                          <p className="mt-2 text-xs font-medium leading-5 text-zinc-500">
+                            Browser sessions appear after sign-in activity is recorded for this account.
+                          </p>
+                          <button type="button" onClick={loadData} className="mt-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
+                            Refresh Sessions
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1414,15 +1448,31 @@ X-Dandi-Event: quota.warning`}
                             ))}
                             {accessView === "api" && apiAccessEnvironments.length === 0 && (
                               <tr>
-                                <td colSpan={6} className="px-6 py-10 text-center text-xs font-semibold text-zinc-500">
-                                  No API keys or request activity found.
+                                <td colSpan={6} className="px-6 py-10 text-center">
+                                  <div className="mx-auto max-w-md rounded-2xl border border-dashed border-white/10 bg-slate-950/30 p-5">
+                                    <p className="text-sm font-bold text-slate-200">No API access recorded yet.</p>
+                                    <p className="mt-2 text-xs font-medium leading-5 text-zinc-500">
+                                      API access appears after you create a key or send a repository request from an external client.
+                                    </p>
+                                    <Link href="/dashboards" className="mt-4 inline-flex text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
+                                      Create API Key
+                                    </Link>
+                                  </div>
                                 </td>
                               </tr>
                             )}
                             {accessView === "browser" && browserEnvironments.length === 0 && (
                               <tr>
-                                <td colSpan={5} className="px-6 py-10 text-center text-xs font-semibold text-zinc-500">
-                                  No browser sessions found.
+                                <td colSpan={5} className="px-6 py-10 text-center">
+                                  <div className="mx-auto max-w-md rounded-2xl border border-dashed border-white/10 bg-slate-950/30 p-5">
+                                    <p className="text-sm font-bold text-slate-200">No browser session telemetry yet.</p>
+                                    <p className="mt-2 text-xs font-medium leading-5 text-zinc-500">
+                                      Browser sessions appear after sign-in activity is recorded for this account.
+                                    </p>
+                                    <button type="button" onClick={loadData} className="mt-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
+                                      Refresh Sessions
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             )}
@@ -1466,8 +1516,9 @@ X-Dandi-Event: quota.warning`}
 
                       <form onSubmit={handleUpdatePassword} className="space-y-4">
                         <div className="space-y-1">
-                          <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 ml-1">New Password</label>
+                          <label htmlFor="account-new-password" className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 ml-1">New Password</label>
                           <input 
+                            id="account-new-password"
                             type="password" 
                             required
                             placeholder="••••••••"
@@ -1478,8 +1529,9 @@ X-Dandi-Event: quota.warning`}
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Confirm New Password</label>
+                          <label htmlFor="account-confirm-password" className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Confirm New Password</label>
                           <input 
+                            id="account-confirm-password"
                             type="password" 
                             required
                             placeholder="••••••••"
@@ -1489,10 +1541,11 @@ X-Dandi-Event: quota.warning`}
                           />
                         </div>
 
-                        <button
-                          type="submit"
-                          disabled={isSavingPassword}
-                          className="w-full rounded-full bg-emerald-500 py-3.5 text-[10px] font-black uppercase tracking-widest text-zinc-950 hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-[0.98] transition-all disabled:opacity-50 mt-2 cursor-pointer"
+	                        <button
+	                          type="submit"
+	                          disabled={isSavingPassword}
+	                          aria-busy={isSavingPassword || undefined}
+	                          className="w-full rounded-full bg-emerald-500 py-3.5 text-[10px] font-black uppercase tracking-widest text-zinc-950 hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-[0.98] transition-all disabled:opacity-50 mt-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                         >
                           {isSavingPassword ? "Updating Password..." : "Update Password"}
                         </button>
@@ -1508,7 +1561,7 @@ X-Dandi-Event: quota.warning`}
 
                       {/* Info Alert Box */}
                       <div className="rounded-2xl border border-amber-500/10 bg-amber-500/5 p-4 flex gap-3 items-start">
-                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400" aria-hidden="true">
                           <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                           </svg>
@@ -1523,8 +1576,9 @@ X-Dandi-Event: quota.warning`}
 
                       <form onSubmit={handleUpdateEmail} className="space-y-4">
                         <div className="space-y-1">
-                          <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 ml-1">New Email Address</label>
+                          <label htmlFor="account-new-email" className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 ml-1">New Email Address</label>
                           <input 
+                            id="account-new-email"
                             type="email" 
                             required
                             placeholder="new-email@company.com"
@@ -1534,10 +1588,11 @@ X-Dandi-Event: quota.warning`}
                           />
                         </div>
 
-                        <button
-                          type="submit"
-                          disabled={isSavingEmail}
-                          className="w-full rounded-full bg-emerald-500 py-3.5 text-[10px] font-black uppercase tracking-widest text-zinc-950 hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
+	                        <button
+	                          type="submit"
+	                          disabled={isSavingEmail}
+	                          aria-busy={isSavingEmail || undefined}
+	                          className="w-full rounded-full bg-emerald-500 py-3.5 text-[10px] font-black uppercase tracking-widest text-zinc-950 hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                         >
                           {isSavingEmail ? "Requesting Email Change..." : "Request Email Change"}
                         </button>

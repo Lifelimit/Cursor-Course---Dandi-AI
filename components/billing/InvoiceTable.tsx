@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { CommandPanel, ScrollFrame, StatusPill } from "@/components/command";
 
 export type Invoice = {
@@ -37,7 +38,14 @@ export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoic
   if (!isLoading && (!invoices || invoices.length === 0)) {
     return (
       <CommandPanel className="border-dashed p-8 text-center sm:p-12">
-        <p className="text-sm font-medium text-slate-400">No invoices found yet.</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Billing History</p>
+        <h3 className="mt-2 font-serif text-2xl font-bold text-white">No invoices yet.</h3>
+        <p className="mx-auto mt-2 max-w-xl text-sm font-medium leading-6 text-slate-400">
+          Invoices appear after a paid plan starts or Stripe creates a billing event. Choose a plan when you are ready to add billing history.
+        </p>
+        <Link href="/billing" className="mt-5 inline-flex min-h-10 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15">
+          View Plans
+        </Link>
       </CommandPanel>
     );
   }
@@ -70,14 +78,14 @@ export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoic
         </div>
       )}
 
-      <ScrollFrame axis="x" minWidth="560px" label="Invoice ledger table">
-        <table className="w-full min-w-[560px] text-left border-collapse table-fixed">
+      <ScrollFrame axis="x" minWidth="520px" label="Invoice ledger table">
+        <table className="w-full min-w-[520px] text-left border-collapse table-fixed">
           <thead>
             <tr className="border-b border-white/10 bg-white/[0.03]">
-              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 w-[35%]">Cycle</th>
-              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 w-[25%]">Amount</th>
-              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 w-[25%]">Ledger State</th>
-              <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 text-right w-[15%]">Receipt</th>
+              <th className="px-4 py-5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 w-[35%] sm:px-8 sm:tracking-[0.22em]">Cycle</th>
+              <th className="px-4 py-5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 w-[25%] sm:px-8 sm:tracking-[0.22em]">Amount</th>
+              <th className="px-4 py-5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 w-[25%] sm:px-8 sm:tracking-[0.22em]">Ledger State</th>
+              <th className="px-4 py-5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 text-right w-[15%] sm:px-8 sm:tracking-[0.22em]">Receipt</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
@@ -86,13 +94,13 @@ export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoic
             ) : (
               invoices.map((invoice) => (
                 <tr key={invoice.id} className="group transition-colors hover:bg-emerald-300/[0.035]">
-                  <td className="px-8 py-6">
+                  <td className="px-4 py-6 sm:px-8">
                     <p className="text-xs font-bold text-slate-100">
                       {new Date(invoice.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </p>
                     <p className="text-[10px] text-slate-500 font-mono">#{invoice.id.slice(-8).toUpperCase()}</p>
                   </td>
-                  <td className="px-8 py-6">
+                  <td className="px-4 py-6 sm:px-8">
                     <span className="font-mono text-sm font-black text-slate-100 tabular-nums">
                       {invoice.amount < 0 
                         ? `-$${Math.abs(invoice.amount / 100).toFixed(2)}` 
@@ -100,7 +108,7 @@ export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoic
                       }
                     </span>
                   </td>
-                  <td className="px-8 py-6">
+                  <td className="px-4 py-6 sm:px-8">
                     {invoice.amount < 0 && invoice.status === "paid" ? (
                       <StatusPill tone="info" pulse compact>
                         Credit
@@ -119,7 +127,7 @@ export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoic
                       </StatusPill>
                     )}
                   </td>
-                  <td className="px-8 py-6 text-right">
+                  <td className="px-4 py-6 text-right sm:px-8">
                     <a
                       href={invoice.receiptUrl}
                       target="_blank"

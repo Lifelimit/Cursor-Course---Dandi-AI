@@ -75,7 +75,7 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
       {/* Quota Header */}
       <div className="flex flex-col gap-4 px-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Quota Allocation</p>
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Key Allocation</p>
           <h4 className="text-xl font-bold tracking-tight text-white">Select 3 keys to retain</h4>
         </div>
         <div className="flex flex-col items-end gap-1">

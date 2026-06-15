@@ -15,7 +15,7 @@ const corsOptions = {
 const ingestRateLimit = createIpRateLimit("@upstash/ratelimit:rag:ingest", 3, "60 s");
 const ingestStatusRateLimit = createIpRateLimit("@upstash/ratelimit:rag:ingest-status", 60, "60 s");
 const INGESTION_JOBS_MISSING_MESSAGE =
-  "RAG ingestion jobs are not set up yet. Apply the latest Supabase migration, including supabase/migrations/20260604_create_ingestion_jobs.sql, then restart the dev server.";
+  "Repository preparation jobs are not set up yet. Apply the latest Supabase migration, including supabase/migrations/20260604_create_ingestion_jobs.sql, then restart the dev server.";
 
 export async function OPTIONS(request: Request) {
   return corsPreflightResponse(request, corsOptions);

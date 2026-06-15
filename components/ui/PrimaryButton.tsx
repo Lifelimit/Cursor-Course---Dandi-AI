@@ -48,11 +48,15 @@ export function Button({
   return (
     <button
       disabled={isLoading || disabled}
+      aria-busy={isLoading || undefined}
       className={cx("group", buttonBase, variantClasses[variant], sizeClasses[size], className)}
       {...props}
     >
       {isLoading ? (
-        <div className="h-3 w-3 animate-spin rounded-full border-2 border-current/20 border-t-current" />
+        <>
+          <div className="h-3 w-3 animate-spin rounded-full border-2 border-current/20 border-t-current" aria-hidden="true" />
+          <span className="sr-only">Loading</span>
+        </>
       ) : (
         <>
           {children}
