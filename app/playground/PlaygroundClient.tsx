@@ -13,6 +13,8 @@ import type { User } from "@supabase/supabase-js";
 import type { ApiKey } from "@/types/api";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
+import { LoadingStages, type LoadingStage, type LoadingStageStatus } from "@/components/ui/LoadingStages";
+import { CardSkeleton } from "@/components/ui/SkeletonBlocks";
 import { ApiKeyDropdown } from "@/components/playground/ApiKeyDropdown";
 import { CodeSnippet } from "@/components/playground/CodeSnippet";
 import { JsonViewer } from "@/components/playground/JsonViewer";
@@ -48,6 +50,13 @@ type IngestionJobSummary = {
   completedAt?: string | null;
   failedAt?: string | null;
   updatedAt?: string;
+};
+
+type RagSource = {
+  chunkId?: string;
+  filePath: string;
+  preview?: string;
+  similarity: number;
 };
 
 export default function PlaygroundClient({ 
@@ -122,10 +131,26 @@ export default function PlaygroundClient({
     updatedAt?: string;
     error?: string;
   } | null>(null);
-  const [ragMessages, setRagMessages] = useState<{ role: "user" | "assistant"; content: string; sources?: { filePath: string; similarity: number }[] }[]>([]);
+  const [ragMessages, setRagMessages] = useState<{ role: "user" | "assistant"; content: string; sources?: RagSource[] }[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [chatProgressStep, setChatProgressStep] = useState<"idle" | "searching" | "ranking" | "context" | "answer" | "sources">("idle");
+  const requestProgressRef = useRef<HTMLDivElement>(null);
+  const repositoryChatRef = useRef<HTMLDivElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  const scrollToSection = (target: React.RefObject<HTMLElement | null>) => {
+    window.requestAnimationFrame(() => {
+      const element = target.current;
+      if (!element) return;
+
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      element.scrollIntoView({
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+        block: "start",
+      });
+    });
+  };
 
   const getFriendlySummaryStreamError = (error: unknown) => {
     const message = error instanceof Error ? error.message : String(error || "");
@@ -316,12 +341,6 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
     };
   }, [apiKey, githubUrl]);
 
-  useEffect(() => {
-    if (chatBottomRef.current) {
-      chatBottomRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [ragMessages]);
-
   // Ingestion Handler for RAG
   const handleIngest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -339,6 +358,7 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
     setIndexingAttemptedRepo(githubUrl);
     setIndexedRequestLogs([]);
     setIndexedRepositoryStats(null);
+    scrollToSection(requestProgressRef);
 
     const maskedKey = apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`;
     const getRepoPath = (url: string) => {
@@ -576,12 +596,30 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     const userMsg = chatInput.trim();
     setChatInput("");
     setIsChatLoading(true);
+    setChatProgressStep("searching");
 
     const newMessages = [...ragMessages, { role: "user" as const, content: userMsg }];
     setRagMessages(newMessages);
+    scrollToSection(repositoryChatRef);
+
+    if (isLightweightGreeting(userMsg)) {
+      await sleep(180);
+      setRagMessages(prev => [
+        ...prev,
+        {
+          role: "assistant" as const,
+          content: `Hi — ask me anything about **${getRepoPath(githubUrl)}**.`
+        }
+      ]);
+      scrollToSection(chatBottomRef);
+      setIsChatLoading(false);
+      setChatProgressStep("idle");
+      return;
+    }
 
     // Add empty assistant response to stream into
-    setRagMessages(prev => [...prev, { role: "assistant" as const, content: "Retrieving relevant files and preparing an answer..." }]);
+    setRagMessages(prev => [...prev, { role: "assistant" as const, content: "" }]);
+    scrollToSection(chatBottomRef);
 
     const startTime = performance.now();
     const maskedKey = apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`;
@@ -614,6 +652,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         requestHeaders: { "Content-Type": "application/json" },
         requestBody: { query: userMsg, repo_url: githubUrl, match_count: 5 }
       });
+      setChatProgressStep("ranking");
 
       // Call Chat endpoint
       const response = await fetch("/api/rag/chat", {
@@ -635,7 +674,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
 
       // Read sources from header
       const sourcesHeader = response.headers.get("x-rag-sources");
-      let sources: { filePath: string; similarity: number }[] = [];
+      let sources: RagSource[] = [];
       if (sourcesHeader) {
         try {
           sources = JSON.parse(sourcesHeader);
@@ -643,6 +682,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
           console.error("Failed to parse RAG sources header", e);
         }
       }
+      setChatProgressStep("context");
 
       setIndexedLogState("repo_fetch", {
         status: "success",
@@ -651,7 +691,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         statusText: "OK",
         responseHeaders: {
           "Content-Type": "application/json",
-          "x-rag-sources": sourcesHeader || "[]"
+          "x-rag-sources": sourcesHeader ? `${sources.length} source${sources.length === 1 ? "" : "s"}` : "[]"
         },
         responseBody: sources
       });
@@ -664,6 +704,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         requestHeaders: { "Content-Type": "text/event-stream" },
         requestBody: { model: "gemini-3.1-flash-lite", temperature: 0.2 }
       });
+      setChatProgressStep("answer");
 
       // Clear "Thinking..." and start streaming
       setRagMessages(prev => {
@@ -707,6 +748,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         responseHeaders: { "Content-Type": "text/plain" },
         responseBody: { streamedLength: accumulatedText.length }
       });
+      setChatProgressStep("sources");
 
       refreshKeys();
     } catch (err: any) {
@@ -732,6 +774,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       showToast("error", "Error streaming RAG response.");
     } finally {
       setIsChatLoading(false);
+      window.setTimeout(() => setChatProgressStep("idle"), 300);
     }
   };
 
@@ -775,6 +818,42 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       return nodes;
     };
 
+    const renderLinksAndFilePaths = (value: string, keyPrefix: string) => {
+      const nodes: ReactNode[] = [];
+      const linkPattern = /\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+|#[^)\s]+)\)/g;
+      let lastIndex = 0;
+      let match: RegExpExecArray | null;
+
+      while ((match = linkPattern.exec(value)) !== null) {
+        const [fullMatch, label, href] = match;
+
+        if (match.index > lastIndex) {
+          nodes.push(...renderFilePathChips(value.slice(lastIndex, match.index), `${keyPrefix}-text-${lastIndex}`));
+        }
+
+        const isExternal = href.startsWith("http");
+        nodes.push(
+          <a
+            key={`${keyPrefix}-link-${match.index}`}
+            href={href}
+            target={isExternal ? "_blank" : undefined}
+            rel={isExternal ? "noreferrer" : undefined}
+            className="font-bold text-emerald-200 underline decoration-emerald-300/30 underline-offset-4 transition-colors hover:text-emerald-100"
+          >
+            {renderFilePathChips(label, `${keyPrefix}-link-label-${match.index}`)}
+          </a>
+        );
+
+        lastIndex = match.index + fullMatch.length;
+      }
+
+      if (lastIndex < value.length) {
+        nodes.push(...renderFilePathChips(value.slice(lastIndex), `${keyPrefix}-text-${lastIndex}`));
+      }
+
+      return nodes;
+    };
+
     return parts.map((part, index) => {
       if (part.startsWith("`") && part.endsWith("`")) {
         return (
@@ -783,7 +862,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
           </code>
         );
       }
-      return renderFilePathChips(part, `${index}`);
+      return renderLinksAndFilePaths(part, `${index}`);
     });
   };
 
@@ -793,7 +872,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     return boldParts.map((bp, bpIdx) => {
       if (bp.startsWith("**") && bp.endsWith("**")) {
         return (
-          <strong key={bpIdx} className="font-bold text-zinc-900 dark:text-zinc-100">
+          <strong key={bpIdx} className="font-bold text-slate-50">
             {renderTextWithInlineCode(bp.slice(2, -2))}
           </strong>
         );
@@ -801,6 +880,24 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       return renderTextWithInlineCode(bp);
     });
   };
+
+  const isMarkdownTableDivider = (line?: string) =>
+    Boolean(line?.trim().match(/^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/));
+
+  const splitMarkdownTableRow = (line: string) =>
+    line
+      .trim()
+      .replace(/^\|/, "")
+      .replace(/\|$/, "")
+      .split("|")
+      .map((cell) => cell.trim());
+
+  const stripFileContextMetadata = (text: string) =>
+    text
+      .replace(/^\s*\[File Context:[^\]]+\]\s*(?:\([^)]+\))?\s*[:,-]?\s*$/gim, "")
+      .replace(/\s*\[File Context:[^\]]+\]\s*(?:\([^)]+\))?\s*/g, " ")
+      .replace(/[ \t]+([,.;:])/g, "$1")
+      .replace(/\n{3,}/g, "\n\n");
 
   const renderMessageContent = (content: string) => {
     if (!content) return null;
@@ -813,7 +910,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         const code = match ? match[2] : part.slice(3, -3);
 
         return (
-          <div key={index} className="my-5 overflow-hidden rounded-2xl border border-[var(--command-border)] bg-slate-950 font-mono text-xs text-slate-300 shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
+          <div key={index} className="my-7 overflow-hidden rounded-2xl border border-[var(--command-border)] bg-slate-950 font-mono text-xs text-slate-300 shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
             <div className="flex items-center justify-between border-b border-[var(--command-border)] bg-white/[0.03] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 select-none">
               <span>{language || "code"}</span>
               <button
@@ -831,8 +928,8 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
           </div>
         );
       } else {
-        const lines = part.split("\n");
-        const rendered: React.ReactNode[] = [];
+        const lines = stripFileContextMetadata(part).split("\n");
+        const rendered: ReactNode[] = [];
         let lIdx = 0;
 
         while (lIdx < lines.length) {
@@ -845,10 +942,60 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
             continue;
           }
 
+          if (trimmedLine.includes("|") && isMarkdownTableDivider(lines[lIdx + 1])) {
+            const headers = splitMarkdownTableRow(trimmedLine);
+            const rows: string[][] = [];
+            lIdx += 2;
+
+            while (lIdx < lines.length) {
+              const current = lines[lIdx].trim();
+              if (!current || !current.includes("|")) break;
+              rows.push(splitMarkdownTableRow(current));
+              lIdx += 1;
+            }
+
+            rendered.push(
+              <div key={`${index}-${lIdx}-table`} className="my-8 overflow-hidden rounded-2xl border border-[var(--command-border)] bg-slate-950/75 shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border-collapse text-left">
+                    <thead className="bg-emerald-300/[0.07]">
+                      <tr>
+                        {headers.map((header, headerIdx) => (
+                          <th
+                            key={headerIdx}
+                            scope="col"
+                            className="border-b border-emerald-300/15 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-100"
+                          >
+                            {renderLineText(header)}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row, rowIdx) => (
+                        <tr key={rowIdx} className="border-t border-white/10 odd:bg-white/[0.015]">
+                          {headers.map((_, cellIdx) => (
+                            <td
+                              key={cellIdx}
+                              className="px-4 py-3 align-top text-[13px] font-medium leading-6 text-slate-300"
+                            >
+                              {renderLineText(row[cellIdx] ?? "")}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+            continue;
+          }
+
           // 1. Headings
           if (trimmedLine.startsWith("### ")) {
             rendered.push(
-              <h4 key={`${index}-${lIdx}`} className="mt-7 mb-2 text-base font-black leading-snug text-emerald-100">
+              <h4 key={`${index}-${lIdx}`} className="mt-9 mb-3 text-base font-black leading-snug text-slate-50">
                 {renderLineText(trimmedLine.substring(4))}
               </h4>
             );
@@ -857,7 +1004,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
           }
           if (trimmedLine.startsWith("## ")) {
             rendered.push(
-              <h3 key={`${index}-${lIdx}`} className="mt-8 mb-3 text-xl font-black leading-tight text-white">
+              <h3 key={`${index}-${lIdx}`} className="mt-10 mb-4 border-b border-emerald-300/10 pb-3 text-xl font-black leading-tight text-white">
                 {renderLineText(trimmedLine.substring(3))}
               </h3>
             );
@@ -866,7 +1013,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
           }
           if (trimmedLine.startsWith("# ")) {
             rendered.push(
-              <h2 key={`${index}-${lIdx}`} className="mt-8 mb-4 font-serif text-2xl font-bold leading-tight text-white">
+              <h2 key={`${index}-${lIdx}`} className="mt-10 mb-5 border-b border-emerald-300/12 pb-4 font-serif text-2xl font-bold leading-tight text-white">
                 {renderLineText(trimmedLine.substring(2))}
               </h2>
             );
@@ -881,7 +1028,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
               lIdx += 1;
             }
             rendered.push(
-              <blockquote key={`${index}-${lIdx}-quote`} className="my-5 border-l-2 border-emerald-300/45 bg-emerald-300/[0.04] px-4 py-3 text-sm font-semibold leading-7 text-slate-300">
+              <blockquote key={`${index}-${lIdx}-quote`} className="my-7 border-l-2 border-emerald-300/45 bg-emerald-300/[0.04] px-5 py-4 text-sm font-semibold leading-7 text-slate-200">
                 {quoteLines.map((quote, quoteIdx) => (
                   <p key={quoteIdx}>{renderLineText(quote)}</p>
                 ))}
@@ -900,9 +1047,9 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
               lIdx += 1;
             }
             rendered.push(
-              <ul key={`${index}-${lIdx}-ul`} className="my-5 space-y-2.5">
+              <ul key={`${index}-${lIdx}-ul`} className="my-7 space-y-3">
                 {items.map((item, itemIdx) => (
-                  <li key={itemIdx} className="flex gap-3 text-[15px] leading-7 text-slate-200">
+                  <li key={itemIdx} className="flex gap-3 text-[15px] leading-8 text-slate-200">
                     <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.45)]" />
                     <span>{renderLineText(item)}</span>
                   </li>
@@ -923,9 +1070,9 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
               lIdx += 1;
             }
             rendered.push(
-              <ol key={`${index}-${lIdx}-ol`} className="my-5 space-y-3">
+              <ol key={`${index}-${lIdx}-ol`} className="my-7 space-y-3.5">
                 {items.map((item, itemIdx) => (
-                  <li key={itemIdx} className="flex gap-3 text-[15px] leading-7 text-slate-200">
+                  <li key={itemIdx} className="flex gap-3 text-[15px] leading-8 text-slate-200">
                     <span className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-300/[0.08] text-[10px] font-black text-emerald-200">
                       {item.number}
                     </span>
@@ -939,7 +1086,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
 
           // 4. Paragraph
           rendered.push(
-            <p key={`${index}-${lIdx}`} className="my-4 text-[15px] font-medium leading-8 text-slate-200 sm:text-base sm:leading-8">
+            <p key={`${index}-${lIdx}`} className="my-5 text-[15px] font-medium leading-8 text-slate-200 sm:text-base sm:leading-9">
               {renderLineText(line)}
             </p>
           );
@@ -960,6 +1107,32 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     }
   };
 
+  const isLightweightGreeting = (message: string) => {
+    const normalized = message.trim().toLowerCase().replace(/[!?.\s]+$/g, "");
+    return /^(hi|hello|hey|yo|sup|thanks|thank you|ok|okay)$/.test(normalized);
+  };
+
+  const getTopSourceMatch = (sources?: RagSource[]) => {
+    if (!sources?.length) return 0;
+    return Math.max(...sources.map((src) => Math.round(src.similarity * 100)));
+  };
+
+  const shouldShowSources = (
+    question?: { role: "user" | "assistant"; content: string },
+    answer?: { role: "user" | "assistant"; content: string; sources?: RagSource[] }
+  ) => {
+    if (!answer?.sources?.length) return false;
+    if (question && isLightweightGreeting(question.content)) return false;
+    return true;
+  };
+
+  const isRepositoryStructureQuestion = (message?: string) => {
+    if (!message) return false;
+    return /\b(structure|organized|organisation|organization|directories|folders|layout|tree)\b/i.test(message);
+  };
+
+  const answerStartsWithHeading = (content?: string) => Boolean(content?.trim().match(/^#{1,3}\s+/));
+
   const handleSummarize = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
@@ -967,6 +1140,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     setRepoMetadata(null);
     setSummaryStatus("streaming");
     setSummaryIssue("");
+    scrollToSection(requestProgressRef);
 
     const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -1128,6 +1302,56 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     if (log.status === "success") return "done";
     return "error";
   };
+  const getModeLogStatus = (logs: LogEntry[], id: string): LoadingStageStatus => {
+    const log = logs.find((entry) => entry.id === id);
+    if (!log) return "idle";
+    if (log.status === "pending") return "active";
+    if (log.status === "success") return "done";
+    return "error";
+  };
+  const summaryAuthStage = getModeLogStatus(summaryRequestLogs, "auth");
+  const summaryRepoStage = getModeLogStatus(summaryRequestLogs, "repo_fetch");
+  const summaryAiStage = getModeLogStatus(summaryRequestLogs, "ai_processing");
+  const indexedAuthStage = getModeLogStatus(indexedRequestLogs, "auth");
+  const indexedRepoStage = getModeLogStatus(indexedRequestLogs, "repo_fetch");
+  const summaryLoadingStages: LoadingStage[] = [
+    {
+      id: "summary-url",
+      label: "Validating repository URL",
+      detail: githubUrl ? getRepoPath(githubUrl) : "Waiting for a GitHub URL",
+      status: summaryRequestLogs.length > 0 || isLoadingSummary || summaryHasData ? "done" : "idle",
+    },
+    {
+      id: "summary-access",
+      label: "Checking access & limits",
+      detail: "Validating API key and quota",
+      status: summaryAuthStage,
+    },
+    {
+      id: "summary-metadata",
+      label: "Fetching repository metadata",
+      detail: repoMetadata ? `${repoMetadata.stars.toLocaleString()} stars · ${repoMetadata.license}` : "Reading public GitHub metadata",
+      status: summaryRepoStage,
+    },
+    {
+      id: "summary-structure",
+      label: "Analyzing repository structure",
+      detail: "Preparing files and repository context",
+      status: summaryAiStage === "active" ? "active" : summaryAiStage === "done" || summaryHasData ? "done" : summaryAiStage,
+    },
+    {
+      id: "summary-generate",
+      label: "Generating summary",
+      detail: "Creating the structured Dandi response",
+      status: summaryStatus === "success" ? "done" : summaryStatus === "error" || summaryStatus === "empty" ? "error" : isLoadingSummary ? "active" : "idle",
+    },
+    {
+      id: "summary-finalize",
+      label: "Finalizing results",
+      detail: "Preparing visual and JSON outputs",
+      status: summaryStatus === "success" ? "done" : summaryStatus === "error" || summaryStatus === "empty" ? "error" : isLoadingSummary && summaryAiStage === "done" ? "active" : "idle",
+    },
+  ];
   const isPipelineActive =
     activeTab === "summary"
       ? isLoadingSummary || activeLogsHavePending
@@ -1243,6 +1467,77 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
   const indexedChunksLabel = typeof currentIndexStats?.chunksCount === "number" ? currentIndexStats.chunksCount.toLocaleString() : "Not reported";
   const hasIndexedCounts = typeof currentIndexStats?.filesCount === "number" || typeof currentIndexStats?.chunksCount === "number";
   const currentIngestionStep = currentIndexStats?.currentStep;
+  const indexedAiStage = getModeLogStatus(indexedRequestLogs, "ai_processing");
+  const indexingLoadingStages: LoadingStage[] = [
+    {
+      id: "index-validate",
+      label: "Validating repository",
+      detail: githubUrl ? getRepoPath(githubUrl) : "Waiting for repository URL",
+      status: indexedAuthStage,
+    },
+    {
+      id: "index-read",
+      label: "Reading repository contents",
+      detail: "Starting ingestion and repository traversal",
+      status: indexedRepoStage,
+    },
+    {
+      id: "index-chunks",
+      label: "Creating searchable chunks",
+      detail: currentIndexStats?.filesCount ? `${indexedFilesLabel} files selected` : "Splitting eligible files into retrieval units",
+      status: ingestStatus === "crawling" ? "active" : ingestStatus === "embedding" || ingestStatus === "completed" ? "done" : hasIndexingFailure ? "error" : "idle",
+    },
+    {
+      id: "index-embeddings",
+      label: "Generating embeddings",
+      detail: "Encoding chunks for semantic search",
+      status: ingestStatus === "embedding" ? "active" : ingestStatus === "completed" ? "done" : hasIndexingFailure && indexedAiStage === "error" ? "error" : "idle",
+    },
+    {
+      id: "index-store",
+      label: "Storing retrieval index",
+      detail: currentIndexStats?.chunksCount ? `${indexedChunksLabel} searchable chunks` : "Saving chunks and vector index",
+      status: ingestStatus === "completed" ? "done" : ingestStatus === "embedding" ? "active" : hasIndexingFailure ? "error" : "idle",
+    },
+    {
+      id: "index-ready",
+      label: "Repository ready",
+      detail: "Q&A can now retrieve repository evidence",
+      status: ingestStatus === "completed" ? "done" : hasIndexingFailure ? "error" : "idle",
+    },
+  ];
+  const chatLoadingStages: LoadingStage[] = [
+    {
+      id: "chat-search",
+      label: "Searching repository",
+      detail: "Finding indexed chunks related to your question",
+      status: chatProgressStep === "searching" ? "active" : ["ranking", "context", "answer", "sources"].includes(chatProgressStep) ? "done" : "idle",
+    },
+    {
+      id: "chat-rank",
+      label: "Ranking relevant chunks",
+      detail: "Prioritizing strongest source matches",
+      status: chatProgressStep === "ranking" ? "active" : ["context", "answer", "sources"].includes(chatProgressStep) ? "done" : "idle",
+    },
+    {
+      id: "chat-context",
+      label: "Building context",
+      detail: "Preparing evidence for the answer",
+      status: chatProgressStep === "context" ? "active" : ["answer", "sources"].includes(chatProgressStep) ? "done" : "idle",
+    },
+    {
+      id: "chat-answer",
+      label: "Generating answer",
+      detail: "Streaming the response into the chat",
+      status: chatProgressStep === "answer" ? "active" : chatProgressStep === "sources" ? "done" : "idle",
+    },
+    {
+      id: "chat-sources",
+      label: "Preparing sources",
+      detail: "Attaching retrieved evidence when useful",
+      status: chatProgressStep === "sources" ? "active" : "idle",
+    },
+  ];
   const visibleRagMessages = ragMessages.filter((message, index) => {
     const hasPreviousQuestion = ragMessages.slice(0, index).some((candidate) => candidate.role === "user");
     return message.role === "user" || hasPreviousQuestion;
@@ -1509,7 +1804,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
               {/* Conditional Panel Rendering */}
               {activeTab === "rag" && ingestedRepo === githubUrl && ingestStatus === "completed" ? (
                 /* RAG Chat room box */
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div ref={repositoryChatRef} className="space-y-6 scroll-mt-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
                   <CommandPanel tone="elevated" interactive className="flex min-h-[560px] flex-col p-5 sm:p-8">
                     {/* Header of Chat Room */}
                     <div className="flex flex-col gap-4 border-b border-[var(--command-border)] pb-5 select-none sm:flex-row sm:items-center sm:justify-between">
@@ -1601,15 +1896,24 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                           </div>
                         </div>
                       ) : (
-                        conversationTurns.map((turn, idx) => (
-                          <article key={idx} className="space-y-4">
+                        conversationTurns.map((turn, idx) => {
+                          const sourcesVisible = shouldShowSources(turn.question, turn.answer);
+                          const sourceCount = turn.answer?.sources?.length || 0;
+                          const topMatch = getTopSourceMatch(turn.answer?.sources);
+                          const lowConfidence = sourcesVisible && topMatch < 60;
+                          const answerContent = turn.answer?.content;
+                          const needsSectionLabel = Boolean(answerContent && !answerStartsWithHeading(answerContent));
+                          const answerSectionLabel = isRepositoryStructureQuestion(turn.question?.content) ? "Repository Structure" : "Summary";
+
+                          return (
+                          <article key={idx} className="space-y-3">
                             {turn.question && (
-                              <section className="ml-auto max-w-[92%] rounded-3xl border border-white/10 bg-white/[0.06] p-4 shadow-[0_20px_70px_rgba(0,0,0,0.20)] sm:p-5">
-                                <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/10 pb-3">
-                                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">User Question</p>
+                              <section className="ml-auto max-w-[82%] rounded-2xl border border-white/10 bg-white/[0.055] p-3 shadow-[0_14px_44px_rgba(0,0,0,0.16)] sm:max-w-[76%] sm:p-3.5">
+                                <div className="mb-2 flex items-center justify-between gap-3">
+                                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">User Question</p>
                                   <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400">You</span>
                                 </div>
-                                <p className="text-base font-semibold leading-7 text-slate-100 sm:text-lg">
+                                <p className="text-sm font-semibold leading-6 text-slate-100 sm:text-[15px]">
                                   {renderTextWithInlineCode(turn.question.content)}
                                 </p>
                               </section>
@@ -1619,78 +1923,130 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                               <div className="mb-5 flex flex-col gap-3 border-b border-emerald-300/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                   <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/80">Dandi Answer</p>
-                                  <p className="mt-1 text-xs font-semibold text-slate-500">Generated from retrieved repository context</p>
+                                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                                    {sourcesVisible ? "Answer first. Sources are available for verification." : "Repository chat response"}
+                                  </p>
                                 </div>
-                                {turn.answer?.sources && turn.answer.sources.length > 0 && (
+                                {sourcesVisible && (
                                   <StatusPill tone="success" compact>
-                                    {turn.answer.sources.length} source{turn.answer.sources.length === 1 ? "" : "s"}
+                                    {sourceCount} source{sourceCount === 1 ? "" : "s"}
                                   </StatusPill>
                                 )}
                               </div>
 
-                              <div className="prose-dandi max-w-none">
-                                {turn.answer?.content ? (
-                                  renderMessageContent(turn.answer.content)
+                              <div className="prose-dandi mx-auto max-w-3xl xl:max-w-[78ch]">
+                                {answerContent ? (
+                                  <>
+                                    {needsSectionLabel && (
+                                      <div className="mb-5 border-b border-emerald-300/12 pb-3">
+                                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/75">
+                                          {answerSectionLabel}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {renderMessageContent(answerContent)}
+                                  </>
                                 ) : (
-                                  <div className="flex items-center gap-3 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-4 text-sm font-semibold text-emerald-100">
-                                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-300/25 border-t-emerald-200" />
-                                    Retrieving indexed context and drafting an answer...
-                                  </div>
+                                  <LoadingStages
+                                    title="Answer in progress"
+                                    description="Dandi is retrieving context before writing the final response."
+                                    stages={chatLoadingStages}
+                                    className="mx-auto max-w-3xl"
+                                  />
                                 )}
                               </div>
 
-                              {turn.answer?.sources && (
-                                <div className="mt-6 border-t border-emerald-300/10 pt-5">
-                                  {turn.answer.sources.length > 0 ? (
-                                    <div className="space-y-3">
-                                      <div className="flex flex-wrap items-center justify-between gap-3">
-                                        <div>
-                                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/80">Sources</p>
-                                          <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">
-                                            Evidence returned by retrieval. Expand a source to inspect the match score.
-                                          </p>
-                                        </div>
-                                        <StatusPill tone="success" compact>
-                                          Top {Math.max(...turn.answer.sources.map((src) => Math.round(src.similarity * 100)))}%
-                                        </StatusPill>
-                                      </div>
-                                      <div className="space-y-2">
-                                        {turn.answer.sources.map((src, sIdx) => (
-                                          <details
-                                            key={`${src.filePath}-${sIdx}`}
-                                            className="group rounded-2xl border border-white/10 bg-white/[0.03] p-3 transition-colors open:border-emerald-300/25 open:bg-emerald-300/[0.04]"
-                                          >
-                                            <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-                                              <div className="min-w-0">
-                                                <p className="truncate font-mono text-xs font-bold text-slate-100">{src.filePath}</p>
-                                                <p className="mt-1 text-[9px] font-black uppercase tracking-[0.18em] text-slate-600">Source {sIdx + 1}</p>
-                                              </div>
-                                              <span className="shrink-0 rounded-lg border border-emerald-300/15 bg-emerald-300/10 px-2 py-1 text-[10px] font-black tabular-nums text-emerald-300">
-                                                {Math.round(src.similarity * 100)}%
-                                              </span>
-                                            </summary>
-                                            <p className="mt-3 rounded-xl border border-white/10 bg-slate-950/60 p-3 text-xs font-medium leading-6 text-slate-400">
-                                              Semantic retrieval matched this file before generation. Similarity indicates relevance to the question, not a correctness guarantee.
-                                            </p>
-                                          </details>
-                                        ))}
-                                      </div>
+                              {sourcesVisible && turn.answer?.sources && (
+                                <details className="group mx-auto mt-7 max-w-3xl border-t border-emerald-300/10 pt-4 xl:max-w-[78ch]">
+                                  <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.025] px-3 py-2.5 transition-colors hover:border-emerald-300/20 hover:bg-emerald-300/[0.035]">
+                                    <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-bold text-slate-300">
+                                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/75">Sources</span>
+                                      <span className="text-slate-600">:</span>
+                                      <span>{sourceCount} file{sourceCount === 1 ? "" : "s"}</span>
+                                      <span className="text-slate-600">·</span>
+                                      <span>Top match {topMatch}%</span>
+                                      <span className="text-emerald-300 transition-transform group-open:rotate-180">⌄</span>
                                     </div>
-                                  ) : (
-                                    <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.05] p-4">
-                                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300/80">Sources not returned</p>
-                                      <p className="mt-2 text-xs font-medium leading-relaxed text-slate-400">
-                                        The answer streamed successfully, but the API did not return source metadata for this response. Treat it as uncited and ask a narrower question if you need file-level evidence.
-                                      </p>
-                                    </div>
+                                    {lowConfidence && (
+                                      <span className="rounded-full border border-amber-300/15 bg-amber-300/[0.06] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-amber-200">
+                                        Low-confidence retrieval
+                                      </span>
+                                    )}
+                                  </summary>
+
+                                  {lowConfidence && (
+                                    <p className="mt-3 rounded-xl border border-amber-300/15 bg-amber-300/[0.045] px-3 py-2 text-xs font-medium leading-6 text-amber-100/80">
+                                      Low-confidence retrieval · sources may only be loosely related.
+                                    </p>
                                   )}
-                                </div>
+
+                                  <div className="mt-3 space-y-1.5">
+                                    {turn.answer.sources.map((src, sIdx) => (
+                                      <details
+                                        key={`${src.filePath}-${sIdx}`}
+                                        className="group/source rounded-xl border border-white/10 bg-slate-950/55 px-3 py-2 transition-colors open:border-emerald-300/20 open:bg-emerald-300/[0.035]"
+                                      >
+                                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                                          <div className="min-w-0">
+                                            <p className="truncate font-mono text-[11px] font-bold text-slate-200">{src.filePath}</p>
+                                            <p className="mt-0.5 text-[8px] font-black uppercase tracking-[0.16em] text-slate-500">
+                                              Source {sIdx + 1}
+                                            </p>
+                                          </div>
+                                          <div className="flex shrink-0 items-center gap-2">
+                                            <span className="rounded-lg border border-emerald-300/15 bg-emerald-300/10 px-2 py-1 text-[9px] font-black tabular-nums text-emerald-300">
+                                              {Math.round(src.similarity * 100)}%
+                                            </span>
+                                            <span className="text-[10px] text-slate-600 transition-transform group-open/source:rotate-180">⌄</span>
+                                          </div>
+                                        </summary>
+                                        <div className="mt-3 space-y-3 rounded-xl border border-emerald-300/10 bg-slate-950/70 p-3">
+                                          <div>
+                                            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-300/75">Evidence Preview</p>
+                                            <div className="mt-2 rounded-lg border border-white/10 bg-white/[0.035] p-3 text-[13px] font-medium leading-6 text-slate-100">
+                                              {src.preview ? (
+                                                <p>{src.preview}</p>
+                                              ) : (
+                                                <p>This source matched the question during semantic retrieval, but no chunk preview was returned.</p>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {src.chunkId && (
+                                            <details className="group/meta">
+                                              <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-500 transition-colors hover:border-emerald-300/20 hover:text-slate-300">
+                                                Technical details
+                                                <span className="text-slate-600 transition-transform group-open/meta:rotate-180">⌄</span>
+                                              </summary>
+                                              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-slate-950/75 p-2">
+                                                <span className="font-mono text-[10px] font-semibold text-slate-500" title={src.chunkId}>
+                                                  Chunk ID {src.chunkId}
+                                                </span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    navigator.clipboard.writeText(src.chunkId || "");
+                                                    showToast("success", "Chunk ID copied.");
+                                                  }}
+                                                  className="rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-2 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-200 transition-colors hover:border-emerald-300/30 hover:bg-emerald-300/[0.1]"
+                                                >
+                                                  Copy ID
+                                                </button>
+                                              </div>
+                                            </details>
+                                          )}
+                                        </div>
+                                      </details>
+                                    ))}
+                                  </div>
+                                </details>
                               )}
                             </section>
                           </article>
-                        ))
+                          );
+                        })
                       )}
-                      <div ref={chatBottomRef} />
+                      <div ref={chatBottomRef} className="scroll-mt-24" />
                     </div>
 
                     {/* Suggestions / Prompt template pills */}
@@ -1764,13 +2120,13 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                     </div>
                     <div className="grid gap-8 lg:grid-cols-2">
                       <div className="space-y-3">
-                        <div className="flex min-h-16 flex-col gap-3 px-1 sm:flex-row sm:items-start sm:justify-between lg:min-h-16">
+                        <div className="flex min-h-16 flex-col gap-3 px-1 sm:flex-row sm:items-start sm:justify-start sm:gap-8 lg:min-h-16">
                           <label htmlFor="api-key" className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 leading-none">
                             API Key
                           </label>
                           {apiKeys.length > 0 && (
-                            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                              <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Quick Select</span>
+                            <div className="flex w-full flex-col items-start gap-2 sm:w-auto">
+                              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 leading-none">Quick Select</span>
                               <ApiKeyDropdown
                                 apiKeys={apiKeys}
                                 value={selectValue}
@@ -1856,7 +2212,11 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                           {isLoadingSummary ? (
                             <>
                               <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950"></div>
-                              Fetching Summary...
+                              {summaryRepoStage === "active"
+                                ? "Fetching Metadata..."
+                                : summaryAiStage === "active"
+                                  ? "Generating Summary..."
+                                  : "Validating Request..."}
                             </>
                           ) : isOverLimit ? (
                             <>
@@ -1883,7 +2243,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                           {ingestStatus === "crawling" || ingestStatus === "embedding" ? (
                             <>
                               <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950"></div>
-                              Ingesting & Indexing...
+                              {ingestStatus === "embedding" ? "Generating Embeddings..." : "Reading Repository..."}
                             </>
                           ) : (
                             <>
@@ -1916,7 +2276,25 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                     </div>
                   )}
 
-                  <NetworkLog logs={requestLogs} onShowToast={showToast} />
+                  <div ref={requestProgressRef} className="scroll-mt-24">
+                    {activeTab === "summary" && (isLoadingSummary || summaryRequestLogs.length > 0) && (
+                      <LoadingStages
+                        title={isLoadingSummary ? "Summarizing repository" : "Summary workflow"}
+                        description="Dandi validates access, reads repository context, and prepares the final summary output."
+                        stages={summaryLoadingStages}
+                        className="mb-4"
+                      />
+                    )}
+                    {activeTab === "rag" && (isIndexingActive || indexedRequestLogs.length > 0) && (
+                      <LoadingStages
+                        title={isIndexingActive ? "Indexing repository" : "Indexing workflow"}
+                        description="Dandi prepares searchable repository evidence for retrieval-backed questions."
+                        stages={indexingLoadingStages}
+                        className="mb-4"
+                      />
+                    )}
+                    <NetworkLog logs={requestLogs} onShowToast={showToast} />
+                  </div>
 
                   {/* Render the landing card only when idle or error (hide it when crawling/embedding to focus on request logs) */}
                   {activeTab === "rag" && (ingestStatus === "idle" || ingestStatus === "error") && (
@@ -2051,15 +2429,28 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                                 </div>
                               )}
 
-                              <p className="text-lg font-medium leading-relaxed text-slate-300">
-                                {summaryResult?.summary || (
-                                  summaryStatus === "empty" && !streamError
+                              {summaryResult?.summary ? (
+                                <p className="text-lg font-medium leading-relaxed text-slate-300">
+                                  {summaryResult.summary}
+                                </p>
+                              ) : isLoadingSummary ? (
+                                <div className="space-y-4">
+                                  <LoadingStages
+                                    title="Summary in progress"
+                                    description="The answer area is reserved while Dandi analyzes and writes the summary."
+                                    stages={summaryLoadingStages}
+                                  />
+                                  <CardSkeleton lines={4} />
+                                </div>
+                              ) : (
+                                <p className="text-lg font-medium leading-relaxed text-slate-300">
+                                  {summaryStatus === "empty" && !streamError
                                     ? "No summary was returned."
                                     : summaryStatus === "error" || streamError
                                       ? "The summary could not be displayed. See the alert above for details."
-                                      : "Fetching repository data and generating the summary..."
-                                )}
-                              </p>
+                                      : "No summary has been requested yet."}
+                                </p>
+                              )}
                             </div>
 
                             <div className="w-full space-y-6 lg:w-80 lg:shrink-0">

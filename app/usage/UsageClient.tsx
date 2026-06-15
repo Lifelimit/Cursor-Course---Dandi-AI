@@ -5,12 +5,15 @@ import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
+import { ProgressiveListFooter } from "@/components/ui/ProgressiveListFooter";
+import { CardSkeleton, TableRowsSkeleton } from "@/components/ui/SkeletonBlocks";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { QuotaHealthGrid } from "@/components/usage/QuotaHealthGrid";
 import { TopReposTable } from "@/components/usage/TopReposTable";
 import { AnalyticsDashboard } from "@/components/usage/AnalyticsDashboard";
 import { CommandPanel, StatusPill, TabsBar } from "@/components/command";
+import { useProgressiveList } from "@/hooks/useProgressiveList";
 
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
@@ -80,7 +83,6 @@ export default function UsageClient({
   const [isLoading, setIsLoading] = useState(initialData === null);
   const [recentJobs, setRecentJobs] = useState<IngestionJobSummary[]>([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
-  const [visibleJobLimit, setVisibleJobLimit] = useState(5);
   const isHydrated = useRef(initialData !== null);
   const { toast, showToast } = useToast();
 
@@ -140,7 +142,6 @@ export default function UsageClient({
         throw new Error(json?.error || "Failed to load repository history.");
       }
       setRecentJobs(Array.isArray(json.jobs) ? json.jobs : []);
-      setVisibleJobLimit(5);
     } catch (err) {
       console.error("Repository History Fetch Error:", err);
     } finally {
@@ -208,9 +209,19 @@ export default function UsageClient({
     });
   }, [recentJobs]);
 
+  const {
+    visibleItems: visibleIngestionJobs,
+    visibleCount: visibleJobCount,
+    totalCount: totalJobCount,
+    canShowMore: canShowMoreJobs,
+    canShowLess: canShowLessJobs,
+    showMore: handleShowMoreJobs,
+    showLess: handleShowLessJobs,
+  } = useProgressiveList(sortedIngestionJobs);
+
   const visibleJobIds = useMemo(() => {
-    return new Set(sortedIngestionJobs.slice(0, visibleJobLimit).map((job) => job.jobId));
-  }, [sortedIngestionJobs, visibleJobLimit]);
+    return new Set(visibleIngestionJobs.map((job) => job.jobId));
+  }, [visibleIngestionJobs]);
 
   const groupedIngestionJobs = useMemo(() => {
     const groups = new Map<string, { repo: string; jobs: IngestionJobSummary[] }>();
@@ -230,19 +241,14 @@ export default function UsageClient({
   }, [sortedIngestionJobs]);
 
   const visibleIngestionGroups = useMemo(() => {
-    return groupedIngestionJobs.filter((group) => group.jobs.some((job) => visibleJobIds.has(job.jobId)));
+    return groupedIngestionJobs
+      .map((group) => ({
+        ...group,
+        totalJobs: group.jobs.length,
+        jobs: group.jobs.filter((job) => visibleJobIds.has(job.jobId)),
+      }))
+      .filter((group) => group.jobs.length > 0);
   }, [groupedIngestionJobs, visibleJobIds]);
-
-  const visibleJobCount = Math.min(visibleJobLimit, sortedIngestionJobs.length);
-
-  const handleShowMoreJobs = () => {
-    setVisibleJobLimit((current) => {
-      if (current < 10) return Math.min(10, sortedIngestionJobs.length);
-      if (current < 20) return Math.min(20, sortedIngestionJobs.length);
-      if (current < 50) return Math.min(50, sortedIngestionJobs.length);
-      return sortedIngestionJobs.length;
-    });
-  };
 
   // If we have initialData, we NEVER show the skeleton on first load
   const showSkeleton = isLoading && !initialData;
@@ -307,10 +313,13 @@ export default function UsageClient({
           </DashboardPageHeader>
 
           {showSkeleton ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-64 animate-pulse rounded-[32px] bg-slate-950/40 border border-white/5" />
-              ))}
+            <div className="space-y-6" role="status" aria-live="polite" aria-busy="true">
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300/70">Loading usage center...</p>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3].map(i => (
+                  <CardSkeleton key={i} lines={4} className="h-64 rounded-[32px]" />
+                ))}
+              </div>
             </div>
           ) : (
             <div className="space-y-8">
@@ -350,7 +359,12 @@ export default function UsageClient({
                           </StatusPill>
                         </div>
 
-                        {sortedIngestionJobs.length === 0 ? (
+                        {isLoadingJobs && sortedIngestionJobs.length === 0 ? (
+                          <div role="status" aria-live="polite" aria-busy="true" className="space-y-3">
+                            <p className="text-xs font-semibold text-slate-400">Loading recent ingestion history...</p>
+                            <TableRowsSkeleton rows={4} columns={3} />
+                          </div>
+                        ) : sortedIngestionJobs.length === 0 ? (
                           <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/50 p-5 text-sm font-medium text-slate-400">
                             <p className="font-bold text-slate-300">No ingestion history yet.</p>
                             <p className="mt-1">Indexed repositories will appear here.</p>
@@ -377,7 +391,7 @@ export default function UsageClient({
                                         Last run: {formatJobDate(eventDate)}
                                       </p>
                                       <p className="mt-2 pl-5 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                                        Total jobs: {group.jobs.length}
+                                        Total jobs: {group.totalJobs}
                                       </p>
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
@@ -434,20 +448,15 @@ export default function UsageClient({
                             })}
                             </div>
 
-                            <div className="flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                              <p className="text-xs font-semibold text-slate-500">
-                                Showing {visibleJobCount.toLocaleString()} of {sortedIngestionJobs.length.toLocaleString()} jobs
-                              </p>
-                              {visibleJobCount < sortedIngestionJobs.length && (
-                                <button
-                                  type="button"
-                                  onClick={handleShowMoreJobs}
-                                  className="inline-flex items-center justify-center rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-200 transition-all hover:border-emerald-300/35 hover:bg-emerald-300/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/40"
-                                >
-                                  Show More
-                                </button>
-                              )}
-                            </div>
+                            <ProgressiveListFooter
+                              visibleCount={visibleJobCount}
+                              totalCount={totalJobCount}
+                              itemLabel="jobs"
+                              canShowMore={canShowMoreJobs}
+                              canShowLess={canShowLessJobs}
+                              onShowMore={handleShowMoreJobs}
+                              onShowLess={handleShowLessJobs}
+                            />
                           </div>
                         )}
                       </CommandPanel>

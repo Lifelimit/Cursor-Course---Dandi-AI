@@ -6,12 +6,15 @@ import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader"
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
+import { ProgressiveListFooter } from "@/components/ui/ProgressiveListFooter";
+import { CardSkeleton, TableRowsSkeleton } from "@/components/ui/SkeletonBlocks";
 import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 import { splitAccountEnvironments } from "@/lib/account-environments";
 import { CommandPanel, MockTerminal, ScrollFrame, TabsBar } from "@/components/command";
+import { useProgressiveList } from "@/hooks/useProgressiveList";
 
 type ProfileData = {
   fullName: string;
@@ -93,8 +96,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   // Tab State
   const [activeTab, setActiveTab] = useState<"profile" | "integrations" | "webhooks" | "security">("profile");
   const [accessView, setAccessView] = useState<"api" | "browser">("api");
-  const [showAllTerminalApi, setShowAllTerminalApi] = useState(false);
-  const [showAllTerminalBrowser, setShowAllTerminalBrowser] = useState(false);
   const [showAllWebhookLogs, setShowAllWebhookLogs] = useState(false);
 
   // Profile Form State
@@ -273,6 +274,24 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   
   const alerts = computeSidebarAlerts(usage?.keys || []);
   const { apiAccessEnvironments, browserEnvironments } = splitAccountEnvironments(environments);
+  const {
+    visibleItems: visibleApiAccessEnvironments,
+    visibleCount: visibleApiAccessCount,
+    totalCount: totalApiAccessCount,
+    canShowMore: canShowMoreApiAccess,
+    canShowLess: canShowLessApiAccess,
+    showMore: handleShowMoreApiAccess,
+    showLess: handleShowLessApiAccess,
+  } = useProgressiveList(apiAccessEnvironments);
+  const {
+    visibleItems: visibleBrowserEnvironments,
+    visibleCount: visibleBrowserCount,
+    totalCount: totalBrowserCount,
+    canShowMore: canShowMoreBrowser,
+    canShowLess: canShowLessBrowser,
+    showMore: handleShowMoreBrowser,
+    showLess: handleShowLessBrowser,
+  } = useProgressiveList(browserEnvironments);
 
   // Save profile action
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -515,9 +534,22 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           </DashboardPageHeader>
 
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-20 space-y-4">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-emerald-400"></div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Fetching Account Details...</p>
+            <div className="space-y-6" role="status" aria-live="polite" aria-busy="true">
+              <div className="rounded-[28px] border border-emerald-300/15 bg-slate-950/45 p-5 shadow-[0_0_28px_rgba(52,211,153,0.08)]">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/80">Fetching account details</p>
+                <p className="mt-2 text-sm font-medium text-slate-400">Loading profile, usage, API access, and browser session data.</p>
+              </div>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <CardSkeleton lines={4} className="min-h-64" />
+                <CardSkeleton lines={4} className="min-h-64" />
+              </div>
+              <CommandPanel className="space-y-4 p-5 sm:p-8">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/70">Security & Sign-in</p>
+                  <p className="mt-1 text-sm font-medium text-slate-400">Preparing API key access and browser session rows.</p>
+                </div>
+                <TableRowsSkeleton rows={6} columns={5} />
+              </CommandPanel>
             </div>
           ) : (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1173,7 +1205,7 @@ X-Dandi-Event: quota.warning`}
                     <div className="space-y-3 md:hidden">
                       {accessView === "api" && (
                         <>
-                          {apiAccessEnvironments.slice(0, showAllTerminalApi ? undefined : 3).map((environment) => (
+                          {visibleApiAccessEnvironments.map((environment) => (
                             <div key={environment.id} className="space-y-4 rounded-2xl border border-white/5 bg-slate-950/40 p-4 shadow-xl backdrop-blur-xl">
                               <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1 space-y-1">
@@ -1229,21 +1261,21 @@ X-Dandi-Event: quota.warning`}
                               </div>
                             </div>
                           ))}
-                          {apiAccessEnvironments.length > 3 && (
-                            <button
-                              type="button"
-                              onClick={() => setShowAllTerminalApi(!showAllTerminalApi)}
-                              className="w-full rounded-2xl border border-white/5 bg-slate-950/20 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition-colors shadow-sm cursor-pointer active:scale-[0.99]"
-                            >
-                              {showAllTerminalApi ? "View Less" : `View More (${apiAccessEnvironments.length - 3} more)`}
-                            </button>
-                          )}
+                          <ProgressiveListFooter
+                            visibleCount={visibleApiAccessCount}
+                            totalCount={totalApiAccessCount}
+                            itemLabel="entries"
+                            canShowMore={canShowMoreApiAccess}
+                            canShowLess={canShowLessApiAccess}
+                            onShowMore={handleShowMoreApiAccess}
+                            onShowLess={handleShowLessApiAccess}
+                          />
                         </>
                       )}
 
                       {accessView === "browser" && (
                         <>
-                          {browserEnvironments.slice(0, showAllTerminalBrowser ? undefined : 3).map((environment) => (
+                          {visibleBrowserEnvironments.map((environment) => (
                             <div key={environment.id} className="space-y-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4">
                               <div className="space-y-1">
                                 <div className="flex flex-wrap items-center gap-2">
@@ -1275,15 +1307,15 @@ X-Dandi-Event: quota.warning`}
                               </div>
                             </div>
                           ))}
-                          {browserEnvironments.length > 3 && (
-                            <button
-                              type="button"
-                              onClick={() => setShowAllTerminalBrowser(!showAllTerminalBrowser)}
-                              className="w-full rounded-2xl border border-white/5 bg-slate-950/20 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition-colors shadow-sm cursor-pointer active:scale-[0.99]"
-                            >
-                              {showAllTerminalBrowser ? "View Less" : `View More (${browserEnvironments.length - 3} more)`}
-                            </button>
-                          )}
+                          <ProgressiveListFooter
+                            visibleCount={visibleBrowserCount}
+                            totalCount={totalBrowserCount}
+                            itemLabel="sessions"
+                            canShowMore={canShowMoreBrowser}
+                            canShowLess={canShowLessBrowser}
+                            onShowMore={handleShowMoreBrowser}
+                            onShowLess={handleShowLessBrowser}
+                          />
                         </>
                       )}
 
@@ -1325,7 +1357,7 @@ X-Dandi-Event: quota.warning`}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-white/5 font-medium">
-                            {accessView === "api" && apiAccessEnvironments.map((environment) => (
+                            {accessView === "api" && visibleApiAccessEnvironments.map((environment) => (
                               <tr key={environment.id} className="text-zinc-300 transition-colors hover:bg-white/5">
                                 <td className="px-6 py-4">
                                   <div className="flex max-w-[280px] flex-col gap-1">
@@ -1359,7 +1391,7 @@ X-Dandi-Event: quota.warning`}
                                 </td>
                               </tr>
                             ))}
-                            {accessView === "browser" && browserEnvironments.map((environment) => (
+                            {accessView === "browser" && visibleBrowserEnvironments.map((environment) => (
                               <tr key={environment.id} className="bg-emerald-500/[0.02] text-emerald-300 transition-colors hover:bg-white/5">
                                 <td className="px-6 py-4">
                                   <div className="flex max-w-[280px] flex-col gap-1">
@@ -1397,6 +1429,28 @@ X-Dandi-Event: quota.warning`}
                           </tbody>
                         </table>
                       </ScrollFrame>
+                      {accessView === "api" && (
+                        <ProgressiveListFooter
+                          visibleCount={visibleApiAccessCount}
+                          totalCount={totalApiAccessCount}
+                          itemLabel="entries"
+                          canShowMore={canShowMoreApiAccess}
+                          canShowLess={canShowLessApiAccess}
+                          onShowMore={handleShowMoreApiAccess}
+                          onShowLess={handleShowLessApiAccess}
+                        />
+                      )}
+                      {accessView === "browser" && (
+                        <ProgressiveListFooter
+                          visibleCount={visibleBrowserCount}
+                          totalCount={totalBrowserCount}
+                          itemLabel="sessions"
+                          canShowMore={canShowMoreBrowser}
+                          canShowLess={canShowLessBrowser}
+                          onShowMore={handleShowMoreBrowser}
+                          onShowLess={handleShowLessBrowser}
+                        />
+                      )}
                     </div>
                   </div>
 

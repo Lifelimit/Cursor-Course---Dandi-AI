@@ -8,12 +8,47 @@ import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 import { Session } from "@supabase/supabase-js";
 
 const SLIDER_STEPS = [
-  { label: "1,000", value: 1000, plan: "Hobby", keys: "3 active API keys", info: "Ideal for personal exploration, sandbox setups, and side projects.", labelDetails: "1,000 repository summaries" },
-  { label: "2,500", value: 2500, plan: "Premium", keys: "10 active API keys", info: "Built for active developers requiring detailed usage logs and CSV exports.", labelDetails: "2,500 repository summaries" },
-  { label: "5,000", value: 5000, plan: "Premium", keys: "10 active API keys", info: "Built for active developers requiring detailed usage logs and CSV exports.", labelDetails: "5,000 repository summaries" },
-  { label: "7,500", value: 7500, plan: "Researcher", keys: "Unlimited active keys", info: "For larger research workflows, internal tools, and production integrations.", labelDetails: "7,500 repository summaries" },
-  { label: "10,000+", value: 10000, plan: "Researcher", keys: "Unlimited active keys", info: "For larger research workflows, internal tools, and production integrations.", labelDetails: "10,000+ repository summaries" },
+  { label: "1,000", tier: "Personal", value: 1000 },
+  { label: "2,500", tier: "Team", value: 2500 },
+  { label: "5,000", tier: "Startup", value: 5000 },
+  { label: "7,500", tier: "Agency", value: 7500 },
+  { label: "10,000+", tier: "Enterprise", value: 10000 },
 ];
+
+const PLAN_RECOMMENDATIONS = {
+  Hobby: {
+    activeKeys: "3 active API keys",
+    monthlyCapacity: "1,000 repository summaries",
+    supportTier: "Community support",
+    guidance: "Personal projects, experimentation, and learning workflows.",
+  },
+  Premium: {
+    activeKeys: "10 active API keys",
+    monthlyCapacity: "5,000 repository summaries",
+    supportTier: "Priority email support",
+    guidance: "Production apps, teams, and continuous development workflows.",
+  },
+  Researcher: {
+    activeKeys: "Unlimited active keys",
+    monthlyCapacity: "Unlimited repository summaries",
+    supportTier: "24/7 phone support",
+    guidance: "Large-scale analysis and heavy repository intelligence workloads.",
+  },
+} as const;
+
+const RECOMMENDATION_THRESHOLDS = [
+  { plan: "Hobby", min: 0, max: 2499 },
+  { plan: "Premium", min: 2500, max: 7499 },
+  { plan: "Researcher", min: 7500, max: Infinity },
+] as const;
+
+function getRecommendedPlanId(monthlyUsage: number) {
+  return RECOMMENDATION_THRESHOLDS.find((threshold) => monthlyUsage >= threshold.min && monthlyUsage <= threshold.max)?.plan ?? "Researcher";
+}
+
+function formatUsage(value: number) {
+  return value >= 10000 ? "10,000+" : value.toLocaleString();
+}
 
 export function PricingSection({ 
   session, 
@@ -34,8 +69,14 @@ export function PricingSection({
   const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
   const [sliderIndex, setSliderIndex] = useState<number>(0);
   const activeSliderStep = SLIDER_STEPS[sliderIndex];
+  const estimatedMonthlyUsage = activeSliderStep.value;
+  const estimatedDailyUsage = Math.round(estimatedMonthlyUsage / 30);
+  const recommendedPlanId = getRecommendedPlanId(estimatedMonthlyUsage);
+  const recommendedPlanDetails = PLAN_RECOMMENDATIONS[recommendedPlanId];
+  const nextRecommendation = RECOMMENDATION_THRESHOLDS.find((threshold) => threshold.min > estimatedMonthlyUsage);
 
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
+  const [isRefreshingPlan, setIsRefreshingPlan] = useState(false);
   const currentPlan = PLANS.find(p => p.id === currentPlanId);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -48,6 +89,7 @@ export function PricingSection({
   // Function to load the absolute source of truth directly from database
   const fetchFreshPlan = async () => {
     if (!activeSession) return;
+    setIsRefreshingPlan(true);
     try {
       const res = await fetch("/api/profile");
       if (res.ok) {
@@ -58,6 +100,8 @@ export function PricingSection({
       }
     } catch (err) {
       console.error("Failed to load fresh plan:", err);
+    } finally {
+      setIsRefreshingPlan(false);
     }
   };
 
@@ -120,39 +164,71 @@ export function PricingSection({
           </div>
 
           {/* Billing Toggle */}
-          <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-4 w-full max-w-[280px] mx-auto">
-            <div className="flex flex-col items-center gap-1.5">
-              <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "month" ? "text-zinc-100" : "text-zinc-500"}`}>Monthly</span>
-              <span className="invisible text-[8px] px-1.5 py-0.5 select-none">20% OFF</span>
-            </div>
-            <div className="flex flex-col items-center gap-1.5">
-              <button
-                onClick={() => setBillingInterval(billingInterval === "month" ? "year" : "month")}
-                className="relative h-6 w-12 cursor-pointer rounded-full border border-white/10 bg-slate-800 p-1 transition-colors hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
-              >
-                <div className={`h-4 w-4 rounded-full bg-emerald-300 shadow-sm transition-transform ${billingInterval === "year" ? "translate-x-6" : "translate-x-0"}`} />
-              </button>
-              <span className="invisible text-[8px] px-1.5 py-0.5 select-none">20% OFF</span>
-            </div>
-            <div className="flex flex-col items-center gap-1.5">
-              <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "year" ? "text-zinc-100" : "text-zinc-500"}`}>Annual</span>
-              <span className="rounded-full bg-emerald-950/40 px-1.5 py-0.5 text-[8px] font-black text-emerald-400 uppercase tracking-widest border border-emerald-500/10">20% OFF</span>
-            </div>
+          <div className="mx-auto inline-grid grid-cols-[auto_auto_auto] grid-rows-[auto_auto] items-center justify-center gap-x-4 gap-y-1">
+            <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "month" ? "text-zinc-100" : "text-zinc-500"}`}>Monthly</span>
+            <button
+              onClick={() => setBillingInterval(billingInterval === "month" ? "year" : "month")}
+              className="relative h-6 w-12 cursor-pointer rounded-full border border-white/10 bg-slate-800 p-1 transition-colors hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+            >
+              <div className={`h-4 w-4 rounded-full bg-emerald-300 shadow-sm transition-transform ${billingInterval === "year" ? "translate-x-6" : "translate-x-0"}`} />
+            </button>
+            <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "year" ? "text-zinc-100" : "text-zinc-500"}`}>Annual</span>
+            <span className="col-start-3 justify-self-center rounded-full border border-emerald-500/10 bg-emerald-950/40 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-emerald-400">20% OFF</span>
           </div>
+          {isRefreshingPlan && (
+            <p className="mx-auto -mt-4 w-fit rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-1 text-[8px] font-black uppercase tracking-widest text-emerald-300" role="status" aria-live="polite">
+              Syncing active plan...
+            </p>
+          )}
 
           {/* Volume Calculator Slider */}
           <div className="mx-auto mt-12 max-w-xl space-y-6 rounded-[28px] border border-white/10 bg-slate-950/55 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.18)] sm:p-6 md:p-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1 text-left">
+            <div className="grid gap-4 text-left sm:grid-cols-[1fr_auto] sm:items-start">
+              <div className="space-y-4">
                 <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">Usage Estimator</p>
-                <h4 className="text-base font-bold text-white">{activeSliderStep.labelDetails} / mo</h4>
-                <p className="text-[11px] text-slate-400">Best fit: <span className="font-bold text-emerald-300">{activeSliderStep.plan}</span></p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Estimated Usage</p>
+                    <h4 className="mt-1 text-base font-bold text-white">
+                      {formatUsage(estimatedMonthlyUsage)} repository summaries / month
+                    </h4>
+                    <p className="mt-1 text-[11px] font-semibold text-slate-400">≈ {estimatedDailyUsage.toLocaleString()} summaries / day</p>
+                  </div>
+                  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-950/20 px-4 py-3">
+                    <p className="text-[8px] font-bold uppercase tracking-widest text-emerald-300/80">Recommended Plan</p>
+                    <p className="mt-1 text-lg font-black text-emerald-200">{recommendedPlanId}</p>
+                    <p className="mt-1 text-[11px] font-semibold text-emerald-100/70">
+                      {recommendedPlanId} comfortably supports this usage.
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-slate-900/45 px-4 py-2.5 text-left font-sans">
-                <p className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Key Limits</p>
-                <p className="mt-0.5 text-sm font-bold text-slate-200">{activeSliderStep.keys}</p>
-                <p className="mt-0.5 text-[8px] text-slate-500">included in selection</p>
+              <div className="rounded-2xl border border-white/10 bg-slate-900/45 px-4 py-3 font-sans sm:min-w-52">
+                <p className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Included</p>
+                <dl className="mt-3 space-y-2">
+                  <div>
+                    <dt className="text-[8px] font-bold uppercase tracking-widest text-slate-500">API Keys</dt>
+                    <dd className="text-xs font-bold text-slate-200">{recommendedPlanDetails.activeKeys}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Capacity</dt>
+                    <dd className="text-xs font-bold text-slate-200">{recommendedPlanDetails.monthlyCapacity}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Support</dt>
+                    <dd className="text-xs font-bold text-slate-200">{recommendedPlanDetails.supportTier}</dd>
+                  </div>
+                </dl>
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-left">
+              <p className="text-xs font-semibold text-emerald-300">✓ {recommendedPlanId} comfortably supports this usage</p>
+              <p className="mt-1 text-[11px] font-medium text-slate-400">
+                {nextRecommendation
+                  ? <>Next recommendation: <span className="font-bold text-slate-200">{nextRecommendation.plan}</span> at {nextRecommendation.min.toLocaleString()}+ summaries/month</>
+                  : "You are already at the highest recommendation tier for heavy repository workloads."}
+              </p>
             </div>
 
             <div className="space-y-4">
@@ -164,14 +240,15 @@ export function PricingSection({
                 onChange={(e) => setSliderIndex(parseInt(e.target.value))}
                 className="h-1.5 w-full cursor-pointer rounded-lg bg-slate-800 accent-emerald-400"
               />
-              <div className="flex justify-between px-1 text-[8px] font-bold uppercase tracking-wider text-slate-500 sm:text-[9px] sm:tracking-widest">
+              <div className="grid grid-cols-5 gap-1 px-1 text-center">
                 {SLIDER_STEPS.map((step, idx) => (
                   <button
                     key={idx}
                     onClick={() => setSliderIndex(idx)}
-                    className={`rounded px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 ${sliderIndex === idx ? "text-white" : "hover:text-slate-300"}`}
+                    className={`rounded px-1 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 ${sliderIndex === idx ? "text-white" : "text-slate-500 hover:text-slate-300"}`}
                   >
-                    {step.label}
+                    <span className="block text-[8px] font-black uppercase tracking-wider sm:text-[9px] sm:tracking-widest">{step.tier}</span>
+                    <span className="mt-0.5 block text-[8px] font-bold tracking-wider">{step.label}</span>
                   </button>
                 ))}
               </div>
@@ -185,7 +262,7 @@ export function PricingSection({
               </div>
               <div>
                 <p className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Capacity Guidance</p>
-                <p className="mt-0.5 text-xs font-semibold text-slate-300">{activeSliderStep.info}</p>
+                <p className="mt-0.5 text-xs font-semibold text-slate-300">{recommendedPlanDetails.guidance}</p>
               </div>
             </div>
           </div>
@@ -199,9 +276,9 @@ export function PricingSection({
             const displayPrice = billingInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
 
             // Generate clean classes for dark mode
-            const isRecommendedByVolume = activeSliderStep.plan === plan.id;
+            const isRecommendedByVolume = recommendedPlanId === plan.id;
             const usageRecommendationClass = isRecommendedByVolume && !isCurrent
-              ? "ring-2 ring-emerald-400/70 ring-offset-4 ring-offset-slate-950 z-10 shadow-2xl"
+              ? "border-emerald-400/30 bg-emerald-950/10"
               : "";
             
             const baseContainerClass = `border-white/10 bg-slate-950/55 text-white ${usageRecommendationClass}`;
@@ -282,7 +359,10 @@ export function PricingSection({
                     }`}
                   >
                     {isLoading ? (
-                      <div className="mx-auto h-3 w-3 animate-spin rounded-full border-2 border-zinc-400 border-t-white" />
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-400 border-t-white" />
+                        Reviewing Plan
+                      </span>
                     ) : isCurrent ? "Current Plan" : isUpgrade ? "Upgrade Now" : "Downgrade"}
                   </button>
                 ) : (

@@ -36,6 +36,21 @@ interface MatchedChunk {
   similarity: number;
 }
 
+function getSourcePreview(content: string) {
+  return content
+    .replace(/^\[File Context:[^\]]+\]\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 320);
+}
+
+function encodeJsonHeader(value: unknown) {
+  return JSON.stringify(value).replace(/[^\x00-\x7F]/g, (char) => {
+    const code = char.charCodeAt(0);
+    return `\\u${code.toString(16).padStart(4, "0")}`;
+  });
+}
+
 async function getRepositoryEmbeddingModel(repoUrl: string, userId: string) {
   const { data, error } = await supabaseAdmin
     .from("repository_chunks")
@@ -132,7 +147,7 @@ export async function POST(request: Request) {
     Guidelines:
     1. Be highly technical, concise, and provide exact code block examples where relevant.
     2. Format all code cleanly in markdown with appropriate syntax highlighting.
-    3. Always cite which file you obtained your information from (e.g. "[File Context: src/utils.ts]") to help the developer navigate the source files.
+    3. Cite relevant files as natural file paths (for example, "src/utils.ts") when useful, but do not include bracketed "[File Context: ...]" metadata labels in the final answer.
     4. If the code context is insufficient to answer the question, state it, but give helpful suggestions based on general best practices.`;
 
     const result = await streamText({
@@ -143,15 +158,17 @@ export async function POST(request: Request) {
 
     await incrementKeyUsage(keyData, githubUrl, Date.now() - startTime, "success", request);
 
+    const sources = (matchedChunks || []).map((chunk: MatchedChunk) => ({
+      chunkId: chunk.id,
+      filePath: chunk.file_path,
+      preview: getSourcePreview(chunk.content),
+      similarity: Number(chunk.similarity.toFixed(3)),
+    }));
+
     return result.toTextStreamResponse({
       headers: {
         ...corsHeaders,
-        "x-rag-sources": JSON.stringify(
-          (matchedChunks || []).map((chunk: MatchedChunk) => ({
-            filePath: chunk.file_path,
-            similarity: Number(chunk.similarity.toFixed(3)),
-          }))
-        ),
+        "x-rag-sources": encodeJsonHeader(sources),
       },
     });
   } catch (err) {
