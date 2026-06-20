@@ -2,83 +2,74 @@
 
 import React from "react";
 import Link from "next/link";
-import { CommandPanel, ScrollFrame, StatusPill } from "@/components/command";
-
-export type Invoice = {
-  id: string;
-  date: string;
-  amount: number;
-  status: 'paid' | 'pending' | 'failed' | 'unpaid';
-  receiptUrl?: string;
-};
+import { StatusPill } from "@/components/command";
+import { DataTableShell, TableEmptyState, TableSkeletonRows } from "@/components/ui/DataTable";
+import { SkeletonBlock } from "@/components/ui/SkeletonBlocks";
+import { formatCurrencyFromCents, formatShortDateWithYear } from "@/lib/format";
+import { getInvoiceStatusTone } from "@/lib/status-tones";
+import type { Invoice } from "@/types/billing";
 
 const InvoiceTableSkeleton = () => (
-  <>
-    {[1, 2, 3].map((i) => (
-      <tr key={i} className="border-b border-white/5">
-        <td className="px-8 py-6">
-          <div className="h-4 w-28 rounded-lg shimmer-cell mb-1.5" />
-          <div className="h-3 w-16 rounded shimmer-cell" />
-        </td>
-        <td className="px-8 py-6">
-          <div className="h-5 w-16 rounded-lg shimmer-cell" />
-        </td>
-        <td className="px-8 py-6">
-          <div className="h-6 w-14 rounded-full shimmer-cell" />
-        </td>
-        <td className="px-8 py-6 text-right">
-          <div className="inline-block h-8 w-8 rounded-full shimmer-cell" />
-        </td>
-      </tr>
-    ))}
-  </>
+  <TableSkeletonRows
+    rows={3}
+    columns={[
+      {
+        cellClassName: "px-8 py-6",
+        content: () => (
+          <>
+          <SkeletonBlock className="mb-1.5 h-4 w-28 rounded-lg" />
+          <SkeletonBlock className="h-3 w-16 rounded" />
+          </>
+        ),
+      },
+      { cellClassName: "px-8 py-6", skeletonClassName: "h-5 w-16 rounded-lg" },
+      { cellClassName: "px-8 py-6", skeletonClassName: "h-6 w-14 rounded-full" },
+      { cellClassName: "px-8 py-6 text-right", skeletonClassName: "inline-block h-8 w-8 rounded-full" },
+    ]}
+  />
 );
 
 export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoice[]; isLoading?: boolean }) {
   if (!isLoading && (!invoices || invoices.length === 0)) {
     return (
-      <CommandPanel className="border-dashed p-8 text-center sm:p-12">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Billing History</p>
-        <h3 className="mt-2 font-serif text-2xl font-bold text-white">No invoices yet.</h3>
-        <p className="mx-auto mt-2 max-w-xl text-sm font-medium leading-6 text-slate-400">
-          Invoices appear after a paid plan starts or Stripe creates a billing event. Choose a plan when you are ready to add billing history.
-        </p>
-        <Link href="/billing" className="mt-5 inline-flex min-h-10 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15">
-          View Plans
-        </Link>
-      </CommandPanel>
+      <TableEmptyState
+        eyebrow="Billing History"
+        title="No invoices yet."
+        description="Invoices appear after a paid plan starts or Stripe creates a billing event. Choose a plan when you are ready to add billing history."
+        cta={
+          <Link href="/billing" className="mt-5 inline-flex min-h-10 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15">
+            View Plans
+          </Link>
+        }
+      />
     );
   }
 
   return (
-    <CommandPanel padding="none" className="relative overflow-hidden">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes shimmer-loader {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-        .shimmer-cell {
-          background: linear-gradient(90deg, #090d16 25%, #151c2c 50%, #090d16 75%);
-          background-size: 200% 100%;
-          animation: shimmer-loader 1.6s infinite linear;
-        }
-        @keyframes progress-slide {
-          0% { left: -33%; }
-          100% { left: 100%; }
-        }
-        .animate-progress-slide {
-          animation: progress-slide 1.5s infinite linear;
-        }
-      `}} />
-      
-      {/* Sleek top indicator bar for zero-refresh background syncs */}
-      {isLoading && invoices.length > 0 && (
-        <div className="absolute top-0 left-0 right-0 h-[2px] w-full overflow-hidden bg-white/10 z-10">
-          <div className="h-full bg-emerald-300/60 w-1/3 absolute animate-progress-slide shadow-[0_0_14px_rgba(52,211,153,0.55)]" />
-        </div>
-      )}
+    <DataTableShell
+      minWidth="520px"
+      scrollLabel="Invoice ledger table"
+      beforeContent={
+        <>
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes progress-slide {
+              0% { left: -33%; }
+              100% { left: 100%; }
+            }
+            .animate-progress-slide {
+              animation: progress-slide 1.5s infinite linear;
+            }
+          `}} />
 
-      <ScrollFrame axis="x" minWidth="520px" label="Invoice ledger table">
+          {/* Sleek top indicator bar for zero-refresh background syncs */}
+          {isLoading && invoices.length > 0 && (
+            <div className="absolute top-0 left-0 right-0 h-[2px] w-full overflow-hidden bg-white/10 z-10">
+              <div className="h-full bg-emerald-300/60 w-1/3 absolute animate-progress-slide shadow-[0_0_14px_rgba(52,211,153,0.55)]" />
+            </div>
+          )}
+        </>
+      }
+    >
         <table className="w-full min-w-[520px] text-left border-collapse table-fixed">
           <thead>
             <tr className="border-b border-white/10 bg-white/[0.03]">
@@ -96,16 +87,13 @@ export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoic
                 <tr key={invoice.id} className="group transition-colors hover:bg-emerald-300/[0.035]">
                   <td className="px-4 py-6 sm:px-8">
                     <p className="text-xs font-bold text-slate-100">
-                      {new Date(invoice.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {formatShortDateWithYear(invoice.date)}
                     </p>
                     <p className="text-[10px] text-slate-500 font-mono">#{invoice.id.slice(-8).toUpperCase()}</p>
                   </td>
                   <td className="px-4 py-6 sm:px-8">
                     <span className="font-mono text-sm font-black text-slate-100 tabular-nums">
-                      {invoice.amount < 0 
-                        ? `-$${Math.abs(invoice.amount / 100).toFixed(2)}` 
-                        : `$${(invoice.amount / 100).toFixed(2)}`
-                      }
+                      {formatCurrencyFromCents(invoice.amount)}
                     </span>
                   </td>
                   <td className="px-4 py-6 sm:px-8">
@@ -115,11 +103,7 @@ export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoic
                       </StatusPill>
                     ) : (
                       <StatusPill
-                        tone={
-                          invoice.status === 'paid' ? 'success' :
-                          invoice.status === 'failed' ? 'danger' :
-                          (invoice.status === 'pending' || invoice.status === 'unpaid') ? 'warning' : 'neutral'
-                        }
+                        tone={getInvoiceStatusTone(invoice.status)}
                         pulse={invoice.status === 'pending'}
                         compact
                       >
@@ -145,7 +129,6 @@ export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoic
             )}
           </tbody>
         </table>
-      </ScrollFrame>
-    </CommandPanel>
+    </DataTableShell>
   );
 }

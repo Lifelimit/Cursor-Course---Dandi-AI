@@ -1,12 +1,14 @@
-import { NextResponse } from "next/server";
 import { streamText } from "ai";
 import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOriginAllowed } from "@/lib/cors";
 import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
-import { getJsonObject, validateChatMessages, validateGitHubRepoUrl } from "@/lib/request-validation";
+import { validateChatMessages } from "@/lib/request-validation";
+import { getApiKeyFromRequest, invalidJsonResponse, jsonError, missingApiKeyResponse, readGitHubRepoUrl, readJsonBody } from "@/lib/api-request";
 import { googleProvider } from "@/lib/services/ai.service";
 import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
 import { getEmbeddingModel, googleEmbed, isGeminiEmbeddingRateLimitError } from "@/lib/services/google-gemini.service";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import type { ValidatedApiKeyData } from "@/types/api-keys";
+import type { MatchedRepositoryChunk } from "@/types/rag";
 
 const corsOptions = {
   methods: "POST, OPTIONS",
@@ -16,24 +18,6 @@ const chatRateLimit = createIpRateLimit("@upstash/ratelimit:rag:chat", 10, "60 s
 
 export async function OPTIONS(request: Request) {
   return corsPreflightResponse(request, corsOptions);
-}
-
-interface ValidatedKeyData {
-  id: string;
-  name: string;
-  usage_count: number;
-  monthly_limit: number | null;
-  user_id: string;
-  key_type: "development" | "production";
-  plan?: string;
-  is_active?: boolean;
-}
-
-interface MatchedChunk {
-  id: string;
-  file_path: string;
-  content: string;
-  similarity: number;
 }
 
 function getSourcePreview(content: string) {
@@ -75,7 +59,7 @@ export async function POST(request: Request) {
   const startTime = Date.now();
   const corsHeaders = getCorsHeaders(request, corsOptions);
   let githubUrl = "";
-  let keyData: ValidatedKeyData | null = null;
+  let keyData: ValidatedApiKeyData | null = null;
 
   try {
     if (!isCorsOriginAllowed(request)) return forbiddenCorsResponse(request);
@@ -85,20 +69,17 @@ export async function POST(request: Request) {
 
     let body: Record<string, unknown>;
     try {
-      body = getJsonObject(await request.json());
+      body = await readJsonBody(request);
     } catch {
-      return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400, headers: corsHeaders });
+      return invalidJsonResponse(corsHeaders);
     }
 
-    githubUrl = validateGitHubRepoUrl(body.githubUrl);
-    const apiKey = request.headers.get("x-api-key") || (typeof body.apiKey === "string" ? body.apiKey : "");
+    githubUrl = readGitHubRepoUrl(body);
+    const apiKey = getApiKeyFromRequest(request, body);
     const messages = validateChatMessages(body.messages);
 
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "API key is required in headers (x-api-key) or body" },
-        { status: 401, headers: corsHeaders }
-      );
+      return missingApiKeyResponse(corsHeaders);
     }
 
     try {
@@ -106,14 +87,15 @@ export async function POST(request: Request) {
     } catch (keyError) {
       const errorMessage = (keyError as Error).message;
       const status = errorMessage.includes("limit exceeded") ? 403 : 401;
-      return NextResponse.json({ error: errorMessage }, { status, headers: corsHeaders });
+      return jsonError({ error: errorMessage }, status, corsHeaders);
     }
 
     const userQuery = messages[messages.length - 1].content;
     if (!userQuery) {
-      return NextResponse.json(
+      return jsonError(
         { error: "Last message content is required" },
-        { status: 400, headers: corsHeaders }
+        400,
+        corsHeaders
       );
     }
 
@@ -136,7 +118,7 @@ export async function POST(request: Request) {
     }
 
     const contextText = (matchedChunks || [])
-      .map((chunk: MatchedChunk) => `[File Context: ${chunk.file_path}] (Cosine Similarity: ${Math.round(chunk.similarity * 100)}%)\n${chunk.content}`)
+      .map((chunk: MatchedRepositoryChunk) => `[File Context: ${chunk.file_path}] (Cosine Similarity: ${Math.round(chunk.similarity * 100)}%)\n${chunk.content}`)
       .join("\n\n---\n\n");
 
     const systemPrompt = `You are Dandi AI RAG Assistant, an elite senior software engineer. Answer the user's technical questions about the repository based on the provided semantic code snippets context.
@@ -158,7 +140,7 @@ export async function POST(request: Request) {
 
     await incrementKeyUsage(keyData, githubUrl, Date.now() - startTime, "success", request);
 
-    const sources = (matchedChunks || []).map((chunk: MatchedChunk) => ({
+    const sources = (matchedChunks || []).map((chunk: MatchedRepositoryChunk) => ({
       chunkId: chunk.id,
       filePath: chunk.file_path,
       preview: getSourcePreview(chunk.content),
@@ -184,7 +166,7 @@ export async function POST(request: Request) {
       errMsg.includes("messages") ||
       errMsg.includes("Last message");
 
-    return NextResponse.json(
+    return jsonError(
       {
         error: isQuotaExceeded
           ? "Gemini API rate limit exceeded. Please wait a moment before trying again."
@@ -193,7 +175,8 @@ export async function POST(request: Request) {
             : "Internal server error during chat session.",
         details: errMsg,
       },
-      { status: isBadRequest ? 400 : isQuotaExceeded ? 429 : 500, headers: corsHeaders }
+      isBadRequest ? 400 : isQuotaExceeded ? 429 : 500,
+      corsHeaders
     );
   }
 }

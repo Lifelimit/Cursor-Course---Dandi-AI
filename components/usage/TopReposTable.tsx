@@ -2,48 +2,56 @@
 
 import React from "react";
 import Link from "next/link";
-import { CommandPanel, LiveIndicator, ScrollFrame, StatusPill } from "@/components/command";
+import { LiveIndicator, StatusPill } from "@/components/command";
+import { DataTableShell, TableEmptyState } from "@/components/ui/DataTable";
+import { formatRepositoryLabel, formatRequestCount } from "@/lib/format";
+import type { TopRepositoryUsage } from "@/types/usage";
 
-type RepoData = { repo_url: string; count: number };
-
-export function TopReposTable({ data, title = "Most Analyzed Repositories" }: { data: RepoData[], title?: string }) {
+export function TopReposTable({ data, title = "Most Analyzed Repositories" }: { data: TopRepositoryUsage[], title?: string }) {
   if (!data || data.length === 0) {
     return (
-      <CommandPanel className="h-full border-dashed p-6 text-center sm:p-8">
-        <div className="mx-auto flex max-w-sm flex-col items-center">
+      <TableEmptyState
+        className="h-full border-dashed p-6 text-center sm:p-8"
+        contentClassName="max-w-sm"
+        eyebrow="Repository Usage"
+        title={title}
+        titleClassName="text-xl"
+        description="No repositories have been analyzed this cycle. Analyze a public repository to start building usage insights here."
+        icon={
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-300/10 text-emerald-200">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor">
               <path d="M4 19V5m0 14h16M8 15l3-3 3 2 4-6" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Repository Usage</p>
-          <h3 className="mt-2 font-serif text-xl font-bold text-white">{title}</h3>
-          <p className="mt-2 text-sm font-medium leading-6 text-slate-400">
-            No repositories have been analyzed this cycle. Analyze a public repository to start building usage insights here.
-          </p>
+        }
+        cta={
           <Link
             href="/playground?mode=summary"
             className="mt-5 inline-flex min-h-10 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15"
           >
             Open Playground
           </Link>
-        </div>
-      </CommandPanel>
+        }
+      />
     );
   }
 
   const maxCount = data[0].count;
 
   return (
-    <CommandPanel className="h-full p-6 sm:p-8">
-      <div className="mb-6 flex min-w-0 flex-wrap items-center justify-between gap-3">
-        <h3 className="font-serif text-xl font-bold text-white">{title}</h3>
+    <DataTableShell
+      className="h-full"
+      title={title}
+      headerClassName="p-6 pb-0 sm:p-8 sm:pb-0"
+      minWidth="320px"
+      scrollLabel="Repository usage ranking"
+      headerAction={
         <StatusPill tone="success" pulse compact>
           Repo Usage
         </StatusPill>
-      </div>
-      <ScrollFrame axis="x" minWidth="320px" label="Repository usage ranking">
-      <div className="min-w-[320px] space-y-3 sm:min-w-[420px]">
+      }
+    >
+      <div className="min-w-[320px] space-y-3 p-6 pt-6 sm:min-w-[420px] sm:p-8 sm:pt-6">
         {data.map((repo, i) => (
           <div key={repo.repo_url} className="group relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950/55">
             <div 
@@ -60,17 +68,16 @@ export function TopReposTable({ data, title = "Most Analyzed Repositories" }: { 
                   rel="noopener noreferrer"
                   className="min-w-0 truncate text-xs font-semibold text-slate-300 transition-colors hover:text-emerald-300 hover:underline"
                 >
-                  {repo.repo_url.replace("https://github.com/", "")}
+                  {formatRepositoryLabel(repo.repo_url)}
                 </a>
               </div>
               <span className="shrink-0 rounded-lg border border-emerald-300/15 bg-emerald-300/10 px-2 py-1 font-mono text-[10px] font-black tabular-nums text-emerald-200 shadow-sm">
-                {repo.count.toLocaleString()}
+                {formatRequestCount(repo.count)}
               </span>
             </div>
           </div>
         ))}
       </div>
-      </ScrollFrame>
-    </CommandPanel>
+    </DataTableShell>
   );
 }

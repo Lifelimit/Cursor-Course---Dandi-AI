@@ -15,63 +15,16 @@ import { createClient } from "@/lib/supabase/client";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 import { splitAccountEnvironments } from "@/lib/account-environments";
-import { CommandPanel, MockTerminal, ScrollFrame, TabsBar } from "@/components/command";
+import { CommandPanel, MockTerminal, ModalFrame, ScrollFrame, TabsBar } from "@/components/command";
 import { useProgressiveList } from "@/hooks/useProgressiveList";
 import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
-
-type ProfileData = {
-  fullName: string;
-  avatarUrl: string;
-  plan: string;
-  orgSlug: string;
-  webhookUrl: string;
-  webhookSecret: string;
-  githubConnected: boolean;
-};
-
-type UsageData = {
-  totalUsage: number;
-  keys: {
-    id: string;
-    name: string;
-    key_type: string;
-    usage_count: number;
-    monthly_limit: number | null;
-    is_active: boolean;
-    alert_threshold: number | null;
-    alert_channels: string[] | null;
-    alert_phone: string | null;
-    pct: number;
-    dailyTrend: { date: string; count: number }[];
-  }[];
-  resetDate: string | null;
-};
-
-type AccountEnvironment = {
-  id: string;
-  kind: "browser" | "api_key" | "api_request";
-  label: string;
-  detail?: string;
-  ip: string | null;
-  location: string | null;
-  lastSeenAt: string | null;
-  current: boolean;
-  revocable: boolean;
-  apiKeyId?: string;
-  telemetryAge?: string;
-};
-
-type WebhookLogEntry = {
-  id: string;
-  event: string;
-  url: string;
-  status: number;
-  latency: number;
-  timestamp: number;
-  requestBody: unknown;
-  responseHeaders: Record<string, string>;
-  responseBody: unknown;
-};
+import { formatLocalTime, formatRelativeTime, formatWebhookTime } from "@/lib/format";
+import {
+  getBrowserSessionStatusTone,
+  getWebhookDeliveryStatusTone,
+  type StatusTone,
+} from "@/lib/status-tones";
+import type { AccountDataResponse, AccountEnvironment, AccountProfileData, WebhookLogEntry } from "@/types/account";
 
 const GITHUB_REPOSITORY_OPTIONS = [
   "dandi-ai/summarizer-sdk",
@@ -82,22 +35,25 @@ const GITHUB_REPOSITORY_OPTIONS = [
   "my-username/docker-configurations"
 ];
 
-function formatEnvironmentAge(lastSeenAt: string | null, current: boolean) {
-  if (current) return "Active now";
-  if (!lastSeenAt) return "No activity";
+function getWebhookDeliveryBadge(status: number) {
+  const tone = getWebhookDeliveryStatusTone(status);
+  const isSuccess = tone === "success";
 
-  const diffMs = Date.now() - new Date(lastSeenAt).getTime();
-  if (!Number.isFinite(diffMs) || diffMs < 0) return "Recently";
+  return {
+    className: isSuccess
+      ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
+      : "border-rose-500/25 bg-rose-500/10 text-rose-400",
+    dotClassName: isSuccess ? "bg-emerald-500" : "bg-rose-500",
+    label: `${status} ${isSuccess ? "OK" : "Error"}`,
+  };
+}
 
-  const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
+function getBrowserSessionBadgeClassName(isCurrent: boolean) {
+  const tone: StatusTone = getBrowserSessionStatusTone(isCurrent);
 
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return tone === "success"
+    ? "rounded-full bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-emerald-300"
+    : "rounded-full bg-zinc-500/10 border border-zinc-500/25 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-zinc-400";
 }
 
 export default function AccountClient({ initialSession }: { initialSession: Session | null }) {
@@ -108,7 +64,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   // Tab State
   const [activeTab, setActiveTab] = useState<"profile" | "integrations" | "webhooks" | "security">("profile");
   const [accessView, setAccessView] = useState<"api" | "browser">("api");
-  const [showAllWebhookLogs, setShowAllWebhookLogs] = useState(false);
 
   // Profile Form State
   const [fullName, setFullName] = useState("");
@@ -141,8 +96,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const [preferMagicLink, setPreferMagicLink] = useState(true);
 
   // Database states
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [usage, setUsage] = useState<UsageData | null>(null);
+  const [profile, setProfile] = useState<AccountProfileData | null>(null);
+  const [usage, setUsage] = useState<AccountDataResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [accountLoadError, setAccountLoadError] = useState<string | null>(null);
 
@@ -170,7 +125,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       ]);
 
       if (profileRes.ok) {
-        const pData: ProfileData = await profileRes.json();
+        const pData: AccountProfileData = await profileRes.json();
         setProfile(pData);
         setFullName(pData.fullName);
         setOrgSlug(pData.orgSlug);
@@ -180,7 +135,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       }
 
       if (usageRes.ok) {
-        const uData: UsageData = await usageRes.json();
+        const uData: AccountDataResponse = await usageRes.json();
         setUsage(uData);
       }
 
@@ -188,7 +143,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         const envData: { environments: AccountEnvironment[] } = await environmentsRes.json();
         setEnvironments((envData.environments || []).map(environment => ({
           ...environment,
-          telemetryAge: formatEnvironmentAge(environment.lastSeenAt, environment.current),
+          telemetryAge: formatRelativeTime(environment.lastSeenAt, { current: environment.current }),
         })));
       }
       setAccountLoadError(null);
@@ -243,6 +198,13 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
     showMore: handleShowMoreBrowser,
     showLess: handleShowLessBrowser,
   } = useProgressiveList(browserEnvironments);
+  const {
+    visibleItems: visibleWebhookLogs,
+    canShowMore: canShowMoreWebhookLogs,
+    canShowLess: canShowLessWebhookLogs,
+    showMore: handleShowMoreWebhookLogs,
+    showLess: handleShowLessWebhookLogs,
+  } = useProgressiveList(webhookLogs, 3, { expandMode: "all" });
 
   // Save profile action
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -409,12 +371,12 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
     setTesterLogs([]);
     
     const steps = [
-      `[info] ${new Date().toLocaleTimeString()} - Resolving host URL '${webhookUrl}'...`,
-      `[info] ${new Date().toLocaleTimeString()} - Compiling payload event 'quota.warning' (current usage: 84.6%)`,
-      `[info] ${new Date().toLocaleTimeString()} - Generating SHA-256 HMAC signature using secret token...`,
-      `[info] ${new Date().toLocaleTimeString()} - Signature header added (x-dandi-signature).`,
-      `[info] ${new Date().toLocaleTimeString()} - Sent outgoing webhook HTTP POST request.`,
-      `[success] ${new Date().toLocaleTimeString()} - Connection established. Endpoint responded: 200 OK`
+      `[info] ${formatLocalTime(new Date())} - Resolving host URL '${webhookUrl}'...`,
+      `[info] ${formatLocalTime(new Date())} - Compiling payload event 'quota.warning' (current usage: 84.6%)`,
+      `[info] ${formatLocalTime(new Date())} - Generating SHA-256 HMAC signature using secret token...`,
+      `[info] ${formatLocalTime(new Date())} - Signature header added (x-dandi-signature).`,
+      `[info] ${formatLocalTime(new Date())} - Sent outgoing webhook HTTP POST request.`,
+      `[success] ${formatLocalTime(new Date())} - Connection established. Endpoint responded: 200 OK`
     ];
 
     steps.forEach((step, index) => {
@@ -985,19 +947,15 @@ X-Dandi-Event: quota.warning`}
                         </div>
                       ) : (
                         <>
-                          {webhookLogs.slice(0, showAllWebhookLogs ? undefined : 3).map((log) => {
-                            const isSuccess = log.status >= 200 && log.status < 300;
-                            const dateStr = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                          {visibleWebhookLogs.map((log) => {
+                            const deliveryBadge = getWebhookDeliveryBadge(log.status);
+                            const dateStr = formatWebhookTime(log.timestamp);
                             return (
                               <div key={log.id} className="space-y-4 rounded-2xl border border-white/5 bg-slate-950/40 p-4 shadow-xl backdrop-blur-xl">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${
-                                    isSuccess
-                                      ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
-                                      : "border-rose-500/25 bg-rose-500/10 text-rose-400"
-                                  }`}>
-                                    <span className={`h-1 w-1 rounded-full ${isSuccess ? "bg-emerald-500" : "bg-rose-500"}`} />
-                                    {log.status} {isSuccess ? "OK" : "Error"}
+                                  <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${deliveryBadge.className}`}>
+                                    <span className={`h-1 w-1 rounded-full ${deliveryBadge.dotClassName}`} />
+                                    {deliveryBadge.label}
                                   </span>
                                   <span className="font-mono text-[10px] font-bold text-zinc-500">{dateStr}</span>
                                 </div>
@@ -1040,10 +998,10 @@ X-Dandi-Event: quota.warning`}
                           {webhookLogs.length > 3 && (
                             <button
                               type="button"
-                              onClick={() => setShowAllWebhookLogs(!showAllWebhookLogs)}
+                              onClick={canShowMoreWebhookLogs ? handleShowMoreWebhookLogs : handleShowLessWebhookLogs}
                               className="w-full rounded-2xl border border-white/5 bg-slate-950/20 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition-colors shadow-sm cursor-pointer active:scale-[0.99]"
                             >
-                              {showAllWebhookLogs ? "View Less" : `View More (${webhookLogs.length - 3} more)`}
+                              {canShowLessWebhookLogs && !canShowMoreWebhookLogs ? "View Less" : `View More (${webhookLogs.length - 3} more)`}
                             </button>
                           )}
                         </>
@@ -1085,8 +1043,8 @@ X-Dandi-Event: quota.warning`}
                               </tr>
                             ) : (
                               webhookLogs.map((log) => {
-                                const isSuccess = log.status >= 200 && log.status < 300;
-                                const dateStr = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                const deliveryBadge = getWebhookDeliveryBadge(log.status);
+                                const dateStr = formatWebhookTime(log.timestamp);
                                 return (
                                   <tr 
                                     key={log.id} 
@@ -1097,13 +1055,9 @@ X-Dandi-Event: quota.warning`}
                                     }}
                                   >
                                     <td className="px-6 py-4">
-                                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                                        isSuccess 
-                                          ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/25" 
-                                          : "bg-rose-500/10 text-rose-400 border border-rose-500/25"
-                                      }`}>
-                                        <span className={`h-1 w-1 rounded-full ${isSuccess ? "bg-emerald-500" : "bg-rose-500"}`} />
-                                        {log.status} {isSuccess ? "OK" : "Error"}
+                                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${deliveryBadge.className}`}>
+                                        <span className={`h-1 w-1 rounded-full ${deliveryBadge.dotClassName}`} />
+                                        {deliveryBadge.label}
                                       </span>
                                     </td>
                                     <td className="px-6 py-4 font-mono text-[10px] select-all max-w-[200px] truncate text-zinc-400">
@@ -1302,7 +1256,7 @@ X-Dandi-Event: quota.warning`}
                               <div className="space-y-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="break-words font-bold text-emerald-300">{environment.label}</p>
-                                  <span className="rounded-full bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-emerald-300">Current Session</span>
+                                      <span className={getBrowserSessionBadgeClassName(environment.current)}>Current Session</span>
                                 </div>
                                 {environment.detail && (
                                   <p className="break-words text-[10px] font-medium text-zinc-500">{environment.detail}</p>
@@ -1431,7 +1385,7 @@ X-Dandi-Event: quota.warning`}
                                   <div className="flex max-w-[280px] flex-col gap-1">
                                     <div className="flex flex-wrap items-center gap-2">
                                       <span className="truncate font-bold text-white" title={environment.label}>{environment.label}</span>
-                                      <span className="rounded-full bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-emerald-300 font-bold">Current Session</span>
+                                      <span className={`${getBrowserSessionBadgeClassName(environment.current)} font-bold`}>Current Session</span>
                                     </div>
                                     {environment.detail && (
                                       <span className="truncate text-[10px] font-medium text-zinc-500" title={environment.detail}>{environment.detail}</span>
@@ -1609,25 +1563,18 @@ X-Dandi-Event: quota.warning`}
 
       {/* Webhook Delivery Payload Inspector Modal */}
       {inspectedLog && (
-        <div 
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-md animate-in fade-in duration-300 sm:items-center sm:p-6"
-          onClick={() => setInspectedLog(null)}
+        <ModalFrame
+          open={Boolean(inspectedLog)}
+          onClose={() => setInspectedLog(null)}
+          size="lg"
+          className="max-w-2xl overflow-hidden rounded-[28px] border-white/10 bg-slate-950/90 p-0 shadow-2xl backdrop-blur-xl animate-in zoom-in-95 duration-300 sm:rounded-[32px]"
         >
-          <div 
-            className="my-3 w-full max-w-2xl max-h-[calc(100dvh-1.5rem)] rounded-[28px] border border-white/10 bg-slate-950/90 shadow-2xl overflow-hidden backdrop-blur-xl animate-in zoom-in-95 duration-300 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:rounded-[32px]"
-            style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
             {/* Modal Header */}
             <div className="p-6 md:p-8 border-b border-white/5 flex items-start justify-between gap-4">
               <div className="min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                    inspectedLog.status >= 200 && inspectedLog.status < 300
-                      ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/25" 
-                      : "bg-rose-500/10 text-rose-400 border border-rose-500/25"
-                  }`}>
-                    {inspectedLog.status} {inspectedLog.status >= 200 && inspectedLog.status < 300 ? "OK" : "Error"}
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${getWebhookDeliveryBadge(inspectedLog.status).className}`}>
+                    {getWebhookDeliveryBadge(inspectedLog.status).label}
                   </span>
                   <span className="font-mono text-[9px] text-zinc-500 uppercase tracking-widest">{inspectedLog.event}</span>
                 </div>
@@ -1731,8 +1678,7 @@ X-Dandi-Event: quota.warning`}
                 Close Audit
               </button>
             </div>
-          </div>
-        </div>
+        </ModalFrame>
       )}
 
       <Toast toast={toast} />

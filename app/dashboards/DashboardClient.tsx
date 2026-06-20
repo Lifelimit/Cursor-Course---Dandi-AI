@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import useSWR from "swr";
 import Link from "next/link";
 import { useApiKeys } from "@/hooks/useApiKeys";
+import { useUsageData } from "@/hooks/useUsageData";
 import { useToast } from "@/hooks/useToast";
 import { ApiKey } from "@/types/api";
 import { Toast } from "@/components/ui/Toast";
@@ -22,6 +22,8 @@ import { GettingStartedChecklist } from "@/components/dashboard/GettingStartedCh
 import { EyeOffIcon, ShieldIcon, CopyLockedIcon, CopyCheckIcon } from "@/components/icons";
 import { GuidedError } from "@/components/ui/GuidedError";
 import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
+import { formatPercentage, formatRequestCount, formatShortDate } from "@/lib/format";
+import type { DailyUsageTrend, UsageData } from "@/types/usage";
 
 import { DecryptingKeyText } from "@/components/ui/DecryptingKeyText";
 type DandiOnboardingMetadata = {
@@ -56,9 +58,12 @@ export default function DashboardClient({
 
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey, refreshKeys } = useApiKeys(initialKeys);
 
-  const fetcher = (url: string) => fetch(url).then(res => res.json());
-  const { data: usageData, isValidating } = useSWR('/api/usage', fetcher, {
-    refreshInterval: 20000
+  const { data: usageData, isSyncing } = useUsageData<UsageData>({
+    pollingIntervalMs: 20000,
+    requireOkResponse: false,
+    logErrors: false,
+    initialSyncing: true,
+    initialRefreshDelayMs: 0,
   });
 
   const totalUsage = usageData?.totalUsage ?? apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
@@ -67,15 +72,13 @@ export default function DashboardClient({
   const avgLatency = typeof usageData?.avgLatency === 'number' ? usageData.avgLatency : initialAvgLatency;
   const successRate = typeof usageData?.successRate === 'number' ? usageData.successRate : initialSuccessRate;
   const resetDate = usageData?.resetDate || initialResetDate;
-  const isSyncing = isValidating;
   const successfulRepositoryAnalysis =
     initialHasSuccessfulRepositoryAnalysis ||
     totalUsage > 0 ||
     (usageData?.globalTopRepos?.length || 0) > 0;
 
   // ─── Real sparklines & trends derived from dailyAnalytics ────────────────
-  type DailyPoint = { date: string; count: number; success: number; error: number; avgLatency: number };
-  const dailyAnalytics: DailyPoint[] = Array.isArray(usageData?.dailyAnalytics) ? usageData.dailyAnalytics : [];
+  const dailyAnalytics: DailyUsageTrend[] = Array.isArray(usageData?.dailyAnalytics) ? usageData.dailyAnalytics : [];
 
   // Last 23 daily values for each metric (sparkline)
   const SPARK_POINTS = 23;
@@ -345,7 +348,7 @@ export default function DashboardClient({
                 },
                 {
                   label: "Success Rate",
-                  value: dailyAnalytics.length > 0 ? `${successRate.toFixed(1)}%` : "--",
+                  value: dailyAnalytics.length > 0 ? formatPercentage(successRate, 1) : "--",
                   icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
                   tone: "emerald",
                   trend: successTrend,
@@ -529,7 +532,7 @@ export default function DashboardClient({
                   <div className="space-y-6">
                     <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                        Usage <span className="mx-2 opacity-20">/</span> <span className="text-white">{totalUsage.toLocaleString()} Units Used</span>
+                        Usage <span className="mx-2 opacity-20">/</span> <span className="text-white">{formatRequestCount(totalUsage)} Units Used</span>
                       </p>
                       <div className="flex items-center gap-2">
                         <span className="relative flex h-2 w-2">
@@ -537,7 +540,7 @@ export default function DashboardClient({
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                         </span>
                         <span className="text-[9px] font-black uppercase tracking-widest text-emerald-300">
-                          Next Reset: {resetDate ? new Date(resetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          Next Reset: {resetDate ? formatShortDate(resetDate) : formatShortDate(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1))}
                         </span>
                       </div>
                     </div>
@@ -551,7 +554,7 @@ export default function DashboardClient({
 
                     <div className="flex items-center justify-between gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                       <span>0 Units</span>
-                      <span>Plan Limit: {isUnlimited ? "∞" : currentLimit.toLocaleString()} Units</span>
+                      <span>Plan Limit: {isUnlimited ? "∞" : formatRequestCount(currentLimit)} Units</span>
                     </div>
                   </div>
                 </div>

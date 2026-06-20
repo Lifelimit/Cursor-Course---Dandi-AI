@@ -7,6 +7,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { SidebarAlerts } from "./SidebarAlerts";
+import { formatRequestCount } from "@/lib/format";
 
 const NAV_ITEMS = [
   {
@@ -379,13 +380,13 @@ export function Sidebar({
         <div className="mb-2.5 flex items-end justify-between gap-3">
           <div>
             <p className="font-mono text-lg font-black tabular-nums text-white">
-              {totalUsage.toLocaleString()}
+              {formatRequestCount(totalUsage)}
             </p>
             <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-500">Requests used</p>
           </div>
           <div className="min-w-0 text-right">
             <p className="font-mono text-xs font-bold tabular-nums text-slate-200">
-              {isUnlimited ? "Unlimited" : `${usageRemaining?.toLocaleString()} left`}
+              {isUnlimited ? "Unlimited" : `${formatRequestCount(usageRemaining ?? 0)} left`}
             </p>
             <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-500">
               {isUnlimited ? "Plan limit" : `${Math.round(usagePct)}% used`}
@@ -407,7 +408,7 @@ export function Sidebar({
             </p>
           ) : (
             <p className="min-w-0 text-[9px] font-medium leading-relaxed text-slate-500">
-              Limit: <span className="font-mono text-slate-300">{limit.toLocaleString()}</span> requests this cycle.
+              Limit: <span className="font-mono text-slate-300">{formatRequestCount(limit)}</span> requests this cycle.
             </p>
           )}
           <Link

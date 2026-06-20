@@ -9,35 +9,13 @@ import { Toast } from "@/components/ui/Toast";
 import { PlanHero } from "@/components/billing/PlanHero";
 import { PlanComparison } from "@/components/billing/PlanComparison";
 import { PaymentMethodCard } from "@/components/billing/PaymentMethodCard";
-import { InvoiceTable, type Invoice } from "@/components/billing/InvoiceTable";
+import { InvoiceTable } from "@/components/billing/InvoiceTable";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 import { CommandPanel, ModalFrame, StatusPill } from "@/components/command";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 import { getToastErrorMessage } from "@/lib/error-guidance";
-
-
-
-type BillingData = {
-  plan: string;
-  totalUsage: number;
-  resetDate: string | null;
-  nextInvoiceDate: string | null;
-  keys: {
-    id: string;
-    name: string;
-    is_active: boolean;
-    usage_count: number;
-    monthly_limit: number | null;
-    alert_threshold: number | null;
-    alert_channels: string[] | null;
-    dailyTrend?: { date: string; count: number }[];
-  }[];
-  paymentMethods: { id: string; brand: string; last4: string; expiry: string; isDefault: boolean }[] | null;
-  customerBalance?: number | null;
-  scheduledPlan?: string | null;
-  scheduledPlanDate?: string | null;
-};
+import type { BillingData, Invoice } from "@/types/billing";
 
 
 export default function BillingClient({

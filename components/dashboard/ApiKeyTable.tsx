@@ -2,7 +2,11 @@ import React, { useState } from "react";
 import { ApiKey } from "@/types/api";
 import { EditIcon, TrashIcon } from "../icons";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
-import { CommandPanel, LiveIndicator, ScrollFrame, StatusPill } from "@/components/command";
+import { DataTableShell, TableEmptyState, TableSkeletonRows } from "@/components/ui/DataTable";
+import { SkeletonBlock } from "@/components/ui/SkeletonBlocks";
+import { CommandPanel, LiveIndicator, StatusPill } from "@/components/command";
+import { formatRequestCount } from "@/lib/format";
+import { getApiKeyStatusTone, getApiKeyTypeTone } from "@/lib/status-tones";
 
 type ApiKeyTableProps = {
   apiKeys: ApiKey[];
@@ -15,39 +19,44 @@ type ApiKeyTableProps = {
 };
 
 const ApiKeyTableSkeleton = () => (
-  <>
-    {[1, 2, 3].map((i) => (
-      <tr key={i} className="border-b border-zinc-100/50 dark:border-zinc-800/50">
-        <td className="px-8 py-5">
+  <TableSkeletonRows
+    rows={3}
+    rowClassName="border-b border-zinc-100/50 dark:border-zinc-800/50"
+    columns={[
+      {
+        cellClassName: "px-8 py-5",
+        content: () => (
           <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full shimmer-cell shrink-0" />
-            <div className="h-4 w-32 rounded-lg shimmer-cell" />
+            <SkeletonBlock className="h-2 w-2 shrink-0 rounded-full" />
+            <SkeletonBlock className="h-4 w-32 rounded-lg" />
           </div>
-        </td>
-        <td className="px-4 py-5">
-          <div className="h-5 w-12 rounded-full shimmer-cell" />
-        </td>
-        <td className="px-4 py-5">
+        ),
+      },
+      { cellClassName: "px-4 py-5", skeletonClassName: "h-5 w-12 rounded-full" },
+      {
+        cellClassName: "px-4 py-5",
+        content: () => (
           <div className="flex items-center gap-4">
             <div className="flex-1 space-y-1.5">
-              <div className="h-3 w-12 rounded shimmer-cell" />
-              <div className="h-1 w-full rounded shimmer-cell" />
+              <SkeletonBlock className="h-3 w-12 rounded" />
+              <SkeletonBlock className="h-1 w-full rounded" />
             </div>
-            <div className="h-4 w-12 rounded shimmer-cell" />
+            <SkeletonBlock className="h-4 w-12 rounded" />
           </div>
-        </td>
-        <td className="px-4 py-5">
-          <div className="h-4 w-44 rounded-lg shimmer-cell" />
-        </td>
-        <td className="px-4 py-5">
+        ),
+      },
+      { cellClassName: "px-4 py-5", skeletonClassName: "h-4 w-44 rounded-lg" },
+      {
+        cellClassName: "px-4 py-5",
+        content: () => (
           <div className="flex justify-center gap-2">
-            <div className="h-8.5 w-8.5 rounded-xl shimmer-cell" />
-            <div className="h-8.5 w-8.5 rounded-xl shimmer-cell" />
+            <SkeletonBlock className="h-8.5 w-8.5 rounded-xl" />
+            <SkeletonBlock className="h-8.5 w-8.5 rounded-xl" />
           </div>
-        </td>
-      </tr>
-    ))}
-  </>
+        ),
+      },
+    ]}
+  />
 );
 
 const QuickStartEmptyState = ({ onOpenCreateModal }: { onOpenCreateModal: () => void }) => (
@@ -195,22 +204,6 @@ export function ApiKeyTable({
   if (!isLoading && apiKeys.length === 0) {
     return (
       <>
-        <style dangerouslySetInnerHTML={{ __html: `
-          @keyframes shimmer-loader {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-          }
-          .shimmer-cell {
-            background: linear-gradient(90deg, #f4f4f5 25%, #e4e4e7 50%, #f4f4f5 75%);
-            background-size: 200% 100%;
-            animation: shimmer-loader 1.6s infinite linear;
-          }
-          @media (prefers-color-scheme: dark) {
-            .shimmer-cell {
-              background: linear-gradient(90deg, #18181b 25%, #27272a 50%, #18181b 75%);
-            }
-          }
-        `}} />
         <QuickStartEmptyState onOpenCreateModal={onOpenCreateModal} />
       </>
     );
@@ -218,23 +211,6 @@ export function ApiKeyTable({
 
   return (
     <div className="space-y-6">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes shimmer-loader {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-        .shimmer-cell {
-          background: linear-gradient(90deg, #f4f4f5 25%, #e4e4e7 50%, #f4f4f5 75%);
-          background-size: 200% 100%;
-          animation: shimmer-loader 1.6s infinite linear;
-        }
-        @media (prefers-color-scheme: dark) {
-          .shimmer-cell {
-            background: linear-gradient(90deg, #18181b 25%, #27272a 50%, #18181b 75%);
-          }
-        }
-      `}} />
-
       {/* Search & Control Bar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
@@ -262,29 +238,32 @@ export function ApiKeyTable({
           [1, 2, 3].map((i) => (
             <CommandPanel key={i} className="space-y-4 p-4">
               <div className="flex items-center gap-3">
-                <div className="h-2 w-2 shrink-0 rounded-full shimmer-cell" />
-                <div className="h-4 w-32 rounded-lg shimmer-cell" />
+                <SkeletonBlock className="h-2 w-2 shrink-0 rounded-full" />
+                <SkeletonBlock className="h-4 w-32 rounded-lg" />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="h-12 rounded-xl shimmer-cell" />
-                <div className="h-12 rounded-xl shimmer-cell" />
+                <SkeletonBlock className="h-12 rounded-xl" />
+                <SkeletonBlock className="h-12 rounded-xl" />
               </div>
             </CommandPanel>
           ))
         ) : filteredKeys.length === 0 ? (
-          <CommandPanel className="border-dashed p-5 text-center">
-            <p className="text-sm font-bold text-slate-200">No API keys match this search.</p>
-            <p className="mt-2 text-xs font-medium leading-5 text-slate-500">
-              Your keys are still available. Clear the search to return to the full API key list.
-            </p>
-            <button
-              type="button"
-              onClick={() => setSearchTerm("")}
-              className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15"
-            >
-              Clear Search
-            </button>
-          </CommandPanel>
+          <TableEmptyState
+            title="No API keys match this search."
+            description="Your keys are still available. Clear the search to return to the full API key list."
+            className="border-dashed p-5 text-center sm:p-5"
+            titleClassName="font-sans text-sm"
+            descriptionClassName="text-xs leading-5 text-slate-500"
+            cta={
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15"
+              >
+                Clear Search
+              </button>
+            }
+          />
         ) : (
           filteredKeys.map((key) => {
             const currentLimit = key.monthly_limit;
@@ -305,14 +284,14 @@ export function ApiKeyTable({
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="min-w-0 space-y-1">
                     <div className="flex min-w-0 items-center gap-2">
-                      <LiveIndicator active={key.is_active} tone={key.is_active ? "success" : "warning"} />
+                      <LiveIndicator active={key.is_active} tone={getApiKeyStatusTone(key.is_active)} />
                       <h3 className={`truncate text-sm font-black ${key.is_active ? "text-white" : "text-slate-500"}`} title={key.name}>
                         {key.name}
                       </h3>
                     </div>
                     <p className="break-all font-mono text-[10px] font-semibold text-slate-500">{maskApiKey(key.key_value)}</p>
                   </div>
-                  <StatusPill tone={key.type === "production" ? "info" : "warning"} compact>
+                  <StatusPill tone={getApiKeyTypeTone(key.type)} compact>
                     {key.type === "production" ? "Prod" : "Dev"}
                   </StatusPill>
                 </div>
@@ -321,7 +300,7 @@ export function ApiKeyTable({
                   <div className="rounded-xl border border-white/10 bg-slate-950/50 p-3">
                     <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">Usage</p>
                     <p className="mt-1 font-mono text-xs font-black text-slate-100">
-                      {key.usage_count.toLocaleString()} / {key.monthly_limit ? key.monthly_limit.toLocaleString() : "∞"}
+                      {formatRequestCount(key.usage_count)} / {key.monthly_limit ? formatRequestCount(key.monthly_limit) : "∞"}
                     </p>
                     <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
                       <div className={`h-full rounded-full ${intensityColor}`} style={{ width: `${usagePercent}%` }} />
@@ -411,8 +390,7 @@ export function ApiKeyTable({
         )}
       </div>
 
-      <CommandPanel padding="none" className="hidden animate-in fade-in duration-300 md:block">
-        <ScrollFrame axis="x" minWidth="800px" label="API keys table">
+      <DataTableShell className="hidden animate-in fade-in duration-300 md:block" minWidth="800px" scrollLabel="API keys table">
         <table className="w-full min-w-[800px] border-collapse text-left text-sm table-fixed">
           <thead className="bg-white/[0.03] text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
             <tr className="border-b border-white/10">
@@ -429,19 +407,23 @@ export function ApiKeyTable({
             ) : filteredKeys.length === 0 ? (
               <tr>
                 <td className="px-8 py-12 text-center" colSpan={5}>
-                  <div className="mx-auto max-w-md rounded-2xl border border-dashed border-white/10 bg-slate-950/50 p-6">
-                    <p className="text-sm font-bold text-slate-200">No API keys match this search.</p>
-                    <p className="mt-2 text-xs font-medium leading-5 text-slate-500">
-                      Your keys are still available. Clear the search to return to the full API key list.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setSearchTerm("")}
-                      className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15"
-                    >
-                      Clear Search
-                    </button>
-                  </div>
+                  <TableEmptyState
+                    asPanel={false}
+                    title="No API keys match this search."
+                    description="Your keys are still available. Clear the search to return to the full API key list."
+                    className="mx-auto max-w-md rounded-2xl border border-dashed border-white/10 bg-slate-950/50 p-6"
+                    titleClassName="font-sans text-sm"
+                    descriptionClassName="text-xs leading-5 text-slate-500"
+                    cta={
+                      <button
+                        type="button"
+                        onClick={() => setSearchTerm("")}
+                        className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15"
+                      >
+                        Clear Search
+                      </button>
+                    }
+                  />
                 </td>
               </tr>
             ) : null}
@@ -464,16 +446,16 @@ export function ApiKeyTable({
                 >
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-3">
-                      <LiveIndicator active={key.is_active} tone={key.is_active ? "success" : "warning"} />
+                      <LiveIndicator active={key.is_active} tone={getApiKeyStatusTone(key.is_active)} />
                       <span className={`font-semibold tracking-tight ${!key.is_active ? "text-slate-500" : "text-slate-100"}`}>{key.name}</span>
                     </div>
                   </td>
                   
                   <td className="px-4 py-5">
                     {key.type === "production" ? (
-                      <StatusPill tone="info" compact>Prod</StatusPill>
+                      <StatusPill tone={getApiKeyTypeTone(key.type)} compact>Prod</StatusPill>
                     ) : (
-                      <StatusPill tone="warning" compact>Dev</StatusPill>
+                      <StatusPill tone={getApiKeyTypeTone(key.type)} compact>Dev</StatusPill>
                     )}
                   </td>
 
@@ -481,7 +463,7 @@ export function ApiKeyTable({
                     <div className="flex items-center gap-4">
                       <div className="flex-1 space-y-1.5">
                         <div className="flex items-center justify-between text-[10px] font-bold tabular-nums">
-                          <span className={!key.is_active ? "text-slate-600" : "text-slate-100"}>{key.usage_count.toLocaleString()}</span>
+                          <span className={!key.is_active ? "text-slate-600" : "text-slate-100"}>{formatRequestCount(key.usage_count)}</span>
                           <span className="text-slate-600">/ {key.monthly_limit ?? "∞"}</span>
                         </div>
                         <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
@@ -626,8 +608,7 @@ export function ApiKeyTable({
             })}
           </tbody>
         </table>
-        </ScrollFrame>
-      </CommandPanel>
+      </DataTableShell>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { resolvePlan } from "@/lib/constants";
+import { formatRequestCount } from "@/lib/format";
 import {
   AlertChannel,
   clampInteger,
@@ -43,7 +44,7 @@ export function validateMonthlyLimit(value: unknown, plan: string) {
 
   const parsed = clampInteger(value, { min: 1, max: maxCap });
   if (parsed === null) {
-    throw new Error(planLimit === null ? `Monthly limit must be a positive integer between 1 and ${maxCap.toLocaleString()}.` : `Monthly limit must be between 1 and ${planLimit}.`);
+    throw new Error(planLimit === null ? `Monthly limit must be a positive integer between 1 and ${formatRequestCount(maxCap)}.` : `Monthly limit must be between 1 and ${planLimit}.`);
   }
   return parsed;
 }

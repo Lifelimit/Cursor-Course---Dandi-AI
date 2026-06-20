@@ -5,6 +5,7 @@ import { ModalFrame } from "@/components/command/ModalFrame";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { GuidedError } from "@/components/ui/GuidedError";
 import { getErrorGuidance } from "@/lib/error-guidance";
+import { formatRequestCount } from "@/lib/format";
 
 type ApiKeyModalProps = {
   isOpen: boolean;
@@ -128,12 +129,12 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
     const parsedThreshold = Number.parseInt(alertThreshold, 10);
 
     if (hasUsageLimit && (parsedLimit === null || Number.isNaN(parsedLimit) || parsedLimit < minimumMonthlyLimit)) {
-      setErrorMessage(`Monthly request limit must be at least ${minimumMonthlyLimit.toLocaleString()} requests.`);
+      setErrorMessage(`Monthly request limit must be at least ${formatRequestCount(minimumMonthlyLimit)} requests.`);
       return;
     }
 
     if (hasUsageLimit && parsedLimit !== null && maximumMonthlyLimit !== null && parsedLimit > maximumMonthlyLimit) {
-      setErrorMessage(`Monthly request limit cannot exceed your plan maximum of ${maximumMonthlyLimit.toLocaleString()} requests.`);
+      setErrorMessage(`Monthly request limit cannot exceed your plan maximum of ${formatRequestCount(maximumMonthlyLimit)} requests.`);
       return;
     }
 
@@ -277,7 +278,7 @@ export function ApiKeyModal({ isOpen, onClose, initialData, planMonthlyLimit, on
                 <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black uppercase tracking-widest text-slate-400">Requests</span>
               </div>
               <p id={monthlyLimitHelpId} className="text-[9px] font-bold leading-relaxed text-slate-400">
-                Allowed range: {minimumMonthlyLimit.toLocaleString()} - {maximumMonthlyLimit === null ? "unlimited" : maximumMonthlyLimit.toLocaleString()} requests
+                Allowed range: {formatRequestCount(minimumMonthlyLimit)} - {maximumMonthlyLimit === null ? "unlimited" : formatRequestCount(maximumMonthlyLimit)} requests
               </p>
             </div>
           </div>

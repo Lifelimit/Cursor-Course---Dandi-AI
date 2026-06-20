@@ -1,4 +1,5 @@
 import { getServerEnv } from "@/lib/env";
+import { getGitHubRepositoryParts } from "@/lib/github-url";
 
 function getGitHubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
@@ -20,14 +21,7 @@ function getGitHubHeaders(): Record<string, string> {
  * Helper function to fetch README.md from a GitHub URL
  */
 export async function fetchGitHubReadme(githubUrl: string): Promise<string> {
-  const url = new URL(githubUrl);
-  const pathParts = url.pathname.split("/").filter(Boolean);
-
-  if (pathParts.length < 2) {
-    throw new Error("Invalid GitHub URL. Expected format: https://github.com/owner/repo");
-  }
-
-  const [owner, repo] = pathParts;
+  const { owner, repo } = getGitHubRepositoryParts(githubUrl);
 
   // Primary method: Use GitHub API to automatically resolve the default branch (e.g., canary, develop)
   const headers = getGitHubHeaders();
@@ -61,9 +55,7 @@ export async function fetchGitHubReadme(githubUrl: string): Promise<string> {
  * Fetches repository metadata (stars, license, version) from the GitHub API
  */
 export async function fetchGitHubMetadata(githubUrl: string) {
-  const url = new URL(githubUrl);
-  const pathParts = url.pathname.split("/").filter(Boolean);
-  const [owner, repo] = pathParts;
+  const { owner, repo } = getGitHubRepositoryParts(githubUrl);
 
   // 1. Fetch Repository Details (Stars, License)
   const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
@@ -113,12 +105,7 @@ export async function fetchGitHubMetadata(githubUrl: string) {
  * Fetches default branch of a GitHub repository
  */
 export async function fetchGitHubBranch(githubUrl: string): Promise<string> {
-  const url = new URL(githubUrl);
-  const pathParts = url.pathname.split("/").filter(Boolean);
-  if (pathParts.length < 2) {
-    throw new Error("Invalid GitHub URL. Expected format: https://github.com/owner/repo");
-  }
-  const [owner, repo] = pathParts;
+  const { owner, repo } = getGitHubRepositoryParts(githubUrl);
 
   const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
     headers: getGitHubHeaders()
@@ -136,12 +123,7 @@ export async function fetchGitHubBranch(githubUrl: string): Promise<string> {
  * Recursively fetches a repository file tree
  */
 export async function fetchGitHubRepoTree(githubUrl: string, branch: string): Promise<{ path: string; size: number }[]> {
-  const url = new URL(githubUrl);
-  const pathParts = url.pathname.split("/").filter(Boolean);
-  if (pathParts.length < 2) {
-    throw new Error("Invalid GitHub URL. Expected format: https://github.com/owner/repo");
-  }
-  const [owner, repo] = pathParts;
+  const { owner, repo } = getGitHubRepositoryParts(githubUrl);
 
   const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, {
     headers: getGitHubHeaders()
@@ -191,12 +173,7 @@ export async function fetchGitHubRepoTree(githubUrl: string, branch: string): Pr
  * Downloads raw file content from GitHub raw usercontent servers
  */
 export async function fetchRawFileContent(githubUrl: string, branch: string, path: string): Promise<string> {
-  const url = new URL(githubUrl);
-  const pathParts = url.pathname.split("/").filter(Boolean);
-  if (pathParts.length < 2) {
-    throw new Error("Invalid GitHub URL. Expected format: https://github.com/owner/repo");
-  }
-  const [owner, repo] = pathParts;
+  const { owner, repo } = getGitHubRepositoryParts(githubUrl);
 
   const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
   const response = await fetch(rawUrl, {

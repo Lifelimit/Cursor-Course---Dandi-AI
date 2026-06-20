@@ -3,32 +3,22 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { CommandPanel, MetricCard, ScrollFrame, StatusPill } from "@/components/command";
-
-type DailyData = {
-  date: string;
-  count: number;
-  success: number;
-  error: number;
-  avgLatency: number;
-};
-
-type KeyData = {
-  id: string;
-  name: string;
-  key_type: string;
-  usage_count: number;
-  monthly_limit: number | null;
-  is_active: boolean;
-  pct: number;
-  dailyTrend: DailyData[];
-};
+import {
+  formatCurrency,
+  formatLongDate,
+  formatPercentage,
+  formatRepositoryLabel,
+  formatRequestCount,
+  formatShortDate,
+} from "@/lib/format";
+import type { DailyUsageTrend, TopRepositoryUsage, UsageKeySummary } from "@/types/usage";
 
 type AnalyticsDashboardProps = {
-  keys: KeyData[];
-  globalTopRepos: { repo_url: string; count: number }[];
+  keys: UsageKeySummary[];
+  globalTopRepos: TopRepositoryUsage[];
   avgLatency: number;
   successRate: number;
-  dailyAnalytics?: DailyData[];
+  dailyAnalytics?: DailyUsageTrend[];
   onUpdate?: () => void;
 };
 
@@ -79,7 +69,7 @@ export function AnalyticsDashboard({
   }, []);
 
   // Compute dataset based on selections
-  const dataset = useMemo<DailyData[]>(() => {
+  const dataset = useMemo<DailyUsageTrend[]>(() => {
     if (selectedKeyId === "all") {
       // Use the global daily analytics returned by the server
       return dailyAnalytics && dailyAnalytics.length > 0 ? dailyAnalytics : [];
@@ -114,7 +104,7 @@ export function AnalyticsDashboard({
   // SaaS ROI metric: value generated (savings)
   const estimatedSavings = useMemo(() => {
     // Standard industry pricing is about $0.02 per repository summarization API request
-    return (currentTotalRequests * 0.02).toFixed(2);
+    return formatCurrency(currentTotalRequests * 0.02);
   }, [currentTotalRequests]);
 
   // SVG Chart bounds
@@ -304,7 +294,7 @@ export function AnalyticsDashboard({
                     >
                       <div className="flex flex-col gap-0.5">
                         <span className="truncate max-w-[170px]">{k.name}</span>
-                        <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">{k.usage_count.toLocaleString()} requests</span>
+                        <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">{formatRequestCount(k.usage_count)} requests</span>
                       </div>
                       {isSelected && (
                         <svg viewBox="0 0 24 24" className="h-4 w-4 text-emerald-500 animate-in zoom-in duration-200" fill="none" stroke="currentColor" strokeWidth="3">
@@ -345,7 +335,7 @@ export function AnalyticsDashboard({
         {/* Metric 1: Requests */}
         <MetricCard
           label="Aggregate Requests"
-          value={currentTotalRequests.toLocaleString()}
+          value={formatRequestCount(currentTotalRequests)}
           detail="Billable requests (30d)"
           tone="success"
           icon={
@@ -371,7 +361,7 @@ export function AnalyticsDashboard({
         {/* Metric 3: Success Rate */}
         <MetricCard
           label="Success Rate"
-          value={`${currentSuccessRate}%`}
+          value={formatPercentage(currentSuccessRate)}
           detail="Successful requests"
           tone="info"
           icon={
@@ -382,7 +372,7 @@ export function AnalyticsDashboard({
         />
 
         {/* Metric 4: Estimated Value Generated */}
-        <MetricCard label="Estimated Savings" value={`$${estimatedSavings}`} detail="Compared with manual review" tone="warning" icon={<span className="text-xs font-black leading-none">$</span>} />
+        <MetricCard label="Estimated Savings" value={estimatedSavings} detail="Compared with manual review" tone="warning" icon={<span className="text-xs font-black leading-none">$</span>} />
 
       </div>
 
@@ -426,7 +416,7 @@ export function AnalyticsDashboard({
             >
               <div className="flex flex-col gap-1 min-w-[120px] leading-tight text-xs font-medium">
                 <span className="opacity-60 text-[9px] font-black uppercase tracking-widest mb-1.5 block">
-                  {new Date(dataset[hoveredIndex].date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  {formatLongDate(dataset[hoveredIndex].date)}
                 </span>
                 
                 {metricView === "requests" && (
@@ -539,7 +529,7 @@ export function AnalyticsDashboard({
               {dataset.map((d, i) => {
                 if (i % 5 !== 0 && i !== dataset.length - 1) return null;
                 const x = paddingLeft + (i / (dataset.length - 1)) * chartInnerWidth;
-                const formattedDate = new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const formattedDate = formatShortDate(d.date);
                 return (
                   <text
                     key={i}
@@ -673,7 +663,7 @@ export function AnalyticsDashboard({
             <h3 className="font-serif text-3xl font-bold italic tracking-tight mb-4 text-white">Efficiency Ledger</h3>
             {hasAnyUsageData ? (
               <p className="text-sm leading-relaxed text-zinc-400 mb-6">
-                Your API architecture processed <strong className="text-white font-mono">{currentTotalRequests}</strong> transactions in the current billing epoch with a target reliability index of <strong className="text-white font-mono">{currentSuccessRate}%</strong>. 
+                Your API architecture processed <strong className="text-white font-mono">{currentTotalRequests}</strong> transactions in the current billing epoch with a target reliability index of <strong className="text-white font-mono">{formatPercentage(currentSuccessRate)}</strong>. 
               </p>
             ) : (
               <p className="text-sm leading-relaxed text-zinc-400 mb-6">
@@ -718,7 +708,7 @@ export function AnalyticsDashboard({
               globalTopRepos.slice(0, 5).map((repo, i) => {
                 const maxCount = globalTopRepos[0]?.count || 1;
                 const pct = (repo.count / maxCount) * 100;
-                const repoLabel = repo.repo_url.replace("https://github.com/", "");
+                const repoLabel = formatRepositoryLabel(repo.repo_url);
                 return (
                   <div key={i} className="space-y-2">
                     <div className="flex items-center justify-between text-xs">

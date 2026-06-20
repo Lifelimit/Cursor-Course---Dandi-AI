@@ -110,6 +110,100 @@ test("normalizes only canonical GitHub repository URLs", () => {
   assert.equal(normalizeGitHubRepoUrl("https://github.com/OpenAI/.codex"), null);
 });
 
+test("formats GitHub repository labels without changing legacy fallbacks", () => {
+  const { getGitHubRepoPath, formatGitHubRepoLabel, getGitHubRepositoryParts } = loadTsModule("lib/github-url.ts");
+
+  assert.equal(getGitHubRepoPath("https://github.com/openai/codex/tree/main"), "openai/codex");
+  assert.equal(getGitHubRepoPath("not a repo"), "unknown/repository");
+  assert.equal(getGitHubRepoPath("not a repo", "repository"), "repository");
+  assert.equal(formatGitHubRepoLabel("https://github.com/openai/codex/"), "openai/codex/");
+  assert.equal(formatGitHubRepoLabel("https://github.com/openai/codex/", { trimTrailingSlash: true }), "openai/codex");
+  assert.deepEqual(getGitHubRepositoryParts("https://github.com/openai/codex/tree/main"), {
+    owner: "openai",
+    repo: "codex",
+  });
+  assert.throws(() => getGitHubRepositoryParts("https://github.com/openai"), /Invalid GitHub URL/);
+});
+
+test("formats shared presentation values without changing legacy display strings", () => {
+  const {
+    formatCurrency,
+    formatCurrencyFromCents,
+    formatDuration,
+    formatGitHubRepo,
+    formatIsoDate,
+    formatIsoDatePart,
+    formatPercentage,
+    formatRelativeTime,
+    formatRepositoryLabel,
+    formatRequestCount,
+    formatRequestLimit,
+  } = loadTsModule("lib/format.ts");
+
+  assert.equal(formatIsoDate(new Date("2026-06-20T23:59:00.000Z")), "2026-06-20");
+  assert.equal(formatIsoDatePart("2026-06-20T23:59:00.000Z"), "2026-06-20");
+  assert.equal(formatRequestCount(1234567), "1,234,567");
+  assert.equal(formatRequestLimit(null), "∞");
+  assert.equal(formatRequestLimit(5000), "5,000");
+  assert.equal(formatCurrency(12.5), "$12.50");
+  assert.equal(formatCurrencyFromCents(-1234), "-$12.34");
+  assert.equal(formatPercentage(99.95, 1), "100.0%");
+  assert.equal(formatPercentage(100), "100%");
+  assert.equal(formatDuration(999), "999ms");
+  assert.equal(formatDuration(1500), "1.5s");
+
+  const now = "2026-06-20T12:00:00.000Z";
+  assert.equal(formatRelativeTime(null), "No activity");
+  assert.equal(formatRelativeTime(now, { current: true }), "Active now");
+  assert.equal(formatRelativeTime("2026-06-20T12:00:00.000Z", { now }), "Just now");
+  assert.equal(formatRelativeTime("2026-06-20T11:55:00.000Z", { now }), "5m ago");
+  assert.equal(formatRelativeTime("2026-06-20T10:00:00.000Z", { now }), "2h ago");
+  assert.equal(formatRelativeTime("2026-06-17T12:00:00.000Z", { now }), "3d ago");
+  assert.equal(formatRelativeTime("2026-06-20T12:01:00.000Z", { now }), "Recently");
+  assert.equal(formatRepositoryLabel("https://github.com/openai/codex/", { trimTrailingSlash: true }), "openai/codex");
+  assert.equal(formatGitHubRepo("not a repo", "repository"), "repository");
+});
+
+test("shared API request helpers preserve route parsing behavior", async () => {
+  const {
+    getApiKeyFromRequest,
+    invalidJsonResponse,
+    missingApiKeyResponse,
+    readGitHubRepoUrl,
+    readJsonBody,
+  } = loadTsModule("lib/api-request.ts");
+
+  const headerRequest = new Request("https://dandi.test/api", {
+    method: "POST",
+    headers: { "x-api-key": "header-key" },
+    body: JSON.stringify({
+      apiKey: "body-key",
+      githubUrl: "https://github.com/OpenAI/codex/tree/main",
+    }),
+  });
+  const headerBody = await readJsonBody(headerRequest);
+
+  assert.equal(getApiKeyFromRequest(headerRequest, headerBody), "header-key");
+  assert.equal(readGitHubRepoUrl(headerBody), "https://github.com/OpenAI/codex");
+
+  const bodyRequest = new Request("https://dandi.test/api", {
+    method: "POST",
+    body: JSON.stringify({ apiKey: "body-key" }),
+  });
+  const body = await readJsonBody(bodyRequest);
+
+  assert.equal(getApiKeyFromRequest(bodyRequest, body), "body-key");
+  assert.equal(getApiKeyFromRequest(new Request("https://dandi.test/api")), "");
+
+  const invalidJson = invalidJsonResponse({});
+  assert.equal(invalidJson.status, 400);
+  assert.deepEqual(await invalidJson.json(), { error: "Invalid JSON payload" });
+
+  const missingKey = missingApiKeyResponse({}, "API key is required");
+  assert.equal(missingKey.status, 401);
+  assert.deepEqual(await missingKey.json(), { error: "API key is required" });
+});
+
 test("validates chat messages strictly", () => {
   const { validateChatMessages } = loadTsModule("lib/request-validation.ts");
 
@@ -136,6 +230,44 @@ test("validates chat messages strictly", () => {
     () => validateChatMessages(Array.from({ length: 20 }, () => ({ role: "user", content: "x".repeat(1600) }))),
     /30000 characters/
   );
+});
+
+test("maps domain statuses to stable UI tones", () => {
+  const {
+    getApiKeyStatusTone,
+    getApiKeyTypeTone,
+    getBrowserSessionStatusTone,
+    getHttpStatusTone,
+    getIngestionStatusTone,
+    getInvoiceStatusTone,
+    getNetworkLogStatusTone,
+    getWebhookDeliveryStatusTone,
+  } = loadTsModule("lib/status-tones.ts");
+
+  assert.equal(getInvoiceStatusTone("paid"), "success");
+  assert.equal(getInvoiceStatusTone("failed"), "danger");
+  assert.equal(getInvoiceStatusTone("pending"), "warning");
+  assert.equal(getInvoiceStatusTone("mystery"), "neutral");
+
+  assert.equal(getHttpStatusTone(204), "success");
+  assert.equal(getHttpStatusTone(404), "danger");
+  assert.equal(getWebhookDeliveryStatusTone(299), "success");
+  assert.equal(getWebhookDeliveryStatusTone(300), "danger");
+
+  assert.equal(getIngestionStatusTone("completed"), "success");
+  assert.equal(getIngestionStatusTone("running"), "warning");
+  assert.equal(getIngestionStatusTone("queued"), "info");
+  assert.equal(getIngestionStatusTone("failed"), "danger");
+
+  assert.equal(getApiKeyStatusTone(true), "success");
+  assert.equal(getApiKeyStatusTone(false), "warning");
+  assert.equal(getApiKeyTypeTone("production"), "info");
+  assert.equal(getApiKeyTypeTone("development"), "warning");
+
+  assert.equal(getBrowserSessionStatusTone(true), "success");
+  assert.equal(getBrowserSessionStatusTone(false), "neutral");
+  assert.equal(getNetworkLogStatusTone("running"), "warning");
+  assert.equal(getNetworkLogStatusTone("error"), "danger");
 });
 
 test("computes configurable CORS headers", () => {
@@ -267,6 +399,49 @@ test("validates Stripe payment method identifiers", () => {
 
   assert.equal(validatePaymentMethodId("pm_123_test"), "pm_123_test");
   assert.throws(() => validatePaymentMethodId("cus_123"), /Invalid payment method ID/);
+});
+
+test("formats Stripe route billing profile payloads and errors", async () => {
+  const {
+    buildClearPaymentMethodProfilePayload,
+    buildPaymentMethodProfilePayload,
+    mapStripeErrorResponse,
+  } = loadTsModule("lib/services/stripe-route.service.ts");
+
+  const paymentMethod = {
+    card: {
+      brand: "visa",
+      last4: "4242",
+      exp_month: 12,
+      exp_year: 2030,
+    },
+  };
+
+  assert.deepEqual(buildPaymentMethodProfilePayload(paymentMethod, { nullFallback: true }), {
+    payment_method_brand: "visa",
+    payment_method_last4: "4242",
+    payment_method_expiry: "12/2030",
+  });
+
+  const clearPayload = buildClearPaymentMethodProfilePayload();
+  assert.equal(clearPayload.payment_method_brand, null);
+  assert.equal(clearPayload.payment_method_last4, null);
+  assert.equal(clearPayload.payment_method_expiry, null);
+  assert.match(clearPayload.updated_at, /^\d{4}-\d{2}-\d{2}T/);
+
+  const invalidResponse = mapStripeErrorResponse(new Error("Invalid payment method ID"), "Fallback");
+  assert.equal(invalidResponse.status, 400);
+  assert.deepEqual(await invalidResponse.json(), { error: "Invalid payment method ID" });
+
+  const maskedResponse = mapStripeErrorResponse(new Error("Stripe exploded"), "Fallback");
+  assert.equal(maskedResponse.status, 500);
+  assert.deepEqual(await maskedResponse.json(), { error: "Fallback" });
+
+  const unmaskedResponse = mapStripeErrorResponse(new Error("Stripe exploded"), "Fallback", {
+    maskServerError: false,
+  });
+  assert.equal(unmaskedResponse.status, 500);
+  assert.deepEqual(await unmaskedResponse.json(), { error: "Stripe exploded" });
 });
 
 test("resolves subscription SCA and billing payload helpers", () => {
@@ -747,6 +922,60 @@ test("keeps all batch embedding chunks on the first selected model", async () =>
     console.warn = originalWarn;
     restoreGoogleEnv(snapshot);
   }
+});
+
+test("builds usage display trends from parsed Redis logs", () => {
+  const {
+    buildCountOnlyDailyTrend,
+    buildDailyUsageTrend,
+    getTopReposFromLogs,
+    parseUsageLogs,
+    summarizeDailyLogs,
+  } = loadTsModule("lib/services/usage-billing.service.ts");
+
+  const logs = parseUsageLogs([
+    JSON.stringify({
+      keyId: "key-1",
+      usedAt: "2026-06-01T10:00:00.000Z",
+      status: "success",
+      latencyMs: 120,
+      repoUrl: "https://github.com/openai/codex",
+    }),
+    JSON.stringify({
+      keyId: "key-1",
+      usedAt: "2026-06-01T11:00:00.000Z",
+      status: "error",
+      latencyMs: 80,
+      repoUrl: "https://github.com/openai/codex",
+    }),
+    JSON.stringify({
+      keyId: "key-1",
+      usedAt: "2026-06-02T09:00:00.000Z",
+      status: "success",
+      latencyMs: 100,
+      repoUrl: "https://github.com/vercel/next.js",
+    }),
+  ], { requireKeyId: true });
+
+  assert.equal(logs.length, 3);
+  assert.deepEqual(summarizeDailyLogs("2026-06-01", logs), {
+    date: "2026-06-01",
+    count: 1,
+    success: 1,
+    error: 1,
+    avgLatency: 100,
+  });
+  assert.deepEqual(buildDailyUsageTrend(["2026-06-01", "2026-06-02"], logs, 2), [
+    { date: "2026-06-01", count: 1, success: 1, error: 1, avgLatency: 100 },
+    { date: "2026-06-02", count: 1, success: 1, error: 0, avgLatency: 100 },
+  ]);
+  assert.deepEqual(buildCountOnlyDailyTrend(["2026-06-01", "2026-06-02"], logs), [
+    { date: "2026-06-01", count: 2 },
+    { date: "2026-06-02", count: 1 },
+  ]);
+  assert.deepEqual(getTopReposFromLogs(logs, 1), [
+    { repo_url: "https://github.com/openai/codex", count: 2 },
+  ]);
 });
 
 test("calculates quota reset dates correctly for Hobby and paid subscription tiers", () => {

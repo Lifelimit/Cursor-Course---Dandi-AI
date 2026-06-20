@@ -6,48 +6,11 @@ import { googleBatchEmbedWithModel, isGeminiEmbeddingRateLimitError } from "@/li
 import { selectRagFiles } from "@/lib/services/rag-file-selection.service";
 import { redis } from "@/lib/redis";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import type { IngestionJob, IngestionJobStep, IngestionKeyData, IngestionJobSummary } from "@/types/rag";
 
 const LOCK_TTL_SEC = 900;
 
-export type IngestionJobStatus = "queued" | "running" | "completed" | "failed";
-export type IngestionJobStep = "queued" | "cloning" | "analyzing" | "summarizing" | "indexing" | "ready" | "failed";
-
-export type IngestionJob = {
-  id: string;
-  user_id: string;
-  api_key_id: string | null;
-  repo_url: string;
-  repo_name: string | null;
-  status: IngestionJobStatus;
-  current_step: IngestionJobStep | null;
-  error: string | null;
-  error_message: string | null;
-  files_count: number | null;
-  chunks_count: number | null;
-  indexed_file_count: number | null;
-  chunk_count: number | null;
-  summary_available: boolean | null;
-  index_available: boolean | null;
-  created_at: string;
-  started_at: string | null;
-  completed_at: string | null;
-  failed_at: string | null;
-  updated_at: string;
-};
-
-export type IngestionKeyData = {
-  id: string;
-  name: string;
-  usage_count: number;
-  monthly_limit: number | null;
-  user_id: string;
-  key_type: "development" | "production";
-  plan?: string;
-  is_active?: boolean;
-  alert_threshold?: number | null;
-  alert_channels?: string[] | null;
-  email?: string | null;
-};
+export type { IngestionJob, IngestionJobStatus, IngestionJobStep, IngestionKeyData, IngestionJobSummary } from "@/types/rag";
 
 type JobResult = {
   job: IngestionJob;
@@ -121,7 +84,7 @@ function sanitizeIngestionError(err: unknown) {
   return message || "Repository ingestion failed.";
 }
 
-export function formatIngestionJob(job: IngestionJob) {
+export function formatIngestionJob(job: IngestionJob): IngestionJobSummary {
   const indexedFileCount = getIndexedFileCount(job);
   const chunkCount = getChunkCount(job);
   const errorMessage = job.error_message ?? job.error;

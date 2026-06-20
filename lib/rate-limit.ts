@@ -21,14 +21,18 @@ export function createIpRateLimit(prefix: string, limit: number, window: `${numb
 export async function checkRateLimit(
   request: Request,
   limiter: Ratelimit,
-  headers: Record<string, string> = {}
+  headers: Record<string, string> = {},
+  options: {
+    errorBody?: Record<string, unknown>;
+    outageMessage?: string;
+  } = {},
 ) {
   try {
     const { success, limit, remaining, reset } = await limiter.limit(getRequestIp(request));
     if (success) return null;
 
     return Response.json(
-      { error: "Too many requests. Please slow down." },
+      options.errorBody ?? { error: "Too many requests. Please slow down." },
       {
         status: 429,
         headers: {
@@ -40,7 +44,7 @@ export async function checkRateLimit(
       }
     );
   } catch (error) {
-    console.error("⚠️ Redis rate-limit outage (failing open):", error);
+    console.error(options.outageMessage ?? "⚠️ Redis rate-limit outage (failing open):", error);
     return null;
   }
 }

@@ -1,38 +1,11 @@
-export type AccountEnvironmentKind = "browser" | "api_key" | "api_request";
+import type { AccountApiKey, AccountEnvironment, AccountUsageLog } from "@/types/account";
 
-export type AccountEnvironment = {
-  id: string;
-  kind: AccountEnvironmentKind;
-  label: string;
-  detail?: string;
-  ip: string | null;
-  location: string | null;
-  lastSeenAt: string | null;
-  current: boolean;
-  revocable: boolean;
-  apiKeyId?: string;
-};
-
-export type AccountUsageLog = {
-  keyId?: string;
-  repoUrl?: string;
-  usedAt?: string;
-  latencyMs?: number;
-  status?: string;
-  ip?: string | null;
-  userAgent?: string | null;
-  city?: string | null;
-  region?: string | null;
-  country?: string | null;
-};
-
-export type AccountApiKey = {
-  id: string;
-  name: string;
-  key_type: string;
-  created_at?: string | null;
-  is_active: boolean;
-};
+export type {
+  AccountApiKey,
+  AccountEnvironment,
+  AccountEnvironmentKind,
+  AccountUsageLog,
+} from "@/types/account";
 
 export function getRequestIp(request: Request) {
   return (

@@ -1,90 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { stripe } from "@/lib/stripe";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 import { resolvePlan } from "@/lib/constants";
-import { redis } from "@/lib/redis";
-import { calculateResetDate, calculateNextInvoiceDate } from "@/lib/services/server-data.service";
-
-interface UsageLog {
-  status: string;
-  latencyMs?: number;
-  keyId?: string;
-  repoUrl?: string;
-  usedAt: string;
-  repo_url?: string;
-}
-
-function getUsageLogDate(log: UsageLog) {
-  return log.usedAt.split("T")[0];
-}
-
-function summarizeDailyLogs(date: string, logs: UsageLog[]) {
-  const dayLogs = logs.filter((l: UsageLog) => getUsageLogDate(l) === date);
-  const successCount = dayLogs.filter((l: UsageLog) => l.status === "success").length;
-  const errorCount = dayLogs.length - successCount;
-  const totalLatency = dayLogs.reduce((acc: number, l: UsageLog) => acc + (l.latencyMs || 0), 0);
-  const avgLatency = dayLogs.length > 0 ? Math.round(totalLatency / dayLogs.length) : 0;
-
-  return {
-    date,
-    count: successCount,
-    success: successCount,
-    error: errorCount,
-    avgLatency
-  };
-}
-
-function reconcileDailyTrendToUsage(
-  dailyTrend: ReturnType<typeof summarizeDailyLogs>[],
-  usageCount: number
-) {
-  const totalSuccess = dailyTrend.reduce((acc, day) => acc + day.success, 0);
-  if (totalSuccess === usageCount) return dailyTrend;
-
-  if (totalSuccess === 0) {
-    if (usageCount === 0 || dailyTrend.length === 0) return dailyTrend;
-    return dailyTrend.map((day, index) => {
-      if (index !== dailyTrend.length - 1) return day;
-      return { ...day, count: usageCount, success: usageCount };
-    });
-  }
-
-  let remainingSuccess = usageCount;
-  return dailyTrend
-    .slice()
-    .reverse()
-    .map(day => {
-      const success = Math.min(day.success, remainingSuccess);
-      remainingSuccess -= success;
-      return { ...day, count: success, success };
-    })
-    .reverse();
-}
-
-function parseUsageLogs(rawLogs: unknown[]): UsageLog[] {
-  return rawLogs.flatMap((log): UsageLog[] => {
-    try {
-      const parsed = typeof log === "string" ? JSON.parse(log) : log;
-      if (!parsed || typeof parsed !== "object") return [];
-
-      const usageLog = parsed as Partial<UsageLog>;
-      if (typeof usageLog.usedAt !== "string") return [];
-
-      return [{
-        status: typeof usageLog.status === "string" ? usageLog.status : "",
-        latencyMs: typeof usageLog.latencyMs === "number" ? usageLog.latencyMs : 0,
-        keyId: typeof usageLog.keyId === "string" ? usageLog.keyId : undefined,
-        repoUrl: typeof usageLog.repoUrl === "string" ? usageLog.repoUrl : undefined,
-        repo_url: typeof usageLog.repo_url === "string" ? usageLog.repo_url : undefined,
-        usedAt: usageLog.usedAt,
-      }];
-    } catch {
-      return [];
-    }
-  });
-}
+import {
+  buildDailyUsageTrend,
+  getBillingPeriodDisplay,
+  getDisplayUsageCount,
+  getDisplayUsageCounts,
+  getDisplayUsageLogs,
+  getRecentUsageDates,
+  getStripePaymentDisplay,
+  getTopReposFromLogs,
+  getUsagePerformanceMetrics,
+  summarizeDailyLogs,
+} from "@/lib/services/usage-billing.service";
+import type { UsageData } from "@/types/usage";
 
 export async function GET() {
   try {
@@ -126,75 +57,35 @@ export async function GET() {
     // Use numeric limit directly from constants — no regex parsing needed
     const monthlyLimit = resolved.monthlyRequests;
 
-    let userUsage = 0;
-    try {
-      userUsage = (await redis.get<number>(`usage:user:${userId}:${currentMonth}`)) || 0;
-    } catch (err) {
-      console.warn("⚠️ Display Redis usage read failed; using zero total usage:", err);
-    }
+    const userUsage = await getDisplayUsageCount(
+      `usage:user:${userId}:${currentMonth}`,
+      "⚠️ Display Redis usage read failed; using zero total usage:"
+    );
 
-    let rawLogs: unknown[] = [];
-    try {
-      rawLogs = await redis.lrange(`logs:user:${userId}:${currentMonth}`, 0, 99);
-    } catch (err) {
-      console.warn("⚠️ Display Redis log read failed; using empty usage analytics:", err);
-    }
+    const logs = await getDisplayUsageLogs(`logs:user:${userId}:${currentMonth}`, 0, 99, {
+      includeSnakeRepoUrl: true,
+      warning: "⚠️ Display Redis log read failed; using empty usage analytics:",
+    });
 
     // 2. Fetch per-key usage from Redis
-    let keyUsageCounts: number[] = [];
-    if (keys && keys.length > 0) {
-      try {
-        const pipeline = redis.pipeline();
-        keys.forEach(k => {
-          pipeline.get(`usage:key:${k.id}:${currentMonth}`);
-        });
-        keyUsageCounts = (await pipeline.exec<number[]>()) || [];
-      } catch (err) {
-        console.warn("⚠️ Display Redis key usage read failed; using zero key usage:", err);
-      }
-    }
+    const keyUsageCounts = await getDisplayUsageCounts(keys ?? [], currentMonth);
 
     // 3. Process logs (Hot Analytics)
-    const logs = parseUsageLogs(rawLogs);
-
-    // Calculate Global Performance Metrics
-    const totalLogs = logs.length;
-    const successfulLogs = logs.filter((l: UsageLog) => l.status === "success").length;
-    const totalLatency = logs.reduce((acc: number, l: UsageLog) => acc + (l.latencyMs || 0), 0);
-    
-    const avgLatency = totalLogs > 0 ? Math.round(totalLatency / totalLogs) : 0;
-    const successRate = totalLogs > 0 ? (successfulLogs / totalLogs) * 100 : 0;
+    const { avgLatency, successRate } = getUsagePerformanceMetrics(logs);
 
     // 5. Process data for trends and top repos
     const now = new Date();
-    const dates = Array.from({ length: 30 }, (_, i) => {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      return d.toISOString().split("T")[0];
-    }).reverse();
+    const dates = getRecentUsageDates(now);
 
     const processedKeys = (keys || []).map((key, index) => {
-      const keyLogs = (logs || []).filter((l: UsageLog) => l.keyId === key.id);
+      const keyLogs = (logs || []).filter((l) => l.keyId === key.id);
       const actualUsage = keyUsageCounts[index] || 0;
       
       // Daily trend
-      const dailyTrend = reconcileDailyTrendToUsage(
-        dates.map(date => summarizeDailyLogs(date, keyLogs)),
-        actualUsage
-      );
+      const dailyTrend = buildDailyUsageTrend(dates, keyLogs, actualUsage);
 
       // Top repos for this key
-      const repoMap = keyLogs.reduce((acc: Record<string, number>, log: UsageLog) => {
-        if (log.repoUrl) {
-          acc[log.repoUrl] = (acc[log.repoUrl] || 0) + 1;
-        }
-        return acc;
-      }, {});
-
-      const topRepos = Object.entries(repoMap)
-        .map(([repo_url, count]) => ({ repo_url, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
+      const topRepos = getTopReposFromLogs(keyLogs, 5);
 
       const limit = key.monthly_limit ?? monthlyLimit;
       const pctLimit = limit ?? resolved.maxLimitCap;
@@ -212,17 +103,7 @@ export async function GET() {
     // 6. Global aggregates
     const totalUsage = userUsage;
     
-    const globalRepoMap = (logs || []).reduce((acc: Record<string, number>, log) => {
-      if (log.repoUrl) {
-        acc[log.repoUrl] = (acc[log.repoUrl] || 0) + 1;
-      }
-      return acc;
-    }, {});
-
-    const globalTopRepos = Object.entries(globalRepoMap)
-      .map(([repo_url, count]) => ({ repo_url, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
+    const globalTopRepos = getTopReposFromLogs(logs || [], 10);
 
     // Global Daily Trends (requests, latency, success, error) over the last 30 days
     const dailyAnalytics = dates.map(date => {
@@ -230,82 +111,24 @@ export async function GET() {
     });
 
     // 7. Calculate billing / quota reset dates
-    let resetDate = null;
-    let nextInvoiceDate = null;
     const stripeCustomerId = profileData?.stripe_customer_id;
-    let stripeSubscriptionId = profileData?.stripe_subscription_id;
+    const { resetDate, nextInvoiceDate } = await getBillingPeriodDisplay({
+      profile: profileData,
+      now,
+      selfHeal: {
+        mode: "await",
+        updateBy: "email",
+        userEmail,
+        periodEndSource: "usage-api",
+        logContext: "API route",
+      },
+    });
 
-    if (!profileData?.billing_next_date && (stripeSubscriptionId || stripeCustomerId)) {
-      try {
-        let activeSubscription = null;
-        if (stripeSubscriptionId) {
-          activeSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
-        } else if (stripeCustomerId) {
-          const subs = await stripe.subscriptions.list({
-            customer: stripeCustomerId,
-            status: "active",
-            limit: 1
-          });
-          if (subs.data.length > 0) {
-            activeSubscription = subs.data[0];
-            stripeSubscriptionId = activeSubscription.id;
-          }
-        }
+    const { paymentMethods, customerBalance } = await getStripePaymentDisplay(stripeCustomerId, {
+      requireActiveCustomer: false,
+    });
 
-        if (activeSubscription && activeSubscription.status === "active") {
-          const periodEnd = (activeSubscription as unknown as { current_period_end?: number }).current_period_end || (activeSubscription as unknown as { items?: { data?: Array<{ current_period_end: number }> } }).items?.data?.[0]?.current_period_end;
-          const renewalDate = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
-          nextInvoiceDate = renewalDate;
-          
-          // Heal the database profile asynchronously
-          if (userEmail && renewalDate) {
-            await supabaseAdmin
-              .from("profiles")
-              .update({ 
-                billing_next_date: renewalDate,
-                stripe_subscription_id: stripeSubscriptionId || undefined
-              })
-              .eq("email", userEmail);
-          }
-        }
-      } catch (err) {
-        console.warn("⚠️ Failed to self-heal next billing date via Stripe in API route:", err);
-      }
-    } else if (profileData?.billing_next_date) {
-      nextInvoiceDate = profileData.billing_next_date;
-    }
-
-    nextInvoiceDate = calculateNextInvoiceDate(nextInvoiceDate, profileData?.billing_interval || null, now);
-    resetDate = calculateResetDate(nextInvoiceDate, now);
-
-    let paymentMethods: { id: string; brand: string; last4: string; expiry: string; isDefault: boolean }[] = [];
-    let customerBalance = 0;
-    if (profileData?.stripe_customer_id) {
-      try {
-        const methods = await stripe.paymentMethods.list({
-          customer: profileData.stripe_customer_id,
-          type: "card",
-        });
-        
-        // Get the customer to find the default payment method
-        const customer = await stripe.customers.retrieve(profileData.stripe_customer_id) as unknown as Record<string, unknown>;
-        const invoiceSettings = customer.invoice_settings as Record<string, unknown> | undefined;
-        const defaultMethodId = invoiceSettings?.default_payment_method as string | undefined;
-        customerBalance = (customer.balance as number) || 0;
-
-        paymentMethods = methods.data.map((pm, idx) => ({
-          id: pm.id,
-          brand: pm.card?.brand || "Card",
-          last4: pm.card?.last4 || "****",
-          expiry: pm.card ? `${pm.card.exp_month}/${pm.card.exp_year}` : "N/A",
-          isDefault: defaultMethodId ? pm.id === defaultMethodId : idx === 0
-        }));
-      } catch {
-        // Silent error, return empty paymentMethods
-      }
-    }
-
-    return NextResponse.json({
+    const responseBody: UsageData = {
       plan: profileData?.plan || "Hobby",
       keys: processedKeys,
       totalUsage,
@@ -319,7 +142,9 @@ export async function GET() {
       dailyAnalytics,
       scheduledPlan: profileData?.stripe_scheduled_plan || null,
       scheduledPlanDate: profileData?.stripe_scheduled_plan_date || null
-    });
+    };
+
+    return NextResponse.json(responseBody);
   } catch (err) {
     console.error("❌ Usage API: Critical failure:", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

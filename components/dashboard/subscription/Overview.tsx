@@ -1,5 +1,6 @@
 import React from "react";
 import { PlanDetail, BillingDetails } from "@/types";
+import { formatLongDate } from "@/lib/format";
 
 type OverviewProps = {
   planName: string;
@@ -56,7 +57,7 @@ export function Overview({
               <div>
                 <p className="text-sm font-bold text-white">
                   {nextBillingDate 
-                    ? new Date(nextBillingDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                    ? formatLongDate(nextBillingDate)
                     : currentPlan.nextBilling}
                 </p>
                 <p className="text-[10px] text-slate-400 italic mt-1">Next charge date</p>

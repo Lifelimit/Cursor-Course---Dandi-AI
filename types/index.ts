@@ -41,12 +41,6 @@ export interface CountryData {
   zipPlaceholder: string;
 }
 
-export interface PaymentDetails {
-  last4: string;
-  brand: string;
-  expiry: string;
-}
-
 export interface BillingDetails {
   name: string;
   street: string;

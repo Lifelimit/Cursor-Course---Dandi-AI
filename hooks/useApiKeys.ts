@@ -1,15 +1,7 @@
 import { useState, useEffect, useCallback, useId, useRef } from "react";
 import { ApiKey, ApiKeyApiResponse, mapApiKey } from "@/types/api";
+import type { ApiKeyMutationData } from "@/types/api-keys";
 import { supabase } from "@/lib/supabase-client";
-
-type ApiKeyMutationData = {
-  name?: string;
-  keyType?: string;
-  monthlyLimit?: number | null;
-  alertThreshold?: number;
-  alertChannels?: string[];
-  isActive?: boolean;
-};
 
 export function useApiKeys(initialData: ApiKey[] = []) {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>(initialData);

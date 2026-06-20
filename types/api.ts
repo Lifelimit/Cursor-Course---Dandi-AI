@@ -1,51 +1,21 @@
-export type DailyUsageTrend = {
-  date: string;
-  count: number;
-  success: number;
-  error: number;
-  avgLatency: number;
-};
+import type { ApiKey, ApiKeyApiResponse, ApiKeyType } from "@/types/api-keys";
+import type { UsageKeySummary } from "@/types/usage";
+import { formatIsoDate } from "@/lib/format";
 
-export type ApiKey = {
-  id: string;
-  name: string;
-  key_value: string;
-  type: "development" | "production";
-  usage_count: number;
-  monthly_limit: number | null;
-  createdAt: string;
-  is_active: boolean;
-  alert_threshold: number | null;
-  alert_channels: string[] | null;
-  alert_phone: string | null;
-  dailyTrend?: DailyUsageTrend[];
-};
+export type { ApiKey, ApiKeyApiResponse } from "@/types/api-keys";
+export type { DailyUsageTrend } from "@/types/usage";
 
-export type ApiKeyApiResponse = {
-  id: string;
-  name: string;
-  key_value: string;
-  key_type: "development" | "production";
-  usage_count: number;
-  monthly_limit: number | null;
-  created_at: string;
-  is_active: boolean;
-  alert_threshold: number | null;
-  alert_channels: string[] | null;
-  alert_phone: string | null;
-  dailyTrend?: DailyUsageTrend[];
-};
+type ApiKeyMapperRow = ApiKeyApiResponse | UsageKeySummary;
 
-export function formatDate(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
+export const formatDate = formatIsoDate;
 
-export function mapApiKey(row: ApiKeyApiResponse): ApiKey {
+// Dashboard SSR usage summaries intentionally omit `key_value`; preserve the legacy mapper behavior for that path.
+export function mapApiKey(row: ApiKeyMapperRow): ApiKey {
   return {
     id: row.id,
     name: row.name,
-    key_value: row.key_value,
-    type: row.key_type,
+    key_value: row.key_value as string,
+    type: row.key_type as ApiKeyType,
     usage_count: row.usage_count ?? 0,
     monthly_limit: row.monthly_limit ?? null,
     createdAt: row.created_at ? formatDate(new Date(row.created_at)) : formatDate(new Date()),

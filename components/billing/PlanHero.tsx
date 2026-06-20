@@ -2,6 +2,7 @@
 
 import React from "react";
 import { CommandPanel, StatusPill } from "@/components/command";
+import { formatCurrencyFromCents, formatLongDate, formatLongDateWithoutYear, formatRequestCount } from "@/lib/format";
 
 type PlanHeroProps = {
   plan: string;
@@ -29,7 +30,7 @@ export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, bil
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-300">Scheduled Plan Change</p>
             <p className="mt-1 text-sm font-medium text-cyan-100">
-              Your subscription will switch to <strong>{scheduledPlan}</strong> on {scheduledPlanDate ? new Date(scheduledPlanDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'the end of your billing cycle'}.
+              Your subscription will switch to <strong>{scheduledPlan}</strong> on {scheduledPlanDate ? formatLongDate(scheduledPlanDate) : 'the end of your billing cycle'}.
             </p>
           </div>
         </div>
@@ -64,7 +65,7 @@ export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, bil
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2">
               <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Next Invoice</p>
               <p className="text-xs font-bold text-slate-100">
-                {nextBillingDate ? new Date(nextBillingDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                {nextBillingDate ? formatLongDate(nextBillingDate) : 'N/A'}
               </p>
             </div>
 
@@ -74,7 +75,7 @@ export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, bil
                 <div className="flex items-center gap-1.5">
                   <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
                   <span className="text-xs font-bold text-emerald-200">
-                    ${(Math.abs(customerBalance) / 100).toFixed(2)}
+                    {formatCurrencyFromCents(customerBalance).replace("-", "")}
                   </span>
                 </div>
               </div>
@@ -87,8 +88,8 @@ export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, bil
             <div className="space-y-1">
               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Request Usage This Period</p>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-serif font-bold italic text-white">{usage.toLocaleString()}</span>
-                <span className="text-[10px] font-bold text-slate-500">/ {isUnlimited ? '∞' : limit.toLocaleString()} requests</span>
+                <span className="text-3xl font-serif font-bold italic text-white">{formatRequestCount(usage)}</span>
+                <span className="text-[10px] font-bold text-slate-500">/ {isUnlimited ? '∞' : formatRequestCount(limit)} requests</span>
               </div>
             </div>
             <div className="text-right">
@@ -104,7 +105,7 @@ export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, bil
           </div>
           
           <p className="text-[10px] text-slate-500">
-            Your usage resets on {nextBillingDate ? new Date(nextBillingDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : 'the next cycle'}.
+            Your usage resets on {nextBillingDate ? formatLongDateWithoutYear(nextBillingDate) : 'the next cycle'}.
           </p>
         </div>
       </div>

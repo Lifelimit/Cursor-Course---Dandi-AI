@@ -1,5 +1,7 @@
 "use client";
 
+import { formatRequestCount } from "@/lib/format";
+
 type ProgressiveListFooterProps = {
   visibleCount: number;
   totalCount: number;
@@ -24,7 +26,7 @@ export function ProgressiveListFooter({
   return (
     <div className="flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-xs font-semibold text-slate-500">
-        Showing {visibleCount.toLocaleString()} of {totalCount.toLocaleString()} {itemLabel}
+        Showing {formatRequestCount(visibleCount)} of {formatRequestCount(totalCount)} {itemLabel}
       </p>
       {(canShowMore || canShowLess) && (
         <div className="flex flex-wrap gap-2">

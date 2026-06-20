@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { formatLongDate } from "@/lib/format";
 
 type CancelConfirmationProps = {
   isLoading: boolean;
@@ -13,7 +14,7 @@ export function CancelConfirmation({ isLoading, hasCard, nextBillingDate, planNa
   const [keepCard, setKeepCard] = useState(true);
 
   const formattedDate = nextBillingDate
-    ? new Date(nextBillingDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    ? formatLongDate(nextBillingDate)
     : 'the end of your current term';
 
   return (

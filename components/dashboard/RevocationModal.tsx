@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ModalFrame } from "@/components/command/ModalFrame";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
+import { formatRequestCount } from "@/lib/format";
 
 type RevocationModalProps = {
   isOpen: boolean;
@@ -100,7 +101,7 @@ export function RevocationModal({
             </div>
             <div>
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Cumulative Usage</p>
-              <p className="mt-1 text-xs font-bold text-white tabular-nums">{keyUsage.toLocaleString()} reqs</p>
+              <p className="mt-1 text-xs font-bold text-white tabular-nums">{formatRequestCount(keyUsage)} reqs</p>
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 import { resolvePlan } from "@/lib/constants";
+import { formatIsoDate, formatLocalDate, formatLocalDateTime, formatLocalTime, formatRequestCount } from "@/lib/format";
 
 export async function GET() {
   try {
@@ -38,7 +39,7 @@ export async function GET() {
     // Generate CSV Metadata Header
     const metadata = [
       ["DANDI AI - STRATEGIC USAGE REPORT"],
-      [`Export Date: ${new Date().toLocaleString()}`],
+      [`Export Date: ${formatLocalDateTime(new Date())}`],
       [`User ID: ${userId}`],
       [`Account Tier: ${plan.toUpperCase()}`],
       [], // Spacer
@@ -53,13 +54,13 @@ export async function GET() {
       const limit = keyInfo ? (keyInfo.monthly_limit ?? planMonthlyLimit) : planMonthlyLimit;
 
       return [
-        usedAt.toLocaleDateString(),
-        usedAt.toLocaleTimeString(),
+        formatLocalDate(usedAt),
+        formatLocalTime(usedAt),
         log.repo_url || "N/A",
         keyInfo?.name || "Unknown",
         keyInfo?.key_type || "N/A",
         keyInfo?.key_value || "N/A",
-        limit ? `${limit.toLocaleString()} requests` : "Unlimited",
+        limit ? `${formatRequestCount(limit)} requests` : "Unlimited",
         log.status || "success",
         log.latency_ms ?? 0
       ];
@@ -74,7 +75,7 @@ export async function GET() {
     return new NextResponse(csvContent, {
       headers: {
         "Content-Type": "text/csv",
-        "Content-Disposition": `attachment; filename="dandi-strategic-report-${new Date().toISOString().split('T')[0]}.csv"`
+        "Content-Disposition": `attachment; filename="dandi-strategic-report-${formatIsoDate(new Date())}.csv"`
       }
     });
   } catch (err) {

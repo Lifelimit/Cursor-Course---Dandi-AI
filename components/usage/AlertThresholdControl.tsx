@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { getEffectiveAlertThresholdPct } from "@/lib/alerts";
+import { formatRequestCount } from "@/lib/format";
 
 type Props = {
   keyId: string;
@@ -108,7 +109,7 @@ export function AlertThresholdControl({
             Usage Alert Threshold
           </label>
           <span className={`text-[9px] font-black tabular-nums ${threshold >= 90 ? 'text-red-400' : 'text-slate-100'}`}>
-            {threshold}% ({triggerCount.toLocaleString()} req)
+            {threshold}% ({formatRequestCount(triggerCount)} req)
           </span>
         </div>
         
@@ -120,7 +121,7 @@ export function AlertThresholdControl({
             max={isSmallLimit ? limit : 100}
             step={isSmallLimit ? 1 : 5}
             value={sliderValue}
-            aria-valuetext={`${threshold}% threshold, ${triggerCount.toLocaleString()} requests`}
+            aria-valuetext={`${threshold}% threshold, ${formatRequestCount(triggerCount)} requests`}
             onChange={handleThresholdChange}
             className="h-1 flex-1 cursor-pointer appearance-none rounded-lg bg-white/10 accent-emerald-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
           />

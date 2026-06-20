@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 export type ErrorCategory =
   | "Network"
   | "Authentication"
@@ -106,14 +104,6 @@ export function GuidedError({
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-export function GuidedInlineError({ children }: { children: ReactNode }) {
-  return (
-    <div role="alert" className="rounded-2xl border border-rose-400/25 bg-rose-950/20 p-4 text-sm font-semibold leading-relaxed text-rose-100">
-      {children}
     </div>
   );
 }

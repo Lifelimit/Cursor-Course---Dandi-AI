@@ -2,58 +2,23 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 import { getServerEnv } from "@/lib/env";
-import { redis } from "@/lib/redis";
 import { resolvePlan } from "@/lib/constants";
 import crypto from "crypto";
 import { hmacHash } from "@/lib/services/api-key.service";
 import { assertCanActivateKeys, getUserPlan } from "@/lib/services/api-key-limits.service";
 import { getJsonObject, parseApiKeySettings } from "@/lib/request-validation";
+import {
+  buildCountOnlyDailyTrend,
+  getDisplayUsageCounts,
+  getDisplayUsageLogs,
+  getRecentUsageDates,
+} from "@/lib/services/usage-billing.service";
+import type { ApiKeyRow } from "@/types/api-keys";
 
 const TABLE_NAME = "api_keys";
 
-type ApiKeyRow = {
-  id: string;
-  name: string;
-  key_value: string;
-  key_type: "development" | "production";
-  usage_count: number;
-  monthly_limit: number | null;
-  created_at: string;
-  user_id: string;
-  is_active: boolean;
-  alert_threshold: number | null;
-  alert_channels: string[] | null;
-  alert_phone: string | null;
-};
-
 function buildKeyValue() {
   return `sk_live_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
-}
-
-interface UsageLog {
-  status: string;
-  keyId?: string;
-  usedAt: string;
-}
-
-function parseUsageLogs(rawLogs: unknown[]): UsageLog[] {
-  return rawLogs.flatMap((log): UsageLog[] => {
-    try {
-      const parsed = typeof log === "string" ? JSON.parse(log) : log;
-      if (!parsed || typeof parsed !== "object") return [];
-
-      const usageLog = parsed as Partial<UsageLog>;
-      if (typeof usageLog.keyId !== "string" || typeof usageLog.usedAt !== "string") return [];
-
-      return [{
-        status: typeof usageLog.status === "string" ? usageLog.status : "",
-        keyId: usageLog.keyId,
-        usedAt: usageLog.usedAt,
-      }];
-    } catch {
-      return [];
-    }
-  });
 }
 
 export async function GET() {
@@ -81,50 +46,21 @@ export async function GET() {
     }
 
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-    let keyUsageCounts: number[] = [];
-    if (data && data.length > 0) {
-      try {
-        const pipeline = redis.pipeline();
-        data.forEach(k => {
-          pipeline.get(`usage:key:${k.id}:${currentMonth}`);
-        });
-        keyUsageCounts = (await pipeline.exec<number[]>()) || [];
-      } catch (err) {
-        console.warn("⚠️ Display Redis key usage read failed; using zero key usage:", err);
-      }
-    }
+    const keyUsageCounts = await getDisplayUsageCounts(data ?? [], currentMonth);
 
     // Fetch user activity logs to build trend coordinates
     const logKey = `logs:user:${userId}:${currentMonth}`;
-    let logs: UsageLog[] = [];
-    try {
-      const rawLogs = await redis.lrange(logKey, 0, 99);
-      logs = parseUsageLogs(rawLogs);
-    } catch (err) {
-      console.warn("⚠️ Display Redis log read failed; using empty key trends:", err);
-    }
+    const logs = await getDisplayUsageLogs(logKey, 0, 99, {
+      requireKeyId: true,
+      warning: "⚠️ Display Redis log read failed; using empty key trends:",
+    });
 
-    const now = new Date();
-    const dates = Array.from({ length: 30 }, (_, i) => {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      return d.toISOString().split("T")[0];
-    }).reverse();
+    const dates = getRecentUsageDates();
 
     const mappedKeys = (data ?? []).map((k, index) => {
       const actualUsage = keyUsageCounts[index] || 0;
       const keyLogs = logs.filter((l) => l.keyId === k.id);
-      
-      const trendMap = keyLogs.reduce((acc: Record<string, number>, log) => {
-        const date = log.usedAt.split("T")[0];
-        acc[date] = (acc[date] || 0) + 1;
-        return acc;
-      }, {});
-
-      const dailyTrend = dates.map(date => ({
-        date,
-        count: trendMap[date] || 0
-      }));
+      const dailyTrend = buildCountOnlyDailyTrend(dates, keyLogs);
 
       return {
         ...k,

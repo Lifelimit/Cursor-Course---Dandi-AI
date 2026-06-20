@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getRequestTelemetry } from "@/lib/account-environments";
 import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOriginAllowed } from "@/lib/cors";
 import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
-import { getJsonObject, validateGitHubRepoUrl } from "@/lib/request-validation";
+import { getApiKeyFromRequest, invalidJsonResponse, jsonError, missingApiKeyResponse, readGitHubRepoUrl, readJsonBody } from "@/lib/api-request";
 import { isUuid } from "@/lib/security-core";
 import { createIngestionJob, formatIngestionJob, getIngestionJob, runIngestionJob } from "@/lib/services/ingestion-job.service";
 import { validateApiKey } from "@/lib/services/api-key.service";
@@ -21,10 +21,6 @@ export async function OPTIONS(request: Request) {
   return corsPreflightResponse(request, corsOptions);
 }
 
-function getApiKeyFromRequest(request: Request, body?: Record<string, unknown>) {
-  return request.headers.get("x-api-key") || (typeof body?.apiKey === "string" ? body.apiKey : "");
-}
-
 export async function GET(request: Request) {
   const corsHeaders = getCorsHeaders(request, corsOptions);
   if (!isCorsOriginAllowed(request)) return forbiddenCorsResponse(request);
@@ -37,11 +33,11 @@ export async function GET(request: Request) {
   const jobId = searchParams.get("jobId") || "";
 
   if (!apiKey) {
-    return NextResponse.json({ error: "API key is required" }, { status: 401, headers: corsHeaders });
+    return missingApiKeyResponse(corsHeaders, "API key is required");
   }
 
   if (!isUuid(jobId)) {
-    return NextResponse.json({ error: "Valid jobId is required" }, { status: 400, headers: corsHeaders });
+    return jsonError({ error: "Valid jobId is required" }, 400, corsHeaders);
   }
 
   try {
@@ -58,7 +54,7 @@ export async function GET(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load ingestion job.";
     const status = message.includes("not found") ? 404 : 401;
-    return NextResponse.json({ error: message }, { status, headers: corsHeaders });
+    return jsonError({ error: message }, status, corsHeaders);
   }
 }
 
@@ -71,24 +67,21 @@ export async function POST(request: Request) {
 
   let body: Record<string, unknown>;
   try {
-    body = getJsonObject(await request.json());
+    body = await readJsonBody(request);
   } catch {
-    return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400, headers: corsHeaders });
+    return invalidJsonResponse(corsHeaders);
   }
 
   let githubUrl: string;
   try {
-    githubUrl = validateGitHubRepoUrl(body.githubUrl);
+    githubUrl = readGitHubRepoUrl(body);
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 400, headers: corsHeaders });
+    return jsonError({ error: (err as Error).message }, 400, corsHeaders);
   }
 
   const apiKey = getApiKeyFromRequest(request, body);
   if (!apiKey) {
-    return NextResponse.json(
-      { error: "API key is required in headers (x-api-key) or body" },
-      { status: 401, headers: corsHeaders }
-    );
+    return missingApiKeyResponse(corsHeaders);
   }
 
   try {
@@ -129,6 +122,6 @@ export async function POST(request: Request) {
       : lowerMessage.includes("invalid api key")
           ? 401
           : 500;
-    return NextResponse.json({ error: message }, { status, headers: corsHeaders });
+    return jsonError({ error: message }, status, corsHeaders);
   }
 }

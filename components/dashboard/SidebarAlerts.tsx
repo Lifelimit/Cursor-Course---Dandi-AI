@@ -7,6 +7,7 @@ import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { Button } from "@/components/ui/PrimaryButton";
 import { StatusPill } from "@/components/command";
 import { getPlanLimits } from "@/lib/constants";
+import { formatRequestCount } from "@/lib/format";
 
 type Alert = {
   id: string;
@@ -117,7 +118,7 @@ export function SidebarAlerts({
             }
           };
           const limitGuidance = hasPlanHeadroom
-            ? `Allowed: ${(minimumLimit + 1).toLocaleString()} - ${maxLimitCap.toLocaleString()} requests.`
+            ? `Allowed: ${formatRequestCount(minimumLimit + 1)} - ${formatRequestCount(maxLimitCap)} requests.`
             : isUnlimited
               ? "This key is already at the maximum allowed usage limit."
               : "This key is already at your plan maximum. Upgrade the account plan to raise it further.";
@@ -194,7 +195,7 @@ export function SidebarAlerts({
                   <div className="space-y-3 pt-2 border-t border-white/5">
                     <div className="flex items-center justify-between">
                       <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Activity Trend</span>
-                      <span className="text-[8px] font-bold text-slate-200">{alert.usageCount.toLocaleString()} / {alert.currentLimit.toLocaleString()}</span>
+                      <span className="text-[8px] font-bold text-slate-200">{formatRequestCount(alert.usageCount)} / {formatRequestCount(alert.currentLimit)}</span>
                     </div>
                     <UsageSparkline data={alert.dailyTrend} color={isMaxed ? "#ef4444" : isWarning ? "#fbbf24" : "#10b981"} />
                   </div>
@@ -232,16 +233,16 @@ export function SidebarAlerts({
                     </div>
                     <div className="flex flex-col gap-1">
                       <p className="px-1 text-[8px] font-medium text-zinc-500 dark:text-zinc-400 italic">
-                        Current: {alert.currentLimit.toLocaleString()}
+                        Current: {formatRequestCount(alert.currentLimit)}
                       </p>
                       {isNotIncrease && newLimit !== "" && (
                         <p className="px-1 text-[8px] font-bold text-red-500">
-                          Must be strictly greater than current request limit/usage ({minimumLimit.toLocaleString()} requests).
+                          Must be strictly greater than current request limit/usage ({formatRequestCount(minimumLimit)} requests).
                         </p>
                       )}
                       {!isNotIncrease && isAbovePlanLimit && (
                         <p className="px-1 text-[8px] font-bold text-red-500">
-                          Cannot exceed the maximum allowed request limit of {maxLimitCap.toLocaleString()} requests.
+                          Cannot exceed the maximum allowed request limit of {formatRequestCount(maxLimitCap)} requests.
                         </p>
                       )}
                       {!isNotIncrease && !isAbovePlanLimit && (
@@ -320,16 +321,16 @@ export function SidebarAlerts({
                     </div>
                     <div className="flex flex-col gap-1">
                       <p className="px-1 text-[8px] font-medium text-zinc-400 italic">
-                        Current: {alert.currentLimit.toLocaleString()}
+                        Current: {formatRequestCount(alert.currentLimit)}
                       </p>
                       {isNotIncrease && newLimit !== "" && (
                         <p className="px-1 text-[8px] font-bold text-red-500">
-                          Must be strictly greater than current request limit/usage ({minimumLimit.toLocaleString()} requests).
+                          Must be strictly greater than current request limit/usage ({formatRequestCount(minimumLimit)} requests).
                         </p>
                       )}
                       {!isNotIncrease && isAbovePlanLimit && (
                         <p className="px-1 text-[8px] font-bold text-red-500">
-                          Cannot exceed the maximum allowed request limit of {maxLimitCap.toLocaleString()} requests.
+                          Cannot exceed the maximum allowed request limit of {formatRequestCount(maxLimitCap)} requests.
                         </p>
                       )}
                       {!isNotIncrease && !isAbovePlanLimit && (

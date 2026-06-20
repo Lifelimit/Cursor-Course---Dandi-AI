@@ -7,6 +7,8 @@ import { SyntaxHighlightedJSON } from "@/components/ui/SyntaxHighlightedJSON";
 import { CopyIconButton } from "@/components/ui/CopyIconButton";
 import { MockTerminal, StatusPill } from "@/components/command";
 import { getToastErrorMessage } from "@/lib/error-guidance";
+import { formatLocalTime } from "@/lib/format";
+import { getNetworkLogStatusTone } from "@/lib/status-tones";
 
 export type LogEntry = {
   id: string;
@@ -140,7 +142,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
     >
       <div className="space-y-3">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--command-border)] bg-[var(--command-bg)]/40 px-4 py-3">
-          <StatusPill tone={terminalStatus === "error" ? "danger" : terminalStatus === "running" ? "warning" : terminalStatus === "idle" ? "neutral" : "success"} pulse={terminalStatus === "running"} compact>
+          <StatusPill tone={getNetworkLogStatusTone(terminalStatus)} pulse={terminalStatus === "running"} compact>
             Request Log
           </StatusPill>
           {logs.length > 0 && (
@@ -397,7 +399,7 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
  
                       <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
                         <span className="text-[9px] text-slate-500 tabular-nums">
-                          [{new Date(log.timestamp).toLocaleTimeString()}]
+                          [{formatLocalTime(log.timestamp)}]
                         </span>
                         <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-200">
                           {log.label}

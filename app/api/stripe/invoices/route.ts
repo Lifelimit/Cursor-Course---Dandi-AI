@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import type { Invoice } from "@/types/billing";
 
 export async function GET() {
   try {
@@ -30,7 +31,7 @@ export async function GET() {
     });
 
     // 3. Map to Dandi's Invoice structure
-    const invoices = stripeInvoices.data.map((inv) => ({
+    const invoices: Invoice[] = stripeInvoices.data.map((inv) => ({
       id: inv.id,
       date: new Date(inv.created * 1000).toISOString(),
       amount: inv.total,

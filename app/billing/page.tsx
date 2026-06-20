@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { stripe } from "@/lib/stripe";
 import BillingClient from "@/app/billing/BillingClient";
 import { getServerUsageData } from "@/lib/services/server-data.service";
-import type { Invoice } from "@/components/billing/InvoiceTable";
+import type { Invoice } from "@/types/billing";
 
 export default async function BillingPage() {
   const supabase = await createClient();

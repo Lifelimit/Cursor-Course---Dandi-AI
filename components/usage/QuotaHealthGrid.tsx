@@ -7,27 +7,16 @@ import { hasCrossedAlertThreshold } from "@/lib/alerts";
 import { CommandPanel, StatusPill } from "@/components/command";
 import { GuidedError } from "@/components/ui/GuidedError";
 import { getErrorGuidance } from "@/lib/error-guidance";
-
-type KeyData = {
-  id: string;
-  name: string;
-  key_type: string;
-  usage_count: number;
-  monthly_limit: number | null;
-  is_active: boolean;
-  alert_threshold: number | null;
-  alert_channels: string[] | null;
-  alert_phone: string | null;
-  pct: number;
-  dailyTrend: { date: string, count: number }[];
-};
+import { formatRequestCount } from "@/lib/format";
+import { getApiKeyTypeTone } from "@/lib/status-tones";
+import type { UsageKeySummary } from "@/types/usage";
 
 export function QuotaHealthGrid({ 
   keys, 
   planMonthlyLimit,
   onUpdate 
 }: { 
-  keys: KeyData[];
+  keys: UsageKeySummary[];
   planMonthlyLimit: number | null;
   onUpdate: () => Promise<void>;
 }) {
@@ -58,7 +47,7 @@ export function QuotaHealthGrid({
 
   // 1. Smart Sorting for Active Keys
   const sortedActive = [...activeKeys].sort((a, b) => {
-    const getRank = (k: KeyData) => {
+    const getRank = (k: UsageKeySummary) => {
       if (k.pct >= 100) return 0;
       if (hasCrossedAlertThreshold(k)) return 1;
       if (k.pct >= 70) return 2;
@@ -97,7 +86,7 @@ export function QuotaHealthGrid({
     }
   };
 
-  const handleIncreaseLimit = async (key: KeyData) => {
+  const handleIncreaseLimit = async (key: UsageKeySummary) => {
     const parsedLimit = parseInt(newLimit.replace(/,/g, ""), 10);
     const currentLimit = key.monthly_limit ?? 0;
     const minimumLimit = Math.max(currentLimit, key.usage_count);
@@ -105,7 +94,7 @@ export function QuotaHealthGrid({
     if (isNaN(parsedLimit) || parsedLimit <= minimumLimit) {
       setLimitError({
         keyId: key.id,
-        message: `Enter a request limit greater than ${minimumLimit.toLocaleString()} requests.`,
+        message: `Enter a request limit greater than ${formatRequestCount(minimumLimit)} requests.`,
       });
       return;
     }
@@ -113,7 +102,7 @@ export function QuotaHealthGrid({
     if (planMonthlyLimit !== null && parsedLimit > planMonthlyLimit) {
       setLimitError({
         keyId: key.id,
-        message: `Request limit cannot exceed your plan maximum of ${planMonthlyLimit.toLocaleString()} requests.`,
+        message: `Request limit cannot exceed your plan maximum of ${formatRequestCount(planMonthlyLimit)} requests.`,
       });
       return;
     }
@@ -259,7 +248,7 @@ export function QuotaHealthGrid({
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <h3 className="font-serif text-lg font-bold text-white truncate">{key.name}</h3>
-                    <StatusPill tone={key.key_type === "production" ? "info" : "warning"} compact>
+                    <StatusPill tone={getApiKeyTypeTone(key.key_type)} compact>
                       {key.key_type === 'production' ? 'PROD' : 'DEV'}
                     </StatusPill>
                   </div>
@@ -308,7 +297,7 @@ export function QuotaHealthGrid({
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <div className="flex flex-col">
                     <span className={`text-2xl font-serif font-bold italic ${isExhausted ? 'text-red-400' : 'text-white'}`}>
-                      {key.usage_count.toLocaleString()}
+                      {formatRequestCount(key.usage_count)}
                     </span>
                     {!isExhausted && daysLeft !== null && (
                       <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-tight">
@@ -317,7 +306,7 @@ export function QuotaHealthGrid({
                     )}
                   </div>
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">
-                     / {key.monthly_limit ? key.monthly_limit.toLocaleString() : "∞"} <br/>Credits
+                     / {key.monthly_limit ? formatRequestCount(key.monthly_limit) : "∞"} <br/>Credits
                   </span>
                 </div>
                 
@@ -372,7 +361,7 @@ export function QuotaHealthGrid({
                             New monthly limit
                           </p>
                           <p className="mt-1 text-[10px] font-medium text-zinc-500">
-                            Current {key.monthly_limit?.toLocaleString() ?? "∞"} · Used {key.usage_count.toLocaleString()}
+                            Current {key.monthly_limit !== null && key.monthly_limit !== undefined ? formatRequestCount(key.monthly_limit) : "∞"} · Used {formatRequestCount(key.usage_count)}
                           </p>
                         </div>
                         <button
@@ -408,7 +397,7 @@ export function QuotaHealthGrid({
                             setLimitError(null);
                           }}
                           disabled={!hasPlanHeadroom}
-                          placeholder={cappedSuggestedLimit.toLocaleString()}
+                          placeholder={formatRequestCount(cappedSuggestedLimit)}
                           className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 pr-20 font-serif text-2xl font-bold text-zinc-100 outline-none transition focus:border-red-500/50"
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black uppercase tracking-widest text-zinc-500">
@@ -424,7 +413,7 @@ export function QuotaHealthGrid({
                       ) : (
                         <p className="text-[10px] font-medium leading-relaxed text-zinc-500">
                           {hasPlanHeadroom
-                            ? `Allowed range: ${(minimumLimit + 1).toLocaleString()} - ${planMonthlyLimit === null ? "unlimited" : planMonthlyLimit.toLocaleString()} requests.`
+                            ? `Allowed range: ${formatRequestCount(minimumLimit + 1)} - ${planMonthlyLimit === null ? "unlimited" : formatRequestCount(planMonthlyLimit)} requests.`
                             : "This key is already at your plan maximum. Upgrade the account plan to raise it further."}
                         </p>
                       )}
@@ -476,7 +465,7 @@ export function QuotaHealthGrid({
           
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {deadKeys.map((key) => {
-              const limitDisplay = key.monthly_limit ? key.monthly_limit.toLocaleString() : "∞";
+              const limitDisplay = key.monthly_limit ? formatRequestCount(key.monthly_limit) : "∞";
               return (
                 <CommandPanel 
                   key={key.id} 
@@ -523,7 +512,7 @@ export function QuotaHealthGrid({
                     <div className="space-y-1 min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-serif text-lg font-bold text-zinc-400 group-hover:text-white truncate transition-colors">{key.name}</h3>
-                        <StatusPill tone={key.key_type === "production" ? "info" : "warning"} compact>
+                        <StatusPill tone={getApiKeyTypeTone(key.key_type)} compact>
                           {key.key_type === 'production' ? 'PROD' : 'DEV'}
                         </StatusPill>
                       </div>
@@ -538,7 +527,7 @@ export function QuotaHealthGrid({
                   <div className="space-y-4 mb-6">
                     <div className="flex flex-wrap items-baseline justify-between gap-2 opacity-50">
                       <span className="text-2xl font-serif font-bold italic text-slate-300">
-                        {key.usage_count.toLocaleString()}
+                        {formatRequestCount(key.usage_count)}
                       </span>
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">
                          / {limitDisplay} <br/>Credits

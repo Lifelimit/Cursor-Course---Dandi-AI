@@ -1,22 +1,30 @@
-import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
-import { supabaseAdmin } from "@/lib/supabase-admin";
 import { resolvePaidPlanRequest, getPlanForSubscription } from "@/lib/billing-catalog";
 import { getJsonObject, validatePaymentMethodId } from "@/lib/request-validation";
 import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
 import { buildSubscriptionProfilePayload, resolveSubscriptionPaymentState } from "@/lib/services/stripe-billing-flow.service";
 import { sendPlanChangeScheduledEmail } from "@/lib/services/email.service";
+import { formatLongDate } from "@/lib/format";
+import {
+  getAuthenticatedBillingUser,
+  getBillingProfile,
+  mapStripeErrorResponse,
+  persistDefaultPaymentMethod,
+  requireStripeCustomerId,
+  updateAuthBillingMetadata,
+  updateProfileBillingMetadata,
+} from "@/lib/services/stripe-route.service";
+
+type BillingProfile = {
+  stripe_customer_id: string | null;
+};
 
 export async function POST(req: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user || !user.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { supabase, user, response } = await getAuthenticatedBillingUser({ requireEmail: true });
+    if (response) return response;
 
     const body = getJsonObject(await req.json());
     const planRequest = resolvePaidPlanRequest(body);
@@ -27,16 +35,9 @@ export async function POST(req: Request) {
     }
 
     // 1. Retrieve the customer ID from profiles
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("stripe_customer_id")
-      .eq("id", user.id)
-      .single();
-
-    const customerId = profile?.stripe_customer_id;
-    if (!customerId) {
-      return NextResponse.json({ error: "Stripe customer not found" }, { status: 404 });
-    }
+    const profile = await getBillingProfile<BillingProfile>(supabase, user.id, "stripe_customer_id");
+    const { customerId, response: missingCustomerResponse } = requireStripeCustomerId(profile, "Stripe customer not found");
+    if (missingCustomerResponse) return missingCustomerResponse;
 
     // 2. Attach new payment method if provided
     const pmId = body.paymentMethodId ? validatePaymentMethodId(body.paymentMethodId) : null;
@@ -45,11 +46,7 @@ export async function POST(req: Request) {
       if (!pm.customer) {
         await stripe.paymentMethods.attach(pmId, { customer: customerId });
       }
-      await stripe.customers.update(customerId, {
-        invoice_settings: {
-          default_payment_method: pmId,
-        },
-      });
+      await persistDefaultPaymentMethod(customerId, pmId);
     }
 
     // 3. Find if customer has an existing subscription
@@ -151,11 +148,7 @@ export async function POST(req: Request) {
       const effectiveDateNum =
         activeSubscription.items.data[0].current_period_end ||
         activeSubscription.current_period_end;
-      effectiveDateStr = new Date(effectiveDateNum * 1000).toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      });
+      effectiveDateStr = formatLongDate(effectiveDateNum * 1000);
       const currentPlan = getPlanForSubscription(activeSubscription);
       currentPlanName = currentPlan ? `${currentPlan.planId} (${currentPlan.interval})` : "Current Plan";
       newPlanName = `${planRequest.planId} (${planRequest.interval})`;
@@ -235,24 +228,13 @@ export async function POST(req: Request) {
       scheduledPlanDate: isScheduled && effectiveDateStr ? new Date(effectiveDateStr).toISOString() : null,
     });
 
-    // Update profiles table
-    const { error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .update(updatePayload)
-      .eq("id", user.id);
-    if (profileError) {
-      console.error("❌ Subscribe: Failed to update profile in database:", profileError.message);
-      throw new Error(`Database profile update failed: ${profileError.message}`);
-    }
-
-    // Update auth user metadata
-    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
-      user_metadata: { ...user.user_metadata, ...updatePayload },
+    // Update profiles table and auth user metadata
+    await updateProfileBillingMetadata(user.id, updatePayload, {
+      errorLog: "❌ Subscribe: Failed to update profile in database:",
     });
-    if (authError) {
-      console.error("❌ Subscribe: Failed to update auth metadata:", authError.message);
-      throw new Error(`Auth metadata update failed: ${authError.message}`);
-    }
+    await updateAuthBillingMetadata(user, updatePayload, {
+      errorLog: "❌ Subscribe: Failed to update auth metadata:",
+    });
 
     if (isScheduled && user.email) {
       // Send the scheduled change confirmation email asynchronously
@@ -264,9 +246,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, subscription });
   } catch (err) {
     console.error("Subscribe API Error:", err);
-    const message = err instanceof Error ? err.message : "Failed to process subscription";
-    const lowerMessage = message.toLowerCase();
-    const status = lowerMessage.includes("payment method") || lowerMessage.includes("invalid") ? 400 : 500;
-    return NextResponse.json({ error: status === 500 ? "Failed to process subscription" : message }, { status });
+    return mapStripeErrorResponse(err, "Failed to process subscription");
   }
 }

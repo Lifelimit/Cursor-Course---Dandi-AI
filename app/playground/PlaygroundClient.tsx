@@ -31,42 +31,16 @@ import {
 
 import { PLAN_DETAILS } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
+import { formatDuration, formatGitHubRepo, formatRequestCount } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
+import type { IngestionJobSummary, RagMessage, RagSource } from "@/types/rag";
 
 type DandiOnboardingMetadata = {
   started?: boolean;
   askedRepository?: boolean;
   reviewedUsage?: boolean;
   dismissed?: boolean;
-};
-
-type IngestionJobSummary = {
-  jobId: string;
-  status: "queued" | "running" | "completed" | "failed";
-  currentStep?: "queued" | "cloning" | "analyzing" | "summarizing" | "indexing" | "ready" | "failed";
-  repoUrl: string;
-  repoName?: string | null;
-  error?: string | null;
-  errorMessage?: string | null;
-  filesCount?: number | null;
-  chunksCount?: number | null;
-  indexedFileCount?: number | null;
-  chunkCount?: number | null;
-  summaryAvailable?: boolean;
-  indexAvailable?: boolean;
-  createdAt?: string;
-  startedAt?: string | null;
-  completedAt?: string | null;
-  failedAt?: string | null;
-  updatedAt?: string;
-};
-
-type RagSource = {
-  chunkId?: string;
-  filePath: string;
-  preview?: string;
-  similarity: number;
 };
 
 export default function PlaygroundClient({ 
@@ -142,7 +116,7 @@ export default function PlaygroundClient({
     updatedAt?: string;
     error?: string;
   } | null>(null);
-  const [ragMessages, setRagMessages] = useState<{ role: "user" | "assistant"; content: string; sources?: RagSource[] }[]>([]);
+  const [ragMessages, setRagMessages] = useState<RagMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [chatProgressStep, setChatProgressStep] = useState<"idle" | "searching" | "ranking" | "context" | "answer" | "sources">("idle");
@@ -408,14 +382,6 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
     scrollToSection(requestProgressRef);
 
     const maskedKey = apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`;
-    const getRepoPath = (url: string) => {
-      try {
-        const match = url.match(/github\.com\/([^\/]+\/[^\/]+)/);
-        return match ? match[1] : "unknown/repository";
-      } catch {
-        return "unknown/repository";
-      }
-    };
     const repoPath = getRepoPath(githubUrl);
     const selectedKeyName = apiKeys.find(k => k.key_value === apiKey)?.name || "Custom Key";
 
@@ -1147,14 +1113,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     });
   };
 
-  const getRepoPath = (url: string) => {
-    try {
-      const match = url.match(/github\.com\/([^\/]+\/[^\/]+)/);
-      return match ? match[1] : "unknown/repository";
-    } catch {
-      return "unknown/repository";
-    }
-  };
+  const getRepoPath = (url: string) => formatGitHubRepo(url);
 
   const isLightweightGreeting = (message: string) => {
     const normalized = message.trim().toLowerCase().replace(/[!?.\s]+$/g, "");
@@ -1192,15 +1151,6 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     scrollToSection(requestProgressRef);
 
     const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-    const getRepoPath = (url: string) => {
-      try {
-        const match = url.match(/github\.com\/([^\/]+\/[^\/]+)/);
-        return match ? match[1] : "unknown/repository";
-      } catch {
-        return "unknown/repository";
-      }
-    };
 
     const repoPath = getRepoPath(githubUrl);
     const selectedKeyName = apiKeys.find(k => k.key_value === apiKey)?.name || "Custom Key";
@@ -1379,7 +1329,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     {
       id: "summary-metadata",
       label: "Fetching repository metadata",
-      detail: repoMetadata ? `${repoMetadata.stars.toLocaleString()} stars · ${repoMetadata.license}` : "Reading public GitHub metadata",
+      detail: repoMetadata ? `${formatRequestCount(repoMetadata.stars)} stars · ${repoMetadata.license}` : "Reading public GitHub metadata",
       status: summaryRepoStage,
     },
     {
@@ -1512,8 +1462,8 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
   const hasSourceEvidence = ragMessages.some((message) => (message.sources?.length || 0) > 0);
   const retrievalAttempted = ragMessages.some((message) => message.sources !== undefined);
   const currentIndexStats = indexedRepositoryStats?.repoUrl === githubUrl ? indexedRepositoryStats : null;
-  const indexedFilesLabel = typeof currentIndexStats?.filesCount === "number" ? currentIndexStats.filesCount.toLocaleString() : "Not reported";
-  const indexedChunksLabel = typeof currentIndexStats?.chunksCount === "number" ? currentIndexStats.chunksCount.toLocaleString() : "Not reported";
+  const indexedFilesLabel = typeof currentIndexStats?.filesCount === "number" ? formatRequestCount(currentIndexStats.filesCount) : "Not reported";
+  const indexedChunksLabel = typeof currentIndexStats?.chunksCount === "number" ? formatRequestCount(currentIndexStats.chunksCount) : "Not reported";
   const hasIndexedCounts = typeof currentIndexStats?.filesCount === "number" || typeof currentIndexStats?.chunksCount === "number";
   const currentIngestionStep = currentIndexStats?.currentStep;
   const indexedAiStage = getModeLogStatus(indexedRequestLogs, "ai_processing");
@@ -1704,7 +1654,6 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
   const completedLogs = requestLogs.filter((log) => log.status !== "pending" && log.duration > 0);
   const observedLatency = completedLogs.reduce((total, log) => total + log.duration, 0);
   const lastCompletedLog = completedLogs[completedLogs.length - 1];
-  const formatDuration = (duration: number) => duration >= 1000 ? `${(duration / 1000).toFixed(1)}s` : `${duration}ms`;
   const latencyRows = [
     {
       label: "Request total",
@@ -1883,18 +1832,10 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                         <button
                           type="button"
                           onClick={() => {
-                            const getRepoPath = (url: string) => {
-                              try {
-                                const match = url.match(/github\.com\/([^\/]+\/[^\/]+)/);
-                                return match ? match[1] : "repository";
-                              } catch {
-                                return "repository";
-                              }
-                            };
                             setRagMessages([
                               {
                                 role: "assistant",
-                                content: `The repository **${getRepoPath(githubUrl)}** is ready. Ask a question and Dandi will use matching repository context before answering.`
+                                content: `The repository **${formatGitHubRepo(githubUrl, "repository")}** is ready. Ask a question and Dandi will use matching repository context before answering.`
                               }
                             ]);
                           }}
@@ -1917,7 +1858,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                           </p>
                           <p className="mt-1 text-xs font-medium leading-relaxed text-slate-300">
                             {typeof currentIndexStats?.filesCount === "number" && typeof currentIndexStats?.chunksCount === "number"
-                              ? `${currentIndexStats.filesCount.toLocaleString()} files processed into ${currentIndexStats.chunksCount.toLocaleString()} searchable chunks.`
+                              ? `${formatRequestCount(currentIndexStats.filesCount)} files processed into ${formatRequestCount(currentIndexStats.chunksCount)} searchable chunks.`
                               : "The repository is ready for source-backed questions."}
                           </p>
                         </div>
@@ -2233,7 +2174,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                                   <span className={`text-[9px] font-bold tabular-nums ${
                                     isOver ? "text-red-500" : pct !== null && pct >= 70 ? "text-amber-500" : "text-zinc-500 dark:text-zinc-400"
                                   }`}>
-                                    {k.usage_count.toLocaleString()} / {k.monthly_limit ? k.monthly_limit.toLocaleString() : "∞"} requests
+                                    {formatRequestCount(k.usage_count)} / {k.monthly_limit ? formatRequestCount(k.monthly_limit) : "∞"} requests
                                   </span>
                                 </div>
                                 {pct !== null && (
@@ -2487,7 +2428,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                                   <>
                                     <div className="flex items-center gap-1.5 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 select-none">
                                       <span className="text-amber-500">★</span>
-                                      <span>{repoMetadata.stars.toLocaleString()} Stars</span>
+                                      <span>{formatRequestCount(repoMetadata.stars)} Stars</span>
                                     </div>
                                     <div className="flex items-center gap-1.5 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 select-none">
                                       <span className="text-zinc-400">⚖</span>

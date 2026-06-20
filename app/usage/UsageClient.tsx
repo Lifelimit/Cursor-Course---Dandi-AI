@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/useToast";
@@ -15,62 +15,16 @@ import { TopReposTable } from "@/components/usage/TopReposTable";
 import { AnalyticsDashboard } from "@/components/usage/AnalyticsDashboard";
 import { CommandPanel, StatusPill, TabsBar } from "@/components/command";
 import { useProgressiveList } from "@/hooks/useProgressiveList";
+import { useUsageData } from "@/hooks/useUsageData";
 import { createClient } from "@/lib/supabase/client";
 
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
-
-type UsageData = {
-  totalUsage: number;
-  keys: {
-    id: string;
-    name: string;
-    key_type: string;
-    usage_count: number;
-    monthly_limit: number | null;
-    is_active: boolean;
-    alert_threshold: number | null;
-    alert_channels: string[] | null;
-    alert_phone: string | null;
-    pct: number;
-    dailyTrend: {
-      date: string;
-      count: number;
-      success: number;
-      error: number;
-      avgLatency: number;
-    }[];
-  }[];
-  globalTopRepos: { repo_url: string; count: number }[];
-  resetDate: string | null;
-  nextInvoiceDate: string | null;
-  avgLatency?: number;
-  successRate?: number;
-  dailyAnalytics?: {
-    date: string;
-    count: number;
-    success: number;
-    error: number;
-    avgLatency: number;
-  }[];
-};
-
-type IngestionJobSummary = {
-  jobId: string;
-  status: "queued" | "running" | "completed" | "failed";
-  currentStep?: string;
-  repoUrl: string;
-  repoName?: string | null;
-  errorMessage?: string | null;
-  indexedFileCount?: number | null;
-  chunkCount?: number | null;
-  indexAvailable?: boolean;
-  createdAt?: string;
-  completedAt?: string | null;
-  failedAt?: string | null;
-  updatedAt?: string;
-};
+import { formatJobDateTime, formatRepositoryLabel, formatRequestCount, formatShortDate } from "@/lib/format";
+import { getIngestionStatusTone } from "@/lib/status-tones";
+import type { IngestionJobSummary } from "@/types/rag";
+import type { UsageData } from "@/types/usage";
 
 export default function UsageClient({ 
   initialSession, 
@@ -81,17 +35,37 @@ export default function UsageClient({
 }) {
   const activeSession = initialSession;
   
-  const [data, setData] = useState<UsageData | null>(initialData);
   const [activeTab, setActiveTab] = useState<"credentials" | "analytics">("credentials");
-  const [isLoading, setIsLoading] = useState(initialData === null);
   const [recentJobs, setRecentJobs] = useState<IngestionJobSummary[]>([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
-  const [usageError, setUsageError] = useState<string | null>(null);
   const [recentJobsError, setRecentJobsError] = useState<string | null>(null);
-  const isHydrated = useRef(initialData !== null);
   const { toast, showToast } = useToast();
 
-  const [isSyncing, setIsSyncing] = useState(false);
+  const handleUsageError = useCallback((message: string, _error: unknown, context: { background: boolean }) => {
+    if (!context.background) {
+      showToast("error", getToastErrorMessage("usage", message));
+    }
+  }, [showToast]);
+
+  const {
+    currentData,
+    isLoading,
+    isSyncing,
+    error: usageError,
+    refresh: fetchUsageData,
+  } = useUsageData({
+    initialData,
+    initialRefreshDelayMs: initialData ? 1000 : 0,
+    pollingIntervalMs: 20000,
+    requestCache: "no-store",
+    fallbackErrorMessage: "Failed to load usage analytics.",
+    logErrorLabel: "Usage Fetch Error:",
+    backgroundSyncResetDelayMs: 600,
+    onError: handleUsageError,
+  });
+  const refreshUsageData = useCallback(async (background = false) => {
+    await fetchUsageData(background);
+  }, [fetchUsageData]);
 
   useEffect(() => {
     const user = activeSession?.user;
@@ -119,54 +93,6 @@ export default function UsageClient({
     });
   }, [activeSession]);
 
-  const fetchUsageData = useCallback(async (background = false) => {
-    try {
-      if (background) {
-        setIsSyncing(true);
-      } else if (!isHydrated.current) {
-        setIsLoading(true);
-      }
-      
-      const res = await fetch("/api/usage", { cache: "no-store" });
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json?.error || "Failed to load usage analytics.");
-      }
-      setData(json);
-      setUsageError(null);
-      isHydrated.current = false;
-    } catch (err) {
-      console.error("Usage Fetch Error:", err);
-      const message = err instanceof Error ? err.message : "Failed to load usage analytics.";
-      if (!background) {
-        setUsageError(message);
-        showToast("error", getToastErrorMessage("usage", message));
-      }
-    } finally {
-      setIsLoading(false);
-      if (background) {
-        setTimeout(() => setIsSyncing(false), 600);
-      }
-    }
-  }, [showToast]);
-
-  useEffect(() => {
-    // Setup initial paint refresh delay
-    const initialTimer = setTimeout(() => {
-      fetchUsageData(false);
-    }, initialData ? 1000 : 0);
-
-    // Poll every 20 seconds to keep analytics hot without making the header feel busy.
-    const pollingInterval = setInterval(() => {
-      fetchUsageData(true);
-    }, 20000);
-
-    return () => {
-      clearTimeout(initialTimer);
-      clearInterval(pollingInterval);
-    };
-  }, [fetchUsageData, initialData]);
-
   const fetchRecentJobs = useCallback(async () => {
     setIsLoadingJobs(true);
     try {
@@ -189,7 +115,6 @@ export default function UsageClient({
     void Promise.resolve().then(fetchRecentJobs);
   }, [fetchRecentJobs]);
 
-  const currentData = data || initialData;
   const currentPlan = activeSession?.user?.user_metadata?.plan || "Hobby";
   const { monthlyLimit: currentLimit, isUnlimited, maxLimitCap } = getPlanLimits(currentPlan);
 
@@ -202,19 +127,7 @@ export default function UsageClient({
 
   const formatJobDate = (value?: string | null) => {
     if (!value) return "Pending";
-    return new Date(value).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  };
-
-  const getJobTone = (status: IngestionJobSummary["status"]) => {
-    if (status === "completed") return "success" as const;
-    if (status === "failed") return "danger" as const;
-    if (status === "running") return "warning" as const;
-    return "info" as const;
+    return formatJobDateTime(value);
   };
 
   const getJobEventDate = (job: IngestionJobSummary) => job.failedAt || job.completedAt || job.updatedAt || job.createdAt;
@@ -222,7 +135,7 @@ export default function UsageClient({
   const getRepoLabel = (job: IngestionJobSummary) => {
     if (job.repoName) return job.repoName;
     try {
-      return job.repoUrl.replace("https://github.com/", "").replace(/\/$/, "");
+      return formatRepositoryLabel(job.repoUrl, { trimTrailingSlash: true });
     } catch {
       return "Unknown repository";
     }
@@ -298,7 +211,7 @@ export default function UsageClient({
           limit: currentLimit,
           isUnlimited,
           alerts,
-          onUpdate: fetchUsageData,
+          onUpdate: refreshUsageData,
         }}
       >
           <DashboardPageHeader
@@ -341,7 +254,7 @@ export default function UsageClient({
                     <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                   <span className="text-[9px] font-black uppercase tracking-widest text-emerald-200">
-                    Resets {new Date(currentData.resetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    Resets {formatShortDate(currentData.resetDate)}
                   </span>
                 </div>
               )}
@@ -363,7 +276,7 @@ export default function UsageClient({
                 <GuidedError
                   {...getErrorGuidance({ workflow: "usage", message: usageError })}
                   technicalDetails={usageError}
-                  onAction={() => fetchUsageData(false)}
+                  onAction={() => refreshUsageData(false)}
                   actionLabel="Refresh"
                 />
               )}
@@ -382,7 +295,7 @@ export default function UsageClient({
                     <QuotaHealthGrid
                       keys={currentData.keys}
                       planMonthlyLimit={maxLimitCap}
-                      onUpdate={() => fetchUsageData(true)}
+                      onUpdate={() => refreshUsageData(true)}
                     />
                   ) : (
                     <CommandPanel className="border-dashed p-8 text-center sm:p-12">
@@ -462,7 +375,7 @@ export default function UsageClient({
                                       </p>
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
-                                      <StatusPill tone={getJobTone(latestJob.status)} compact>
+                                      <StatusPill tone={getIngestionStatusTone(latestJob.status)} compact>
                                         {getStatusLabel(latestJob)}
                                       </StatusPill>
                                       <span className="text-[9px] font-bold uppercase tracking-widest text-slate-600">
@@ -473,8 +386,8 @@ export default function UsageClient({
 
                                   <div className="mt-4 space-y-2 border-t border-white/10 pt-4">
                                     {group.jobs.map((job) => {
-                                      const files = typeof job.indexedFileCount === "number" ? job.indexedFileCount.toLocaleString() : "0";
-                                      const chunks = typeof job.chunkCount === "number" ? job.chunkCount.toLocaleString() : "0";
+                                      const files = typeof job.indexedFileCount === "number" ? formatRequestCount(job.indexedFileCount) : "0";
+                                      const chunks = typeof job.chunkCount === "number" ? formatRequestCount(job.chunkCount) : "0";
                                       const runDate = getJobEventDate(job);
                                       return (
                                         <div key={job.jobId} className="rounded-xl border border-white/10 bg-slate-950/70 p-3">
@@ -489,7 +402,7 @@ export default function UsageClient({
                                                 <span>{job.indexAvailable ? "Index available" : "Index unavailable"}</span>
                                               </div>
                                             </div>
-                                            <StatusPill tone={getJobTone(job.status)} compact>
+                                            <StatusPill tone={getIngestionStatusTone(job.status)} compact>
                                               {getStatusLabel(job)}
                                             </StatusPill>
                                           </div>
@@ -573,7 +486,7 @@ export default function UsageClient({
                     avgLatency={currentData?.avgLatency || 0}
                     successRate={currentData?.successRate || 0}
                     dailyAnalytics={currentData?.dailyAnalytics || []}
-                    onUpdate={fetchUsageData}
+                    onUpdate={refreshUsageData}
                   />
                 </div>
               )}

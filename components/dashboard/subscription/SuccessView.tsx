@@ -1,5 +1,6 @@
 import React from "react";
 import { Session } from "@supabase/supabase-js";
+import { formatLongDate } from "@/lib/format";
 
 type SuccessViewProps = {
   pendingPlan: string | null;
@@ -36,7 +37,7 @@ export function SuccessView({ pendingPlan, transactionId, session, onClose }: Su
           </div>
           <div className="flex justify-between items-center text-sm">
             <span className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Date</span>
-            <span className="font-medium text-white">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+            <span className="font-medium text-white">{formatLongDate(new Date())}</span>
           </div>
           <div className="flex justify-between items-center text-sm">
             <span className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Status</span>

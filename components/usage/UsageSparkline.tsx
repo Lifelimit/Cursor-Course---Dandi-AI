@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import { formatShortDate } from "@/lib/format";
 
 type DataPoint = { date: string; count: number };
 
@@ -70,7 +71,7 @@ export function UsageSparkline({ data, color = "#10b981", isLoading = false }: {
         >
           <div className="flex flex-col items-center gap-0.5 min-w-[50px] leading-tight">
             <span className="opacity-60 text-[6px]">
-              {new Date(data[hoveredIndex].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {formatShortDate(data[hoveredIndex].date)}
             </span>
             <span className="font-mono">{data[hoveredIndex].count} Req</span>
           </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ApiKey, ApiKeyApiResponse, mapApiKey } from "@/types/api";
+import { formatRequestCount } from "@/lib/format";
 
 const HOBBY_KEY_LIMIT = 3;
 
@@ -144,7 +145,7 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
                 <div className="flex w-full flex-col gap-2 sm:w-40">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-slate-400">Usage</span>
-                    <span className="text-[10px] font-bold text-white">{key.usage_count.toLocaleString()} <span className="text-slate-400 font-medium">/ {currentLimit.toLocaleString()}</span></span>
+                    <span className="text-[10px] font-bold text-white">{formatRequestCount(key.usage_count)} <span className="text-slate-400 font-medium">/ {formatRequestCount(currentLimit)}</span></span>
                   </div>
 
                   <div className="h-1 w-full bg-slate-900 rounded-full overflow-hidden">
