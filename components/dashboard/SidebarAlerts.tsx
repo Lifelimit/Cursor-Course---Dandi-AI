@@ -6,6 +6,7 @@ import { UsageSparkline } from "../usage/UsageSparkline";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { Button } from "@/components/ui/PrimaryButton";
 import { StatusPill } from "@/components/command";
+import { useKeyLimitEditor } from "@/hooks/useKeyLimitEditor";
 import { getPlanLimits } from "@/lib/constants";
 import { formatRequestCount } from "@/lib/format";
 
@@ -29,49 +30,15 @@ export function SidebarAlerts({
   onUpdate: () => void;
 }) {
   const [peekingKey, setPeekingKey] = React.useState<string | null>(null);
-  const [flyoutKey, setFlyoutKey] = React.useState<string | null>(null);
-  const [newLimit, setNewLimit] = React.useState<string>("");
-  const [isUpdating, setIsUpdating] = React.useState(false);
 
   const { maxLimitCap, isUnlimited } = getPlanLimits(plan);
-
-  React.useEffect(() => {
-    if (flyoutKey) {
-      const timer = setTimeout(() => {
-        const visibleInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[inputmode="numeric"]'));
-        const activeInput = visibleInputs.find(input => input.offsetWidth > 0 || input.offsetHeight > 0);
-        if (activeInput) {
-          activeInput.focus();
-        }
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [flyoutKey]);
+  const limitEditor = useKeyLimitEditor({
+    planMonthlyLimit: maxLimitCap,
+    onUpdate,
+    mode: "silent",
+  });
 
   if (alerts.length === 0) return null;
-
-  const handleIncrease = async (alert: Alert) => {
-    const parsedLimit = parseInt(newLimit.replace(/,/g, ''), 10);
-    if (isNaN(parsedLimit) || parsedLimit <= 0) return;
-    if (alert.pct >= 100 && parsedLimit <= alert.currentLimit) return;
-    if (parsedLimit > maxLimitCap) return;
-    setIsUpdating(true);
-    try {
-      const res = await fetch("/api/usage/alert", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyId: alert.id, monthlyLimit: parsedLimit })
-      });
-      if (res.ok) {
-        onUpdate();
-        setFlyoutKey(null);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
 
   return (
     <div className="mt-8 space-y-4">
@@ -97,26 +64,13 @@ export function SidebarAlerts({
             : `This key crossed its ${Math.round(alert.threshold)}% usage alert.`;
           const actionText = isMaxed ? "Increase the key limit or upgrade the plan." : "Increase the key limit before traffic is blocked.";
           const isPeeking = peekingKey === alert.id;
-          const isFlying = flyoutKey === alert.id;
-          const parsedNewLimit = parseInt(newLimit.replace(/,/g, ''), 10);
-          const minimumLimit = Math.max(alert.currentLimit, alert.usageCount);
-          const hasPlanHeadroom = minimumLimit < maxLimitCap;
-          const isNotIncrease = parsedNewLimit <= minimumLimit;
-          const isAbovePlanLimit = parsedNewLimit > maxLimitCap;
-          const isSubmitDisabled = !hasPlanHeadroom || isUpdating || isNaN(parsedNewLimit) || parsedNewLimit <= 0 || isNotIncrease || isAbovePlanLimit;
-          const handleNewLimitChange = (value: string) => {
-            const digits = value.replace(/[^0-9]/g, '');
-            if (!digits) {
-              setNewLimit("");
-              return;
-            }
-            const parsed = parseInt(digits, 10);
-            if (parsed > maxLimitCap) {
-              setNewLimit(String(maxLimitCap));
-            } else {
-              setNewLimit(digits);
-            }
-          };
+          const isFlying = limitEditor.openKeyId === alert.id;
+          const limitState = limitEditor.getLimitState({
+            keyId: alert.id,
+            currentLimit: alert.currentLimit,
+            usageCount: alert.usageCount,
+          });
+          const { minimumLimit, hasPlanHeadroom, isNotIncrease, isAbovePlanLimit, isSubmitDisabled } = limitState;
           const limitGuidance = hasPlanHeadroom
             ? `Allowed: ${formatRequestCount(minimumLimit + 1)} - ${formatRequestCount(maxLimitCap)} requests.`
             : isUnlimited
@@ -164,8 +118,7 @@ export function SidebarAlerts({
                       variant="secondary"
                       size="sm"
                       onClick={() => {
-                        setNewLimit("");
-                        setFlyoutKey(isFlying ? null : alert.id);
+                        limitEditor.toggleEditor(alert.id, { resetValue: true });
                       }}
                       className="w-full mt-3 justify-center border-emerald-400/20 bg-emerald-400/10 px-2 py-2 text-[8px] text-emerald-300 hover:border-emerald-300/40 hover:bg-emerald-400/15"
                       aria-controls={`quota-limit-form-${alert.id}`}
@@ -212,8 +165,8 @@ export function SidebarAlerts({
                       type="text"
                       inputMode="numeric"
                       aria-label={`Debug new monthly limit for ${alert.keyName}`}
-                      value={newLimit}
-                      onChange={(e) => setNewLimit(e.target.value.replace(/\D/g, ""))}
+                      value={limitEditor.value}
+                      onChange={(e) => limitEditor.handleInputChange(e.target.value, { clampToPlanLimit: false })}
                       onKeyDown={(e) => console.log("debug keydown", e.key, e.repeat)}
                       className="dandi-field px-4 py-4 font-serif text-2xl font-bold bg-purple-900"
                     />
@@ -223,8 +176,8 @@ export function SidebarAlerts({
                         type="text" 
                         inputMode="numeric"
                         aria-label={`New monthly limit for ${alert.keyName}`}
-                        value={newLimit}
-                        onChange={(e) => handleNewLimitChange(e.target.value)}
+                        value={limitEditor.value}
+                        onChange={(e) => limitEditor.handleInputChange(e.target.value)}
                         disabled={!hasPlanHeadroom}
                         placeholder="500"
                         className="dandi-field px-4 py-4 font-serif text-2xl font-bold"
@@ -235,7 +188,7 @@ export function SidebarAlerts({
                       <p className="px-1 text-[8px] font-medium text-zinc-500 dark:text-zinc-400 italic">
                         Current: {formatRequestCount(alert.currentLimit)}
                       </p>
-                      {isNotIncrease && newLimit !== "" && (
+                      {isNotIncrease && limitEditor.value !== "" && (
                         <p className="px-1 text-[8px] font-bold text-red-500">
                           Must be strictly greater than current request limit/usage ({formatRequestCount(minimumLimit)} requests).
                         </p>
@@ -255,11 +208,16 @@ export function SidebarAlerts({
                       type="button"
                       variant="primary"
                       size="lg"
-                      onClick={() => handleIncrease(alert)}
+                      onClick={() => limitEditor.submit({
+                        keyId: alert.id,
+                        currentLimit: alert.currentLimit,
+                        usageCount: alert.usageCount,
+                        pct: alert.pct,
+                      })}
                       disabled={isSubmitDisabled}
                       className="relative w-full overflow-hidden py-4 text-[10px] tracking-[0.2em]"
                     >
-                      <span className="relative z-10">{isUpdating ? 'Updating...' : 'Update Limit'}</span>
+                      <span className="relative z-10">{limitEditor.isUpdating ? 'Updating...' : 'Update Limit'}</span>
                       <div className="absolute inset-0 z-0 bg-gradient-to-r from-emerald-600 to-teal-600 opacity-0 transition-opacity group-hover:opacity-10" />
                     </Button>
                   </div>
@@ -298,7 +256,7 @@ export function SidebarAlerts({
                       <span className="mt-1 text-[8px] font-bold text-zinc-500 uppercase italic">Increase monthly key limit</span>
                     </div>
                     <ModalCloseButton
-                      onClick={() => setFlyoutKey(null)}
+                      onClick={() => limitEditor.closeEditor()}
                       className="relative z-10 h-9 w-9 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white border border-white/5 [&_svg]:h-4 [&_svg]:w-4"
                     />
                   </div>
@@ -311,8 +269,8 @@ export function SidebarAlerts({
                       <input 
                         type="text" 
                         inputMode="numeric"
-                        value={newLimit}
-                        onChange={(e) => handleNewLimitChange(e.target.value)}
+                        value={limitEditor.value}
+                        onChange={(e) => limitEditor.handleInputChange(e.target.value)}
                         disabled={!hasPlanHeadroom}
                         placeholder="500"
                         className="dandi-field px-4 py-4 font-serif text-2xl font-bold"
@@ -323,7 +281,7 @@ export function SidebarAlerts({
                       <p className="px-1 text-[8px] font-medium text-zinc-400 italic">
                         Current: {formatRequestCount(alert.currentLimit)}
                       </p>
-                      {isNotIncrease && newLimit !== "" && (
+                      {isNotIncrease && limitEditor.value !== "" && (
                         <p className="px-1 text-[8px] font-bold text-red-500">
                           Must be strictly greater than current request limit/usage ({formatRequestCount(minimumLimit)} requests).
                         </p>
@@ -345,11 +303,16 @@ export function SidebarAlerts({
                     type="button"
                     variant="primary"
                     size="lg"
-                    onClick={() => handleIncrease(alert)}
+                    onClick={() => limitEditor.submit({
+                      keyId: alert.id,
+                      currentLimit: alert.currentLimit,
+                      usageCount: alert.usageCount,
+                      pct: alert.pct,
+                    })}
                     disabled={isSubmitDisabled}
                     className="relative w-full overflow-hidden py-4 text-[10px] tracking-[0.2em]"
                   >
-                    <span className="relative z-10">{isUpdating ? 'Updating...' : 'Update Limit'}</span>
+                    <span className="relative z-10">{limitEditor.isUpdating ? 'Updating...' : 'Update Limit'}</span>
                     <div className="absolute inset-0 z-0 bg-gradient-to-r from-emerald-600 to-teal-600 opacity-0 transition-opacity group-hover:opacity-10" />
                   </Button>
                 </div>

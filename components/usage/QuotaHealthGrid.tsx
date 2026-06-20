@@ -6,6 +6,7 @@ import { AlertThresholdControl } from "./AlertThresholdControl";
 import { hasCrossedAlertThreshold } from "@/lib/alerts";
 import { CommandPanel, StatusPill } from "@/components/command";
 import { GuidedError } from "@/components/ui/GuidedError";
+import { useKeyLimitEditor } from "@/hooks/useKeyLimitEditor";
 import { getErrorGuidance } from "@/lib/error-guidance";
 import { formatRequestCount } from "@/lib/format";
 import { getApiKeyTypeTone } from "@/lib/status-tones";
@@ -24,23 +25,11 @@ export function QuotaHealthGrid({
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [updatingKeyId, setUpdatingKeyId] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<{ keyId: string; message: string } | null>(null);
-  const [limitEditorKeyId, setLimitEditorKeyId] = useState<string | null>(null);
-  const [newLimit, setNewLimit] = useState<string>("");
-  const [updatingLimitKeyId, setUpdatingLimitKeyId] = useState<string | null>(null);
-  const [limitError, setLimitError] = useState<{ keyId: string; message: string } | null>(null);
-
-  React.useEffect(() => {
-    if (limitEditorKeyId) {
-      const timer = setTimeout(() => {
-        const visibleInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[inputmode="numeric"]'));
-        const activeInput = visibleInputs.find(input => input.offsetWidth > 0 || input.offsetHeight > 0);
-        if (activeInput) {
-          activeInput.focus();
-        }
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [limitEditorKeyId]);
+  const limitEditor = useKeyLimitEditor({
+    planMonthlyLimit,
+    onUpdate,
+    mode: "detailed",
+  });
 
   const activeKeys = keys.filter(k => k.is_active);
   const deadKeys = keys.filter(k => !k.is_active);
@@ -86,57 +75,6 @@ export function QuotaHealthGrid({
     }
   };
 
-  const handleIncreaseLimit = async (key: UsageKeySummary) => {
-    const parsedLimit = parseInt(newLimit.replace(/,/g, ""), 10);
-    const currentLimit = key.monthly_limit ?? 0;
-    const minimumLimit = Math.max(currentLimit, key.usage_count);
-
-    if (isNaN(parsedLimit) || parsedLimit <= minimumLimit) {
-      setLimitError({
-        keyId: key.id,
-        message: `Enter a request limit greater than ${formatRequestCount(minimumLimit)} requests.`,
-      });
-      return;
-    }
-
-    if (planMonthlyLimit !== null && parsedLimit > planMonthlyLimit) {
-      setLimitError({
-        keyId: key.id,
-        message: `Request limit cannot exceed your plan maximum of ${formatRequestCount(planMonthlyLimit)} requests.`,
-      });
-      return;
-    }
-
-    setUpdatingLimitKeyId(key.id);
-    setLimitError(null);
-    try {
-      const res = await fetch("/api/usage/alert", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyId: key.id, monthlyLimit: parsedLimit })
-      });
-      const payload = await res.json();
-      if (res.ok) {
-        setLimitEditorKeyId(null);
-        setNewLimit("");
-        await onUpdate();
-        return;
-      }
-      setLimitError({
-        keyId: key.id,
-        message: payload?.error || "Failed to update monthly limit.",
-      });
-    } catch (err) {
-      console.error(err);
-      setLimitError({
-        keyId: key.id,
-        message: "Network error while updating monthly limit.",
-      });
-    } finally {
-      setUpdatingLimitKeyId(null);
-    }
-  };
-
   return (
     <div className="space-y-16">
       {/* Active Keys Section */}
@@ -168,11 +106,13 @@ export function QuotaHealthGrid({
           const cappedSuggestedLimit = planMonthlyLimit === null
             ? suggestedLimit
             : Math.min(planMonthlyLimit, Math.max(minimumLimit + 1, suggestedLimit));
-          const isLimitEditorOpen = limitEditorKeyId === key.id;
-          const parsedNewLimit = parseInt(newLimit.replace(/,/g, ""), 10);
-          const isAbovePlanLimit = planMonthlyLimit !== null && parsedNewLimit > planMonthlyLimit;
-          const hasPlanHeadroom = planMonthlyLimit === null || minimumLimit < planMonthlyLimit;
-          const isLimitSubmitDisabled = !hasPlanHeadroom || updatingLimitKeyId === key.id || isNaN(parsedNewLimit) || parsedNewLimit <= minimumLimit || isAbovePlanLimit;
+          const isLimitEditorOpen = limitEditor.openKeyId === key.id;
+          const limitState = limitEditor.getLimitState({
+            keyId: key.id,
+            currentLimit: key.monthly_limit,
+            usageCount: key.usage_count,
+          });
+          const { hasPlanHeadroom, isSubmitDisabled: isLimitSubmitDisabled } = limitState;
 
           return (
           <CommandPanel 
@@ -337,9 +277,7 @@ export function QuotaHealthGrid({
                     <button
                       type="button"
                       onClick={() => {
-                        setLimitEditorKeyId(isLimitEditorOpen ? null : key.id);
-                        setNewLimit("");
-                        setLimitError(null);
+                        limitEditor.toggleEditor(key.id, { resetValue: true, clearError: true });
                       }}
                       className="flex min-h-11 items-center justify-center rounded-2xl bg-red-600 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-red-950/30 transition hover:bg-red-500 active:scale-95"
                     >
@@ -367,8 +305,7 @@ export function QuotaHealthGrid({
                         <button
                           type="button"
                           onClick={() => {
-                            setNewLimit(String(cappedSuggestedLimit));
-                            setLimitError(null);
+                            limitEditor.setValue(String(cappedSuggestedLimit), { clearError: true });
                           }}
                           disabled={!hasPlanHeadroom}
                           className="shrink-0 rounded-full border border-zinc-700 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-zinc-400 transition hover:border-red-500/40 hover:text-red-300"
@@ -380,22 +317,8 @@ export function QuotaHealthGrid({
                         <input
                           type="text"
                           inputMode="numeric"
-                          value={newLimit}
-                          onChange={(event) => {
-                            const digits = event.target.value.replace(/[^0-9]/g, "");
-                            if (!digits) {
-                              setNewLimit("");
-                              setLimitError(null);
-                              return;
-                            }
-                            const parsed = parseInt(digits, 10);
-                            if (planMonthlyLimit !== null && parsed > planMonthlyLimit) {
-                              setNewLimit(String(planMonthlyLimit));
-                            } else {
-                              setNewLimit(digits);
-                            }
-                            setLimitError(null);
-                          }}
+                          value={limitEditor.value}
+                          onChange={(event) => limitEditor.handleInputChange(event.target.value)}
                           disabled={!hasPlanHeadroom}
                           placeholder={formatRequestCount(cappedSuggestedLimit)}
                           className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 pr-20 font-serif text-2xl font-bold text-zinc-100 outline-none transition focus:border-red-500/50"
@@ -404,10 +327,10 @@ export function QuotaHealthGrid({
                           Requests
                         </span>
                       </div>
-                      {limitError?.keyId === key.id ? (
+                      {limitEditor.error?.keyId === key.id ? (
                         <GuidedError
-                          {...getErrorGuidance({ workflow: "api-key", message: limitError.message })}
-                          technicalDetails={limitError.message}
+                          {...getErrorGuidance({ workflow: "api-key", message: limitEditor.error.message })}
+                          technicalDetails={limitEditor.error.message}
                           compact
                         />
                       ) : (
@@ -419,11 +342,15 @@ export function QuotaHealthGrid({
                       )}
                       <button
                         type="button"
-                        onClick={() => handleIncreaseLimit(key)}
+                        onClick={() => limitEditor.submit({
+                          keyId: key.id,
+                          currentLimit: key.monthly_limit,
+                          usageCount: key.usage_count,
+                        })}
                         disabled={isLimitSubmitDisabled}
                         className="w-full rounded-2xl bg-zinc-100 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition hover:bg-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
                       >
-                        {updatingLimitKeyId === key.id ? "Updating..." : "Update Limit"}
+                        {limitEditor.updatingKeyId === key.id ? "Updating..." : "Update Limit"}
                       </button>
                     </div>
                   )}

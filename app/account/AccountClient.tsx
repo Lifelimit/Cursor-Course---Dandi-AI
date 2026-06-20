@@ -10,6 +10,9 @@ import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { ProgressiveListFooter } from "@/components/ui/ProgressiveListFooter";
 import { CardSkeleton, TableRowsSkeleton } from "@/components/ui/SkeletonBlocks";
 import { GuidedError } from "@/components/ui/GuidedError";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FieldInput } from "@/components/ui/FieldInput";
+import { PanelHeader } from "@/components/ui/PanelHeader";
 import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { getPlanLimits } from "@/lib/constants";
@@ -485,46 +488,46 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
               {/* TAB 1: Profile Details */}
               {activeTab === "profile" && (
                 <CommandPanel id="account-profile-panel" role="tabpanel" aria-labelledby="profile-tab" className="space-y-8 p-8 md:p-10">
-                  <div className="space-y-1">
-                    <h3 className="font-serif text-2xl font-bold text-white">Developer Identity</h3>
-                    <p className="text-sm text-slate-400">Configure personal tags and custom API slugs.</p>
-                  </div>
+                  <PanelHeader
+                    title="Developer Identity"
+                    description="Configure personal tags and custom API slugs."
+                  />
 
                   <form onSubmit={handleSaveProfile} className="space-y-6 max-w-xl">
                     <div className="space-y-2">
                       <label htmlFor="account-email" className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Email Address</label>
-                      <input 
+                      <FieldInput
                         id="account-email"
                         type="email" 
                         readOnly 
                         value={activeSession?.user?.email || ""} 
-                        className="w-full rounded-2xl border border-white/5 bg-slate-950/20 px-5 py-4 text-sm font-semibold text-zinc-500 outline-none cursor-not-allowed border-dashed select-all" 
+                        tone="readonly"
                       />
                       <p className="text-[8px] text-zinc-500 italic ml-1">Email cannot be changed here. Contact support to update your sign-in email.</p>
                     </div>
 
                     <div className="space-y-2">
                       <label htmlFor="account-full-name" className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Full Name</label>
-                      <input 
+                      <FieldInput
                         id="account-full-name"
                         type="text" 
                         required
                         placeholder="Developer Name"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm font-medium text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 transition-all" 
+                        fieldSize="lg"
                       />
                     </div>
 
                     <div className="space-y-2">
                       <label htmlFor="account-org-slug" className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Organization Namespace Slug</label>
-                      <input 
+                      <FieldInput
                         id="account-org-slug"
                         type="text" 
                         placeholder="my-cool-org"
                         value={orgSlug}
                         onChange={(e) => setOrgSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                        className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-sm font-medium text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 transition-all" 
+                        fieldSize="lg"
                       />
                       {orgSlug && (
                         <div className="ml-1 flex flex-col gap-1 rounded-xl border border-white/5 bg-slate-950/20 p-3 font-mono text-[9px] text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
@@ -549,10 +552,10 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
               {/* TAB 2: Git Provider Integrations */}
               {activeTab === "integrations" && (
                 <CommandPanel id="account-integrations-panel" role="tabpanel" aria-labelledby="integrations-tab" className="space-y-8 p-8 md:p-10">
-                  <div className="space-y-1">
-                    <h3 className="font-serif text-2xl font-bold text-white">Git Provider Connections</h3>
-                    <p className="text-sm text-slate-400">Manage OAuth access for repository summaries.</p>
-                  </div>
+                  <PanelHeader
+                    title="Git Provider Connections"
+                    description="Manage OAuth access for repository summaries."
+                  />
 
                   <div className="grid gap-6 md:grid-cols-2 max-w-4xl">
                     {/* GitHub Connection */}
@@ -931,20 +934,20 @@ X-Dandi-Event: quota.warning`}
 
                     <div className="space-y-3 md:hidden">
                       {webhookLogs.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/30 p-5 text-center">
-                          <p className="text-sm font-bold text-slate-200">No webhook deliveries yet.</p>
-                          <p className="mt-2 text-xs font-medium leading-5 text-zinc-500">
-                            Delivery logs appear after you save an endpoint and Dandi sends a test or alert webhook.
-                          </p>
-                          <button
-                            type="button"
-                            onClick={webhookUrl ? runWebhookTest : focusWebhookUrlInput}
-                            disabled={isTestingWebhook}
-                            className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15 disabled:opacity-50"
-                          >
-                            {webhookUrl ? "Trigger Test Webhook" : "Configure Webhook URL"}
-                          </button>
-                        </div>
+                        <EmptyState
+                          title="No webhook deliveries yet."
+                          description="Delivery logs appear after you save an endpoint and Dandi sends a test or alert webhook."
+                          action={(
+                            <button
+                              type="button"
+                              onClick={webhookUrl ? runWebhookTest : focusWebhookUrlInput}
+                              disabled={isTestingWebhook}
+                              className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15 disabled:opacity-50"
+                            >
+                              {webhookUrl ? "Trigger Test Webhook" : "Configure Webhook URL"}
+                            </button>
+                          )}
+                        />
                       ) : (
                         <>
                           {visibleWebhookLogs.map((log) => {
@@ -1025,20 +1028,21 @@ X-Dandi-Event: quota.warning`}
                             {webhookLogs.length === 0 ? (
                               <tr>
                                 <td colSpan={6} className="px-6 py-10 text-center">
-                                  <div className="mx-auto max-w-md rounded-2xl border border-dashed border-white/10 bg-slate-950/30 p-5">
-                                    <p className="text-sm font-bold text-slate-200">No webhook deliveries yet.</p>
-                                    <p className="mt-2 text-xs font-medium leading-5 text-zinc-500">
-                                      Delivery logs appear after you save an endpoint and Dandi sends a test or alert webhook.
-                                    </p>
-                                    <button
-                                      type="button"
-                                      onClick={webhookUrl ? runWebhookTest : focusWebhookUrlInput}
-                                      disabled={isTestingWebhook}
-                                      className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15 disabled:opacity-50"
-                                    >
-                                      {webhookUrl ? "Trigger Test Webhook" : "Configure Webhook URL"}
-                                    </button>
-                                  </div>
+                                  <EmptyState
+                                    className="mx-auto max-w-md"
+                                    title="No webhook deliveries yet."
+                                    description="Delivery logs appear after you save an endpoint and Dandi sends a test or alert webhook."
+                                    action={(
+                                      <button
+                                        type="button"
+                                        onClick={webhookUrl ? runWebhookTest : focusWebhookUrlInput}
+                                        disabled={isTestingWebhook}
+                                        className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15 disabled:opacity-50"
+                                      >
+                                        {webhookUrl ? "Trigger Test Webhook" : "Configure Webhook URL"}
+                                      </button>
+                                    )}
+                                  />
                                 </td>
                               </tr>
                             ) : (
@@ -1296,26 +1300,26 @@ X-Dandi-Event: quota.warning`}
                       )}
 
                       {accessView === "api" && apiAccessEnvironments.length === 0 && (
-                        <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/30 p-5 text-center">
-                          <p className="text-sm font-bold text-slate-200">No API access recorded yet.</p>
-                          <p className="mt-2 text-xs font-medium leading-5 text-zinc-500">
-                            API access appears after you create a key or send a repository request from an external client.
-                          </p>
-                          <Link href="/dashboards" className="mt-4 inline-flex text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
-                            Create API Key
-                          </Link>
-                        </div>
+                        <EmptyState
+                          title="No API access recorded yet."
+                          description="API access appears after you create a key or send a repository request from an external client."
+                          action={(
+                            <Link href="/dashboards" className="mt-4 inline-flex text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
+                              Create API Key
+                            </Link>
+                          )}
+                        />
                       )}
                       {accessView === "browser" && browserEnvironments.length === 0 && (
-                        <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/30 p-5 text-center">
-                          <p className="text-sm font-bold text-slate-200">No browser session telemetry yet.</p>
-                          <p className="mt-2 text-xs font-medium leading-5 text-zinc-500">
-                            Browser sessions appear after sign-in activity is recorded for this account.
-                          </p>
-                          <button type="button" onClick={loadData} className="mt-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
-                            Refresh Sessions
-                          </button>
-                        </div>
+                        <EmptyState
+                          title="No browser session telemetry yet."
+                          description="Browser sessions appear after sign-in activity is recorded for this account."
+                          action={(
+                            <button type="button" onClick={loadData} className="mt-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
+                              Refresh Sessions
+                            </button>
+                          )}
+                        />
                       )}
                     </div>
 
@@ -1403,30 +1407,32 @@ X-Dandi-Event: quota.warning`}
                             {accessView === "api" && apiAccessEnvironments.length === 0 && (
                               <tr>
                                 <td colSpan={6} className="px-6 py-10 text-center">
-                                  <div className="mx-auto max-w-md rounded-2xl border border-dashed border-white/10 bg-slate-950/30 p-5">
-                                    <p className="text-sm font-bold text-slate-200">No API access recorded yet.</p>
-                                    <p className="mt-2 text-xs font-medium leading-5 text-zinc-500">
-                                      API access appears after you create a key or send a repository request from an external client.
-                                    </p>
-                                    <Link href="/dashboards" className="mt-4 inline-flex text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
-                                      Create API Key
-                                    </Link>
-                                  </div>
+                                  <EmptyState
+                                    className="mx-auto max-w-md"
+                                    title="No API access recorded yet."
+                                    description="API access appears after you create a key or send a repository request from an external client."
+                                    action={(
+                                      <Link href="/dashboards" className="mt-4 inline-flex text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
+                                        Create API Key
+                                      </Link>
+                                    )}
+                                  />
                                 </td>
                               </tr>
                             )}
                             {accessView === "browser" && browserEnvironments.length === 0 && (
                               <tr>
                                 <td colSpan={5} className="px-6 py-10 text-center">
-                                  <div className="mx-auto max-w-md rounded-2xl border border-dashed border-white/10 bg-slate-950/30 p-5">
-                                    <p className="text-sm font-bold text-slate-200">No browser session telemetry yet.</p>
-                                    <p className="mt-2 text-xs font-medium leading-5 text-zinc-500">
-                                      Browser sessions appear after sign-in activity is recorded for this account.
-                                    </p>
-                                    <button type="button" onClick={loadData} className="mt-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
-                                      Refresh Sessions
-                                    </button>
-                                  </div>
+                                  <EmptyState
+                                    className="mx-auto max-w-md"
+                                    title="No browser session telemetry yet."
+                                    description="Browser sessions appear after sign-in activity is recorded for this account."
+                                    action={(
+                                      <button type="button" onClick={loadData} className="mt-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
+                                        Refresh Sessions
+                                      </button>
+                                    )}
+                                  />
                                 </td>
                               </tr>
                             )}

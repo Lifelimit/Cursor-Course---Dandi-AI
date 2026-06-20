@@ -5,6 +5,7 @@ import { PLANS } from "@/lib/constants";
 import Link from "next/link";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 import { ModalFrame } from "@/components/command/ModalFrame";
+import { useSubscriptionFlow } from "@/hooks/useSubscriptionFlow";
 
 import { Session } from "@supabase/supabase-js";
 
@@ -67,7 +68,8 @@ export function PricingSection({
     (activeSession?.user?.user_metadata as { plan?: string })?.plan || "Hobby"
   );
 
-  const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
+  const subscriptionFlow = useSubscriptionFlow({ initialBillingInterval: "month" });
+  const billingInterval = subscriptionFlow.modalBillingInterval;
   const [sliderIndex, setSliderIndex] = useState<number>(0);
   const activeSliderStep = SLIDER_STEPS[sliderIndex];
   const estimatedMonthlyUsage = activeSliderStep.value;
@@ -76,15 +78,11 @@ export function PricingSection({
   const recommendedPlanDetails = PLAN_RECOMMENDATIONS[recommendedPlanId];
   const nextRecommendation = RECOMMENDATION_THRESHOLDS.find((threshold) => threshold.min > estimatedMonthlyUsage);
 
-  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const [isRefreshingPlan, setIsRefreshingPlan] = useState(false);
   const currentPlan = PLANS.find(p => p.id === currentPlanId);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [keysToKeep, setKeysToKeep] = useState<string[]>([]);
-  const [modalInitialView, setModalInitialView] = useState<"overview" | "cancel-confirm" | "update-payment" | "plan-change-review">("overview");
-  const [modalPendingPlan, setModalPendingPlan] = useState<string | null>(null);
   const [userKeys, setUserKeys] = useState<{id: string, name: string, usage_count: number}[]>([]);
 
   // Function to load the absolute source of truth directly from database
@@ -131,28 +129,12 @@ export function PricingSection({
     // Unified Downgrade Flow: Intercept move to Hobby
     if (planId === "Hobby" && currentPlanId !== "Hobby") {
       await fetchKeys();
-      setIsModalOpen(false);
+      subscriptionFlow.closeModal();
       setIsCancelModalOpen(true);
       return;
     }
 
-    setLoadingPlanId(planId);
-    try {
-      // Upgrading or Switching between paid plans -> show review screen
-      if (planId !== "Hobby" && planId !== currentPlanId) {
-        setModalInitialView("plan-change-review");
-        setModalPendingPlan(planId);
-        setIsModalOpen(true);
-        return;
-      }
-
-      // Default: show review screen
-      setModalInitialView("plan-change-review");
-      setModalPendingPlan(planId);
-      setIsModalOpen(true);
-    } finally {
-      setLoadingPlanId(null);
-    }
+    subscriptionFlow.launchPricingPlan({ planId });
   };
 
   return (
@@ -168,7 +150,7 @@ export function PricingSection({
           <div className="mx-auto inline-grid grid-cols-[auto_auto_auto] grid-rows-[auto_auto] items-center justify-center gap-x-4 gap-y-1">
             <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "month" ? "text-zinc-100" : "text-zinc-500"}`}>Monthly</span>
             <button
-              onClick={() => setBillingInterval(billingInterval === "month" ? "year" : "month")}
+              onClick={subscriptionFlow.toggleBillingInterval}
               role="switch"
               aria-checked={billingInterval === "year"}
               aria-label={`Billing interval: ${billingInterval === "year" ? "annual" : "monthly"}`}
@@ -282,7 +264,7 @@ export function PricingSection({
           {PLANS.map((plan) => {
             const isCurrent = currentPlanId === plan.id;
             const isUpgrade = currentPlan && plan.level > currentPlan.level;
-            const isLoading = loadingPlanId === plan.id;
+            const isLoading = subscriptionFlow.loadingPlanId === plan.id;
             const displayPrice = billingInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
 
             // Generate clean classes for dark mode
@@ -391,19 +373,19 @@ export function PricingSection({
       </div>
       
       <SubscriptionModal 
-        key={isModalOpen ? "open" : "closed"}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        key={subscriptionFlow.isModalOpen ? "open" : "closed"}
+        isOpen={subscriptionFlow.isModalOpen}
+        onClose={subscriptionFlow.closeModal}
         planName={currentPlanId || "Hobby"}
         onSuccess={(msg) => {
           onSuccess?.(msg);
           fetchFreshPlan();
         }}
         onError={onError}
-        initialView={modalInitialView}
-        initialPendingPlan={modalPendingPlan}
+        initialView={subscriptionFlow.modalInitialView}
+        initialPendingPlan={subscriptionFlow.modalPendingPlan}
         initialBillingInterval={billingInterval}
-        onDowngrade={() => { setIsModalOpen(false); setIsCancelModalOpen(true); }}
+        onDowngrade={() => { subscriptionFlow.closeModal(); setIsCancelModalOpen(true); }}
         session={activeSession}
       />
 
@@ -484,7 +466,7 @@ export function PricingSection({
                   disabled={keysToKeep.length !== 3 && userKeys.length >= 3}
                   onClick={async () => {
                     try {
-                      setLoadingPlanId("cancel");
+                      subscriptionFlow.setLoadingPlanId("cancel");
                       const res = await fetch("/api/stripe/cancel-subscription", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -500,7 +482,7 @@ export function PricingSection({
                     } catch {
                       onError?.("Failed to cancel subscription.");
                     } finally {
-                      setLoadingPlanId(null);
+                      subscriptionFlow.setLoadingPlanId(null);
                     }
                   }}
                   className="flex-1 rounded-2xl bg-zinc-100 py-4 text-xs font-black uppercase tracking-widest text-zinc-950 shadow-none transition-all hover:bg-zinc-200 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"

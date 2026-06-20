@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { GhostButton } from "@/components/ui/ActionButtons";
 import { ApiKey, ApiKeyApiResponse, mapApiKey } from "@/types/api";
 import { formatRequestCount } from "@/lib/format";
 
@@ -181,14 +182,14 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
 
       {/* Actions */}
       <div className="flex flex-col gap-3 sm:flex-row pt-4 border-t border-white/5">
-        <button
+        <GhostButton
           type="button"
           onClick={onBack}
           disabled={isLoading}
-          className="flex-1 rounded-full border border-white/10 bg-slate-950/40 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
+          className="flex-1 py-5"
         >
           Go Back
-        </button>
+        </GhostButton>
         <button
           type="button"
           onClick={handleConfirm}

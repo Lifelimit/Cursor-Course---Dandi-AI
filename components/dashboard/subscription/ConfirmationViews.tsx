@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { formatLongDate } from "@/lib/format";
+import { DangerButton, GhostButton } from "@/components/ui/ActionButtons";
 
 type CancelConfirmationProps = {
   isLoading: boolean;
@@ -44,21 +45,21 @@ export function CancelConfirmation({ isLoading, hasCard, nextBillingDate, planNa
       )}
 
       <div className="flex flex-col gap-3 border-t border-white/5 pt-6">
-        <button
+        <DangerButton
           type="button"
           onClick={() => onConfirm(keepCard)}
-          disabled={isLoading}
-          className="w-full rounded-full bg-rose-600 py-5 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-rose-700 shadow-xl disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+          isLoading={isLoading}
+          className="w-full py-5 shadow-xl"
         >
           {isLoading ? "Scheduling..." : "Schedule Cancellation"}
-        </button>
-        <button
+        </DangerButton>
+        <GhostButton
           type="button"
           onClick={onCancel}
-          className="w-full rounded-full border border-white/10 bg-slate-950/40 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
+          className="w-full py-5"
         >
           Keep My Plan
-        </button>
+        </GhostButton>
       </div>
     </div>
   );
@@ -88,21 +89,21 @@ export function RemoveCardConfirmation({ isLoading, onConfirm, onCancel }: Remov
       </div>
 
       <div className="flex flex-col gap-3 mt-12">
-        <button
+        <DangerButton
           type="button"
           onClick={onConfirm}
-          disabled={isLoading}
-          className="w-full rounded-full bg-rose-600 py-4 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-rose-700 disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+          isLoading={isLoading}
+          className="w-full py-4 focus-visible:ring-rose-500"
         >
           {isLoading ? "Processing..." : "Remove Card"}
-        </button>
-        <button
+        </DangerButton>
+        <GhostButton
           type="button"
           onClick={onCancel}
-          className="w-full rounded-full border border-white/10 bg-slate-950/40 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
+          className="w-full py-4"
         >
           Keep Card
-        </button>
+        </GhostButton>
       </div>
     </div>
   );

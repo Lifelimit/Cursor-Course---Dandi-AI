@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { COUNTRIES, LOCATION_DATA, PLAN_RANKS } from "@/lib/constants";
 import { BillingDetails } from "@/types";
+import { GhostButton } from "@/components/ui/ActionButtons";
+import { FieldInput, FieldSelect } from "@/components/ui/FieldInput";
 import { CardNumberElement, CardExpiryElement, CardCvcElement } from "@stripe/react-stripe-js";
 
 type PaymentFormProps = {
@@ -81,14 +83,13 @@ export function PaymentForm({
       <div className="grid gap-6 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-2">
           <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Cardholder Name</label>
-          <input 
+          <FieldInput
             type="text" 
             name="name"
             required
             value={formValues.name}
             onChange={handleInputChange}
             placeholder="Enter full name"
-            className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-medium text-white placeholder-zinc-650 outline-none transition focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10"
           />
         </div>
         
@@ -149,7 +150,7 @@ export function PaymentForm({
             {/* 1. Country */}
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Country</label>
-              <select 
+              <FieldSelect
                 name="country"
                 required
                 value={formValues.country}
@@ -164,23 +165,21 @@ export function PaymentForm({
                     street: ""
                   }));
                 }}
-                className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-medium text-white outline-none transition focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 appearance-none"
               >
                 <option value="" className="bg-slate-950 text-slate-400">Select Country</option>
                 {COUNTRIES.map(c => <option key={c} value={c} className="bg-slate-950 text-white">{c}</option>)}
-              </select>
+              </FieldSelect>
             </div>
 
             {formValues.country && (
               <div className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-top-2 duration-300 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">State / Province</label>
-                  <select 
+                  <FieldSelect
                     name="state"
                     required
                     value={formValues.state}
                     onChange={handleInputChange}
-                    className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-medium text-white outline-none transition focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 appearance-none"
                   >
                     <option value="" className="bg-slate-950 text-slate-400">Select State</option>
                     {formValues.country && LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].states && 
@@ -188,24 +187,23 @@ export function PaymentForm({
                         <option key={s} value={s} className="bg-slate-950 text-white">{s}</option>
                       ))
                     }
-                  </select>
+                  </FieldSelect>
                 </div>
 
                 {formValues.state && (
                   <div className="space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">City</label>
-                    <select 
+                    <FieldSelect
                       name="city"
                       required
                       value={formValues.city}
                       onChange={handleInputChange}
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-medium text-white outline-none transition focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 appearance-none"
                     >
                       <option value="" className="bg-slate-950 text-slate-400">Select City</option>
                       {formValues.state && LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].states[formValues.state].map(c => (
                         <option key={c} value={c} className="bg-slate-950 text-white">{c}</option>
                       ))}
-                    </select>
+                    </FieldSelect>
                   </div>
                 )}
               </div>
@@ -217,26 +215,24 @@ export function PaymentForm({
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                     {LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].zipLabel}
                   </label>
-                  <input 
+                  <FieldInput
                     type="text" 
                     name="zip"
                     required
                     value={formValues.zip}
                     onChange={handleInputChange}
                     placeholder={LOCATION_DATA[formValues.country as keyof typeof LOCATION_DATA].zipPlaceholder}
-                    className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-medium text-white placeholder-zinc-650 outline-none transition focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Street Address</label>
-                  <input 
+                  <FieldInput
                     type="text" 
                     name="street"
                     required
                     value={formValues.street}
                     onChange={handleInputChange}
                     placeholder="123 Main St"
-                    className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-medium text-white placeholder-zinc-650 outline-none transition focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10"
                   />
                 </div>
               </div>
@@ -274,7 +270,7 @@ export function PaymentForm({
         >
           {isLoading ? "Validating..." : (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? `Upgrade to ${pendingPlan}` : `Downgrade to ${pendingPlan}`) : "Save Payment Method")}
         </button>
-        <button 
+        <GhostButton
           type="button"
           onClick={() => {
             if (initialView === "update-payment") {
@@ -286,10 +282,10 @@ export function PaymentForm({
               setView("overview");
             }
           }}
-          className="w-full rounded-full border border-white/10 bg-slate-950/40 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
+          className="w-full py-4"
         >
           Go Back
-        </button>
+        </GhostButton>
       </div>
     </form>
   );

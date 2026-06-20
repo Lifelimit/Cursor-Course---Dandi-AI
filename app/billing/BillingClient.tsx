@@ -5,6 +5,7 @@ import { User } from "@supabase/supabase-js";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { useToast } from "@/hooks/useToast";
+import { useSubscriptionFlow } from "@/hooks/useSubscriptionFlow";
 import { Toast } from "@/components/ui/Toast";
 import { PlanHero } from "@/components/billing/PlanHero";
 import { PlanComparison } from "@/components/billing/PlanComparison";
@@ -168,37 +169,10 @@ export default function BillingClient({
 
   const alerts = computeSidebarAlerts(currentData?.keys || []);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalInitialView, setModalInitialView] = useState<"overview" | "cancel-confirm" | "update-payment" | "plan-change-review">("overview");
-  const [modalPendingPlan, setModalPendingPlan] = useState<string | null>(null);
-  const [modalBillingInterval, setModalBillingInterval] = useState<"month" | "year">(billingInterval);
+  const subscriptionFlow = useSubscriptionFlow({ initialBillingInterval: billingInterval });
 
   const handleUpgrade = (planId: string, interval?: "month" | "year") => {
-    if (interval) setModalBillingInterval(interval);
-
-    // Unified Downgrade Flow: Intercept any move to Hobby and show the premium Key Selection Modal
-    if (planId === "Hobby" && currentPlan !== "Hobby") {
-      setModalPendingPlan("Hobby");
-      setModalInitialView("overview"); // The modal's useEffect will handle the redirection to the audit view
-      setIsModalOpen(true);
-      return;
-    }
-
-    // 1. Upgrading from Hobby to a paid plan -> show payment details for that plan
-    if (currentPlan === "Hobby" && planId !== "Hobby") {
-      setModalInitialView("plan-change-review");
-      setModalPendingPlan(planId);
-      setIsModalOpen(true);
-      return;
-    }
-
-    // 2. Switching between paid plans -> show review screen
-    if (currentPlan !== "Hobby" && planId !== "Hobby" && planId !== currentPlan) {
-      setModalInitialView("plan-change-review");
-      setModalPendingPlan(planId);
-      setIsModalOpen(true);
-      return;
-    }
+    subscriptionFlow.launchBillingPlan({ planId, currentPlan, interval });
   };
 
   const handleDeckKeyDown = (e: React.KeyboardEvent) => {
@@ -262,11 +236,7 @@ export default function BillingClient({
                   <button
                     type="button"
                     disabled={isLoading}
-                    onClick={() => {
-                      setModalInitialView("update-payment");
-                      setModalPendingPlan(null);
-                      setIsModalOpen(true);
-                    }}
+                    onClick={subscriptionFlow.openPaymentMethod}
                     className="inline-flex min-h-10 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 text-[10px] font-black uppercase tracking-widest text-emerald-100 transition-all hover:border-emerald-300/45 hover:bg-emerald-300/20 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                   >
                     + Add Card
@@ -302,11 +272,7 @@ export default function BillingClient({
                             <button
                               type="button"
                               disabled={isLoading}
-                              onClick={() => {
-                                setModalInitialView("update-payment");
-                                setModalPendingPlan(null);
-                                setIsModalOpen(true);
-                              }}
+                              onClick={subscriptionFlow.openPaymentMethod}
                               className="mt-5 inline-flex min-h-10 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               Add Card
@@ -455,10 +421,7 @@ export default function BillingClient({
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        setModalPendingPlan("Hobby");
-                        setIsModalOpen(true);
-                      }}
+                      onClick={subscriptionFlow.openCancellation}
                       className="rounded-2xl border border-red-400/20 bg-red-400/10 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-red-200 transition-all hover:bg-red-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                     >
                       Cancel Subscription
@@ -471,14 +434,14 @@ export default function BillingClient({
       </DashboardShell>
 
       <SubscriptionModal
-        key={isModalOpen ? "open" : "closed"}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        key={subscriptionFlow.isModalOpen ? "open" : "closed"}
+        isOpen={subscriptionFlow.isModalOpen}
+        onClose={subscriptionFlow.closeModal}
         planName={currentPlan}
         nextBillingDate={data?.nextInvoiceDate}
-        initialView={modalInitialView}
-        initialPendingPlan={modalPendingPlan}
-        initialBillingInterval={modalBillingInterval}
+        initialView={subscriptionFlow.modalInitialView}
+        initialPendingPlan={subscriptionFlow.modalPendingPlan}
+        initialBillingInterval={subscriptionFlow.modalBillingInterval}
         onSuccess={(msg) => {
           showToast("success", msg);
           fetchBillingData(); // Refresh data after any subscription change
