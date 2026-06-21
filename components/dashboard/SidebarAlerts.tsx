@@ -270,12 +270,12 @@ export function SidebarAlerts({
                     ? "cubic-bezier(0.175, 0.885, 0.32, 1.275)"
                     : "cubic-bezier(0.6, -0.28, 0.735, 0.045)",
                   transform: isFlying && closingKeyId !== alert.id
-                    ? "translateX(12px) scale(1) translateY(-50%)"
-                    : "translateX(-16px) scale(0) translateY(-50%)",
+                    ? "translateX(12px) scale(1)"
+                    : "translateX(-16px) scale(0)",
                   opacity: isFlying && closingKeyId !== alert.id ? 1 : 0,
                   pointerEvents: isFlying && closingKeyId !== alert.id ? "auto" : "none",
                 }}
-                className="hidden md:flex absolute left-full top-1/2 z-[110] items-center transition-all origin-left"
+                className="hidden md:flex absolute left-full top-1/2 z-[110] -translate-y-1/2 items-center transition-all origin-left"
               >
                 {/* iMessage-Style Tail Connector */}
                 <div className="relative -mr-[1px] z-20 flex items-center h-full">
