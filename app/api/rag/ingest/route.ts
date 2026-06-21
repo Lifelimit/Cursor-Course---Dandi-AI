@@ -5,7 +5,8 @@ import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOri
 import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { getApiKeyFromRequest, invalidJsonResponse, jsonError, missingApiKeyResponse, readGitHubRepoUrl, readJsonBody } from "@/lib/api-request";
 import { isUuid } from "@/lib/security-core";
-import { createIngestionJob, formatIngestionJob, getIngestionJob, runIngestionJob } from "@/lib/services/ingestion-job.service";
+import { getAuthenticatedUserId } from "@/lib/services/auth.service";
+import { createIngestionJob, formatIngestionJob, getIngestionJob, getIngestionJobForUser, runIngestionJob } from "@/lib/services/ingestion-job.service";
 import { validateApiKey } from "@/lib/services/api-key.service";
 
 const corsOptions = {
@@ -32,17 +33,23 @@ export async function GET(request: Request) {
   const apiKey = getApiKeyFromRequest(request);
   const jobId = searchParams.get("jobId") || "";
 
-  if (!apiKey) {
-    return missingApiKeyResponse(corsHeaders, "API key is required");
-  }
-
   if (!isUuid(jobId)) {
     return jsonError({ error: "Valid jobId is required" }, 400, corsHeaders);
   }
 
   try {
-    const keyData = await validateApiKey(apiKey);
-    const job = await getIngestionJob({ jobId, keyData });
+    let job;
+    try {
+      const userId = await getAuthenticatedUserId();
+      job = await getIngestionJobForUser({ jobId, userId });
+    } catch (authErr) {
+      if (!apiKey) {
+        throw authErr;
+      }
+      const keyData = await validateApiKey(apiKey);
+      job = await getIngestionJob({ jobId, keyData });
+    }
+
     const formattedJob = formatIngestionJob(job);
     return NextResponse.json(
       {

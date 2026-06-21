@@ -55,7 +55,7 @@ export default function UsageClient({
     refresh: fetchUsageData,
   } = useUsageData({
     initialData,
-    initialRefreshDelayMs: initialData ? 1000 : 0,
+    endpoint: "/api/usage?scope=summary",
     pollingIntervalMs: 20000,
     requestCache: "no-store",
     fallbackErrorMessage: "Failed to load usage analytics.",

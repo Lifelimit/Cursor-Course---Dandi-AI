@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import DashboardClient from "./DashboardClient";
 import { redirect } from "next/navigation";
-import { getServerUsageData } from "@/lib/services/server-data.service";
+import { getServerUsageSummaryData } from "@/lib/services/server-data.service";
 import { listRecentIngestionJobs } from "@/lib/services/ingestion-job.service";
 import { mapApiKey } from "@/types/api";
 
@@ -13,7 +13,7 @@ export default async function DashboardsPage() {
     redirect("/login");
   }
 
-  const usageData = await getServerUsageData();
+  const usageData = await getServerUsageSummaryData();
   const initialKeys = (usageData?.keys || []).map(mapApiKey);
   const initialHasSuccessfulRepositoryAnalysis = Boolean(
     (usageData?.totalUsage || 0) > 0 || (usageData?.globalTopRepos?.length || 0) > 0
@@ -32,6 +32,7 @@ export default async function DashboardsPage() {
       initialUser={user} 
       initialKeys={initialKeys} 
       initialPlan={usageData?.plan || "Hobby"} 
+      initialUsageData={usageData}
       initialAvgLatency={usageData?.avgLatency || 0}
       initialSuccessRate={usageData?.successRate || 100}
       initialResetDate={usageData?.resetDate || null}

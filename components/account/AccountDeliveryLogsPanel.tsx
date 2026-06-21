@@ -151,7 +151,7 @@ export function AccountDeliveryLogsPanel({
                   </td>
                 </tr>
               ) : (
-                webhookLogs.map((log) => {
+                visibleWebhookLogs.map((log) => {
                   const deliveryBadge = getWebhookDeliveryBadge(log.status);
                   const dateStr = formatWebhookTime(log.timestamp);
                   return (
@@ -192,6 +192,15 @@ export function AccountDeliveryLogsPanel({
             </tbody>
           </table>
         </ScrollFrame>
+        {webhookLogs.length > 3 && (
+          <button
+            type="button"
+            onClick={canShowMoreWebhookLogs ? onShowMoreWebhookLogs : onShowLessWebhookLogs}
+            className="mt-3 w-full rounded-2xl border border-white/5 bg-slate-950/20 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 transition-colors hover:text-zinc-300 shadow-sm cursor-pointer active:scale-[0.99]"
+          >
+            {canShowLessWebhookLogs && !canShowMoreWebhookLogs ? "View Less" : `View More (${webhookLogs.length - 3} more)`}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -2,18 +2,22 @@ import Stripe from "stripe";
 import { redis } from "@/lib/redis";
 import { stripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { resolvePlan } from "@/lib/constants";
 import { formatIsoDate, formatIsoDatePart } from "@/lib/format";
 import type { PaymentMethodDisplay } from "@/types/billing";
-import type { DailyUsageSummary, UsageLog } from "@/types/usage";
+import type { DailyUsageSummary, UsageData, UsageLog } from "@/types/usage";
 
 export type { PaymentMethodDisplay } from "@/types/billing";
 export type { DailyUsageSummary, UsageLog } from "@/types/usage";
 
 type BillingProfile = {
+  plan?: string | null;
   billing_next_date?: string | null;
   billing_interval?: string | null;
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
+  stripe_scheduled_plan?: string | null;
+  stripe_scheduled_plan_date?: string | null;
 };
 
 type SelfHealOptions = {
@@ -23,6 +27,29 @@ type SelfHealOptions = {
   userEmail?: string | null;
   periodEndSource: "server-data" | "usage-api";
   logContext: string;
+};
+
+type UsageSummaryKeyRow = {
+  id: string;
+  name: string;
+  key_type: string;
+  is_active: boolean;
+  monthly_limit: number | null;
+  alert_threshold: number | null;
+  alert_channels: string[] | null;
+  alert_phone: string | null;
+  created_at?: string;
+  key_value?: string;
+};
+
+type BuildUsageSummaryDataInput = {
+  userId: string;
+  profile: BillingProfile | null | undefined;
+  keys: UsageSummaryKeyRow[];
+  now?: Date;
+  logOptions?: Parameters<typeof parseUsageLogs>[1] & { warning?: string };
+  logStop?: number;
+  selfHeal?: SelfHealOptions;
 };
 
 export function parseUsageLogs(
@@ -186,6 +213,69 @@ export async function getDisplayUsageLogs(
     console.warn(options.warning ?? "⚠️ Display Redis log read failed; using empty usage logs:", err);
     return [];
   }
+}
+
+export async function buildUsageSummaryData({
+  userId,
+  profile,
+  keys,
+  now = new Date(),
+  logOptions = {},
+  logStop = -1,
+  selfHeal,
+}: BuildUsageSummaryDataInput): Promise<UsageData> {
+  const plan = profile?.plan || "Hobby";
+  const resolved = resolvePlan(plan);
+  const monthlyLimit = resolved.monthlyRequests;
+  const currentMonth = now.toISOString().slice(0, 7);
+  const dates = getRecentUsageDates(now);
+
+  const [totalUsage, logs, keyUsageCounts] = await Promise.all([
+    getDisplayUsageCount(`usage:user:${userId}:${currentMonth}`),
+    getDisplayUsageLogs(`logs:user:${userId}:${currentMonth}`, 0, logStop, logOptions),
+    getDisplayUsageCounts(keys ?? [], currentMonth),
+  ]);
+
+  const processedKeys = (keys || []).map((key, index) => {
+    const keyLogs = (logs || []).filter(log => log.keyId === key.id);
+    const actualUsage = keyUsageCounts[index] || 0;
+    const limit = key.monthly_limit ?? monthlyLimit;
+    const pctLimit = limit ?? resolved.maxLimitCap;
+    const dailyTrend = buildDailyUsageTrend(dates, keyLogs, actualUsage);
+    const topRepos = getTopReposFromLogs(keyLogs, 5);
+
+    return {
+      ...key,
+      usage_count: actualUsage,
+      monthly_limit: limit,
+      pct: pctLimit ? Math.min((actualUsage / pctLimit) * 100, 100) : 0,
+      dailyTrend,
+      topRepos,
+    };
+  });
+
+  const { avgLatency, successRate } = getUsagePerformanceMetrics(logs || []);
+  const globalTopRepos = getTopReposFromLogs(logs || [], 10);
+  const dailyAnalytics = dates.map(date => summarizeDailyLogs(date, logs || []));
+  const { resetDate, nextInvoiceDate } = await getBillingPeriodDisplay({
+    profile,
+    now,
+    selfHeal,
+  });
+
+  return {
+    plan,
+    keys: processedKeys,
+    totalUsage,
+    globalTopRepos,
+    avgLatency,
+    successRate,
+    resetDate,
+    nextInvoiceDate,
+    dailyAnalytics,
+    scheduledPlan: profile?.stripe_scheduled_plan || null,
+    scheduledPlanDate: profile?.stripe_scheduled_plan_date || null,
+  };
 }
 
 export function calculateResetDate(nextInvoiceDate: string | null, now: Date): string {

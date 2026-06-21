@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { ApiKey } from "@/types/api";
 import { DataTableShell } from "@/components/ui/DataTable";
+import { ProgressiveListFooter } from "@/components/ui/ProgressiveListFooter";
 import {
   ApiKeyDesktopRow,
   ApiKeyDesktopSearchEmptyRow,
@@ -11,6 +12,9 @@ import {
   ApiKeyTableSkeleton,
   QuickStartEmptyState,
 } from "@/components/dashboard/ApiKeyTableParts";
+import { useProgressiveList } from "@/hooks/useProgressiveList";
+
+const DEFAULT_VISIBLE_KEY_COUNT = 10;
 
 type ApiKeyTableProps = {
   apiKeys: ApiKey[];
@@ -34,23 +38,38 @@ export function ApiKeyTable({
   const [promptedKeyId, setPromptedKeyId] = useState<string | null>(null);
   const [securityPromptKeyId, setSecurityPromptKeyId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearchTerm = useDeferredValue(searchTerm);
   const isHobby = currentPlan === "Hobby";
 
-  const filteredKeys = apiKeys.filter(key =>
-    key.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    key.key_value.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const normalizedSearchTerm = deferredSearchTerm.toLowerCase();
 
-  const togglePrompt = (keyId: string) => {
+  const filteredKeys = useMemo(() => {
+    return apiKeys.filter(key =>
+      key.name.toLowerCase().includes(normalizedSearchTerm) ||
+      key.key_value.toLowerCase().includes(normalizedSearchTerm)
+    );
+  }, [apiKeys, normalizedSearchTerm]);
+
+  const {
+    visibleItems: visibleKeys,
+    visibleCount,
+    totalCount,
+    canShowMore,
+    canShowLess,
+    showMore,
+    showLess,
+  } = useProgressiveList(filteredKeys, DEFAULT_VISIBLE_KEY_COUNT);
+
+  const togglePrompt = useCallback((keyId: string) => {
     setPromptedKeyId(current => (current === keyId ? null : keyId));
-  };
+  }, []);
 
-  const toggleSecurityPrompt = (keyId: string) => {
+  const toggleSecurityPrompt = useCallback((keyId: string) => {
     setSecurityPromptKeyId(current => (current === keyId ? null : keyId));
-  };
+  }, []);
 
-  const clearSearch = () => setSearchTerm("");
-  const closeSecurityPrompt = () => setSecurityPromptKeyId(null);
+  const clearSearch = useCallback(() => setSearchTerm(""), []);
+  const closeSecurityPrompt = useCallback(() => setSecurityPromptKeyId(null), []);
 
   if (!isLoading && apiKeys.length === 0) {
     return <QuickStartEmptyState onOpenCreateModal={onOpenCreateModal} />;
@@ -70,13 +89,13 @@ export function ApiKeyTable({
         ) : filteredKeys.length === 0 ? (
           <ApiKeySearchEmptyState onClearSearch={clearSearch} />
         ) : (
-          filteredKeys.map(key => (
+          visibleKeys.map(key => (
             <ApiKeyMobileCard
               key={key.id}
               apiKey={key}
               isHobby={isHobby}
-              promptedKeyId={promptedKeyId}
-              securityPromptKeyId={securityPromptKeyId}
+              isPrompted={promptedKeyId === key.id}
+              isSecurityPrompted={securityPromptKeyId === key.id}
               onPromptToggle={togglePrompt}
               onSecurityPromptToggle={toggleSecurityPrompt}
               onSecurityPromptClose={closeSecurityPrompt}
@@ -104,13 +123,13 @@ export function ApiKeyTable({
             ) : filteredKeys.length === 0 ? (
               <ApiKeyDesktopSearchEmptyRow onClearSearch={clearSearch} />
             ) : (
-              filteredKeys.map(key => (
+              visibleKeys.map(key => (
                 <ApiKeyDesktopRow
                   key={key.id}
                   apiKey={key}
                   isHobby={isHobby}
-                  promptedKeyId={promptedKeyId}
-                  securityPromptKeyId={securityPromptKeyId}
+                  isPrompted={promptedKeyId === key.id}
+                  isSecurityPrompted={securityPromptKeyId === key.id}
                   onPromptToggle={togglePrompt}
                   onSecurityPromptToggle={toggleSecurityPrompt}
                   onSecurityPromptClose={closeSecurityPrompt}
@@ -123,6 +142,18 @@ export function ApiKeyTable({
           </tbody>
         </table>
       </DataTableShell>
+
+      {!isLoading && filteredKeys.length > 0 && (
+        <ProgressiveListFooter
+          visibleCount={visibleCount}
+          totalCount={totalCount}
+          itemLabel="keys"
+          canShowMore={canShowMore}
+          canShowLess={canShowLess}
+          onShowMore={showMore}
+          onShowLess={showLess}
+        />
+      )}
     </div>
   );
 }

@@ -17,16 +17,17 @@ export function getPipelineStatus(logs: LogEntry[], id: string): LoadingStageSta
 }
 
 export function buildConversationTurns(messages: RagMessage[]): ConversationTurn[] {
-  const visibleMessages = messages.filter((message, index) => {
-    const hasPreviousQuestion = messages.slice(0, index).some((candidate) => candidate.role === "user");
-    return message.role === "user" || hasPreviousQuestion;
-  });
+  let hasPreviousQuestion = false;
+  const turns: ConversationTurn[] = [];
 
-  return visibleMessages.reduce<ConversationTurn[]>((turns, message) => {
+  for (const message of messages) {
     if (message.role === "user") {
+      hasPreviousQuestion = true;
       turns.push({ question: message });
-      return turns;
+      continue;
     }
+
+    if (!hasPreviousQuestion) continue;
 
     const lastTurn = turns[turns.length - 1];
     if (lastTurn && !lastTurn.answer) {
@@ -34,9 +35,9 @@ export function buildConversationTurns(messages: RagMessage[]): ConversationTurn
     } else {
       turns.push({ answer: message });
     }
+  }
 
-    return turns;
-  }, []);
+  return turns;
 }
 
 export function getTopSourceMatch(sources?: RagSource[]) {

@@ -9,6 +9,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import type { IngestionJob, IngestionJobStep, IngestionKeyData, IngestionJobSummary } from "@/types/rag";
 
 const LOCK_TTL_SEC = 900;
+const RAW_FILE_FETCH_CONCURRENCY = 4;
+const CHUNK_INSERT_BATCH_SIZE = 100;
 
 export type { IngestionJob, IngestionJobStatus, IngestionJobStep, IngestionKeyData, IngestionJobSummary } from "@/types/rag";
 
@@ -155,6 +157,41 @@ async function loadJob(jobId: string) {
   return toIngestionJob(data);
 }
 
+type RepositoryChunkInsertRow = {
+  repo_url: string;
+  user_id: string;
+  api_key_id: string | null;
+  embedding_model: string;
+  file_path: string;
+  content: string;
+  embedding: number[];
+};
+
+async function insertRepositoryChunksInBatches(input: {
+  jobId: string;
+  rows: RepositoryChunkInsertRow[];
+  fileCount: number;
+  totalChunkCount: number;
+}) {
+  for (let i = 0; i < input.rows.length; i += CHUNK_INSERT_BATCH_SIZE) {
+    const batch = input.rows.slice(i, i + CHUNK_INSERT_BATCH_SIZE);
+    const { error } = await supabaseAdmin
+      .from("repository_chunks")
+      .insert(batch);
+
+    if (error) {
+      throw new Error(`Failed to insert repository chunks into Supabase: ${error.message}`);
+    }
+
+    await updateJob(input.jobId, {
+      current_step: "indexing",
+      indexed_file_count: input.fileCount,
+      files_count: input.fileCount,
+      chunks_count: input.totalChunkCount,
+    });
+  }
+}
+
 async function loadUsageKeyData(job: IngestionJob): Promise<IngestionKeyData | null> {
   if (!job.api_key_id && job.user_id === "demo-user-id") {
     return {
@@ -259,6 +296,24 @@ export async function getIngestionJob(input: {
   return toIngestionJob(data);
 }
 
+export async function getIngestionJobForUser(input: {
+  jobId: string;
+  userId: string;
+}) {
+  const { data, error } = await supabaseAdmin
+    .from("ingestion_jobs")
+    .select("*")
+    .eq("id", input.jobId)
+    .eq("user_id", input.userId)
+    .single();
+
+  if (error || !data) {
+    throw new Error("Ingestion job not found.");
+  }
+
+  return toIngestionJob(data);
+}
+
 export async function listRecentIngestionJobs(input: {
   userId: string;
   limit?: number;
@@ -282,6 +337,7 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
   const startTime = Date.now();
   let lockAcquired = false;
   let lockKey = "";
+  let insertedRepositoryChunks = false;
   let job = await loadJob(jobId);
   const usageKeyData = await loadUsageKeyData(job);
 
@@ -323,17 +379,43 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
       .eq("repo_url", job.repo_url)
       .eq("user_id", job.user_id);
 
-    const crawlResults = await Promise.all(
-      filesToIngest.map(async (file) => {
-        try {
-          const text = await fetchRawFileContent(job.repo_url, branch, file.path);
-          return { path: file.path, chunks: splitIntoChunks(text, file.path) };
-        } catch (err) {
-          console.error(`Failed to fetch or split ${file.path}:`, err);
-          return { path: file.path, chunks: [] };
-        }
-      })
-    );
+    job = await updateJob(job.id, {
+      current_step: "analyzing",
+      files_count: filesToIngest.length,
+      chunks_count: 0,
+      indexed_file_count: 0,
+      chunk_count: null,
+    });
+
+    let processedFileCount = 0;
+    let discoveredChunkCount = 0;
+    const crawlResults: { path: string; chunks: string[] }[] = [];
+
+    for (let i = 0; i < filesToIngest.length; i += RAW_FILE_FETCH_CONCURRENCY) {
+      const fileBatch = filesToIngest.slice(i, i + RAW_FILE_FETCH_CONCURRENCY);
+      const batchResults = await Promise.all(
+        fileBatch.map(async (file) => {
+          try {
+            const text = await fetchRawFileContent(job.repo_url, branch, file.path);
+            return { path: file.path, chunks: splitIntoChunks(text, file.path) };
+          } catch (err) {
+            console.error(`Failed to fetch or split ${file.path}:`, err);
+            return { path: file.path, chunks: [] };
+          }
+        })
+      );
+
+      crawlResults.push(...batchResults);
+      processedFileCount += fileBatch.length;
+      discoveredChunkCount += batchResults.reduce((total, result) => total + result.chunks.length, 0);
+      job = await updateJob(job.id, {
+        current_step: "analyzing",
+        files_count: filesToIngest.length,
+        chunks_count: discoveredChunkCount,
+        indexed_file_count: processedFileCount,
+        chunk_count: null,
+      });
+    }
 
     const allChunks = crawlResults.flatMap((result) =>
       result.chunks.map((content) => ({ path: result.path, content }))
@@ -341,6 +423,10 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
 
     job = await updateJob(job.id, {
       current_step: "indexing",
+      files_count: filesToIngest.length,
+      chunks_count: allChunks.length,
+      indexed_file_count: filesToIngest.length,
+      chunk_count: null,
     });
 
     if (allChunks.length > 0) {
@@ -355,13 +441,13 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
         embedding: embeddings[index],
       }));
 
-      const { error: insertError } = await supabaseAdmin
-        .from("repository_chunks")
-        .insert(rowsToInsert);
-
-      if (insertError) {
-        throw new Error(`Failed to insert repository chunks into Supabase: ${insertError.message}`);
-      }
+      insertedRepositoryChunks = true;
+      await insertRepositoryChunksInBatches({
+        jobId: job.id,
+        rows: rowsToInsert,
+        fileCount: filesToIngest.length,
+        totalChunkCount: allChunks.length,
+      });
     }
 
     const completedJob = await updateJob(job.id, {
@@ -374,6 +460,7 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
       index_available: true,
       completed_at: new Date().toISOString(),
     });
+    insertedRepositoryChunks = false;
 
     if (usageKeyData) {
       await incrementKeyUsage(
@@ -387,6 +474,18 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
 
     return completedJob;
   } catch (err) {
+    if (insertedRepositoryChunks) {
+      try {
+        await supabaseAdmin
+          .from("repository_chunks")
+          .delete()
+          .eq("repo_url", job.repo_url)
+          .eq("user_id", job.user_id);
+      } catch (cleanupErr) {
+        console.error("Failed to clean up partial repository chunks after ingestion failure:", cleanupErr);
+      }
+    }
+
     const message = sanitizeIngestionError(err);
     await updateJob(job.id, {
       status: "failed",

@@ -159,48 +159,6 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
  
       {/* Request Progress Stepper Track */}
       <div className="relative overflow-hidden rounded-2xl border border-[var(--command-border)] bg-[var(--command-bg)]/20 px-3 py-6 select-none sm:px-6 md:py-8">
-        {/* Style Block for custom animations */}
-        <style dangerouslySetInnerHTML={{__html: `
-          @keyframes pulse-flow {
-            0% { stroke-dashoffset: 24; }
-            100% { stroke-dashoffset: 0; }
-          }
-          .animate-pulse-flow {
-            animation: pulse-flow 0.8s linear infinite;
-          }
-          @keyframes spin-slow {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-          .animate-spin-slow {
-            animation: spin-slow 8s linear infinite;
-          }
-          @keyframes pulse-ring {
-            0% { transform: scale(0.95); opacity: 0.2; }
-            50% { transform: scale(1.15); opacity: 0.5; }
-            100% { transform: scale(0.95); opacity: 0.2; }
-          }
-          .animate-pulse-ring {
-            animation: pulse-ring 2s ease-in-out infinite;
-          }
-          @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-4px); }
-            75% { transform: translateX(4px); }
-          }
-          .animate-shake {
-            animation: shake 0.3s ease-in-out 2;
-          }
-          @media (prefers-reduced-motion: reduce) {
-            .animate-pulse-flow,
-            .animate-spin-slow,
-            .animate-pulse-ring,
-            .animate-shake {
-              animation: none !important;
-            }
-          }
-        `}} />
- 
         {/* SVG Connector Lines */}
         <svg className="absolute inset-0 h-full w-full pointer-events-none z-0" xmlns="http://www.w3.org/2000/svg">
           {/* Track 1: Auth to Repo Fetch */}
@@ -448,131 +406,135 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                       isExpanded ? "max-h-[800px] border-t border-slate-900" : "max-h-0 pointer-events-none"
                     }`}
                   >
-                    {/* Expand Panel Tabs */}
-                    <div className="flex flex-col gap-3 border-b border-slate-900/60 bg-slate-950 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-2">
-                      <div className="flex min-w-0 gap-4 overflow-x-auto scrollbar-hide">
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab(log.id, "request")}
-                          className={`text-[9px] font-bold uppercase tracking-widest transition-colors ${
-                            activeTab === "request" ? "text-emerald-400 border-b border-emerald-400 pb-1 pt-1" : "text-slate-500 hover:text-slate-300 py-1"
-                          }`}
-                        >
-                          Request Context
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab(log.id, "response")}
-                          disabled={log.status === "pending"}
-                          className={`text-[9px] font-bold uppercase tracking-widest transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                            activeTab === "response" ? "text-emerald-400 border-b border-emerald-400 pb-1 pt-1" : "text-slate-500 hover:text-slate-300 py-1"
-                          }`}
-                        >
-                          Response Context
-                        </button>
-                      </div>
+                    {isExpanded && (
+                      <>
+                        {/* Expand Panel Tabs */}
+                        <div className="flex flex-col gap-3 border-b border-slate-900/60 bg-slate-950 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-2">
+                          <div className="flex min-w-0 gap-4 overflow-x-auto scrollbar-hide">
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab(log.id, "request")}
+                              className={`text-[9px] font-bold uppercase tracking-widest transition-colors ${
+                                activeTab === "request" ? "text-emerald-400 border-b border-emerald-400 pb-1 pt-1" : "text-slate-500 hover:text-slate-300 py-1"
+                              }`}
+                            >
+                              Request Context
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab(log.id, "response")}
+                              disabled={log.status === "pending"}
+                              className={`text-[9px] font-bold uppercase tracking-widest transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                                activeTab === "response" ? "text-emerald-400 border-b border-emerald-400 pb-1 pt-1" : "text-slate-500 hover:text-slate-300 py-1"
+                              }`}
+                            >
+                              Response Context
+                            </button>
+                          </div>
  
-                      {/* Copy actions for the respective tab */}
-                      {activeTab === "request" ? (
-                        <div className="flex min-w-0 items-center gap-2 overflow-x-auto scrollbar-hide">
-                          <CopyIconButton
-                            onCopy={() => copyToClipboard(generateCurl(log), "Curl snippet copied to clipboard!")}
-                          >
-                            Copy cURL
-                          </CopyIconButton>
-                          <CopyIconButton
-                            onCopy={() => copyToClipboard(JSON.stringify(log.requestBody || {}, null, 2), "Payload JSON copied!")}
-                          >
-                            Copy Payload
-                          </CopyIconButton>
+                          {/* Copy actions for the respective tab */}
+                          {activeTab === "request" ? (
+                            <div className="flex min-w-0 items-center gap-2 overflow-x-auto scrollbar-hide">
+                              <CopyIconButton
+                                onCopy={() => copyToClipboard(generateCurl(log), "Curl snippet copied to clipboard!")}
+                              >
+                                Copy cURL
+                              </CopyIconButton>
+                              <CopyIconButton
+                                onCopy={() => copyToClipboard(JSON.stringify(log.requestBody || {}, null, 2), "Payload JSON copied!")}
+                              >
+                                Copy Payload
+                              </CopyIconButton>
+                            </div>
+                          ) : (
+                            <CopyIconButton
+                              onCopy={() => copyToClipboard(JSON.stringify(log.responseBody || {}, null, 2), "Response JSON copied!")}
+                            >
+                              Copy Response
+                            </CopyIconButton>
+                          )}
                         </div>
-                      ) : (
-                        <CopyIconButton
-                           onCopy={() => copyToClipboard(JSON.stringify(log.responseBody || {}, null, 2), "Response JSON copied!")}
-                        >
-                          Copy Response
-                        </CopyIconButton>
-                      )}
-                    </div>
  
-                    {/* Tab Panels */}
-                    <div className="max-h-[400px] space-y-4 overflow-y-auto p-3 font-mono text-[10px] sm:p-4">
-                      {activeTab === "request" ? (
-                        <div className="space-y-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-900 pb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20 px-1.5 py-0.5 rounded text-[9px]">
-                                {log.method || "POST"}
-                              </span>
-                              <span className="text-slate-300 font-semibold truncate max-w-[200px] sm:max-w-md">
-                                {log.url || "/api/github-summarizer"}
-                              </span>
-                            </div>
-                            <span className="text-slate-500 text-[9px] uppercase">
-                              Protocol: HTTPS/1.1
-                            </span>
-                          </div>
+                        {/* Tab Panels */}
+                        <div className="max-h-[400px] space-y-4 overflow-y-auto p-3 font-mono text-[10px] sm:p-4">
+                          {activeTab === "request" ? (
+                            <div className="space-y-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-900 pb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20 px-1.5 py-0.5 rounded text-[9px]">
+                                    {log.method || "POST"}
+                                  </span>
+                                  <span className="text-slate-300 font-semibold truncate max-w-[200px] sm:max-w-md">
+                                    {log.url || "/api/github-summarizer"}
+                                  </span>
+                                </div>
+                                <span className="text-slate-500 text-[9px] uppercase">
+                                  Protocol: HTTPS/1.1
+                                </span>
+                              </div>
  
-                          <div className="grid gap-4 lg:grid-cols-2">
-                            <div className="min-w-0">
-                              <h5 className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-widest mb-1.5">
-                                Headers
-                              </h5>
-                              <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-900">
-                                <SyntaxHighlightedJSON data={log.requestHeaders} />
+                              <div className="grid gap-4 lg:grid-cols-2">
+                                <div className="min-w-0">
+                                  <h5 className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-widest mb-1.5">
+                                    Headers
+                                  </h5>
+                                  <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-900">
+                                    <SyntaxHighlightedJSON data={log.requestHeaders} />
+                                  </div>
+                                </div>
+                                <div className="min-w-0">
+                                  <h5 className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-widest mb-1.5">
+                                    Body Payload
+                                  </h5>
+                                  <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-900">
+                                    <SyntaxHighlightedJSON data={log.requestBody} />
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                            <div className="min-w-0">
-                              <h5 className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-widest mb-1.5">
-                                Body Payload
-                              </h5>
-                              <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-900">
-                                <SyntaxHighlightedJSON data={log.requestBody} />
+                          ) : (
+                            <div className="space-y-4 animate-in fade-in duration-200">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-900 pb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className={`font-bold border px-1.5 py-0.5 rounded text-[9px] ${
+                                    log.statusCode === 200
+                                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                      : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                  }`}>
+                                    {log.statusCode || 200}
+                                  </span>
+                                  <span className="text-slate-300 font-semibold">
+                                    {log.statusText || "OK"}
+                                  </span>
+                                </div>
+                                <span className="text-slate-500 text-[9px]">
+                                  Server: Dandi API
+                                </span>
+                              </div>
+ 
+                              <div className="grid gap-4 lg:grid-cols-2">
+                                <div className="min-w-0">
+                                  <h5 className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-widest mb-1.5">
+                                    Response Headers
+                                  </h5>
+                                  <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-900">
+                                    <SyntaxHighlightedJSON data={log.responseHeaders} />
+                                  </div>
+                                </div>
+                                <div className="min-w-0">
+                                  <h5 className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-widest mb-1.5">
+                                    Response Body
+                                  </h5>
+                                  <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-900">
+                                    <SyntaxHighlightedJSON data={log.responseBody} />
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          )}
                         </div>
-                      ) : (
-                        <div className="space-y-4 animate-in fade-in duration-200">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-900 pb-2">
-                            <div className="flex items-center gap-2">
-                              <span className={`font-bold border px-1.5 py-0.5 rounded text-[9px] ${
-                                log.statusCode === 200 
-                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
-                                  : "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                              }`}>
-                                {log.statusCode || 200}
-                              </span>
-                              <span className="text-slate-300 font-semibold">
-                                {log.statusText || "OK"}
-                              </span>
-                            </div>
-                            <span className="text-slate-500 text-[9px]">
-                              Server: Dandi API
-                            </span>
-                          </div>
- 
-                          <div className="grid gap-4 lg:grid-cols-2">
-                            <div className="min-w-0">
-                              <h5 className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-widest mb-1.5">
-                                Response Headers
-                              </h5>
-                              <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-900">
-                                <SyntaxHighlightedJSON data={log.responseHeaders} />
-                              </div>
-                            </div>
-                            <div className="min-w-0">
-                              <h5 className="text-[9px] font-bold text-emerald-400/80 uppercase tracking-widest mb-1.5">
-                                Response Body
-                              </h5>
-                              <div className="bg-slate-950/50 rounded-xl p-3 border border-slate-900">
-                                <SyntaxHighlightedJSON data={log.responseBody} />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                      </>
+                    )}
                   </div>
                 </div>
               );

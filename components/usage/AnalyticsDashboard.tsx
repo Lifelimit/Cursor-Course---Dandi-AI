@@ -35,6 +35,9 @@ export function AnalyticsDashboard({
 
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [hoverCoords, setHoverCoords] = useState<{ x: number; y: number } | null>(null);
+  const hoverFrameRef = useRef<number | null>(null);
+  const pendingHoverRef = useRef<{ index: number; coords: { x: number; y: number } } | null>(null);
+  const hoveredIndexRef = useRef<number | null>(null);
 
   const chartRef = useRef<SVGSVGElement | null>(null);
   const resizeRef = useRef<HTMLDivElement | null>(null);
@@ -62,6 +65,14 @@ export function AnalyticsDashboard({
     });
     observer.observe(resizeRef.current);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (hoverFrameRef.current !== null) {
+        cancelAnimationFrame(hoverFrameRef.current);
+      }
+    };
   }, []);
 
   const dataset = useMemo<DailyUsageTrend[]>(() => {
@@ -165,12 +176,36 @@ export function AnalyticsDashboard({
 
     const activePoint = chartPoints.dots[index];
     if (activePoint) {
-      setHoveredIndex(index);
-      setHoverCoords({ x: activePoint.x, y: activePoint.y });
+      if (hoveredIndexRef.current === index) return;
+
+      pendingHoverRef.current = {
+        index,
+        coords: { x: activePoint.x, y: activePoint.y },
+      };
+
+      if (hoverFrameRef.current !== null) return;
+
+      hoverFrameRef.current = requestAnimationFrame(() => {
+        hoverFrameRef.current = null;
+        const pendingHover = pendingHoverRef.current;
+        pendingHoverRef.current = null;
+
+        if (!pendingHover || hoveredIndexRef.current === pendingHover.index) return;
+
+        hoveredIndexRef.current = pendingHover.index;
+        setHoveredIndex(pendingHover.index);
+        setHoverCoords(pendingHover.coords);
+      });
     }
   };
 
   const handleMouseLeave = () => {
+    if (hoverFrameRef.current !== null) {
+      cancelAnimationFrame(hoverFrameRef.current);
+      hoverFrameRef.current = null;
+    }
+    pendingHoverRef.current = null;
+    hoveredIndexRef.current = null;
     setHoveredIndex(null);
     setHoverCoords(null);
   };
@@ -182,7 +217,10 @@ export function AnalyticsDashboard({
 
   const handleMetricViewChange = (view: AnalyticsMetricView) => {
     setMetricView(view);
+    hoveredIndexRef.current = null;
+    pendingHoverRef.current = null;
     setHoveredIndex(null);
+    setHoverCoords(null);
   };
 
   const metricName = {

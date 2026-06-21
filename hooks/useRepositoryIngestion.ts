@@ -300,7 +300,7 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
       for (let attempt = 0; attempt < 90; attempt++) {
         await sleep(2000);
         const statusRes = await fetch(`/api/rag/ingest?jobId=${encodeURIComponent(data.jobId as string)}`, {
-          headers: { "x-api-key": apiKey },
+          headers: apiKey === "__demo__" ? { "x-api-key": apiKey } : undefined,
         });
         const statusData = (await statusRes.json()) as IngestionResponse;
 

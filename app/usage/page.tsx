@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import UsageClient from "@/app/usage/UsageClient";
-import { getServerUsageData } from "@/lib/services/server-data.service";
+import { getServerUsageSummaryData } from "@/lib/services/server-data.service";
 
 export default async function UsagePage() {
   const supabase = await createClient();
@@ -12,7 +12,7 @@ export default async function UsagePage() {
   }
 
   const { data: { session } } = await supabase.auth.getSession();
-  const usageData = await getServerUsageData();
+  const usageData = await getServerUsageSummaryData();
 
   return <UsageClient initialSession={session} initialData={usageData} />;
 }

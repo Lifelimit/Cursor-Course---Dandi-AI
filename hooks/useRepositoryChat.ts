@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type RefObject } from "react";
+import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
 import type { User } from "@supabase/supabase-js";
 import type { LogEntry } from "@/components/playground/NetworkLog";
 import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
@@ -64,9 +64,61 @@ export function useRepositoryChat({
   const [chatProgressStep, setChatProgressStep] = useState<ChatProgressStep>("idle");
   const repositoryChatRef = useRef<HTMLDivElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const streamFrameRef = useRef<number | null>(null);
+  const streamTextRef = useRef("");
+  const streamSourcesRef = useRef<RagSource[]>([]);
   const askedRepositoryTrackedRef = useRef(
     Boolean((initialUser?.user_metadata as { dandi_onboarding?: DandiOnboardingMetadata } | undefined)?.dandi_onboarding?.askedRepository)
   );
+
+  const flushStreamingAssistantMessage = () => {
+    const nextContent = streamTextRef.current;
+    const nextSources = streamSourcesRef.current;
+    setRagMessages((prev) => {
+      const updated = [...prev];
+      if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
+        const currentMessage = updated[updated.length - 1];
+        if (currentMessage.content === nextContent && currentMessage.sources === nextSources) {
+          return prev;
+        }
+        updated[updated.length - 1] = {
+          ...currentMessage,
+          content: nextContent,
+          sources: nextSources,
+        };
+      }
+      return updated;
+    });
+  };
+
+  const cancelStreamingFrame = () => {
+    if (streamFrameRef.current !== null) {
+      window.cancelAnimationFrame(streamFrameRef.current);
+      streamFrameRef.current = null;
+    }
+  };
+
+  const scheduleStreamingFlush = () => {
+    if (streamFrameRef.current !== null) return;
+    streamFrameRef.current = window.requestAnimationFrame(() => {
+      streamFrameRef.current = null;
+      flushStreamingAssistantMessage();
+    });
+  };
+
+  const flushStreamingNow = () => {
+    cancelStreamingFrame();
+    flushStreamingAssistantMessage();
+  };
+
+  useEffect(() => {
+    return () => {
+      if (streamFrameRef.current !== null) {
+        window.cancelAnimationFrame(streamFrameRef.current);
+        streamFrameRef.current = null;
+      }
+    };
+  }, []);
 
   const markAskedRepositoryComplete = async () => {
     if (!initialUser || askedRepositoryTrackedRef.current) return;
@@ -205,6 +257,9 @@ export function useRepositoryChat({
       });
       setChatProgressStep("answer");
 
+      streamTextRef.current = "";
+      streamSourcesRef.current = sources;
+      cancelStreamingFrame();
       setRagMessages((prev) => {
         const updated = [...prev];
         if (updated.length > 0) {
@@ -223,19 +278,16 @@ export function useRepositoryChat({
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
           accumulatedText += chunk;
-
-          setRagMessages((prev) => {
-            const updated = [...prev];
-            if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
-              updated[updated.length - 1] = {
-                ...updated[updated.length - 1],
-                content: accumulatedText,
-                sources,
-              };
-            }
-            return updated;
-          });
+          streamTextRef.current = accumulatedText;
+          scheduleStreamingFlush();
         }
+
+        const finalChunk = decoder.decode();
+        if (finalChunk) {
+          accumulatedText += finalChunk;
+          streamTextRef.current = accumulatedText;
+        }
+        flushStreamingNow();
       }
 
       setIndexedLogState("ai_processing", {
@@ -251,6 +303,7 @@ export function useRepositoryChat({
       void markAskedRepositoryComplete();
       void refreshKeys();
     } catch (err) {
+      cancelStreamingFrame();
       console.error(err);
       const errMsg = getUnknownErrorMessage(err, "Failed to stream answer.");
       setErrorMessage(errMsg);

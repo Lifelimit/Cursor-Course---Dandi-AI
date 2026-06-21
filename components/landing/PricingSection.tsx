@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { PLANS } from "@/lib/constants";
 import Link from "next/link";
-import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 import { ModalFrame } from "@/components/command/ModalFrame";
 import { useSubscriptionFlow } from "@/hooks/useSubscriptionFlow";
 
@@ -43,6 +43,28 @@ const RECOMMENDATION_THRESHOLDS = [
   { plan: "Premium", min: 2500, max: 7499 },
   { plan: "Researcher", min: 7500, max: Infinity },
 ] as const;
+
+function SubscriptionModalLoading() {
+  return (
+    <ModalFrame open={true} onClose={() => {}} size="sm" titleId="pricing-subscription-modal-loading-title">
+      <div className="flex flex-col items-center justify-center gap-5 p-8 text-center">
+        <div className="h-9 w-9 animate-spin rounded-full border-4 border-white/5 border-t-emerald-300" />
+        <div>
+          <h3 id="pricing-subscription-modal-loading-title" className="font-serif text-xl font-bold text-white">Loading plan flow</h3>
+          <p className="mt-2 text-xs font-medium leading-6 text-slate-400">Preparing secure billing controls.</p>
+        </div>
+      </div>
+    </ModalFrame>
+  );
+}
+
+const SubscriptionModal = dynamic(
+  () => import("@/components/dashboard/SubscriptionModal").then((mod) => mod.SubscriptionModal),
+  {
+    ssr: false,
+    loading: SubscriptionModalLoading,
+  }
+);
 
 function getRecommendedPlanId(monthlyUsage: number) {
   return RECOMMENDATION_THRESHOLDS.find((threshold) => monthlyUsage >= threshold.min && monthlyUsage <= threshold.max)?.plan ?? "Researcher";
@@ -372,22 +394,24 @@ export function PricingSection({
         </div>
       </div>
       
-      <SubscriptionModal 
-        key={subscriptionFlow.isModalOpen ? "open" : "closed"}
-        isOpen={subscriptionFlow.isModalOpen}
-        onClose={subscriptionFlow.closeModal}
-        planName={currentPlanId || "Hobby"}
-        onSuccess={(msg) => {
-          onSuccess?.(msg);
-          fetchFreshPlan();
-        }}
-        onError={onError}
-        initialView={subscriptionFlow.modalInitialView}
-        initialPendingPlan={subscriptionFlow.modalPendingPlan}
-        initialBillingInterval={billingInterval}
-        onDowngrade={() => { subscriptionFlow.closeModal(); setIsCancelModalOpen(true); }}
-        session={activeSession}
-      />
+      {subscriptionFlow.isModalOpen && (
+        <SubscriptionModal
+          key="open"
+          isOpen={subscriptionFlow.isModalOpen}
+          onClose={subscriptionFlow.closeModal}
+          planName={currentPlanId || "Hobby"}
+          onSuccess={(msg) => {
+            onSuccess?.(msg);
+            fetchFreshPlan();
+          }}
+          onError={onError}
+          initialView={subscriptionFlow.modalInitialView}
+          initialPendingPlan={subscriptionFlow.modalPendingPlan}
+          initialBillingInterval={billingInterval}
+          onDowngrade={() => { subscriptionFlow.closeModal(); setIsCancelModalOpen(true); }}
+          session={activeSession}
+        />
+      )}
 
       {/* Unified Cancel Subscription Modal */}
       <ModalFrame open={isCancelModalOpen} onClose={() => setIsCancelModalOpen(false)} size="md" titleId="cancel-subscription-title">

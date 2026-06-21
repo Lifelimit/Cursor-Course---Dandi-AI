@@ -3,15 +3,11 @@ import { ApiKeyApiResponse } from "@/types/api";
 import { resolvePlan } from "@/lib/constants";
 import {
   buildDailyUsageTrend,
-  getBillingPeriodDisplay,
-  getDisplayUsageCount,
+  buildUsageSummaryData,
   getDisplayUsageCounts,
   getDisplayUsageLogs,
   getRecentUsageDates,
   getStripePaymentDisplay,
-  getTopReposFromLogs,
-  getUsagePerformanceMetrics,
-  summarizeDailyLogs,
 } from "@/lib/services/usage-billing.service";
 import type { ServerUsageData } from "@/types/usage";
 
@@ -87,69 +83,14 @@ export async function getServerUsageData(): Promise<ServerUsageData | null> {
     const userId = user.id;
 
     // 1. Fetch user profile to get plan, Stripe details, and calculate limits
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("plan, billing_next_date, billing_interval, stripe_customer_id, stripe_subscription_id")
-      .eq("id", userId)
-      .single();
-
-    const plan = profile?.plan || "Hobby";
-    const resolved = resolvePlan(plan);
-    const monthlyLimit = resolved.monthlyRequests;
-
-
-    // 2. Fetch current month's usage from Redis
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-    const usageKey = `usage:user:${userId}:${currentMonth}`;
-    const totalUsage = await getDisplayUsageCount(usageKey);
-
-    // 3. Fetch hot logs from Redis
-    const logKey = `logs:user:${userId}:${currentMonth}`;
-    const logs = await getDisplayUsageLogs(logKey, 0, -1, { requireKeyId: true });
-
-    // 4. Fetch all API keys for the user
-    const { data: keys, error: keysError } = await supabase
-      .from("api_keys")
-      .select("id, name, key_value, key_type, is_active, monthly_limit, alert_threshold, alert_channels, alert_phone, created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-
-    if (keysError) throw new Error(keysError.message);
-
-    // 5. Fetch per-key usage from Redis for accurate counts
-    const keyUsageCounts = await getDisplayUsageCounts(keys ?? [], currentMonth);
-
     const now = new Date();
-    const dates = getRecentUsageDates(now);
-
-    const processedKeys = (keys || []).map((key, index) => {
-      const keyLogs = (logs || []).filter(l => l.keyId === key.id);
-      
-      const actualKeyUsage = keyUsageCounts[index] || 0;
-      const limit = key.monthly_limit ?? monthlyLimit;
-      const dailyTrend = buildDailyUsageTrend(dates, keyLogs, actualKeyUsage);
-
-      return {
-        ...key,
-        usage_count: actualKeyUsage,
-        monthly_limit: limit,
-        pct: limit ? Math.min((actualKeyUsage / limit) * 100, 100) : 0,
-        dailyTrend
-      };
-    });
-
-    // 6. Global aggregates and performance metrics
-    const { avgLatency, successRate } = getUsagePerformanceMetrics(logs || []);
-    const globalTopRepos = getTopReposFromLogs(logs || [], 10);
-
-    const dailyAnalytics = dates.map(date => summarizeDailyLogs(date, logs || []));
-
-    // 7. Calculate billing dates
-    const stripeCustomerId = profile?.stripe_customer_id;
-
-    const { resetDate, nextInvoiceDate } = await getBillingPeriodDisplay({
+    const { profile, keys } = await getServerUsageInputs(supabase, userId);
+    const summaryData = await buildUsageSummaryData({
+      userId,
       profile,
+      keys,
       now,
+      logOptions: { requireKeyId: true },
       selfHeal: {
         mode: "background",
         updateBy: "id",
@@ -159,25 +100,69 @@ export async function getServerUsageData(): Promise<ServerUsageData | null> {
       },
     });
 
-    // 8. Fetch payment methods
+    // 2. Fetch payment methods
+    const stripeCustomerId = profile?.stripe_customer_id;
     const { paymentMethods, customerBalance } = await getStripePaymentDisplay(stripeCustomerId);
 
     return {
-      plan,
-      keys: processedKeys,
-      totalUsage,
-      globalTopRepos,
-      avgLatency,
-      successRate,
-      resetDate,
-      nextInvoiceDate,
+      ...summaryData,
+      plan: summaryData.plan || "Hobby",
       paymentMethods,
       stripeCustomerId,
       customerBalance,
-      dailyAnalytics
     };
   } catch (err) {
     console.error("getServerUsageData error:", err);
+    return null;
+  }
+}
+
+async function getServerUsageInputs(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
+  const [profileRes, keysRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("plan, billing_next_date, billing_interval, stripe_customer_id, stripe_subscription_id, stripe_scheduled_plan, stripe_scheduled_plan_date")
+      .eq("id", userId)
+      .single(),
+    supabase
+      .from("api_keys")
+      .select("id, name, key_value, key_type, is_active, monthly_limit, alert_threshold, alert_channels, alert_phone, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  if (keysRes.error) throw new Error(keysRes.error.message);
+
+  return {
+    profile: profileRes.data,
+    keys: keysRes.data ?? [],
+  };
+}
+
+export async function getServerUsageSummaryData(): Promise<ServerUsageData | null> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return null;
+
+    const { profile, keys } = await getServerUsageInputs(supabase, user.id);
+    const summaryData = await buildUsageSummaryData({
+      userId: user.id,
+      profile,
+      keys,
+      logOptions: { requireKeyId: true },
+    });
+
+    return {
+      ...summaryData,
+      plan: summaryData.plan || "Hobby",
+      paymentMethods: [],
+      stripeCustomerId: profile?.stripe_customer_id || null,
+      customerBalance: 0,
+    };
+  } catch (err) {
+    console.error("getServerUsageSummaryData error:", err);
     return null;
   }
 }

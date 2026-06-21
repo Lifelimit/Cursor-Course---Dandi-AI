@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type RefObject } from "react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -42,7 +42,10 @@ export default function PlaygroundClient({
   const [realtimePlan, setRealtimePlan] = useState<string | null>(null);
   
   const { apiKeys, refreshKeys } = useApiKeys(initialKeys);
-  const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
+  const totalUsage = useMemo(
+    () => apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0),
+    [apiKeys]
+  );
   
   // Dynamic Tier Logic - Using the most recent session or dynamic data available
   const currentPlan = realtimePlan || initialPlan || (initialUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
@@ -52,7 +55,7 @@ export default function PlaygroundClient({
 
   // Fetch real-time plan from usage endpoint on mount
   useEffect(() => {
-    fetch("/api/usage")
+    fetch("/api/usage?scope=summary")
       .then(res => res.json())
       .then(data => {
         if (data.plan) setRealtimePlan(data.plan);
@@ -60,7 +63,7 @@ export default function PlaygroundClient({
       .catch(() => {});
   }, []);
 
-  const alerts = computeSidebarAlerts(apiKeys);
+  const alerts = useMemo(() => computeSidebarAlerts(apiKeys), [apiKeys]);
 
   const [apiKey, setApiKey] = useState("");
   const [selectedKey, setSelectedKey] = useState<string>("");
@@ -94,7 +97,7 @@ export default function PlaygroundClient({
     };
   }, [searchParams]);
 
-  const scrollToSection = (target: React.RefObject<HTMLElement | null>) => {
+  const scrollToSection = useCallback((target: RefObject<HTMLElement | null>) => {
     window.requestAnimationFrame(() => {
       const element = target.current;
       if (!element) return;
@@ -105,7 +108,25 @@ export default function PlaygroundClient({
         block: "start",
       });
     });
-  };
+  }, []);
+
+  const scrollToRequestProgress = useCallback(() => {
+    scrollToSection(requestProgressRef);
+  }, [scrollToSection]);
+
+  const setIndexedLogStateForChat = useCallback((id: string, updates: Partial<LogEntry>) => {
+    indexedLogSetterRef.current(id, updates);
+  }, []);
+
+  const handleSidebarUpdate = useCallback(async () => {
+    await refreshKeys();
+    router.refresh();
+  }, [refreshKeys, router]);
+
+  const handleModeTabChange = useCallback((tab: "summary" | "rag") => {
+    setActiveTab(tab);
+    setErrorMessage("");
+  }, []);
 
   const {
     summaryRequestLogs,
@@ -123,7 +144,7 @@ export default function PlaygroundClient({
     refreshKeys,
     setErrorMessage,
     getRepoPath: formatGitHubRepo,
-    scrollToRequestProgress: () => scrollToSection(requestProgressRef),
+    scrollToRequestProgress,
   });
 
   const {
@@ -143,7 +164,7 @@ export default function PlaygroundClient({
     githubUrl,
     refreshKeys,
     setErrorMessage,
-    setIndexedLogState: (id, updates) => indexedLogSetterRef.current(id, updates),
+    setIndexedLogState: setIndexedLogStateForChat,
     getRepoPath: formatGitHubRepo,
     scrollToSection,
     showToast,
@@ -165,7 +186,7 @@ export default function PlaygroundClient({
     refreshKeys,
     setErrorMessage,
     getRepoPath: formatGitHubRepo,
-    scrollToRequestProgress: () => scrollToSection(requestProgressRef),
+    scrollToRequestProgress,
     showToast,
     ragMessagesLength: ragMessages.length,
     setRagMessages,
@@ -176,13 +197,58 @@ export default function PlaygroundClient({
     indexedLogSetterRef.current = setIndexedLogState;
   }, [setIndexedLogState]);
 
-  const handleDemoMode = () => {
+  const handleDemoMode = useCallback(() => {
     setApiKey("__demo__");
     setGithubUrl("https://github.com/facebook/react");
     setSelectedKey("__demo__");
     setSelectValue("__demo__");
     showToast("success", "Demo Mode loaded a sample public repository. Hit Summarize.");
-  };
+  }, [showToast]);
+
+  const presentationState = useMemo(() => buildPlaygroundPresentationState({
+    activeTab,
+    apiKeys,
+    apiKey,
+    errorMessage,
+    githubUrl,
+    getRepoPath: formatGitHubRepo,
+    summaryRequestLogs,
+    indexedRequestLogs,
+    indexingAttemptedRepo,
+    ingestStatus,
+    ingestedRepo,
+    indexedRepositoryStats,
+    ragMessages,
+    isChatLoading,
+    chatProgressStep,
+    isLoadingSummary,
+    summaryStatus,
+    summaryIssue,
+    repoMetadata,
+    summaryResult,
+    streamError,
+  }), [
+    activeTab,
+    apiKeys,
+    apiKey,
+    errorMessage,
+    githubUrl,
+    summaryRequestLogs,
+    indexedRequestLogs,
+    indexingAttemptedRepo,
+    ingestStatus,
+    ingestedRepo,
+    indexedRepositoryStats,
+    ragMessages,
+    isChatLoading,
+    chatProgressStep,
+    isLoadingSummary,
+    summaryStatus,
+    summaryIssue,
+    repoMetadata,
+    summaryResult,
+    streamError,
+  ]);
 
   const {
     isOverLimit,
@@ -217,29 +283,7 @@ export default function PlaygroundClient({
     transparencyStatusTone,
     transparencyStatusLabel,
     summaryJsonData,
-  } = buildPlaygroundPresentationState({
-    activeTab,
-    apiKeys,
-    apiKey,
-    errorMessage,
-    githubUrl,
-    getRepoPath: formatGitHubRepo,
-    summaryRequestLogs,
-    indexedRequestLogs,
-    indexingAttemptedRepo,
-    ingestStatus,
-    ingestedRepo,
-    indexedRepositoryStats,
-    ragMessages,
-    isChatLoading,
-    chatProgressStep,
-    isLoadingSummary,
-    summaryStatus,
-    summaryIssue,
-    repoMetadata,
-    summaryResult,
-    streamError,
-  });
+  } = presentationState;
 
   return (
     <>
@@ -251,10 +295,7 @@ export default function PlaygroundClient({
           limit: currentLimit,
           isUnlimited,
           alerts,
-          onUpdate: async () => {
-            await refreshKeys();
-            router.refresh();
-          },
+          onUpdate: handleSidebarUpdate,
         }}
       >
           <DashboardPageHeader
@@ -269,10 +310,7 @@ export default function PlaygroundClient({
           >
             <PlaygroundModeTabs
               activeTab={activeTab}
-              onChange={(tab) => {
-                setActiveTab(tab);
-                setErrorMessage("");
-              }}
+              onChange={handleModeTabChange}
             />
           </DashboardPageHeader>
 

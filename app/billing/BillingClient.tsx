@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
 import { User } from "@supabase/supabase-js";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
@@ -11,13 +12,33 @@ import { PlanHero } from "@/components/billing/PlanHero";
 import { PlanComparison } from "@/components/billing/PlanComparison";
 import { PaymentMethodCard } from "@/components/billing/PaymentMethodCard";
 import { InvoiceTable } from "@/components/billing/InvoiceTable";
-import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 import { CommandPanel, ModalFrame, StatusPill } from "@/components/command";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 import { getToastErrorMessage } from "@/lib/error-guidance";
 import type { BillingData, Invoice } from "@/types/billing";
 
+function SubscriptionModalLoading() {
+  return (
+    <ModalFrame open={true} onClose={() => {}} size="sm" titleId="subscription-modal-loading-title">
+      <div className="flex flex-col items-center justify-center gap-5 p-8 text-center">
+        <div className="h-9 w-9 animate-spin rounded-full border-4 border-white/5 border-t-emerald-300" />
+        <div>
+          <h3 id="subscription-modal-loading-title" className="font-serif text-xl font-bold text-white">Loading billing flow</h3>
+          <p className="mt-2 text-xs font-medium leading-6 text-slate-400">Preparing secure payment controls.</p>
+        </div>
+      </div>
+    </ModalFrame>
+  );
+}
+
+const SubscriptionModal = dynamic(
+  () => import("@/components/dashboard/SubscriptionModal").then((mod) => mod.SubscriptionModal),
+  {
+    ssr: false,
+    loading: SubscriptionModalLoading,
+  }
+);
 
 export default function BillingClient({
   initialUser,
@@ -94,10 +115,10 @@ export default function BillingClient({
       if (!isHydrated.current) {
         setIsLoading(true);
       }
-      const res = await fetch("/api/usage"); // Reusing this for totalUsage/plan limits
+      const res = await fetch("/api/usage"); // Full scope includes payment and billing display data.
       const json = await res.json();
       setData(json);
-      isHydrated.current = false;
+      isHydrated.current = true;
       fetchInvoices();
     } catch (err) {
       console.error(err);
@@ -148,10 +169,12 @@ export default function BillingClient({
   };
 
   useEffect(() => {
-    const delay = initialData ? 1000 : 0;
+    if (initialData) return;
+
     const timer = setTimeout(() => {
-      fetchBillingData();
-    }, delay);
+      void fetchBillingData();
+    }, 0);
+
     return () => clearTimeout(timer);
   }, [fetchBillingData, initialData]);
 
@@ -434,21 +457,23 @@ export default function BillingClient({
           )}
       </DashboardShell>
 
-      <SubscriptionModal
-        key={subscriptionFlow.isModalOpen ? "open" : "closed"}
-        isOpen={subscriptionFlow.isModalOpen}
-        onClose={subscriptionFlow.closeModal}
-        planName={currentPlan}
-        nextBillingDate={data?.nextInvoiceDate}
-        initialView={subscriptionFlow.modalInitialView}
-        initialPendingPlan={subscriptionFlow.modalPendingPlan}
-        initialBillingInterval={subscriptionFlow.modalBillingInterval}
-        onSuccess={(msg) => {
-          showToast("success", msg);
-          fetchBillingData(); // Refresh data after any subscription change
-        }}
-        onError={(msg) => showToast("error", getToastErrorMessage("billing", msg))}
-      />
+      {subscriptionFlow.isModalOpen && (
+        <SubscriptionModal
+          key="open"
+          isOpen={subscriptionFlow.isModalOpen}
+          onClose={subscriptionFlow.closeModal}
+          planName={currentPlan}
+          nextBillingDate={currentData?.nextInvoiceDate}
+          initialView={subscriptionFlow.modalInitialView}
+          initialPendingPlan={subscriptionFlow.modalPendingPlan}
+          initialBillingInterval={subscriptionFlow.modalBillingInterval}
+          onSuccess={(msg) => {
+            showToast("success", msg);
+            fetchBillingData(); // Refresh data after any subscription change
+          }}
+          onError={(msg) => showToast("error", getToastErrorMessage("billing", msg))}
+        />
+      )}
 
       {/* Remove Card Confirmation Modal */}
       {cardToDelete && (

@@ -39,6 +39,7 @@ export default function DashboardClient({
   initialUser,
   initialKeys = [],
   initialPlan = "Hobby",
+  initialUsageData = null,
   initialAvgLatency = 0,
   initialSuccessRate = 100,
   initialResetDate = null,
@@ -48,6 +49,7 @@ export default function DashboardClient({
   initialUser: User | null;
   initialKeys?: ApiKey[];
   initialPlan?: string;
+  initialUsageData?: UsageData | null;
   initialAvgLatency?: number;
   initialSuccessRate?: number;
   initialResetDate?: string | null;
@@ -60,12 +62,13 @@ export default function DashboardClient({
 
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey, refreshKeys } = useApiKeys(initialKeys);
 
-  const { data: usageData, isSyncing } = useUsageData<UsageData>({
+  const { currentData: usageData, isSyncing } = useUsageData<UsageData>({
+    initialData: initialUsageData,
+    endpoint: "/api/usage?scope=summary",
     pollingIntervalMs: 20000,
     requireOkResponse: false,
     logErrors: false,
-    initialSyncing: true,
-    initialRefreshDelayMs: 0,
+    initialSyncing: initialUsageData === null,
   });
 
   const totalUsage = usageData?.totalUsage ?? apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);

@@ -143,6 +143,53 @@ body {
   opacity: 0; /* Starts hidden until animation kicks in */
 }
 
+@keyframes pulse-flow {
+  0% { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.animate-pulse-flow {
+  animation: pulse-flow 0.8s linear infinite;
+}
+
+@keyframes spin-slow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 0.2; }
+  50% { transform: scale(1.15); opacity: 0.5; }
+  100% { transform: scale(0.95); opacity: 0.2; }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.3s ease-in-out 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-flow,
+  .animate-spin-slow,
+  .animate-pulse-ring,
+  .animate-shake {
+    animation: none !important;
+  }
+}
+
 @keyframes command-ambient-drift {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
   50% { transform: translate3d(1.5%, -1.5%, 0) scale(1.02); }

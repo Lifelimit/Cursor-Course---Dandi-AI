@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, type FormEvent } from "react";
+import { useState, useEffect, useCallback, useRef, type FormEvent } from "react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { useToast } from "@/hooks/useToast";
@@ -52,6 +52,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
   const [testerLogs, setTesterLogs] = useState<string[]>([]);
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
+  const webhookTestTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const [githubConnected, setGithubConnected] = useState(false);
   const [isConnectingGithub, setIsConnectingGithub] = useState(false);
@@ -76,7 +77,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       setIsLoading(true);
       const [profileRes, usageRes, environmentsRes] = await Promise.all([
         fetch("/api/profile"),
-        fetch("/api/usage"),
+        fetch("/api/usage?scope=summary"),
         fetch("/api/account/environments")
       ]);
 
@@ -126,6 +127,13 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       active = false;
     };
   }, [loadData]);
+
+  useEffect(() => {
+    return () => {
+      webhookTestTimersRef.current.forEach(clearTimeout);
+      webhookTestTimersRef.current = [];
+    };
+  }, []);
 
   const userPlan = profile?.plan || "Hobby";
   const { monthlyLimit: planLimit, isUnlimited } = getPlanLimits(userPlan);
@@ -315,6 +323,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       showToast("error", getToastErrorMessage("webhook", "Webhook URL is required."));
       return;
     }
+    webhookTestTimersRef.current.forEach(clearTimeout);
+    webhookTestTimersRef.current = [];
     setIsTestingWebhook(true);
     setTesterLogs([]);
 
@@ -328,10 +338,11 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
     ];
 
     steps.forEach((step, index) => {
-      setTimeout(() => {
+      const timerId = setTimeout(() => {
         setTesterLogs(prev => [...prev, step]);
         if (index === steps.length - 1) {
           setIsTestingWebhook(false);
+          webhookTestTimersRef.current = [];
           showToast("success", "Webhook test payload sent successfully.");
 
           const newLog: WebhookLogEntry = {
@@ -362,6 +373,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           setWebhookLogs(prev => [newLog, ...prev]);
         }
       }, (index + 1) * 800);
+      webhookTestTimersRef.current.push(timerId);
     });
   };
 

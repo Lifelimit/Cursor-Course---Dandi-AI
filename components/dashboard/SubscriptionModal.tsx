@@ -202,7 +202,6 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
       }
 
       await scheduleCancellation([]);
-      await router.refresh();
       router.refresh();
       onSuccess?.("Cancellation scheduled. Your paid access remains active until the end of the current billing period.");
       onClose();
@@ -333,7 +332,6 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
           country: formValues.country,
         });
 
-        await router.refresh();
         router.refresh();
         onSuccess?.("Payment method updated and saved.");
         setView("overview");
@@ -426,7 +424,6 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
           country: formValues.country,
         });
 
-        await router.refresh();
         router.refresh();
         const actionText = PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "upgraded" : "downgraded";
         onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
@@ -474,7 +471,6 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
     setIsLoading(true);
     try {
       await scheduleCancellation(keysToKeep);
-      await router.refresh();
       router.refresh();
       onSuccess?.("Cancellation scheduled. Your paid access and selected key state remain active until the current billing period ends.");
       onClose();
@@ -506,10 +502,9 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
       // 3. If it's a downgrade to Hobby, schedule Stripe cancellation and keep local paid access until webhook finalization
       if (pendingPlan === "Hobby") {
         await scheduleCancellation([]);
-        await router.refresh();
+        router.refresh();
         onSuccess?.("Cancellation scheduled. Your paid access remains active until the end of the current billing period.");
         onClose();
-        router.refresh();
         return;
       }
 
@@ -557,7 +552,6 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
         }
       }
 
-      await router.refresh();
       router.refresh();
       const actionText = PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "upgraded" : "downgraded";
       onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
@@ -579,7 +573,6 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
     setIsLoading(true);
     try {
       await removePaymentMethodAction();
-      await router.refresh();
       router.refresh();
       setCardData(prev => ({ ...prev, number: "", brand: "", expiry: "" }));
       onSuccess?.("Payment method removed successfully.");

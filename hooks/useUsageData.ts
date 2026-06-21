@@ -20,13 +20,14 @@ type UseUsageDataOptions<TUsageData extends UsageData = UsageData> = {
   initialSyncing?: boolean;
   backgroundSyncResetDelayMs?: number;
   setErrorOnBackground?: boolean;
+  endpoint?: string;
   onError?: (message: string, error: unknown, context: UsageRefreshContext) => void;
   onSuccess?: (data: TUsageData, context: UsageRefreshContext) => void;
 };
 
 export function useUsageData<TUsageData extends UsageData = UsageData>({
   initialData = null,
-  fetchOnMount = true,
+  fetchOnMount,
   initialRefreshDelayMs,
   pollingIntervalMs = null,
   requestCache,
@@ -37,6 +38,7 @@ export function useUsageData<TUsageData extends UsageData = UsageData>({
   initialSyncing = false,
   backgroundSyncResetDelayMs = 0,
   setErrorOnBackground = false,
+  endpoint = "/api/usage",
   onError,
   onSuccess,
 }: UseUsageDataOptions<TUsageData> = {}) {
@@ -47,6 +49,7 @@ export function useUsageData<TUsageData extends UsageData = UsageData>({
   const isHydrated = useRef(initialData !== null);
   const syncResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resolvedInitialDelay = initialRefreshDelayMs ?? (initialData ? 1000 : 0);
+  const shouldFetchOnMount = fetchOnMount ?? initialData === null;
 
   const refresh = useCallback(async (background = false) => {
     try {
@@ -59,7 +62,7 @@ export function useUsageData<TUsageData extends UsageData = UsageData>({
       const init: RequestInit = {};
       if (requestCache) init.cache = requestCache;
 
-      const response = await fetch("/api/usage", init);
+      const response = await fetch(endpoint, init);
       const json = await response.json();
 
       if (requireOkResponse && !response.ok) {
@@ -69,7 +72,7 @@ export function useUsageData<TUsageData extends UsageData = UsageData>({
       const nextData = json as TUsageData;
       setData(nextData);
       setError(null);
-      isHydrated.current = false;
+      isHydrated.current = true;
       onSuccess?.(nextData, { background });
       return nextData;
     } catch (err) {
@@ -105,13 +108,14 @@ export function useUsageData<TUsageData extends UsageData = UsageData>({
     logErrors,
     onError,
     onSuccess,
+    endpoint,
     requestCache,
     requireOkResponse,
     setErrorOnBackground,
   ]);
 
   useEffect(() => {
-    const initialTimer = fetchOnMount
+    const initialTimer = shouldFetchOnMount
       ? setTimeout(() => {
           void refresh(false);
         }, resolvedInitialDelay)
@@ -128,7 +132,7 @@ export function useUsageData<TUsageData extends UsageData = UsageData>({
       if (pollingTimer) clearInterval(pollingTimer);
       if (syncResetTimer.current) clearTimeout(syncResetTimer.current);
     };
-  }, [fetchOnMount, pollingIntervalMs, refresh, resolvedInitialDelay]);
+  }, [pollingIntervalMs, refresh, resolvedInitialDelay, shouldFetchOnMount]);
 
   return {
     data,

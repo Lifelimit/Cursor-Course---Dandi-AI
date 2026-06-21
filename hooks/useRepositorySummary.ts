@@ -1,7 +1,7 @@
 "use client";
 
 import { experimental_useObject } from "@ai-sdk/react";
-import { useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { z } from "zod";
 import type { LogEntry } from "@/components/playground/NetworkLog";
 import type { ApiKey } from "@/types/api";
@@ -41,12 +41,26 @@ const summarySchema = z
 
 type RepositorySummaryResult = z.infer<typeof summarySchema>;
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 const getPerformanceNow = () => performance.now();
 
 const getSummaryStreamDuration = () =>
   Math.round(getPerformanceNow() - (window.__dandi_stream_start || getPerformanceNow()));
+
+const parseSummarizerMetadataHeader = (response: Response): RepositoryMetadata | null => {
+  const encodedMetadata = response.headers.get("x-github-metadata");
+  if (!encodedMetadata) return null;
+
+  try {
+    const decodedText = new TextDecoder().decode(
+      Uint8Array.from(atob(encodedMetadata), (char) => char.charCodeAt(0))
+    );
+    const decoded = JSON.parse(decodedText) as { metadata?: RepositoryMetadata };
+    return decoded.metadata || null;
+  } catch (err) {
+    console.error("Failed to parse repository metadata from summary response:", err);
+    return null;
+  }
+};
 
 const getFriendlySummaryStreamError = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error || "");
@@ -107,10 +121,18 @@ export function useRepositorySummary({
   const [summaryStatus, setSummaryStatus] = useState<RepositorySummaryStatus>("idle");
   const [summaryIssue, setSummaryIssue] = useState("");
   const [repoMetadata, setRepoMetadata] = useState<RepositoryMetadata | null>(null);
+  const stagedLogTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const setSummaryLogState = (id: string, updates: Partial<LogEntry>) => {
     setSummaryRequestLogs((prev) => updateLogEntries(prev, id, updates));
   };
+
+  const clearStagedLogTimers = useCallback(() => {
+    stagedLogTimersRef.current.forEach(clearTimeout);
+    stagedLogTimersRef.current = [];
+  }, []);
+
+  useEffect(() => clearStagedLogTimers, [clearStagedLogTimers]);
 
   const {
     submit,
@@ -120,6 +142,24 @@ export function useRepositorySummary({
   } = experimental_useObject<typeof summarySchema, RepositorySummaryResult, { githubUrl: string }>({
     api: "/api/github-summarizer",
     headers: (): Record<string, string> => (apiKey ? { "x-api-key": apiKey } : {}),
+    fetch: async (input, init) => {
+      const response = await fetch(input, init);
+      const metadata = parseSummarizerMetadataHeader(response);
+      if (metadata) {
+        setRepoMetadata(metadata);
+        setSummaryLogState("repo_fetch", {
+          status: "success",
+          duration: Math.round(getPerformanceNow() - (window.__dandi_stream_start || getPerformanceNow())),
+          statusCode: 200,
+          statusText: "OK",
+          responseHeaders: {
+            "Content-Type": "application/json; charset=utf-8",
+          },
+          responseBody: metadata,
+        });
+      }
+      return response;
+    },
     schema: summarySchema,
     onFinish: ({ object, error }) => {
       void refreshKeys();
@@ -188,6 +228,7 @@ export function useRepositorySummary({
 
     const startTime = getPerformanceNow();
     window.__dandi_stream_start = startTime;
+    clearStagedLogTimers();
 
     setSummaryLogState("auth", {
       label: "Authentication",
@@ -201,88 +242,57 @@ export function useRepositorySummary({
       requestBody: { apiKey: maskedKey },
     });
 
+    setSummaryLogState("repo_fetch", {
+      label: "Repository Fetch",
+      status: "pending",
+      method: "GET",
+      url: `https://api.github.com/repos/${repoPath}`,
+      requestHeaders: {
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "Dandi-AI-Engine/1.0",
+      },
+      requestBody: null,
+    });
+
+    setSummaryLogState("ai_processing", {
+      label: "AI Processing",
+      status: "pending",
+      method: "POST",
+      url: "/api/github-summarizer",
+      requestHeaders: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer dandi_ai_internal_••••••••",
+      },
+      requestBody: {
+        files: ["package.json", "src/index.js", "README.md"],
+        analysis_depth: "deep",
+        temperature: 0.2,
+      },
+    });
+
     try {
-      await sleep(350);
-
-      setSummaryLogState("auth", {
-        status: "success",
-        duration: Math.round(getPerformanceNow() - startTime),
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-          "X-Dandi-Engine": "v1.0.4",
-        },
-        responseBody: {
-          valid: true,
-          key_name: selectedKeyName,
-          permissions: ["summarize:write"],
-        },
-      });
-
-      setSummaryLogState("repo_fetch", {
-        label: "Repository Fetch",
-        status: "pending",
-        method: "GET",
-        url: `https://api.github.com/repos/${repoPath}`,
-        requestHeaders: {
-          Accept: "application/vnd.github.v3+json",
-          "User-Agent": "Dandi-AI-Engine/1.0",
-        },
-        requestBody: null,
-      });
-
-      await sleep(450);
-
-      setSummaryLogState("repo_fetch", {
-        status: "success",
-        duration: 450,
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: {
-          "Content-Type": "application/json; charset=utf-8",
-        },
-        responseBody: {
-          id: Math.floor(Math.random() * 10000000) + 10000000,
-          name: repoPath.split("/")[1] || "repository",
-          full_name: repoPath,
-        },
-      });
-
-      setSummaryLogState("ai_processing", {
-        label: "AI Processing",
-        status: "pending",
-        method: "POST",
-        url: "/api/github-summarizer",
-        requestHeaders: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer dandi_ai_internal_••••••••",
-        },
-        requestBody: {
-          files: ["package.json", "src/index.js", "README.md"],
-          analysis_depth: "deep",
-          temperature: 0.2,
-        },
-      });
-
-      fetch(`/api/github-metadata?githubUrl=${encodeURIComponent(githubUrl)}&apiKey=${encodeURIComponent(apiKey)}`)
-        .then((res) => {
-          if (res.ok) {
-            return res.json();
-          }
-          throw new Error("Failed to fetch metadata");
-        })
-        .then((data) => {
-          setRepoMetadata(data);
-        })
-        .catch((err) => {
-          console.error("Failed to load repository metadata:", err);
-          setRepoMetadata(null);
+      stagedLogTimersRef.current.push(setTimeout(() => {
+        setSummaryLogState("auth", {
+          status: "success",
+          duration: Math.round(getPerformanceNow() - startTime),
+          statusCode: 200,
+          statusText: "OK",
+          responseHeaders: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+            "X-Dandi-Engine": "v1.0.4",
+          },
+          responseBody: {
+            valid: true,
+            key_name: selectedKeyName,
+            permissions: ["summarize:write"],
+          },
         });
+      }, 350));
 
       void submit({ githubUrl });
     } catch (err) {
+      clearStagedLogTimers();
       const message = getUnknownErrorMessage(err);
       setSummaryStatus("error");
       setSummaryIssue(message);

@@ -14,8 +14,8 @@ type ApiKeyActionProps = {
 };
 
 type PromptStateProps = {
-  promptedKeyId: string | null;
-  securityPromptKeyId: string | null;
+  isPrompted: boolean;
+  isSecurityPrompted: boolean;
   onPromptToggle: (keyId: string) => void;
   onSecurityPromptToggle: (keyId: string) => void;
   onSecurityPromptClose: () => void;
@@ -255,7 +255,7 @@ function ClearSearchButton({ onClearSearch }: { onClearSearch: () => void }) {
   );
 }
 
-function ApiKeyUsageSparkline({
+const ApiKeyUsageSparkline = React.memo(function ApiKeyUsageSparkline({
   trend,
   usageCount,
   intensityColor,
@@ -302,9 +302,9 @@ function ApiKeyUsageSparkline({
       />
     </svg>
   );
-}
+});
 
-export function ApiKeyMobileCard({
+export const ApiKeyMobileCard = React.memo(function ApiKeyMobileCard({
   apiKey,
   isHobby,
   ...props
@@ -312,7 +312,7 @@ export function ApiKeyMobileCard({
   apiKey: ApiKey;
   isHobby: boolean;
 } & ApiKeyActionProps & PromptStateProps) {
-  const { usagePercent, intensityColor } = getUsagePresentation(apiKey);
+  const { usagePercent, intensityColor } = React.useMemo(() => getUsagePresentation(apiKey), [apiKey]);
 
   return (
     <CommandPanel
@@ -359,11 +359,11 @@ export function ApiKeyMobileCard({
         </div>
       </div>
 
-      {props.securityPromptKeyId === apiKey.id && (
+      {props.isSecurityPrompted && (
         <MobileSecurityPrompt apiKey={apiKey} onClose={props.onSecurityPromptClose} onDelete={props.onDelete} />
       )}
 
-      {!apiKey.is_active && props.promptedKeyId === apiKey.id && (
+      {!apiKey.is_active && props.isPrompted && (
         <div className="rounded-2xl border border-amber-300/15 bg-amber-300/5 p-4">
           <p className="text-xs font-medium leading-relaxed text-amber-100">
             <span className="font-bold">{apiKey.name}</span> is disabled. {isHobby ? "Upgrade your plan to re-enable it." : "Open Usage Center to resume service."}
@@ -399,7 +399,7 @@ export function ApiKeyMobileCard({
       </div>
     </CommandPanel>
   );
-}
+});
 
 function MobileSecurityPrompt({
   apiKey,
@@ -439,7 +439,7 @@ function MobileSecurityPrompt({
   );
 }
 
-export function ApiKeyDesktopRow({
+export const ApiKeyDesktopRow = React.memo(function ApiKeyDesktopRow({
   apiKey,
   isHobby,
   onUpgradePrompt,
@@ -449,7 +449,7 @@ export function ApiKeyDesktopRow({
   isHobby: boolean;
   onUpgradePrompt: () => void;
 } & ApiKeyActionProps & PromptStateProps) {
-  const { usagePercent, intensityColor } = getUsagePresentation(apiKey, true);
+  const { usagePercent, intensityColor } = React.useMemo(() => getUsagePresentation(apiKey, true), [apiKey]);
 
   return (
     <React.Fragment>
@@ -545,16 +545,16 @@ export function ApiKeyDesktopRow({
         </td>
       </tr>
 
-      {props.securityPromptKeyId === apiKey.id && (
+      {props.isSecurityPrompted && (
         <DesktopSecurityPrompt apiKey={apiKey} onClose={props.onSecurityPromptClose} onDelete={props.onDelete} />
       )}
 
-      {!apiKey.is_active && props.promptedKeyId === apiKey.id && (
+      {!apiKey.is_active && props.isPrompted && (
         <DisabledKeyDetailsRow apiKey={apiKey} isHobby={isHobby} onUpgradePrompt={onUpgradePrompt} />
       )}
     </React.Fragment>
   );
-}
+});
 
 function DesktopSecurityPrompt({
   apiKey,

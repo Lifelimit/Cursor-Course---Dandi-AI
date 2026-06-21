@@ -54,7 +54,7 @@ export function useApiKeys(initialData: ApiKey[] = []) {
   const hookId = useId();
   // Real-time subscription
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase || !userId) return;
 
     const channel = supabase
       .channel(`api_keys_changes_${hookId}`)
@@ -64,14 +64,9 @@ export function useApiKeys(initialData: ApiKey[] = []) {
           event: "*", // Listen to all events (INSERT, UPDATE, DELETE)
           schema: "public",
           table: "api_keys",
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          // Client-side security: ignore events for other users
-          const eventUserId = (payload.new as { user_id?: string })?.user_id || (payload.old as { user_id?: string })?.user_id;
-          if (userId && eventUserId && eventUserId !== userId) {
-            return;
-          }
-
           if (payload.eventType === "UPDATE") {
             const updatedRow = payload.new as ApiKeyApiResponse;
             setApiKeys((current) =>
