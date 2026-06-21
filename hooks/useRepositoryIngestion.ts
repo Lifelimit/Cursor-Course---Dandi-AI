@@ -30,7 +30,6 @@ type UseRepositoryIngestionOptions = {
   apiKeys: ApiKey[];
   refreshKeys: () => void | Promise<void>;
   setErrorMessage: (message: string) => void;
-  setGithubUrl: (url: string) => void;
   getRepoPath: (url: string) => string;
   scrollToRequestProgress: () => void;
   showToast: (type: "success" | "error", message: string) => void;
@@ -102,7 +101,6 @@ export function useRepositoryIngestion({
   apiKeys,
   refreshKeys,
   setErrorMessage,
-  setGithubUrl,
   getRepoPath,
   scrollToRequestProgress,
   showToast,
@@ -174,11 +172,8 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
         const jobs = Array.isArray(data.jobs) ? (data.jobs as IngestionJobSummary[]) : [];
         if (cancelled) return;
 
-        const matchingJob = githubUrl ? jobs.find((job) => job.repoUrl === githubUrl) : jobs[0];
+        const matchingJob = githubUrl ? jobs.find((job) => job.repoUrl === githubUrl) : null;
         if (!matchingJob) return;
-        if (!githubUrl && matchingJob.repoUrl) {
-          setGithubUrl(matchingJob.repoUrl);
-        }
         applyDurableJobState(matchingJob);
       } catch {
         // Durable restoration is best-effort and must not block the Playground.

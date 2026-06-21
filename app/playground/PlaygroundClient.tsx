@@ -167,7 +167,6 @@ export default function PlaygroundClient({
     apiKeys,
     refreshKeys,
     setErrorMessage,
-    setGithubUrl,
     getRepoPath,
     scrollToRequestProgress: () => scrollToSection(requestProgressRef),
     showToast,
