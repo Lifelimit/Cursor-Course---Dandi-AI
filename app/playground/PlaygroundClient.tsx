@@ -1012,6 +1012,7 @@ export default function PlaygroundClient({
   return (
     <>
       <DashboardShell
+        variant="playground"
         sidebar={{
           totalUsage,
           plan: currentPlan,

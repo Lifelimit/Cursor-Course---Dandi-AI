@@ -1,8 +1,18 @@
 import type { ReactNode } from "react";
 import { cx } from "./utils";
 
+export type CommandShellVariant =
+  | "public"
+  | "dashboard"
+  | "playground"
+  | "usage"
+  | "billing"
+  | "account"
+  | "auth";
+
 export type AnimatedBackgroundProps = {
   intensity?: "subtle" | "standard" | "hero";
+  variant?: CommandShellVariant;
   className?: string;
   children?: ReactNode;
 };
@@ -15,11 +25,19 @@ const intensityClasses: Record<NonNullable<AnimatedBackgroundProps["intensity"]>
 
 export function AnimatedBackground({
   intensity = "standard",
+  variant = "dashboard",
   className,
   children,
 }: AnimatedBackgroundProps) {
   return (
-    <div className={cx("command-ambient relative overflow-hidden", intensityClasses[intensity], className)}>
+    <div
+      className={cx(
+        "command-ambient relative overflow-hidden",
+        intensityClasses[intensity],
+        `command-ambient-${variant}`,
+        className
+      )}
+    >
       <div aria-hidden="true" className="command-ambient-radial command-ambient-radial-one pointer-events-none absolute inset-0" />
       <div aria-hidden="true" className="command-ambient-radial command-ambient-radial-two pointer-events-none absolute inset-0" />
       <div aria-hidden="true" className="command-ambient-grid pointer-events-none absolute inset-0" />

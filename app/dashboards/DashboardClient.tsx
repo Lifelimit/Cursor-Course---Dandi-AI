@@ -255,6 +255,7 @@ export default function DashboardClient({
 
   return (
     <DashboardShell
+      variant="dashboard"
       sidebar={{
         totalUsage,
         plan: currentPlan,

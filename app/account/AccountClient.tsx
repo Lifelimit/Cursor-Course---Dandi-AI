@@ -377,6 +377,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   return (
     <>
       <DashboardShell
+        variant="account"
         sidebar={{
           totalUsage: usage?.totalUsage || 0,
           plan: userPlan,
