@@ -10,11 +10,13 @@ import { Toast } from "@/components/ui/Toast";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { ApiKeyModal } from "@/components/dashboard/ApiKeyModal";
-import { CommandPanel, ModalFrame, StatusPill } from "@/components/command";
+import { CommandPanel, ModalFrame } from "@/components/command";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 import { ApiKeyTable } from "@/components/dashboard/ApiKeyTable";
 import { RevocationModal } from "@/components/dashboard/RevocationModal";
+import { DashboardOverviewCards } from "@/components/dashboard/DashboardOverviewCards";
+import { PlanStatusCard } from "@/components/dashboard/PlanStatusCard";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -22,7 +24,7 @@ import { GettingStartedChecklist } from "@/components/dashboard/GettingStartedCh
 import { EyeOffIcon, ShieldIcon, CopyLockedIcon, CopyCheckIcon } from "@/components/icons";
 import { GuidedError } from "@/components/ui/GuidedError";
 import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
-import { formatPercentage, formatRequestCount, formatShortDate } from "@/lib/format";
+import { formatPercentage } from "@/lib/format";
 import type { DailyUsageTrend, UsageData } from "@/types/usage";
 
 import { DecryptingKeyText } from "@/components/ui/DecryptingKeyText";
@@ -335,9 +337,8 @@ export default function DashboardClient({
               />
             )}
 
-            {/* Metric Tiles Row */}
-            <div className="grid gap-6 md:grid-cols-3">
-              {[
+            <DashboardOverviewCards
+              metrics={[
                 {
                   label: "Avg. Latency",
                   value: avgLatency > 0 ? `${avgLatency}ms` : "--",
@@ -357,222 +358,21 @@ export default function DashboardClient({
                 {
                   label: "Active Keys",
                   value: apiKeys.length.toString(),
-                  icon: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z",
+                  icon: "M15 7a2 2 0 012 2m4 0a6 6 0 11-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z",
                   tone: "blue",
                   spark: padSpark(requestsSpark),
                 },
-              ].map((m) => {
-                const accentText =
-                  m.tone === "amber"
-                    ? "text-amber-400"
-                    : m.tone === "blue"
-                    ? "text-blue-400"
-                    : "text-emerald-400";
+              ]}
+            />
 
-                const accentBg =
-                  m.tone === "amber"
-                    ? "bg-amber-500/5"
-                    : m.tone === "blue"
-                    ? "bg-blue-500/5"
-                    : "bg-emerald-500/5";
-
-                const accentBorder =
-                  m.tone === "amber"
-                    ? "border-amber-500/20 animate-pulse-slow"
-                    : m.tone === "blue"
-                    ? "border-blue-500/20"
-                    : "border-emerald-500/20";
-
-                const glowColor =
-                  m.tone === "amber"
-                    ? "bg-amber-400/5"
-                    : m.tone === "blue"
-                    ? "bg-blue-400/5"
-                    : "bg-emerald-400/5";
-
-                return (
-                  <div
-                    key={m.label}
-                    className="group relative flex min-w-0 flex-col overflow-hidden rounded-[24px] border border-white/5 bg-slate-950/40 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.34)] backdrop-blur-xl transition-all hover:border-white/10 sm:p-5 md:min-h-48"
-                    style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
-                  >
-                    {/* Subtle Glow decoration */}
-                    <div
-                      aria-hidden="true"
-                      className={`pointer-events-none absolute -right-14 -top-20 h-36 w-36 rounded-full blur-3xl opacity-60 ${glowColor}`}
-                    />
-
-                    {/* Upper row: icon, name+value, trend pill */}
-                    <div className="relative flex min-w-0 items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div
-                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border bg-white/[0.015] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] ${accentBorder} ${accentText}`}
-                        >
-                          <svg viewBox="0 0 24 24" className="h-6.5 w-6.5" fill="none" stroke="currentColor">
-                            <path d={m.icon} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </div>
-                        <div className="min-w-0 leading-normal">
-                          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 font-sans">
-                            {m.label}
-                          </p>
-                          <p className="text-2xl font-bold tracking-tight text-white font-sans mt-0.5 tabular-nums">
-                            {m.value}
-                          </p>
-                        </div>
-                      </div>
-
-                      {'trend' in m && m.trend && (
-                        <span
-                          className={`inline-flex shrink-0 items-center rounded-lg border px-2 py-1 text-[10px] font-bold font-mono tracking-wide tabular-nums ${accentBorder} ${accentBg} ${accentText} shadow-[0_0_10px_rgba(0,0,0,0.2)]`}
-                        >
-                          {m.trend}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Bottom row: Sparkline */}
-                    <div className="relative mt-6 h-12 w-full overflow-hidden md:mt-auto md:pt-4">
-                      <svg viewBox="0 0 220 40" preserveAspectRatio="none" className="h-full w-full">
-                        {(() => {
-                          const pts = m.spark;
-                          const maxVal = Math.max(...pts);
-                          const minVal = Math.min(...pts);
-                          const range = maxVal - minVal;
-                          // Normalize 0–30 px height within the 0–35 canvas (5px top padding)
-                          const toY = (v: number) =>
-                            range === 0 ? 20 : Math.round(35 - ((v - minVal) / range) * 30);
-                          const step = pts.length > 1 ? 220 / (pts.length - 1) : 0;
-                          const pointStr = pts.map((v, i) => `${Math.round(i * step)},${toY(v)}`).join(" ");
-                          const lastX = Math.round((pts.length - 1) * step);
-                          const lastY = toY(pts[pts.length - 1]);
-                          return (
-                            <>
-                              <polygon
-                                points={`0,40 ${pointStr} ${lastX},40`}
-                                className={
-                                  m.tone === "amber"
-                                    ? "fill-amber-500/10"
-                                    : m.tone === "blue"
-                                    ? "fill-blue-500/10"
-                                    : "fill-emerald-500/10"
-                                }
-                              />
-                              <polyline
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                points={pointStr}
-                                className={
-                                  m.tone === "amber"
-                                    ? "text-amber-500 drop-shadow-[0_0_6px_rgba(245,158,11,0.3)]"
-                                    : m.tone === "blue"
-                                    ? "text-blue-500 drop-shadow-[0_0_6px_rgba(59,130,246,0.3)]"
-                                    : "text-emerald-500 drop-shadow-[0_0_6px_rgba(16,185,129,0.3)]"
-                                }
-                              />
-                              <circle
-                                cx={lastX}
-                                cy={lastY}
-                                r="3"
-                                fill="currentColor"
-                                className={
-                                  m.tone === "amber"
-                                    ? "text-amber-400 drop-shadow-[0_0_6px_rgba(245,158,11,0.8)]"
-                                    : m.tone === "blue"
-                                    ? "text-blue-400 drop-shadow-[0_0_6px_rgba(59,130,246,0.8)]"
-                                    : "text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.8)]"
-                                }
-                              />
-                            </>
-                          );
-                        })()}
-                      </svg>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Plan Status Card */}
-            <CommandPanel padding="none" className="group relative overflow-hidden p-5 sm:p-8 md:p-10">
-              {/* Background Glow Decoration */}
-              <div
-                className="pointer-events-none absolute inset-0 opacity-70 transition-opacity duration-300 group-hover:opacity-100"
-                style={{
-                  background:
-                    "radial-gradient(ellipse 120% 80% at 100% 0%, rgba(52, 211, 153, 0.14), transparent 60%)",
-                }}
-              />
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/50 to-transparent" />
-
-              <div className="relative flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
-                <div className="flex-1 space-y-8">
-                  <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/80">Current Plan</p>
-                      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-                        <h2 className="font-serif text-4xl font-bold italic tracking-tight text-white sm:text-5xl">{currentPlan}</h2>
-                        {isUnlimited && (
-                          <StatusPill tone="success" compact>Unlimited</StatusPill>
-                        )}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => router.push("/billing")}
-                      className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-8 py-3 text-[10px] font-black uppercase tracking-widest text-slate-300 transition-all hover:border-emerald-300/30 hover:text-emerald-200 sm:w-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-                    >
-                      Manage Plan
-                    </button>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                        Usage <span className="mx-2 opacity-20">/</span> <span className="text-white">{formatRequestCount(totalUsage)} Units Used</span>
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                        </span>
-                        <span className="text-[9px] font-black uppercase tracking-widest text-emerald-300">
-                          Next Reset: {resetDate ? formatShortDate(resetDate) : formatShortDate(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1))}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full bg-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.35)] transition-all duration-1000 ease-out"
-                        style={{ width: `${isUnlimited ? 100 : Math.min((totalUsage / currentLimit) * 100, 100)}%` }}
-                      ></div>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                      <span>0 Units</span>
-                      <span>Plan Limit: {isUnlimited ? "∞" : formatRequestCount(currentLimit)} Units</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Simulated Usage Pulse Visual */}
-                <div className="hidden h-32 w-48 shrink-0 items-center justify-center rounded-3xl border border-emerald-300/15 bg-slate-950/70 p-6 md:flex">
-                  <div className="flex items-end gap-1 h-full w-full">
-                    {[35, 65, 45, 85, 55, 75, 40, 90, 60, 80].map((h, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 rounded-t-sm bg-emerald-400/20 transition-all hover:bg-emerald-300"
-                        style={{ height: `${h}%` }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CommandPanel>
+            <PlanStatusCard
+              currentPlan={currentPlan}
+              isUnlimited={isUnlimited}
+              totalUsage={totalUsage}
+              currentLimit={currentLimit}
+              resetDate={resetDate}
+              onManagePlan={() => router.push("/billing")}
+            />
 
             {/* Keys Section */}
             <CommandPanel padding="none" className="p-5 sm:p-8">

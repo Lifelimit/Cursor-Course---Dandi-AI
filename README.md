@@ -26,7 +26,7 @@ This repository currently covers:
 - Supabase Auth and Postgres
 - Stripe Billing
 - Upstash Redis
-- Google AI SDK, AI SDK, LangChain
+- Google AI SDK and AI SDK
 - Tailwind CSS 4
 - Yarn 1
 

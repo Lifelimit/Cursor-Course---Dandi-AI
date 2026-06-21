@@ -8,7 +8,7 @@ This document is the shared source of truth for AI agents working in Dandi. Agen
 - Supabase Auth and Postgres through `@supabase/ssr` and `@supabase/supabase-js`.
 - Stripe Billing for subscriptions, invoices, checkout, and webhooks.
 - Upstash Redis for hot usage counters and rate limiting.
-- AI SDK, Google AI SDK, LangChain, and Google GenAI packages for AI and repository intelligence.
+- AI SDK and Google AI SDK packages for AI and repository intelligence.
 - Tailwind CSS 4.
 - Yarn 1 for package management and scripts.
 

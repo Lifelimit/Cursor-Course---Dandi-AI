@@ -501,106 +501,6 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
-"@langchain/classic@1.0.27":
-  version "1.0.27"
-  resolved "https://registry.npmjs.org/@langchain/classic/-/classic-1.0.27.tgz"
-  integrity sha512-dMq8rgt3cy/QoHrB6HIKobievyW00DfuZcASG0aMy47Pf5TQq3vZM2tLT1kkCBe2yJnncQwqmAzxoEgFLJZrcw==
-  dependencies:
-    "@langchain/openai" "1.4.1"
-    "@langchain/textsplitters" "1.0.1"
-    handlebars "^4.7.9"
-    js-yaml "^4.1.1"
-    jsonpointer "^5.0.1"
-    openapi-types "^12.1.3"
-    uuid "^10.0.0"
-    yaml "^2.8.3"
-    zod "^3.25.76 || ^4"
-  optionalDependencies:
-    langsmith ">=0.4.0 <1.0.0"
-
-"@langchain/community@^1.1.27":
-  version "1.1.27"
-  resolved "https://registry.npmjs.org/@langchain/community/-/community-1.1.27.tgz"
-  integrity sha512-s2U3w7QV7QpkFtY1eZMni4poz+nKLFclpDi3a7hUbZ67ttsGaU9WkZ2BiLuzLIs+IFaUvON/KcGkE8EqAl9aPA==
-  dependencies:
-    "@langchain/classic" "1.0.27"
-    "@langchain/openai" "1.4.1"
-    binary-extensions "^2.2.0"
-    flat "^5.0.2"
-    js-yaml "^4.1.1"
-    langsmith ">=0.4.0 <1.0.0"
-    math-expression-evaluator "^2.0.0"
-    uuid "^10.0.0"
-    zod "^3.25.76 || ^4"
-
-"@langchain/core@1.1.41", "@langchain/core@^1.1.41":
-  version "1.1.41"
-  resolved "https://registry.yarnpkg.com/@langchain/core/-/core-1.1.41.tgz#4d5a7858fa3b0fb50ee5e6fd2d5ea1c8945baa9c"
-  integrity sha512-KdoNEf1YVJ9jnOP+smq4O6teu63tE7GDUryOnZ2lVfooHLrHK/ECUadjOcDSCK/yk/xBw/8nexJ3ZNBMtKnstw==
-  dependencies:
-    "@cfworker/json-schema" "^4.0.2"
-    "@standard-schema/spec" "^1.1.0"
-    ansi-styles "^5.0.0"
-    camelcase "6"
-    decamelize "1.2.0"
-    js-tiktoken "^1.0.12"
-    langsmith ">=0.5.0 <1.0.0"
-    mustache "^4.2.0"
-    p-queue "^6.6.2"
-    uuid "^11.1.0"
-    zod "^3.25.76 || ^4"
-
-"@langchain/google-genai@^2.1.28":
-  version "2.1.28"
-  resolved "https://registry.npmjs.org/@langchain/google-genai/-/google-genai-2.1.28.tgz"
-  integrity sha512-iTzNYWST8hTRqOXZdme18tq5GnCUwtrrJECE51ZCjg6Vg0mPsV44amdC+/bc+UK0+uphKWESGWs277aAyM2MlA==
-  dependencies:
-    "@google/generative-ai" "^0.24.0"
-    uuid "^11.1.0"
-
-"@langchain/langgraph-checkpoint@^1.0.1":
-  version "1.0.1"
-  resolved "https://registry.npmjs.org/@langchain/langgraph-checkpoint/-/langgraph-checkpoint-1.0.1.tgz"
-  integrity sha512-HM0cJLRpIsSlWBQ/xuDC67l52SqZ62Bh2Y61DX+Xorqwoh5e1KxYvfCD7GnSTbWWhjBOutvnR0vPhu4orFkZfw==
-  dependencies:
-    uuid "^10.0.0"
-
-"@langchain/langgraph-sdk@~1.8.9":
-  version "1.8.9"
-  resolved "https://registry.npmjs.org/@langchain/langgraph-sdk/-/langgraph-sdk-1.8.9.tgz"
-  integrity sha512-vpz90auS4iFTNy2X/CFexOEoeFSvaK+MyI7iSmzYs9gGcfzwRjWUJ4MWsuc5ZNRecLStwho0PExVXRgGOXtcRw==
-  dependencies:
-    "@types/json-schema" "^7.0.15"
-    p-queue "^9.0.1"
-    p-retry "^7.1.1"
-    uuid "^13.0.0"
-
-"@langchain/langgraph@^1.2.9":
-  version "1.2.9"
-  resolved "https://registry.npmjs.org/@langchain/langgraph/-/langgraph-1.2.9.tgz"
-  integrity sha512-3c7BtGycHC2v9p6w/Hv8L7kEl1YnZYOQTDJtmAp3knk6JOedO7d2bYP3y0SRyhv5orUEGf/KGvx8ZsB/ideP7g==
-  dependencies:
-    "@langchain/langgraph-checkpoint" "^1.0.1"
-    "@langchain/langgraph-sdk" "~1.8.9"
-    "@standard-schema/spec" "1.1.0"
-    uuid "^10.0.0"
-
-"@langchain/openai@1.4.1":
-  version "1.4.1"
-  resolved "https://registry.npmjs.org/@langchain/openai/-/openai-1.4.1.tgz"
-  integrity sha512-jaHk4TnLqWrQ1KYmavvwCImW6x8pBy6LLTK73tzSMg7HBLbq0g/l7EkpMcxZWDOvyufuCXUqO2bj47apcOhw6Q==
-  dependencies:
-    js-tiktoken "^1.0.12"
-    openai "^6.32.0"
-    zod "^3.25.76 || ^4"
-
-"@langchain/textsplitters@1.0.1":
-  version "1.0.1"
-  resolved "https://registry.npmjs.org/@langchain/textsplitters/-/textsplitters-1.0.1.tgz"
-  integrity sha512-rheJlB01iVtrOUzttscutRgLybPH9qR79EyzBEbf1u97ljWyuxQfCwIWK+SjoQTM9O8M7GGLLRBSYE26Jmcoww==
-  dependencies:
-    js-tiktoken "^1.0.12"
-
 "@napi-rs/wasm-runtime@^0.2.11":
   version "0.2.12"
   resolved "https://registry.yarnpkg.com/@napi-rs/wasm-runtime/-/wasm-runtime-0.2.12.tgz#3e78a8b96e6c33a6c517e1894efbd5385a7cb6f2"
@@ -2628,24 +2528,6 @@ keyv@^4.5.4:
   integrity sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==
   dependencies:
     json-buffer "3.0.1"
-
-langchain@^1.3.4:
-  version "1.3.4"
-  resolved "https://registry.npmjs.org/langchain/-/langchain-1.3.4.tgz"
-  integrity sha512-umrD+ZC6vr0Q0U1lC5PoIMMQqgnP+7QhaIdAXCeZiSX2GPVBiVR7Ed2ZR+3MPvz1yWrRtIm17wPaovkND+wOXg==
-  dependencies:
-    "@langchain/langgraph" "^1.2.9"
-    "@langchain/langgraph-checkpoint" "^1.0.1"
-    langsmith ">=0.5.0 <1.0.0"
-    uuid "^11.1.0"
-    zod "^3.25.76 || ^4"
-
-"langsmith@>=0.4.0 <1.0.0", "langsmith@>=0.5.0 <1.0.0":
-  version "0.5.25"
-  resolved "https://registry.npmjs.org/langsmith/-/langsmith-0.5.25.tgz"
-  integrity sha512-AG7NOymrDmwaWq+wus5hJHZjPFKXwsEdfqGBU3eZiF5242mme+5wuJocdBJKGyU1kgBO7TuLHiqtdyIwl4V4yQ==
-  dependencies:
-    p-queue "6.6.2"
 
 language-subtag-registry@^0.3.20:
   version "0.3.23"
