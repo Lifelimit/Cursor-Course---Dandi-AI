@@ -30,6 +30,16 @@ export function SidebarAlerts({
   onUpdate: () => void;
 }) {
   const [peekingKey, setPeekingKey] = React.useState<string | null>(null);
+  const [closingKeyId, setClosingKeyId] = React.useState<string | null>(null);
+  const closeTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
 
   const { maxLimitCap, isUnlimited } = getPlanLimits(plan);
   const limitEditor = useKeyLimitEditor({
@@ -37,6 +47,20 @@ export function SidebarAlerts({
     onUpdate,
     mode: "silent",
   });
+
+  const closeFlyoutWithAnimation = React.useCallback((alertId: string) => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+    }
+    setClosingKeyId(alertId);
+    closeTimerRef.current = setTimeout(() => {
+      if (limitEditor.openKeyId === alertId) {
+        limitEditor.closeEditor({ resetValue: true, clearError: true });
+      }
+      setClosingKeyId(null);
+      closeTimerRef.current = null;
+    }, 500);
+  }, [limitEditor]);
 
   if (alerts.length === 0) return null;
 
@@ -118,14 +142,24 @@ export function SidebarAlerts({
                       variant="secondary"
                       size="sm"
                       onClick={() => {
-                        limitEditor.toggleEditor(alert.id, { resetValue: true });
+                        if (isFlying && closingKeyId !== alert.id) {
+                          closeFlyoutWithAnimation(alert.id);
+                        } else if (closingKeyId === alert.id) {
+                          setClosingKeyId(null);
+                          if (closeTimerRef.current) {
+                            clearTimeout(closeTimerRef.current);
+                            closeTimerRef.current = null;
+                          }
+                        } else {
+                          limitEditor.toggleEditor(alert.id, { resetValue: true });
+                        }
                       }}
                       className="w-full mt-3 justify-center border-emerald-400/20 bg-emerald-400/10 px-2 py-2 text-[8px] text-emerald-300 hover:border-emerald-300/40 hover:bg-emerald-400/15"
                       aria-controls={`quota-limit-form-${alert.id}`}
-                      aria-expanded={isFlying}
-                      aria-label={`${isFlying ? "Cancel request limit update" : "Increase monthly request limit"} for ${alert.keyName}`}
+                      aria-expanded={isFlying && closingKeyId !== alert.id}
+                      aria-label={`${isFlying && closingKeyId !== alert.id ? "Cancel request limit update" : "Increase monthly request limit"} for ${alert.keyName}`}
                     >
-                      {isFlying ? 'Cancel' : 'Increase Limit'}
+                      {isFlying && closingKeyId !== alert.id ? 'Cancel' : 'Increase Limit'}
                     </Button>
                   </div>
                   
@@ -155,22 +189,11 @@ export function SidebarAlerts({
                 </div>
 
                 {/* Mobile Inline Quota Increase Form */}
-                <div id={`quota-limit-form-${alert.id}`} className={`md:hidden overflow-hidden transition-all duration-500 ease-in-out ${isFlying ? 'mt-4 max-h-64 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+                <div id={`quota-limit-form-${alert.id}`} className={`md:hidden overflow-hidden transition-all duration-500 ease-in-out ${isFlying && closingKeyId !== alert.id ? 'mt-4 max-h-64 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
                   <div className="space-y-3 pt-3 border-t border-white/5">
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] font-black text-white uppercase tracking-widest">New Monthly Limit</span>
                     </div>
-                    {/* DEBUG INPUT */}
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      aria-label={`Debug new monthly limit for ${alert.keyName}`}
-                      value={limitEditor.value}
-                      onChange={(e) => limitEditor.handleInputChange(e.target.value, { clampToPlanLimit: false })}
-                      onKeyDown={(e) => console.log("debug keydown", e.key, e.repeat)}
-                      className="dandi-field px-4 py-4 font-serif text-2xl font-bold bg-purple-900"
-                    />
-                    {/* END DEBUG INPUT */}
                     <div className="relative">
                       <input 
                         type="text" 
@@ -227,7 +250,7 @@ export function SidebarAlerts({
               {/* Horizontal Flyout Increase Form - Desktop Only */}
               <div 
                 className={`hidden md:flex absolute left-full top-1/2 z-[110] -translate-y-1/2 items-center transition-all duration-500 origin-left ${
-                  isFlying 
+                  isFlying && closingKeyId !== alert.id
                     ? 'translate-x-3 opacity-100 scale-100 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]' 
                     : '-translate-x-4 opacity-0 scale-0 pointer-events-none ease-[cubic-bezier(0.6,-0.28,0.735,0.045)]'
                 }`}
@@ -256,7 +279,7 @@ export function SidebarAlerts({
                       <span className="mt-1 text-[8px] font-bold text-zinc-500 uppercase italic">Increase monthly key limit</span>
                     </div>
                     <ModalCloseButton
-                      onClick={() => limitEditor.closeEditor()}
+                      onClick={() => closeFlyoutWithAnimation(alert.id)}
                       className="relative z-10 h-9 w-9 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white border border-white/5 [&_svg]:h-4 [&_svg]:w-4"
                     />
                   </div>
