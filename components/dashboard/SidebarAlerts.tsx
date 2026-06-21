@@ -264,10 +264,16 @@ export function SidebarAlerts({
 
               {/* Horizontal Flyout Increase Form - Desktop Only */}
               <div 
-                className={`hidden md:flex absolute left-full top-1/2 z-[110] -translate-y-1/2 items-center transition-all duration-500 origin-left ${
+                style={{
+                  transitionDuration: "500ms",
+                  transitionTimingFunction: isFlying && closingKeyId !== alert.id
+                    ? "cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+                    : "cubic-bezier(0.6, -0.28, 0.735, 0.045)"
+                }}
+                className={`hidden md:flex absolute left-full top-1/2 z-[110] -translate-y-1/2 items-center transition-all origin-left ${
                   isFlying && closingKeyId !== alert.id
-                    ? 'translate-x-3 opacity-100 scale-100 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]' 
-                    : '-translate-x-4 opacity-0 scale-0 pointer-events-none ease-[cubic-bezier(0.6,-0.28,0.735,0.045)]'
+                    ? "translate-x-3 opacity-100 scale-100" 
+                    : "-translate-x-4 opacity-0 scale-0 pointer-events-none"
                 }`}
               >
                 {/* iMessage-Style Tail Connector */}
