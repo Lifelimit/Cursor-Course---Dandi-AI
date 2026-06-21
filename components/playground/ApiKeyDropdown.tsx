@@ -68,7 +68,7 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
 
   const options = useMemo<ApiKeyOption[]>(() => [
     { id: "demo", value: "__demo__", label: "DEMO MODE" },
-    { id: "custom", value: "", label: "USER API KEY" },
+    { id: "custom", value: "", label: "PASTE API KEY MANUALLY" },
     ...apiKeys.map((key) => ({
       id: key.id,
       value: key.key_value,
@@ -76,8 +76,21 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
     })),
   ], [apiKeys]);
 
-  const selectedIndex = Math.max(0, options.findIndex((option) => option.value === value));
-  const selectedOption = options[selectedIndex] || options[0];
+  const selectedOption = useMemo(() => {
+    if (value === "__demo__") {
+      return options.find((opt) => opt.id === "demo") || options[0];
+    }
+    const savedKey = apiKeys.find((key) => key.key_value === value);
+    if (savedKey) {
+      return options.find((opt) => opt.id === savedKey.id) || options[0];
+    }
+    return options.find((opt) => opt.id === "custom") || options[0];
+  }, [options, value, apiKeys]);
+
+  const selectedIndex = useMemo(() => {
+    const idx = options.findIndex((opt) => opt.id === selectedOption.id);
+    return idx === -1 ? 0 : idx;
+  }, [options, selectedOption]);
 
   const updateMenuPosition = () => {
     const trigger = buttonRef.current;
@@ -228,11 +241,17 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
             className="max-h-72 overflow-y-auto py-1"
           >
             {options.map((option, index) => {
-              const isSelected = option.value === value;
+              const isSelected = option.id === selectedOption.id;
               const isHighlighted = index === highlightedIndex;
+              const isSystemOption = option.id === "demo" || option.id === "custom";
 
               return (
                 <li key={option.id} role="none">
+                  {index === 2 && apiKeys.length > 0 && (
+                    <div className="my-1.5 border-t border-white/5 px-3 pt-2 text-[8px] font-black uppercase tracking-widest text-zinc-500">
+                      Saved API Keys
+                    </div>
+                  )}
                   <button
                     id={`${listboxId}-option-${index}`}
                     role="option"
@@ -243,10 +262,12 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
                     className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 ${
                       isHighlighted || isSelected
                         ? "bg-emerald-300/15 text-emerald-200"
-                        : "text-slate-300 hover:bg-white/5 hover:text-white"
+                        : isSystemOption
+                          ? "text-zinc-400 hover:bg-white/5 hover:text-white"
+                          : "text-slate-300 hover:bg-white/5 hover:text-white"
                     }`}
                   >
-                    <span className="min-w-0 truncate">{option.label}</span>
+                    <span className={`min-w-0 truncate ${isSystemOption ? "italic text-zinc-400" : ""}`}>{option.label}</span>
                     {isSelected && <CheckIcon />}
                   </button>
                 </li>
