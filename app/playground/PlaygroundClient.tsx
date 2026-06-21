@@ -2,13 +2,13 @@
 /* eslint-disable */
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
-import { experimental_useObject } from "@ai-sdk/react";
-import { z } from "zod";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useApiKeys } from "@/hooks/useApiKeys";
+import { useRepositoryIngestion } from "@/hooks/useRepositoryIngestion";
+import { useRepositorySummary } from "@/hooks/useRepositorySummary";
 import type { User } from "@supabase/supabase-js";
 import type { ApiKey } from "@/types/api";
 import { useToast } from "@/hooks/useToast";
@@ -34,7 +34,7 @@ import { computeSidebarAlerts } from "@/lib/alerts";
 import { formatDuration, formatGitHubRepo, formatRequestCount } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
-import type { IngestionJobSummary, RagMessage, RagSource } from "@/types/rag";
+import type { RagMessage, RagSource } from "@/types/rag";
 
 type DandiOnboardingMetadata = {
   started?: boolean;
@@ -42,6 +42,8 @@ type DandiOnboardingMetadata = {
   reviewedUsage?: boolean;
   dismissed?: boolean;
 };
+
+const getRepoPath = (url: string) => formatGitHubRepo(url);
 
 export default function PlaygroundClient({ 
   initialUser,
@@ -82,40 +84,11 @@ export default function PlaygroundClient({
   const [selectValue, setSelectValue] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
   const [viewMode, setViewMode] = useState<"visual" | "json">("visual");
-  const [summaryRequestLogs, setSummaryRequestLogs] = useState<LogEntry[]>([]);
-  const [indexedRequestLogs, setIndexedRequestLogs] = useState<LogEntry[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
-  const [summaryStatus, setSummaryStatus] = useState<"idle" | "streaming" | "success" | "empty" | "error">("idle");
-  const [summaryIssue, setSummaryIssue] = useState("");
-  const [repoMetadata, setRepoMetadata] = useState<{
-    stars: number;
-    license: string;
-    version: string;
-    forks: number;
-    description?: string;
-  } | null>(null);
   const { toast, showToast } = useToast();
 
   // Repository question tab state
   const [activeTab, setActiveTab] = useState<"summary" | "rag">("summary");
-  const [ingestStatus, setIngestStatus] = useState<"idle" | "crawling" | "embedding" | "completed" | "error">("idle");
-  const [indexingAttemptedRepo, setIndexingAttemptedRepo] = useState<string | null>(null);
-  const [ingestedRepo, setIngestedRepo] = useState<string | null>(null);
-  const [indexedRepositoryStats, setIndexedRepositoryStats] = useState<{
-    repoUrl: string;
-    jobId?: string;
-    status?: string;
-    currentStep?: string;
-    filesCount?: number;
-    chunksCount?: number;
-    indexedFileCount?: number;
-    chunkCount?: number;
-    indexAvailable?: boolean;
-    completedAt?: string | null;
-    failedAt?: string | null;
-    updatedAt?: string;
-    error?: string;
-  } | null>(null);
   const [ragMessages, setRagMessages] = useState<RagMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -173,429 +146,50 @@ export default function PlaygroundClient({
     });
   };
 
-  const getFriendlySummaryStreamError = (error: unknown) => {
-    const message = error instanceof Error ? error.message : String(error || "");
-    const lowerMessage = message.toLowerCase();
-
-    if (
-      lowerMessage.includes("type validation failed") ||
-      lowerMessage.includes("invalid_type") ||
-      lowerMessage.includes("expected") && lowerMessage.includes("received") ||
-      lowerMessage.includes("required")
-    ) {
-      return "The AI summary stream ended before returning the expected summary object. Please retry the request.";
-    }
-
-    return message || "The summary stream did not match the expected response shape.";
-  };
-
   const {
-    submit,
-    object: summaryResult,
-    isLoading: isLoadingSummary,
-    error: streamError
-  } = experimental_useObject({
-    api: '/api/github-summarizer',
-    headers: (): Record<string, string> => (apiKey ? { "x-api-key": apiKey } : {}),
-    schema: z.object({
-      summary: z.string().default(""),
-      cool_facts: z.array(z.string()).default([]),
-    }).default({ summary: "", cool_facts: [] }),
-    onFinish: ({ object, error }) => {
-      refreshKeys();
-
-      if (error) {
-        const message = getFriendlySummaryStreamError(error);
-        setSummaryStatus("error");
-        setSummaryIssue(message);
-        setErrorMessage(message);
-        setSummaryLogState("ai_processing", {
-          status: "error",
-          duration: Math.round(performance.now() - ((window as any).__dandi_stream_start || performance.now())),
-          statusCode: 422,
-          statusText: "Invalid Stream",
-          responseHeaders: { "Content-Type": "text/plain; charset=utf-8" },
-          responseBody: { error: message }
-        });
-        return;
-      }
-
-      const hasSummary = typeof object?.summary === "string" && object.summary.trim().length > 0;
-      const hasFacts = Array.isArray(object?.cool_facts) && object.cool_facts.some((fact) => typeof fact === "string" && fact.trim().length > 0);
-      const hasData = hasSummary || hasFacts;
-
-      setSummaryStatus(hasData ? "success" : "empty");
-      setSummaryIssue(hasData ? "" : "No summary was returned.");
-      setSummaryLogState("ai_processing", {
-        status: hasData ? "success" : "error",
-        duration: Math.round(performance.now() - ((window as any).__dandi_stream_start || performance.now())),
-        statusCode: hasData ? 200 : 204,
-        statusText: hasData ? "OK" : "No Content",
-        responseHeaders: { "Content-Type": "application/json" },
-        responseBody: hasData ? object : { warning: "No summary was returned." }
-      });
-    },
-    onError: (err: any) => {
-      const message = getFriendlySummaryStreamError(err);
-      setSummaryStatus("error");
-      setSummaryIssue(message);
-      setErrorMessage(message);
-      setSummaryLogState("ai_processing", {
-        status: "error",
-        duration: Math.round(performance.now() - ((window as any).__dandi_stream_start || performance.now())),
-        statusCode: 500,
-        statusText: "Stream Error",
-        responseHeaders: { "Content-Type": "application/json" },
-        responseBody: { error: message }
-      });
-    }
+    summaryRequestLogs,
+    summaryStatus,
+    summaryIssue,
+    repoMetadata,
+    summaryResult,
+    isLoadingSummary,
+    streamError,
+    handleSummarize,
+  } = useRepositorySummary({
+    apiKey,
+    githubUrl,
+    apiKeys,
+    refreshKeys,
+    setErrorMessage,
+    getRepoPath,
+    scrollToRequestProgress: () => scrollToSection(requestProgressRef),
   });
 
-  const updateLogEntries = (entries: LogEntry[], id: string, updates: Partial<LogEntry>) => {
-    const index = entries.findIndex(l => l.id === id);
-    if (index === -1) {
-      return [...entries, {
-        id,
-        label: updates.label || "",
-        duration: updates.duration || 0,
-        status: updates.status || "pending",
-        timestamp: Date.now(),
-        ...updates
-      } as LogEntry];
-    }
-    const updated = [...entries];
-    updated[index] = { ...updated[index], ...updates };
-    return updated;
-  };
-
-  const setSummaryLogState = (id: string, updates: Partial<LogEntry>) => {
-    setSummaryRequestLogs(prev => updateLogEntries(prev, id, updates));
-  };
-
-  const setIndexedLogState = (id: string, updates: Partial<LogEntry>) => {
-    setIndexedRequestLogs(prev => updateLogEntries(prev, id, updates));
-  };
+  const {
+    indexedRequestLogs,
+    ingestStatus,
+    indexingAttemptedRepo,
+    ingestedRepo,
+    indexedRepositoryStats,
+    setIndexedLogState,
+    handleIngest,
+    resetIngestedRepository,
+  } = useRepositoryIngestion({
+    apiKey,
+    githubUrl,
+    apiKeys,
+    refreshKeys,
+    setErrorMessage,
+    setGithubUrl,
+    getRepoPath,
+    scrollToRequestProgress: () => scrollToSection(requestProgressRef),
+    showToast,
+    ragMessagesLength: ragMessages.length,
+    setRagMessages,
+    isChatLoading,
+  });
 
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-  const toLocalIngestStatus = (job: IngestionJobSummary): "idle" | "crawling" | "embedding" | "completed" | "error" => {
-    if (job.status === "completed") return "completed";
-    if (job.status === "failed") return "error";
-    if (job.currentStep === "indexing") return "embedding";
-    if (job.status === "running" || job.status === "queued") return "crawling";
-    return "idle";
-  };
-
-  const applyDurableJobState = (job: IngestionJobSummary) => {
-    const filesCount = job.indexedFileCount ?? job.filesCount ?? undefined;
-    const chunksCount = job.chunkCount ?? job.chunksCount ?? undefined;
-    const localStatus = toLocalIngestStatus(job);
-
-    setIndexedRepositoryStats({
-      repoUrl: job.repoUrl,
-      jobId: job.jobId,
-      status: job.status,
-      currentStep: job.currentStep,
-      filesCount,
-      chunksCount,
-      indexedFileCount: job.indexedFileCount ?? undefined,
-      chunkCount: job.chunkCount ?? undefined,
-      indexAvailable: job.indexAvailable,
-      completedAt: job.completedAt,
-      failedAt: job.failedAt,
-      updatedAt: job.updatedAt,
-      error: job.errorMessage || job.error || undefined,
-    });
-
-    setIngestStatus(localStatus);
-    if (job.status === "completed") {
-      setIngestedRepo(job.repoUrl);
-      if (ragMessages.length === 0) {
-        setRagMessages([
-          {
-            role: "assistant",
-            content: `Repository indexed: **${job.repoName || getRepoPath(job.repoUrl)}**.
-
-Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files into ${typeof chunksCount === "number" ? chunksCount : "confirmed"} searchable chunks. Ask source-backed questions about this repository.`
-          }
-        ]);
-      }
-    }
-
-    // Restored failed jobs provide diagnostics, but should not make a fresh workbench look failed.
-  };
-
-  useEffect(() => {
-    if (ingestStatus === "crawling" || ingestStatus === "embedding" || isChatLoading) return;
-
-    let cancelled = false;
-    const loadJobs = async () => {
-      try {
-        const headers: Record<string, string> = {};
-        if (apiKey) headers["x-api-key"] = apiKey;
-        const res = await fetch("/api/rag/jobs?limit=10", {
-          cache: "no-store",
-          headers,
-        });
-        const data = await res.json();
-        if (!res.ok) return;
-        const jobs = Array.isArray(data.jobs) ? data.jobs as IngestionJobSummary[] : [];
-        if (cancelled) return;
-
-        const matchingJob = githubUrl
-          ? jobs.find((job) => job.repoUrl === githubUrl)
-          : jobs[0];
-        if (!matchingJob) return;
-        if (!githubUrl && matchingJob.repoUrl) {
-          setGithubUrl(matchingJob.repoUrl);
-        }
-        applyDurableJobState(matchingJob);
-      } catch {
-        // Durable restoration is best-effort and must not block the Playground.
-      }
-    };
-
-    loadJobs();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [apiKey, githubUrl]);
-
-  // Repository preparation handler
-  const handleIngest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!apiKey) {
-      setErrorMessage("An API key is required to ingest a repository.");
-      return;
-    }
-    if (!githubUrl) {
-      setErrorMessage("GitHub Repository URL is required.");
-      return;
-    }
-
-    setErrorMessage("");
-    setIngestStatus("crawling");
-    setIndexingAttemptedRepo(githubUrl);
-    setIndexedRequestLogs([]);
-    setIndexedRepositoryStats(null);
-    scrollToSection(requestProgressRef);
-
-    const maskedKey = apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`;
-    const repoPath = getRepoPath(githubUrl);
-    const selectedKeyName = apiKeys.find(k => k.key_value === apiKey)?.name || "Custom Key";
-
-    const startTime = performance.now();
-
-    // 1. Auth Log
-    setIndexedLogState("auth", {
-      label: "Authentication Check",
-      status: "pending",
-      method: "POST",
-      url: "/api/keys/validate",
-      requestHeaders: { "Content-Type": "application/json", "x-api-key": maskedKey },
-      requestBody: { apiKey: maskedKey }
-    });
-
-    try {
-      await sleep(350);
-      setIndexedLogState("auth", {
-        status: "success",
-        duration: Math.round(performance.now() - startTime),
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: { "Content-Type": "application/json" },
-        responseBody: { valid: true, key_name: selectedKeyName, permissions: ["rag:write"] }
-      });
-
-      // 2. Repo Crawl & Fetch Log
-      const crawlStartTime = performance.now();
-      setIndexedLogState("repo_fetch", {
-        label: "Recursive Tree Crawl",
-        status: "pending",
-        method: "POST",
-        url: "/api/rag/ingest",
-        requestHeaders: { "Content-Type": "application/json", "x-api-key": maskedKey },
-        requestBody: { githubUrl }
-      });
-
-      const res = await fetch("/api/rag/ingest", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey
-        },
-        body: JSON.stringify({ githubUrl })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to ingest repository");
-      }
-
-      setIndexedRepositoryStats({
-        repoUrl: githubUrl,
-        jobId: data.jobId,
-        status: data.status || "queued",
-        currentStep: data.currentStep,
-        filesCount: data.indexedFileCount ?? data.filesCount,
-        chunksCount: data.chunkCount ?? data.chunksCount,
-        indexedFileCount: data.indexedFileCount,
-        chunkCount: data.chunkCount,
-        indexAvailable: data.indexAvailable,
-        updatedAt: data.updatedAt,
-      });
-
-      setIndexedLogState("repo_fetch", {
-        status: "success",
-        duration: Math.round(performance.now() - crawlStartTime),
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: { "Content-Type": "application/json" },
-        responseBody: {
-          success: true,
-          jobId: data.jobId,
-          status: data.status,
-          currentStep: data.currentStep
-        }
-      });
-
-      // 3. AI Processing Log
-      setIngestStatus("embedding");
-      const embeddingStartTime = performance.now();
-      setIndexedLogState("ai_processing", {
-        label: "Index Repository Content",
-        status: "pending",
-        method: "INSERT",
-        url: `repository_chunks`,
-        requestHeaders: { "Content-Type": "application/json" },
-        requestBody: { jobId: data.jobId, status: data.status }
-      });
-
-      let completedJob = data;
-      for (let attempt = 0; attempt < 90; attempt++) {
-        await sleep(2000);
-        const statusRes = await fetch(`/api/rag/ingest?jobId=${encodeURIComponent(data.jobId)}`, {
-          headers: { "x-api-key": apiKey }
-        });
-        const statusData = await statusRes.json();
-
-        if (!statusRes.ok) {
-          throw new Error(statusData.error || "Failed to check ingestion job status.");
-        }
-
-        setIndexedLogState("ai_processing", {
-          responseBody: {
-            jobId: data.jobId,
-            status: statusData.status,
-            currentStep: statusData.currentStep,
-            filesCount: statusData.filesCount,
-            chunksCount: statusData.chunksCount,
-            indexedFileCount: statusData.indexedFileCount,
-            chunkCount: statusData.chunkCount
-          }
-        });
-        setIndexedRepositoryStats({
-          repoUrl: githubUrl,
-          jobId: data.jobId,
-          status: statusData.status,
-          currentStep: statusData.currentStep,
-          filesCount: statusData.indexedFileCount ?? statusData.filesCount,
-          chunksCount: statusData.chunkCount ?? statusData.chunksCount,
-          indexedFileCount: statusData.indexedFileCount,
-          chunkCount: statusData.chunkCount,
-          indexAvailable: statusData.indexAvailable,
-          completedAt: statusData.completedAt,
-          failedAt: statusData.failedAt,
-          updatedAt: statusData.updatedAt,
-        });
-
-        if (statusData.status === "completed") {
-          completedJob = statusData;
-          break;
-        }
-
-        if (statusData.status === "failed") {
-          throw new Error(statusData.error || "Ingestion job failed.");
-        }
-      }
-
-      if (completedJob.status !== "completed") {
-        throw new Error("Ingestion job is still running. Please check again in a moment.");
-      }
-
-      setIndexedLogState("ai_processing", {
-        status: "success",
-        duration: Math.round(performance.now() - embeddingStartTime),
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: { "Content-Type": "application/json" },
-        responseBody: {
-          message: "pgvector tables initialized, cosine index updated.",
-          dimension: 768,
-          indexType: "HNSW",
-          filesCount: completedJob.filesCount,
-          chunksCount: completedJob.chunksCount,
-          indexedFileCount: completedJob.indexedFileCount,
-          chunkCount: completedJob.chunkCount
-        }
-      });
-
-      setIngestStatus("completed");
-      setIngestedRepo(githubUrl);
-      setIndexedRepositoryStats({
-        repoUrl: githubUrl,
-        jobId: data.jobId,
-        status: "completed",
-        currentStep: completedJob.currentStep,
-        filesCount: completedJob.indexedFileCount ?? completedJob.filesCount,
-        chunksCount: completedJob.chunkCount ?? completedJob.chunksCount,
-        indexedFileCount: completedJob.indexedFileCount,
-        chunkCount: completedJob.chunkCount,
-        indexAvailable: completedJob.indexAvailable,
-        completedAt: completedJob.completedAt,
-        updatedAt: completedJob.updatedAt,
-      });
-      setRagMessages([
-        {
-          role: "assistant",
-          content: `Repository indexed: **${repoPath}**.
-          
-Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} searchable chunks. Ask about architecture, important files, data flow, API behavior, or implementation risks. When the API returns matches, answers include the retrieved source files used as evidence.`
-        }
-      ]);
-      showToast("success", "Repository indexed and ready for questions.");
-      refreshKeys();
-    } catch (err: any) {
-      console.warn("Ask a Repository request failed:", err);
-      const errMsg = err.message || "Ingestion process encountered an error.";
-      const diagnosticError = {
-        status: "failed",
-        detail: "Ask a Repository request failed. See the Repository Chat error card for the reason and next action.",
-      };
-      setErrorMessage(errMsg);
-      setIngestStatus("error");
-      setIndexedRepositoryStats(prev => ({
-        repoUrl: githubUrl,
-        jobId: prev?.repoUrl === githubUrl ? prev.jobId : undefined,
-        status: "failed",
-        currentStep: "failed",
-        filesCount: prev?.repoUrl === githubUrl ? prev.filesCount : undefined,
-        chunksCount: prev?.repoUrl === githubUrl ? prev.chunksCount : undefined,
-        failedAt: prev?.repoUrl === githubUrl ? prev.failedAt : undefined,
-        error: errMsg,
-      }));
-      
-      setIndexedLogState("repo_fetch", { status: "error", responseBody: diagnosticError });
-      setIndexedLogState("ai_processing", {
-        status: "error",
-        statusText: errMsg.includes("rate limit") ? "Rate Limited" : "Failed",
-        responseBody: diagnosticError
-      });
-      showToast("error", getToastErrorMessage("repository-indexing", errMsg));
-    }
-  };
 
   // Repository question submission handler
   const handleChatSubmit = async (e: React.FormEvent) => {
@@ -1113,8 +707,6 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     });
   };
 
-  const getRepoPath = (url: string) => formatGitHubRepo(url);
-
   const isLightweightGreeting = (message: string) => {
     const normalized = message.trim().toLowerCase().replace(/[!?.\s]+$/g, "");
     return /^(hi|hello|hey|yo|sup|thanks|thank you|ok|okay)$/.test(normalized);
@@ -1140,131 +732,6 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
   };
 
   const answerStartsWithHeading = (content?: string) => Boolean(content?.trim().match(/^#{1,3}\s+/));
-
-  const handleSummarize = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage("");
-    setSummaryRequestLogs([]);
-    setRepoMetadata(null);
-    setSummaryStatus("streaming");
-    setSummaryIssue("");
-    scrollToSection(requestProgressRef);
-
-    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-    const repoPath = getRepoPath(githubUrl);
-    const selectedKeyName = apiKeys.find(k => k.key_value === apiKey)?.name || "Custom Key";
-    const maskedKey = apiKey ? (apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`) : "sk_live_••••••••";
-
-    const startTime = performance.now();
-    // @ts-ignore
-    window.__dandi_stream_start = startTime;
-
-    // --- STEP 1: AUTHENTICATION (START) ---
-    setSummaryLogState("auth", {
-      label: "Authentication",
-      status: "pending",
-      method: "POST",
-      url: "/api/keys/validate",
-      requestHeaders: {
-        "Content-Type": "application/json",
-        "x-api-key": maskedKey
-      },
-      requestBody: { apiKey: maskedKey }
-    });
-
-    try {
-      await sleep(350);
-      
-      setSummaryLogState("auth", {
-        status: "success",
-        duration: Math.round(performance.now() - startTime),
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-          "X-Dandi-Engine": "v1.0.4"
-        },
-        responseBody: {
-          valid: true,
-          key_name: selectedKeyName,
-          permissions: ["summarize:write"]
-        }
-      });
-
-      // --- STEP 2: REPOSITORY FETCH (START) ---
-      setSummaryLogState("repo_fetch", {
-        label: "Repository Fetch",
-        status: "pending",
-        method: "GET",
-        url: `https://api.github.com/repos/${repoPath}`,
-        requestHeaders: {
-          "Accept": "application/vnd.github.v3+json",
-          "User-Agent": "Dandi-AI-Engine/1.0"
-        },
-        requestBody: null
-      });
-
-      await sleep(450);
-
-      setSummaryLogState("repo_fetch", {
-        status: "success",
-        duration: 450,
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: {
-          "Content-Type": "application/json; charset=utf-8"
-        },
-        responseBody: {
-          id: Math.floor(Math.random() * 10000000) + 10000000,
-          name: repoPath.split("/")[1] || "repository",
-          full_name: repoPath,
-        }
-      });
-
-      // --- STEP 3: AI PROCESSING (START) ---
-      setSummaryLogState("ai_processing", {
-        label: "AI Processing",
-        status: "pending",
-        method: "POST",
-        url: "/api/github-summarizer",
-        requestHeaders: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer dandi_ai_internal_••••••••"
-        },
-        requestBody: {
-          files: ["package.json", "src/index.js", "README.md"],
-          analysis_depth: "deep",
-          temperature: 0.2
-        }
-      });
-
-      // Asynchronously fetch repository metadata in the background
-      fetch(`/api/github-metadata?githubUrl=${encodeURIComponent(githubUrl)}&apiKey=${encodeURIComponent(apiKey)}`)
-        .then(res => {
-          if (res.ok) {
-            return res.json();
-          }
-          throw new Error("Failed to fetch metadata");
-        })
-        .then(data => {
-          setRepoMetadata(data);
-        })
-        .catch(err => {
-          console.error("Failed to load repository metadata:", err);
-          setRepoMetadata(null);
-        });
-
-      // Submit to Vercel AI SDK useObject hook to start streaming
-      void submit({ githubUrl });
-
-    } catch (err) {
-      setSummaryStatus("error");
-      setSummaryIssue((err as Error).message);
-      setErrorMessage((err as Error).message);
-    }
-  };
 
   const handleDemoMode = () => {
     setApiKey("__demo__");
@@ -1821,10 +1288,7 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() => {
-                            setIngestStatus("idle");
-                            setIngestedRepo(null);
-                          }}
+                          onClick={resetIngestedRepository}
                           className="rounded-full border border-[var(--command-border)] bg-white/[0.03] px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-400 transition-all hover:border-emerald-300/30 hover:text-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/40 cursor-pointer"
                         >
                           Change Repo
