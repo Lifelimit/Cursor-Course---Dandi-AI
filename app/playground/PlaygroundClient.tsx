@@ -5,8 +5,8 @@ import { useState, useEffect, useRef, type ReactNode } from "react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { useApiKeys } from "@/hooks/useApiKeys";
+import { isLightweightGreeting, useRepositoryChat } from "@/hooks/useRepositoryChat";
 import { useRepositoryIngestion } from "@/hooks/useRepositoryIngestion";
 import { useRepositorySummary } from "@/hooks/useRepositorySummary";
 import type { User } from "@supabase/supabase-js";
@@ -14,34 +14,25 @@ import type { ApiKey } from "@/types/api";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { LoadingStages, type LoadingStage, type LoadingStageStatus } from "@/components/ui/LoadingStages";
-import { CardSkeleton } from "@/components/ui/SkeletonBlocks";
-import { GuidedError } from "@/components/ui/GuidedError";
-import { ApiKeyDropdown } from "@/components/playground/ApiKeyDropdown";
-import { CodeSnippet } from "@/components/playground/CodeSnippet";
-import { JsonViewer } from "@/components/playground/JsonViewer";
-import { NetworkLog, type LogEntry } from "@/components/playground/NetworkLog";
+import type { LogEntry } from "@/components/playground/NetworkLog";
+import { PlaygroundModeTabs } from "@/components/playground/PlaygroundModeTabs";
+import { PlaygroundRequestProgress } from "@/components/playground/PlaygroundRequestProgress";
+import { PlaygroundSidebar } from "@/components/playground/PlaygroundSidebar";
+import { PlaygroundTransparencyPanel } from "@/components/playground/PlaygroundTransparencyPanel";
+import { RepositoryIndexingIntroPanel } from "@/components/playground/RepositoryIndexingIntroPanel";
+import { RepositoryRequestBuilder } from "@/components/playground/RepositoryRequestBuilder";
+import { RepositorySummaryPanel } from "@/components/playground/RepositorySummaryPanel";
 import {
   CommandPanel,
   LiveIndicator,
-  PipelineFlow,
-  ScrollFrame,
+  type PipelineFlowStep,
   StatusPill,
-  TabsBar,
 } from "@/components/command";
 
 import { PLAN_DETAILS } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 import { formatDuration, formatGitHubRepo, formatRequestCount } from "@/lib/format";
-import { createClient } from "@/lib/supabase/client";
-import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
-import type { RagMessage, RagSource } from "@/types/rag";
-
-type DandiOnboardingMetadata = {
-  started?: boolean;
-  askedRepository?: boolean;
-  reviewedUsage?: boolean;
-  dismissed?: boolean;
-};
+import type { RagSource } from "@/types/rag";
 
 const getRepoPath = (url: string) => formatGitHubRepo(url);
 
@@ -89,35 +80,8 @@ export default function PlaygroundClient({
 
   // Repository question tab state
   const [activeTab, setActiveTab] = useState<"summary" | "rag">("summary");
-  const [ragMessages, setRagMessages] = useState<RagMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [isChatLoading, setIsChatLoading] = useState(false);
-  const [chatProgressStep, setChatProgressStep] = useState<"idle" | "searching" | "ranking" | "context" | "answer" | "sources">("idle");
   const requestProgressRef = useRef<HTMLDivElement>(null);
-  const repositoryChatRef = useRef<HTMLDivElement>(null);
-  const chatBottomRef = useRef<HTMLDivElement>(null);
-  const askedRepositoryTrackedRef = useRef(
-    Boolean((initialUser?.user_metadata as { dandi_onboarding?: DandiOnboardingMetadata } | undefined)?.dandi_onboarding?.askedRepository)
-  );
-
-  const markAskedRepositoryComplete = async () => {
-    if (!initialUser || askedRepositoryTrackedRef.current) return;
-
-    askedRepositoryTrackedRef.current = true;
-    const metadata = initialUser.user_metadata as { dandi_onboarding?: DandiOnboardingMetadata };
-    const supabase = createClient();
-
-    await supabase.auth.updateUser({
-      data: {
-        ...(initialUser.user_metadata || {}),
-        dandi_onboarding: {
-          ...(metadata.dandi_onboarding || {}),
-          started: true,
-          askedRepository: true,
-        },
-      },
-    });
-  };
+  const indexedLogSetterRef = useRef<((id: string, updates: Partial<LogEntry>) => void)>(() => {});
 
   useEffect(() => {
     const mode = searchParams.get("mode");
@@ -166,6 +130,29 @@ export default function PlaygroundClient({
   });
 
   const {
+    ragMessages,
+    setRagMessages,
+    chatInput,
+    setChatInput,
+    isChatLoading,
+    chatProgressStep,
+    repositoryChatRef,
+    chatBottomRef,
+    handleChatSubmit,
+    resetChatHistoryToReadyMessage,
+  } = useRepositoryChat({
+    initialUser,
+    apiKey,
+    githubUrl,
+    refreshKeys,
+    setErrorMessage,
+    setIndexedLogState: (id, updates) => indexedLogSetterRef.current(id, updates),
+    getRepoPath,
+    scrollToSection,
+    showToast,
+  });
+
+  const {
     indexedRequestLogs,
     ingestStatus,
     indexingAttemptedRepo,
@@ -189,203 +176,7 @@ export default function PlaygroundClient({
     isChatLoading,
   });
 
-  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-  // Repository question submission handler
-  const handleChatSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim() || isChatLoading) return;
-    if (!apiKey || !githubUrl) {
-      showToast("error", getToastErrorMessage("repository-chat", "API key and repository URL are required."));
-      return;
-    }
-
-    const userMsg = chatInput.trim();
-    setChatInput("");
-    setIsChatLoading(true);
-    setChatProgressStep("searching");
-
-    const newMessages = [...ragMessages, { role: "user" as const, content: userMsg }];
-    setRagMessages(newMessages);
-    scrollToSection(repositoryChatRef);
-
-    if (isLightweightGreeting(userMsg)) {
-      await sleep(180);
-      setRagMessages(prev => [
-        ...prev,
-        {
-          role: "assistant" as const,
-          content: `Hi — ask me anything about **${getRepoPath(githubUrl)}**.`
-        }
-      ]);
-      scrollToSection(chatBottomRef);
-      setIsChatLoading(false);
-      setChatProgressStep("idle");
-      return;
-    }
-
-    // Add empty assistant response to stream into
-    setRagMessages(prev => [...prev, { role: "assistant" as const, content: "" }]);
-    scrollToSection(chatBottomRef);
-
-    const startTime = performance.now();
-    const maskedKey = apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`;
-
-    setIndexedLogState("auth", {
-      label: "Validate API Key",
-      status: "pending",
-      method: "POST",
-      url: "/api/keys/validate",
-      requestHeaders: { "Content-Type": "application/json", "x-api-key": maskedKey },
-      requestBody: { apiKey: maskedKey }
-    });
-
-    try {
-      await sleep(150);
-      setIndexedLogState("auth", {
-        status: "success",
-        duration: 150,
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: { "Content-Type": "application/json" },
-        responseBody: { valid: true }
-      });
-
-      setIndexedLogState("repo_fetch", {
-        label: "pgvector Semantic Search",
-        status: "pending",
-        method: "RPC",
-        url: "match_repository_chunks",
-        requestHeaders: { "Content-Type": "application/json" },
-        requestBody: { query: userMsg, repo_url: githubUrl, match_count: 5 }
-      });
-      setChatProgressStep("ranking");
-
-      // Call Chat endpoint
-      const response = await fetch("/api/rag/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey
-        },
-        body: JSON.stringify({
-          githubUrl,
-          messages: newMessages.map(({ role, content }) => ({ role, content }))
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Repository question request failed.");
-      }
-
-      // Read sources from header
-      const sourcesHeader = response.headers.get("x-rag-sources");
-      let sources: RagSource[] = [];
-      if (sourcesHeader) {
-        try {
-          sources = JSON.parse(sourcesHeader);
-        } catch (e) {
-          console.error("Failed to parse repository sources header", e);
-        }
-      }
-      setChatProgressStep("context");
-
-      setIndexedLogState("repo_fetch", {
-        status: "success",
-        duration: Math.round(performance.now() - startTime),
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: {
-          "Content-Type": "application/json",
-          "x-rag-sources": sourcesHeader ? `${sources.length} source${sources.length === 1 ? "" : "s"}` : "[]"
-        },
-        responseBody: sources
-      });
-
-      setIndexedLogState("ai_processing", {
-        label: "Gemini Contextual Stream",
-        status: "pending",
-        method: "POST",
-        url: "/api/rag/chat",
-        requestHeaders: { "Content-Type": "text/event-stream" },
-        requestBody: { model: "gemini-3.1-flash-lite", temperature: 0.2 }
-      });
-      setChatProgressStep("answer");
-
-      // Clear "Thinking..." and start streaming
-      setRagMessages(prev => {
-        const updated = [...prev];
-        if (updated.length > 0) {
-          updated[updated.length - 1] = { role: "assistant", content: "", sources };
-        }
-        return updated;
-      });
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let accumulatedText = "";
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          accumulatedText += chunk;
-
-          setRagMessages(prev => {
-            const updated = [...prev];
-            if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
-              updated[updated.length - 1] = {
-                ...updated[updated.length - 1],
-                content: accumulatedText,
-                sources
-              };
-            }
-            return updated;
-          });
-        }
-      }
-
-      setIndexedLogState("ai_processing", {
-        status: "success",
-        duration: Math.round(performance.now() - startTime),
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: { "Content-Type": "text/plain" },
-        responseBody: { streamedLength: accumulatedText.length }
-      });
-      setChatProgressStep("sources");
-
-      void markAskedRepositoryComplete();
-      refreshKeys();
-    } catch (err: any) {
-      console.error(err);
-      const errMsg = err.message || "Failed to stream answer.";
-      setErrorMessage(errMsg);
-      setIndexedLogState("ai_processing", {
-        status: "error",
-        statusText: errMsg.includes("rate limit") ? "Rate Limited" : "Stream Error",
-        responseBody: { error: errMsg }
-      });
-
-      setRagMessages(prev => {
-        const updated = [...prev];
-        if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
-          const guidance = getErrorGuidance({ workflow: "repository-chat", message: errMsg });
-          updated[updated.length - 1] = {
-            role: "assistant",
-            content: `**${guidance.title}**\n\n${guidance.explanation}\n\n${guidance.nextAction}`
-          };
-        }
-        return updated;
-      });
-      showToast("error", getToastErrorMessage("repository-chat", errMsg));
-    } finally {
-      setIsChatLoading(false);
-      window.setTimeout(() => setChatProgressStep("idle"), 300);
-    }
-  };
+  indexedLogSetterRef.current = setIndexedLogState;
 
   // Modern UI custom message formatter
   const renderTextWithInlineCode = (text: string) => {
@@ -707,11 +498,6 @@ export default function PlaygroundClient({
     });
   };
 
-  const isLightweightGreeting = (message: string) => {
-    const normalized = message.trim().toLowerCase().replace(/[!?.\s]+$/g, "");
-    return /^(hi|hello|hey|yo|sup|thanks|thank you|ok|okay)$/.test(normalized);
-  };
-
   const getTopSourceMatch = (sources?: RagSource[]) => {
     if (!sources?.length) return 0;
     return Math.max(...sources.map((src) => Math.round(src.similarity * 100)));
@@ -867,7 +653,7 @@ export default function PlaygroundClient({
           ? summaryHasData ? "done" : isPipelineActive ? "active" : "idle"
           : ingestStatus === "completed" || ragMessages.length > 0 ? "done" : isPipelineActive ? "active" : "idle",
     },
-  ] satisfies Parameters<typeof PipelineFlow>[0]["steps"];
+  ] satisfies PipelineFlowStep[];
   const summaryProcessingSteps = [
     {
       id: "summary-request",
@@ -893,7 +679,7 @@ export default function PlaygroundClient({
       sublabel: summaryStatus === "success" ? "Structured result returned" : "Generate readable overview",
       status: summaryStatus === "error" || summaryStatus === "empty" ? "error" : summaryStatus === "success" ? "done" : isLoadingSummary ? "active" : "idle",
     },
-  ] satisfies Parameters<typeof PipelineFlow>[0]["steps"];
+  ] satisfies PipelineFlowStep[];
   const ragProcessingSteps = [
     {
       id: "rag-url",
@@ -925,7 +711,7 @@ export default function PlaygroundClient({
       sublabel: "Ask source-backed questions",
       status: ingestStatus === "completed" ? "done" : hasIndexingFailure ? "error" : "idle",
     },
-  ] satisfies Parameters<typeof PipelineFlow>[0]["steps"];
+  ] satisfies PipelineFlowStep[];
   const hasSourceEvidence = ragMessages.some((message) => (message.sources?.length || 0) > 0);
   const retrievalAttempted = ragMessages.some((message) => message.sources !== undefined);
   const currentIndexStats = indexedRepositoryStats?.repoUrl === githubUrl ? indexedRepositoryStats : null;
@@ -1085,7 +871,7 @@ export default function PlaygroundClient({
         ? summaryHasData ? "done" : hasPipelineError ? "error" : "idle"
         : ingestStatus === "completed" ? "done" : hasIndexingFailure ? "error" : "idle",
     },
-  ] satisfies Parameters<typeof PipelineFlow>[0]["steps"];
+  ] satisfies PipelineFlowStep[];
   const transparencyRows = [
     {
       label: "Analyzed",
@@ -1249,17 +1035,12 @@ export default function PlaygroundClient({
               </StatusPill>
             }
           >
-            <TabsBar
-              tabs={[
-                { id: "summary", label: "Repository Summary", controlsId: "playground-summary-panel" },
-                { id: "rag", label: "Ask a Repository", controlsId: "playground-rag-panel" },
-              ]}
-              activeId={activeTab}
-              onChange={(id) => {
-                setActiveTab(id as "summary" | "rag");
+            <PlaygroundModeTabs
+              activeTab={activeTab}
+              onChange={(tab) => {
+                setActiveTab(tab);
                 setErrorMessage("");
               }}
-              variant="pills"
             />
           </DashboardPageHeader>
 
@@ -1295,14 +1076,7 @@ export default function PlaygroundClient({
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            setRagMessages([
-                              {
-                                role: "assistant",
-                                content: `The repository **${formatGitHubRepo(githubUrl, "repository")}** is ready. Ask a question and Dandi will use matching repository context before answering.`
-                              }
-                            ]);
-                          }}
+                          onClick={resetChatHistoryToReadyMessage}
                           className="rounded-full border border-[var(--command-border)] bg-white/[0.03] px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-400 transition-all hover:border-emerald-300/30 hover:text-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/40 cursor-pointer"
                         >
                           Clear History
@@ -1564,589 +1338,109 @@ export default function PlaygroundClient({
               ) : (
                 /* Otherwise show the credentials form, Stepper logs, and Landing Card */
                 <>
-                  <CommandPanel padding="none" className="p-5 sm:p-8">
-                  <form onSubmit={activeTab === "summary" ? handleSummarize : handleIngest} className="space-y-8">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Request Builder</p>
-                        <h2 className="mt-1 font-serif text-2xl font-bold text-white">
-                          {activeTab === "summary" ? "Repository Summary Request" : "Ask a Repository Request"}
-                        </h2>
-                        <p className="mt-2 max-w-2xl text-xs font-semibold leading-relaxed text-slate-400">
-                          {activeTab === "summary"
-                            ? "Get an overview of a repository's structure, purpose, and key components."
-                            : "Index a repository once, then ask source-backed questions."}
-                        </p>
-                      </div>
-                      <StatusPill tone={activeTab === "summary" ? "info" : "success"} compact>
-                        {activeTab === "summary" ? "Summarizer" : "Ask Mode"}
-                      </StatusPill>
-                    </div>
-                    <div className="grid gap-8 lg:grid-cols-2">
-                      <div className="space-y-3">
-                        <div className="flex min-h-16 flex-col gap-3 px-1 sm:flex-row sm:items-start sm:justify-start sm:gap-8 lg:min-h-16">
-                          <label htmlFor="api-key" className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 leading-none">
-                            API Key
-                          </label>
-                          {apiKeys.length > 0 && (
-                            <div className="flex w-full flex-col items-start gap-2 sm:w-auto">
-                              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 leading-none">Quick Select</span>
-                              <ApiKeyDropdown
-                                apiKeys={apiKeys}
-                                value={selectValue}
-                                onChange={(val) => {
-                                  setApiKey(val);
-                                  setSelectedKey(val);
-                                  setSelectValue(val);
-                                }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                        <input
-                          id="api-key"
-                          type="text"
-                          required
-                          value={apiKey}
-                          onChange={(e) => { setApiKey(e.target.value); setSelectedKey(""); setSelectValue(""); }}
-                          placeholder="sk_live_..."
-                          className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-6 py-4 font-mono text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600 focus:border-emerald-300/40 focus:ring-4 focus:ring-emerald-300/10"
-                        />
-                        {apiKey === "__demo__" ? (
-                          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3">
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Demo Mode</p>
-                            <p className="mt-1 text-xs font-medium leading-relaxed text-emerald-100/75">
-                              Uses a limited demo key for public repositories only.
-                            </p>
-                          </div>
-                        ) : (
-                          <p className="px-1 text-[11px] font-medium leading-relaxed text-slate-500">
-                            Use Demo Mode for a sample public repository, or paste a user-created API key for your own request usage.
-                          </p>
-                        )}
-                        {/* Usage badge — shown only when a real user key is selected (not demo, not custom) */}
-                        {(() => {
-                          const k = apiKeys.find(k => k.key_value === selectedKey);
-                          if (!k) return null;
-                          const pct = k.monthly_limit ? Math.min((k.usage_count / k.monthly_limit) * 100, 100) : null;
-                          const isOver = pct !== null && pct >= 100;
-                          return (
-                            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/70 px-4 py-2.5">
-                              <div className="flex flex-1 flex-col gap-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{k.name}</span>
-                                  <span className={`text-[9px] font-bold tabular-nums ${
-                                    isOver ? "text-red-500" : pct !== null && pct >= 70 ? "text-amber-500" : "text-zinc-500 dark:text-zinc-400"
-                                  }`}>
-                                    {formatRequestCount(k.usage_count)} / {k.monthly_limit ? formatRequestCount(k.monthly_limit) : "∞"} requests
-                                  </span>
-                                </div>
-                                {pct !== null && (
-                                  <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
-                                    <div
-                                      className={`h-full rounded-full transition-all ${
-                                        isOver ? "bg-red-500" : pct > 70 ? "bg-amber-400" : "bg-emerald-500"
-                                      }`}
-                                      style={{ width: `${pct}%` }}
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                              {pct === null && (
-                                <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">∞ Unlimited</span>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
+                  <RepositoryRequestBuilder
+                    activeTab={activeTab}
+                    apiKeys={apiKeys}
+                    apiKey={apiKey}
+                    selectedKey={selectedKey}
+                    selectValue={selectValue}
+                    githubUrl={githubUrl}
+                    isLoadingSummary={isLoadingSummary}
+                    isOverLimit={isOverLimit}
+                    summaryRepoStage={summaryRepoStage}
+                    summaryAiStage={summaryAiStage}
+                    ingestStatus={ingestStatus}
+                    ingestedRepo={ingestedRepo}
+                    setApiKey={setApiKey}
+                    setSelectedKey={setSelectedKey}
+                    setSelectValue={setSelectValue}
+                    setGithubUrl={setGithubUrl}
+                    handleSummarize={handleSummarize}
+                    handleIngest={handleIngest}
+                    handleDemoMode={handleDemoMode}
+                  />
 
-                      <div className="space-y-3">
-                        <div className="flex min-h-16 items-start px-1">
-                          <label htmlFor="github-url" className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 leading-none">
-                            GitHub Repository URL
-                          </label>
-                        </div>
-                        <input
-                          id="github-url"
-                          type="url"
-                          required
-                          value={githubUrl}
-                          onChange={(e) => setGithubUrl(e.target.value)}
-                          placeholder="https://github.com/..."
-                          className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-6 py-4 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600 focus:border-emerald-300/40 focus:ring-4 focus:ring-emerald-300/10"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-                      {activeTab === "summary" ? (
-                        <button
-                          type="submit"
-                          disabled={isLoadingSummary || isOverLimit}
-                          className="group flex flex-1 items-center justify-center gap-2.5 rounded-2xl bg-emerald-400 px-5 py-4 text-[10px] font-black uppercase tracking-[0.16em] text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.18)] transition-all hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-3 sm:px-8 sm:py-5 sm:text-xs sm:tracking-widest cursor-pointer"
-                        >
-                          {isLoadingSummary ? (
-                            <>
-                              <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950"></div>
-                              {summaryRepoStage === "active"
-                                ? "Fetching Metadata..."
-                                : summaryAiStage === "active"
-                                  ? "Generating Summary..."
-                                  : "Validating Request..."}
-                            </>
-                          ) : isOverLimit ? (
-                            <>
-                              Request Limit Exceeded
-                              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            </>
-                          ) : (
-                            <>
-                              Summarize Repository
-                              <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
-                                <path d="M5 12h14m-7-7l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            </>
-                          )}
-                        </button>
-                      ) : (
-                        <button
-                          type="submit"
-                          disabled={ingestStatus === "crawling" || ingestStatus === "embedding" || isOverLimit}
-                          className="group flex flex-1 items-center justify-center gap-2.5 rounded-2xl bg-emerald-400 px-5 py-4 text-[10px] font-black uppercase tracking-[0.16em] text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.18)] transition-all hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-3 sm:px-8 sm:py-5 sm:text-xs sm:tracking-widest cursor-pointer"
-                        >
-                          {ingestStatus === "crawling" || ingestStatus === "embedding" ? (
-                            <>
-                              <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950"></div>
-                              {ingestStatus === "embedding" ? "Generating Embeddings..." : "Reading Repository..."}
-                            </>
-                          ) : (
-                            <>
-                              {ingestedRepo === githubUrl && ingestStatus === "completed" ? "Re-index Repository" : "Index Repository"}
-                              <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
-                                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            </>
-                          )}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={handleDemoMode}
-                        className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 shadow-sm transition-all hover:border-emerald-300/25 hover:text-emerald-200 sm:px-8 sm:py-5 sm:text-xs sm:tracking-widest cursor-pointer"
-                      >
-                        Try Sample Repository
-                      </button>
-                    </div>
-                    <p className="text-center text-[11px] font-medium leading-relaxed text-slate-500 sm:text-left">
-                      Demo Mode uses a limited demo key for public repositories only. User-created API keys count successful requests toward your monthly request usage.
-                    </p>
-                  </form>
-                  </CommandPanel>
-
-                  {shouldShowTopLevelError && (
-                    <GuidedError
-                      {...getErrorGuidance({
-                        workflow: activeTab === "rag" ? "repository-chat" : "repository-summary",
-                        message: errorMessage,
-                      })}
-                      technicalDetails={{
-                        message: errorMessage,
-                        activeTab,
-                        requestLogs: requestLogs.filter((entry) => entry.status === "error"),
-                      }}
-                    />
-                  )}
-
-                  <div ref={requestProgressRef} className="scroll-mt-24">
-                    {activeTab === "summary" && (isLoadingSummary || summaryRequestLogs.length > 0) && (
-                      <LoadingStages
-                        title={isLoadingSummary ? "Summarizing repository" : "Summary workflow"}
-                        description="Dandi validates access, reads repository context, and prepares the final summary output."
-                        stages={summaryLoadingStages}
-                        className="mb-4"
-                      />
-                    )}
-                    {activeTab === "rag" && (isIndexingActive || indexedRequestLogs.length > 0) && (
-                      <LoadingStages
-                        title={isIndexingActive ? "Preparing repository" : "Repository preparation workflow"}
-                        description="Dandi prepares searchable repository evidence for source-backed questions."
-                        stages={indexingLoadingStages}
-                        className="mb-4"
-                      />
-                    )}
-                    <NetworkLog logs={requestLogs} onShowToast={showToast} />
-                  </div>
+                  <PlaygroundRequestProgress
+                    activeTab={activeTab}
+                    requestProgressRef={requestProgressRef}
+                    shouldShowTopLevelError={shouldShowTopLevelError}
+                    errorMessage={errorMessage}
+                    requestLogs={requestLogs}
+                    summaryRequestLogs={summaryRequestLogs}
+                    indexedRequestLogs={indexedRequestLogs}
+                    isLoadingSummary={isLoadingSummary}
+                    isIndexingActive={isIndexingActive}
+                    summaryLoadingStages={summaryLoadingStages}
+                    indexingLoadingStages={indexingLoadingStages}
+                    showToast={showToast}
+                  />
 
                   {/* Render the landing card only when idle or error (hide it when crawling/embedding to focus on request logs) */}
                   {activeTab === "rag" && (ingestStatus === "idle" || ingestStatus === "error") && (
-                    <CommandPanel tone="elevated" className="space-y-5 animate-in fade-in duration-500 p-5 sm:p-8">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="flex min-w-0 gap-4">
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-300/10 text-emerald-300 shadow-[0_0_28px_rgba(52,211,153,0.10)] select-none">
-                            <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.5">
-                              <path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Repository Q&A</p>
-                            <h3 className="mt-1 font-serif text-2xl font-bold text-white">Repository Chat</h3>
-                            <p className="mt-2 max-w-xl text-sm font-medium leading-relaxed text-slate-300">
-                              Index a repository once, then ask source-backed questions.
-                            </p>
-                          </div>
-                        </div>
-                        <StatusPill tone={hasIndexingFailure ? "danger" : "neutral"} compact>
-                          {hasIndexingFailure ? "Needs retry" : "Not indexed"}
-                        </StatusPill>
-                      </div>
-
-                      {hasIndexingFailure && (
-                        <GuidedError
-                          {...getErrorGuidance({ workflow: "repository-indexing", message: errorMessage })}
-                          technicalDetails={{
-                            message: errorMessage || "Process interrupted.",
-                            repository: githubUrl,
-                            stats: indexedRepositoryStats,
-                            requestLogs: indexedRequestLogs.filter((entry) => entry.status === "error"),
-                          }}
-                          compact
-                        />
-                      )}
-
-                      <div className="grid gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
-                        {[
-                          ["1", "Index", "Dandi reads eligible code and markdown files."],
-                          ["2", "Search", "Questions search the prepared repository sections for relevant context."],
-                          ["3", "Answer", "Responses include matched source files when available."],
-                          ["4", "Verify", "Use source paths and match scores to inspect the answer basis."]
-                        ].map(([step, label, detail]) => (
-                          <div key={label} className="rounded-2xl border border-[var(--command-border)] bg-slate-950/60 p-4">
-                            <div className="mb-2 flex items-center gap-2">
-                              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-300/10 text-[10px] font-black text-emerald-300">{step}</span>
-                              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-200">{label}</span>
-                            </div>
-                            <p className="text-[11px] font-medium leading-relaxed text-slate-400">{detail}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="max-w-2xl text-xs font-medium leading-relaxed text-slate-500">
-                        Dandi shows confirmed file and chunk counts after indexing completes. The current API does not return a full skipped-file manifest, so unavailable or excluded files are not listed individually.
-                      </p>
-                    </CommandPanel>
+                    <RepositoryIndexingIntroPanel
+                      hasIndexingFailure={hasIndexingFailure}
+                      errorMessage={errorMessage}
+                      githubUrl={githubUrl}
+                      indexedRepositoryStats={indexedRepositoryStats}
+                      indexedRequestLogs={indexedRequestLogs}
+                    />
                   )}
 
                   {/* Summary Results rendered in left column below NetworkLog */}
                   {shouldShowSummaryResults && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <TabsBar
-                          tabs={[
-                            { id: "visual", label: "Visual Results", controlsId: "summary-visual-panel" },
-                            { id: "json", label: "JSON Results", controlsId: "summary-json-panel" },
-                          ]}
-                          activeId={viewMode}
-                          onChange={(id) => setViewMode(id as "visual" | "json")}
-                          variant="pills"
-                        />
-                        {viewMode === "json" && summaryHasData && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const blob = new Blob([JSON.stringify(summaryJsonData, null, 2)], { type: "application/json" });
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement("a");
-                              a.href = url;
-                              a.download = "summary-result.json";
-                              a.click();
-                              URL.revokeObjectURL(url);
-                            }}
-                            className="flex items-center gap-1.5 rounded-full bg-zinc-900 dark:bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white dark:text-zinc-900 transition hover:bg-zinc-800 dark:hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-                          >
-                            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                              <polyline points="7 10 12 15 17 10" />
-                              <line x1="12" y1="15" x2="12" y2="3" />
-                            </svg>
-                            Export
-                          </button>
-                        )}
-                      </div>
-
-                      {viewMode === "visual" ? (
-                        <CommandPanel id="summary-visual-panel" role="tabpanel" aria-labelledby="visual-tab" className="p-5 sm:p-8">
-                          <div className="flex flex-col gap-8 lg:flex-row">
-                            <div className="min-w-0 flex-1 space-y-6">
-                              <div className="space-y-1">
-                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/80">Repository Summary</p>
-                                <h2 className="font-serif text-3xl font-bold italic text-white">What Dandi Found</h2>
-                              </div>
-                              
-                              <div className="flex flex-wrap gap-4">
-                                <div className="flex items-center gap-2 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 select-none">
-                                  <LiveIndicator active={isLoadingSummary} tone={summaryStatus === "error" ? "danger" : "success"} />
-                                  {isLoadingSummary ? "Generating" : summaryStatus === "success" ? "Generated" : "Awaiting Result"}
-                                </div>
-                                {repoMetadata && (
-                                  <>
-                                    <div className="flex items-center gap-1.5 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 select-none">
-                                      <span className="text-amber-500">★</span>
-                                      <span>{formatRequestCount(repoMetadata.stars)} Stars</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 select-none">
-                                      <span className="text-zinc-400">⚖</span>
-                                      <span>{repoMetadata.license}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 select-none">
-                                      <span className="text-emerald-500 dark:text-emerald-400 font-serif lowercase italic">v</span>
-                                      <span>{repoMetadata.version}</span>
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-
-                              {(summaryStatus === "empty" || summaryStatus === "error" || streamError) && !summaryHasData && (
-                                summaryStatus === "empty" && !streamError ? (
-                                  <div className="rounded-2xl border border-amber-300/25 bg-amber-950/15 p-4 text-sm font-semibold leading-relaxed text-amber-200">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">No summary returned</p>
-                                    <p className="mt-2">The request completed, but the response did not include summary content.</p>
-                                    <p className="mt-1 text-xs font-medium text-amber-100/75">Try again, or check the JSON and request log to confirm what the API returned.</p>
-                                  </div>
-                                ) : (
-                                  <GuidedError
-                                    {...getErrorGuidance({ workflow: "repository-summary", message: summaryStreamMessage })}
-                                    technicalDetails={{
-                                      message: summaryStreamMessage || "Streaming failed.",
-                                      streamError: streamError?.message,
-                                      summaryIssue,
-                                      requestLogs: summaryRequestLogs.filter((entry) => entry.status === "error"),
-                                    }}
-                                    compact
-                                  />
-                                )
-                              )}
-
-                              {summaryResult?.summary ? (
-                                <p className="text-lg font-medium leading-relaxed text-slate-300">
-                                  {summaryResult.summary}
-                                </p>
-                              ) : isLoadingSummary ? (
-                                <div className="space-y-4">
-                                  <LoadingStages
-                                    title="Summary in progress"
-                                    description="The answer area is reserved while Dandi analyzes and writes the summary."
-                                    stages={summaryLoadingStages}
-                                  />
-                                  <CardSkeleton lines={4} />
-                                </div>
-                              ) : (
-                                <p className="text-lg font-medium leading-relaxed text-slate-300">
-                                  {summaryStatus === "empty" && !streamError
-                                    ? "No summary was returned."
-                                    : summaryStatus === "error" || streamError
-                                      ? "The summary could not be displayed. See the alert above for details."
-                                      : "No repository summary yet. Select Demo Mode or paste an API key, enter a public GitHub URL, then run the summary request."}
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="w-full space-y-6 lg:w-80 lg:shrink-0">
-                              <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-6">
-                                <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Key Findings</h3>
-                                {summaryFacts.length > 0 ? (
-                                  <ul className="space-y-4">
-                                    {summaryFacts.map((fact: string, i: number) => (
-                                      <li key={i} className="flex gap-3 text-sm font-medium text-zinc-600 dark:text-zinc-300">
-                                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-300 dark:bg-zinc-600"></span>
-                                        {fact}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <p className="text-sm font-medium leading-relaxed text-zinc-500 dark:text-zinc-400">
-                                    {isLoadingSummary
-                                      ? "Findings will appear as the stream completes."
-                                      : "Key findings appear after a successful repository summary. Run a summary request to populate this panel."}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-6">
-                                <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Result Context</h3>
-                                <div className="space-y-3 text-sm font-medium text-slate-400">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <span className="text-slate-500">Repository</span>
-                                    <span className="min-w-0 truncate text-right font-mono text-xs text-slate-200" title={githubUrl}>{githubUrl ? getRepoPath(githubUrl) : "Not set"}</span>
-                                  </div>
-                                  <div className="flex items-start justify-between gap-3">
-                                    <span className="text-slate-500">Prepared for questions</span>
-                                    <span className="text-right text-xs font-bold text-slate-200">{ingestedRepo === githubUrl && ingestStatus === "completed" ? "Available" : "Use Ask a Repository"}</span>
-                                  </div>
-                                  <div className="flex items-start justify-between gap-3">
-                                    <span className="text-slate-500">Evidence</span>
-                                    <span className="text-right text-xs font-bold text-slate-200">Returned in source-backed answers</span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-6">
-                                <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Analysis Scope</h3>
-                                <div className="space-y-3 text-sm font-medium text-slate-400">
-                                  <div>
-                                    <p className="text-xs font-bold text-slate-200">What Dandi used</p>
-                                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                                      Public repository URL, GitHub metadata when available, and the structured summary returned by the API.
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs font-bold text-slate-200">What this does not prove</p>
-                                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                                      Summary mode does not prepare a repository for follow-up questions and does not return a skipped-file manifest. Use Ask a Repository for file/chunk counts and source-backed answers.
-                                    </p>
-                                  </div>
-                                  {currentIndexStats?.status === "completed" && (
-                                    <div>
-                                      <p className="text-xs font-bold text-slate-200">Current index</p>
-                                      <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                                        {indexedFilesLabel} files were split into {indexedChunksLabel} searchable chunks for this repository.
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </CommandPanel>
-                      ) : (
-                        <div id="summary-json-panel" role="tabpanel" aria-labelledby="json-tab">
-                          <JsonViewer data={summaryJsonData} />
-                        </div>
-                      )}
-                    </div>
+                    <RepositorySummaryPanel
+                      viewMode={viewMode}
+                      setViewMode={setViewMode}
+                      summaryHasData={summaryHasData}
+                      summaryJsonData={summaryJsonData}
+                      summaryResult={summaryResult}
+                      summaryFacts={summaryFacts}
+                      repoMetadata={repoMetadata}
+                      isLoadingSummary={isLoadingSummary}
+                      summaryStatus={summaryStatus}
+                      streamError={streamError}
+                      summaryStreamMessage={summaryStreamMessage}
+                      summaryIssue={summaryIssue}
+                      summaryRequestLogs={summaryRequestLogs}
+                      summaryLoadingStages={summaryLoadingStages}
+                      githubUrl={githubUrl}
+                      getRepoPath={getRepoPath}
+                      ingestedRepo={ingestedRepo}
+                      ingestStatus={ingestStatus}
+                      currentIndexStats={currentIndexStats}
+                      indexedFilesLabel={indexedFilesLabel}
+                      indexedChunksLabel={indexedChunksLabel}
+                    />
                   )}
                 </>
               )}
 
-              <CommandPanel className="p-4 sm:p-5">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Repository Transparency</p>
-                  <StatusPill tone={transparencyStatusTone} pulse={isPipelineActive} compact>
-                    {transparencyStatusLabel}
-                  </StatusPill>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {transparencyRows.map((item) => (
-                    <div key={item.label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{item.label}</span>
-                        <span className="text-right text-xs font-black text-slate-100">{item.value}</span>
-                      </div>
-                      <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-500">{item.detail}</p>
-                    </div>
-                  ))}
-                </div>
-              </CommandPanel>
+              <PlaygroundTransparencyPanel
+                rows={transparencyRows}
+                tone={transparencyStatusTone}
+                label={transparencyStatusLabel}
+                pulse={isPipelineActive}
+              />
             </div>
 
             {/* Right Column */}
-            <div className="w-full space-y-6 xl:w-96 xl:shrink-0">
-              <CommandPanel className="space-y-4 p-4 sm:p-5">
-                <div className="flex justify-between items-center px-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/70">Integration Snippets</p>
-                  <Link 
-                    href="/docs" 
-                    className="text-[9px] font-bold uppercase tracking-widest text-emerald-300 hover:underline transition"
-                  >
-                    Full API Docs →
-                  </Link>
-                </div>
-                <CodeSnippet apiKey={apiKey} githubUrl={githubUrl} onCopy={(method) => showToast("success", `${method.toUpperCase()} code snippet copied!`)} mode={activeTab} />
-              </CommandPanel>
-              
-              <CommandPanel className="p-6 text-white space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-emerald-300">
-                    <LiveIndicator active={isPipelineActive} tone={hasPipelineError ? "danger" : isPipelineActive ? "warning" : "success"} />
-                    Endpoint Context
-                  </div>
-                  <StatusPill tone={activeTab === "summary" ? "info" : "success"} compact>
-                    {activeTab === "summary" ? "REST" : "Ask"}
-                  </StatusPill>
-                </div>
-                <p className="text-[11px] leading-relaxed text-slate-400">
-                  {activeTab === "summary" ? (
-                    <>
-                      This workbench calls <span className="text-white font-mono">/api/github-summarizer</span> with your selected key and repository URL. Successful requests count toward your monthly request usage.
-                    </>
-                  ) : (
-                    <>
-                      Ask a Repository uses <span className="text-white font-mono">/api/rag/ingest</span> to prepare repository chunks, then <span className="text-white font-mono">/api/rag/chat</span> to find source context and stream an answer. Successful requests count toward your monthly request usage.
-                    </>
-                  )}
-                </p>
-              </CommandPanel>
-
-              <CommandPanel padding="none" className="overflow-hidden">
-                <details>
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70 transition-colors hover:text-emerald-200 sm:p-5">
-                    Developer Diagnostics
-                    <StatusPill tone={isPipelineActive ? "warning" : hasPipelineError ? "danger" : "neutral"} compact>
-                      {isPipelineActive ? "Running" : hasPipelineError ? "Review" : "Collapsed"}
-                    </StatusPill>
-                  </summary>
-                  <div className="space-y-5 border-t border-white/10 p-4 sm:p-5">
-                    <section className="space-y-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Execution Pipeline</p>
-                        <LiveIndicator active={isPipelineActive} tone={hasPipelineError ? "danger" : isPipelineActive ? "warning" : "success"} label={isPipelineActive ? "live" : "standby"} />
-                      </div>
-                      <PipelineFlow steps={pipelineSteps} orientation="vertical" />
-                    </section>
-
-                    <section className="space-y-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Repository Intelligence Workflow</p>
-                        <StatusPill tone={hasSourceEvidence ? "success" : ingestStatus === "completed" ? "info" : "neutral"} compact>
-                          {hasSourceEvidence ? "Evidence" : ingestStatus === "completed" ? "Ready" : "Idle"}
-                        </StatusPill>
-                      </div>
-                      <PipelineFlow steps={lifecycleSteps} orientation="vertical" />
-                    </section>
-
-                    <section className="space-y-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                          {activeTab === "summary" ? "Summary Output Workflow" : "Repository Processing Workflow"}
-                        </p>
-                        <StatusPill tone={activeTab === "summary" ? "info" : ingestStatus === "completed" ? "success" : hasIndexingFailure ? "danger" : "neutral"} compact>
-                          {activeTab === "summary" ? "Summary" : ingestStatus === "completed" ? "Indexed" : hasIndexingFailure ? "Failed" : "Not started"}
-                        </StatusPill>
-                      </div>
-                      <PipelineFlow steps={activeTab === "summary" ? summaryProcessingSteps : ragProcessingSteps} orientation="vertical" />
-                    </section>
-
-                    <section className="space-y-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Latency</p>
-                        <StatusPill tone={isPipelineActive ? "warning" : completedLogs.length ? "success" : "neutral"} compact>
-                          {isPipelineActive ? "Measuring" : completedLogs.length ? "Measured" : "Idle"}
-                        </StatusPill>
-                      </div>
-                      <div className="space-y-3">
-                        {latencyRows.map((row) => (
-                          <div key={row.label} className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{row.label}</span>
-                              <span className="text-xs font-black tabular-nums text-slate-100">{row.value}</span>
-                            </div>
-                            <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-500">{row.detail}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-                  </div>
-                </details>
-              </CommandPanel>
-            </div>
+            <PlaygroundSidebar
+              activeTab={activeTab}
+              apiKey={apiKey}
+              githubUrl={githubUrl}
+              isPipelineActive={isPipelineActive}
+              hasPipelineError={hasPipelineError}
+              hasSourceEvidence={hasSourceEvidence}
+              ingestStatus={ingestStatus}
+              hasIndexingFailure={hasIndexingFailure}
+              completedLogCount={completedLogs.length}
+              pipelineSteps={pipelineSteps}
+              lifecycleSteps={lifecycleSteps}
+              summaryProcessingSteps={summaryProcessingSteps}
+              ragProcessingSteps={ragProcessingSteps}
+              latencyRows={latencyRows}
+              showToast={showToast}
+            />
           </div>
       </DashboardShell>
       <Toast toast={toast} />
