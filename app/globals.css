@@ -167,11 +167,75 @@ body {
 .command-ambient {
   isolation: isolate;
   background-color: var(--command-bg);
+
+  /* Default CSS Variables for command-ambient */
+  --command-primary-glow: rgba(52, 211, 153, 0.11);
+  --command-secondary-glow: rgba(34, 211, 238, 0.09);
+  --command-tertiary-glow: rgba(167, 139, 250, 0.07);
+
+  --command-glow-pos-1: 14% 6%;
+  --command-glow-pos-2: 86% 10%;
+  --command-glow-pos-3: 50% 100%;
+  --command-glow-pos-4: 6% 90%;
+
+  --command-grid-opacity: 0.14;
+  --command-grid-size: 48px 48px;
+  --command-grid-line-opacity: 0.12;
+
+  --command-noise-opacity: 0.05;
+  --command-vignette-opacity: 0.42;
+  --command-vignette-strength: 0.45;
+
   background-image:
-    radial-gradient(ellipse 90% 55% at 14% 6%, rgba(52, 211, 153, 0.11), transparent 58%),
-    radial-gradient(ellipse 75% 50% at 86% 10%, rgba(34, 211, 238, 0.09), transparent 52%),
-    radial-gradient(ellipse 85% 60% at 50% 100%, rgba(167, 139, 250, 0.07), transparent 58%),
+    radial-gradient(ellipse 90% 55% at var(--command-glow-pos-1), var(--command-primary-glow), transparent 58%),
+    radial-gradient(ellipse 75% 50% at var(--command-glow-pos-2), var(--command-secondary-glow), transparent 52%),
+    radial-gradient(ellipse 85% 60% at var(--command-glow-pos-3), var(--command-tertiary-glow), transparent 58%),
     linear-gradient(168deg, #080d14 0%, #05070b 42%, #030508 100%);
+}
+
+/* Variant Overrides */
+
+/* Playground Variant: AI workbench/lab, emerald/cyan depth */
+.command-ambient-playground {
+  --command-primary-glow: rgba(52, 211, 153, 0.20);
+  --command-secondary-glow: rgba(34, 211, 238, 0.18);
+  --command-tertiary-glow: rgba(20, 184, 166, 0.10);
+  --command-glow-pos-1: 30% 15%;
+  --command-glow-pos-2: 70% 20%;
+  --command-grid-opacity: 0.16;
+  --command-vignette-strength: 0.40;
+}
+
+/* Usage Variant: analytical, faint data/grid feel */
+.command-ambient-usage {
+  --command-primary-glow: rgba(148, 163, 184, 0.10);
+  --command-secondary-glow: rgba(34, 211, 238, 0.08);
+  --command-tertiary-glow: rgba(100, 116, 139, 0.05);
+  --command-grid-opacity: 0.22;
+  --command-grid-size: 32px 32px;
+  --command-grid-line-opacity: 0.16;
+  --command-vignette-strength: 0.35;
+  --command-noise-opacity: 0.06;
+}
+
+/* Billing Variant: cleaner, calmer, neutral trust depth, less neon */
+.command-ambient-billing {
+  --command-primary-glow: rgba(99, 102, 241, 0.07);
+  --command-secondary-glow: rgba(59, 130, 246, 0.05);
+  --command-tertiary-glow: rgba(15, 23, 42, 0.05);
+  --command-grid-opacity: 0.06;
+  --command-noise-opacity: 0.03;
+  --command-vignette-strength: 0.55;
+}
+
+/* Account Variant: minimal and quiet slate/dark */
+.command-ambient-account {
+  --command-primary-glow: rgba(148, 163, 184, 0.03);
+  --command-secondary-glow: rgba(148, 163, 184, 0.02);
+  --command-tertiary-glow: rgba(15, 23, 42, 0.02);
+  --command-grid-opacity: 0.02;
+  --command-noise-opacity: 0.03;
+  --command-vignette-strength: 0.60;
 }
 
 .command-ambient-subtle {
@@ -199,34 +263,34 @@ body {
 
 .command-ambient-radial-one {
   background:
-    radial-gradient(ellipse 58% 48% at 16% 14%, rgba(52, 211, 153, 0.16), transparent 68%),
-    radial-gradient(ellipse 48% 42% at 84% 4%, rgba(34, 211, 238, 0.11), transparent 66%);
+    radial-gradient(ellipse 58% 48% at var(--command-glow-pos-1), var(--command-primary-glow), transparent 68%),
+    radial-gradient(ellipse 48% 42% at var(--command-glow-pos-2), var(--command-secondary-glow), transparent 66%);
 }
 
 .command-ambient-radial-two {
   background:
-    radial-gradient(ellipse 52% 46% at 74% 78%, rgba(167, 139, 250, 0.09), transparent 72%),
-    radial-gradient(ellipse 42% 36% at 6% 90%, rgba(34, 211, 238, 0.07), transparent 68%);
+    radial-gradient(ellipse 52% 46% at var(--command-glow-pos-3), var(--command-tertiary-glow), transparent 72%),
+    radial-gradient(ellipse 42% 36% at var(--command-glow-pos-4), var(--command-secondary-glow), transparent 68%);
   animation-delay: -9s;
 }
 
 .command-ambient-grid {
   opacity: var(--command-grid-opacity, 0.14);
   background-image:
-    linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
-  background-size: 48px 48px;
+    linear-gradient(rgba(148, 163, 184, var(--command-grid-line-opacity, 0.12)) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, var(--command-grid-line-opacity, 0.12)) 1px, transparent 1px);
+  background-size: var(--command-grid-size, 48px 48px);
   -webkit-mask-image: radial-gradient(ellipse 88% 78% at 50% 42%, black, transparent 80%);
   mask-image: radial-gradient(ellipse 88% 78% at 50% 42%, black, transparent 80%);
 }
 
 .command-ambient-vignette {
   opacity: var(--command-vignette-opacity, 0.42);
-  background: radial-gradient(ellipse 115% 95% at 50% 48%, transparent 35%, rgba(0, 0, 0, 0.45) 100%);
+  background: radial-gradient(ellipse 115% 95% at 50% 48%, transparent 35%, rgba(0, 0, 0, var(--command-vignette-strength, 0.45)) 100%);
 }
 
 .command-ambient-noise {
-  opacity: 0.05;
+  opacity: var(--command-noise-opacity, 0.05);
   background-image:
     radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.04), transparent 42%),
     radial-gradient(circle at 78% 72%, rgba(255, 255, 255, 0.03), transparent 38%),

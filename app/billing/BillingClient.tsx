@@ -191,6 +191,7 @@ export default function BillingClient({
   return (
     <>
       <DashboardShell
+        variant="billing"
         sidebar={{
           totalUsage: currentData?.totalUsage || 0,
           plan: currentPlan,

@@ -205,6 +205,7 @@ export default function UsageClient({
   return (
     <>
       <DashboardShell
+        variant="usage"
         sidebar={{
           totalUsage: currentData?.totalUsage || 0,
           plan: currentPlan,

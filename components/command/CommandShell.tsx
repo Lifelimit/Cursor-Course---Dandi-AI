@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import { AnimatedBackground } from "./AnimatedBackground";
+import { AnimatedBackground, type CommandShellVariant } from "./AnimatedBackground";
 import { cx } from "./utils";
 
 export type CommandShellProps = {
   children: ReactNode;
-  variant?: "public" | "dashboard" | "auth";
+  variant?: CommandShellVariant;
   withBackground?: boolean;
   className?: string;
 };
@@ -12,12 +12,20 @@ export type CommandShellProps = {
 const variantClasses: Record<NonNullable<CommandShellProps["variant"]>, string> = {
   public: "selection:bg-emerald-400/25",
   dashboard: "selection:bg-cyan-400/25",
+  playground: "selection:bg-emerald-400/25",
+  usage: "selection:bg-cyan-400/25",
+  billing: "selection:bg-indigo-400/25",
+  account: "selection:bg-slate-400/25",
   auth: "selection:bg-violet-400/25",
 };
 
 const backgroundIntensity: Record<NonNullable<CommandShellProps["variant"]>, "subtle" | "standard" | "hero"> = {
   public: "hero",
   dashboard: "standard",
+  playground: "hero",
+  usage: "standard",
+  billing: "subtle",
+  account: "subtle",
   auth: "subtle",
 };
 
@@ -38,7 +46,11 @@ export function CommandShell({
   }
 
   return (
-    <AnimatedBackground intensity={backgroundIntensity[variant]} className={shellClassName}>
+    <AnimatedBackground
+      intensity={backgroundIntensity[variant]}
+      variant={variant}
+      className={shellClassName}
+    >
       {children}
     </AnimatedBackground>
   );

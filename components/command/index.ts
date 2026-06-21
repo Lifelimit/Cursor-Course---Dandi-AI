@@ -1,4 +1,4 @@
-export { AnimatedBackground, type AnimatedBackgroundProps } from "./AnimatedBackground";
+export { AnimatedBackground, type AnimatedBackgroundProps, type CommandShellVariant } from "./AnimatedBackground";
 export { CodeWindow, type CodeWindowProps } from "./CodeWindow";
 export { CommandPanel, type CommandPanelProps } from "./CommandPanel";
 export { CommandShell, type CommandShellProps } from "./CommandShell";

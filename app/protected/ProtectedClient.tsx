@@ -160,6 +160,7 @@ export default function ProtectedClient({ initialSession }: { initialSession: Se
 
   return (
     <DashboardShell
+      variant="account"
       sidebar={{
         totalUsage,
         plan: currentPlan,
