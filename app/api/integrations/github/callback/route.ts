@@ -10,11 +10,12 @@ import {
   persistGitHubAppInstallation,
 } from "@/lib/services/github-app.service";
 import { publicEnv } from "@/lib/env";
+import { getTrustedCallbackOrigin } from "@/lib/api-request";
 
 export const dynamic = "force-dynamic";
 
-function accountRedirect(params: Record<string, string>) {
-  const url = new URL("/account", publicEnv.NEXT_PUBLIC_APP_URL);
+function accountRedirect(params: Record<string, string>, origin?: string) {
+  const url = new URL("/account", origin || publicEnv.NEXT_PUBLIC_APP_URL);
   url.searchParams.set("tab", "integrations");
   Object.entries(params).forEach(([key, value]) => {
     url.searchParams.set(key, value);
@@ -55,36 +56,38 @@ async function getCurrentUser() {
 }
 
 async function handleSetupCallback(request: NextRequest) {
+  const origin = getTrustedCallbackOrigin(request);
   try {
     const { user } = await getCurrentUser();
     if (!user?.id) {
-      return accountRedirect({ github_error: "Sign in before connecting GitHub." });
+      return accountRedirect({ github_error: "Sign in before connecting GitHub." }, origin);
     }
 
     const expectedState = request.cookies.get(githubAppCookies.installState)?.value;
     const returnedState = request.nextUrl.searchParams.get("state");
     if (!expectedState || !returnedState || expectedState !== returnedState) {
-      return clearGitHubCookies(accountRedirect({ github_error: "GitHub installation state did not match. Please try connecting again." }));
+      return clearGitHubCookies(accountRedirect({ github_error: "GitHub installation state did not match. Please try connecting again." }, origin));
     }
 
     const setupAction = request.nextUrl.searchParams.get("setup_action");
     if (setupAction === "request") {
       return clearGitHubCookies(accountRedirect({
         github_notice: "GitHub installation was requested. An organization admin may need to approve it before Dandi can connect.",
-      }));
+      }, origin));
     }
 
     if (setupAction && setupAction !== "install" && setupAction !== "update") {
-      return clearGitHubCookies(accountRedirect({ github_error: "GitHub installation was not completed." }));
+      return clearGitHubCookies(accountRedirect({ github_error: "GitHub installation was not completed." }, origin));
     }
 
     const installationId = parseInstallationId(request.nextUrl.searchParams.get("installation_id"));
     if (!installationId) {
-      return clearGitHubCookies(accountRedirect({ github_error: "GitHub did not return an installation id." }));
+      return clearGitHubCookies(accountRedirect({ github_error: "GitHub did not return an installation id." }, origin));
     }
 
     const oauthState = createGitHubAppState();
-    const response = NextResponse.redirect(getGitHubOAuthUrl({ state: oauthState }));
+    const redirectUri = `${origin}/api/integrations/github/callback`;
+    const response = NextResponse.redirect(getGitHubOAuthUrl({ state: oauthState, redirectUri }));
     response.cookies.delete(githubAppCookies.installState);
     response.cookies.set(githubAppCookies.oauthState, `${oauthState}.${installationId}`, {
       httpOnly: true,
@@ -96,14 +99,15 @@ async function handleSetupCallback(request: NextRequest) {
 
     return response;
   } catch (err) {
-    return clearGitHubCookies(accountRedirect({ github_error: getSafeGitHubAppErrorMessage(err) }));
+    return clearGitHubCookies(accountRedirect({ github_error: getSafeGitHubAppErrorMessage(err) }, origin));
   }
 }
 
 async function handleOAuthCallback(request: NextRequest) {
+  const origin = getTrustedCallbackOrigin(request);
   const { user } = await getCurrentUser();
   if (!user?.id) {
-    return accountRedirect({ github_error: "Sign in before completing GitHub authorization." });
+    return accountRedirect({ github_error: "Sign in before completing GitHub authorization." }, origin);
   }
 
   const returnedState = request.nextUrl.searchParams.get("state");
@@ -111,11 +115,11 @@ async function handleOAuthCallback(request: NextRequest) {
   const oauthState = parseOAuthCookie(request.cookies.get(githubAppCookies.oauthState)?.value);
 
   if (!oauthState || !returnedState || oauthState.state !== returnedState) {
-    return clearGitHubCookies(accountRedirect({ github_error: "GitHub authorization state did not match. Please try connecting again." }));
+    return clearGitHubCookies(accountRedirect({ github_error: "GitHub authorization state did not match. Please try connecting again." }, origin));
   }
 
   if (!code) {
-    return clearGitHubCookies(accountRedirect({ github_error: "GitHub authorization was cancelled or did not return a code." }));
+    return clearGitHubCookies(accountRedirect({ github_error: "GitHub authorization was cancelled or did not return a code." }, origin));
   }
 
   try {
@@ -131,9 +135,9 @@ async function handleOAuthCallback(request: NextRequest) {
       verifiedRepositoryCount: verifiedRepoList.totalCount,
     });
 
-    return clearGitHubCookies(accountRedirect({ github: "connected" }));
+    return clearGitHubCookies(accountRedirect({ github: "connected" }, origin));
   } catch (err) {
-    return clearGitHubCookies(accountRedirect({ github_error: getSafeGitHubAppErrorMessage(err) }));
+    return clearGitHubCookies(accountRedirect({ github_error: getSafeGitHubAppErrorMessage(err) }, origin));
   }
 }
 

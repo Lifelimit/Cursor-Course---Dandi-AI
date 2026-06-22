@@ -171,20 +171,30 @@ export function getGitHubInstallUrl(state: string) {
   }
 
   const url = new URL(baseUrl);
+  
+  // Safety check: if GITHUB_APP_INSTALLATION_URL has redirect_uri pointing to localhost
+  // and we are running in production, remove it to prevent stale localhost redirects
+  if (process.env.NODE_ENV === "production") {
+    const redirectUri = url.searchParams.get("redirect_uri");
+    if (redirectUri && (redirectUri.includes("localhost") || redirectUri.includes("127.0.0.1"))) {
+      url.searchParams.delete("redirect_uri");
+    }
+  }
+
   url.searchParams.set("state", state);
   return url.toString();
 }
 
-export function getGitHubOAuthUrl(input: { state: string }) {
+export function getGitHubOAuthUrl(input: { state: string; redirectUri?: string }) {
   const config = getGitHubAppConfig();
   if (!config.clientId || !config.clientSecret) {
     throw new GitHubAppConfigurationError("Set GITHUB_APP_CLIENT_ID and GITHUB_APP_CLIENT_SECRET to verify GitHub App installations.");
   }
 
-  const redirectUrl = new URL("/api/integrations/github/callback", publicEnv.NEXT_PUBLIC_APP_URL);
+  const redirectUrl = input.redirectUri || new URL("/api/integrations/github/callback", publicEnv.NEXT_PUBLIC_APP_URL).toString();
   const url = new URL("https://github.com/login/oauth/authorize");
   url.searchParams.set("client_id", config.clientId);
-  url.searchParams.set("redirect_uri", redirectUrl.toString());
+  url.searchParams.set("redirect_uri", redirectUrl);
   url.searchParams.set("state", input.state);
   url.searchParams.set("prompt", "select_account");
   return url.toString();

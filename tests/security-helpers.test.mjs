@@ -359,7 +359,7 @@ test("GitHub App callback clears state cookies for invalid state and setup confi
   const callbackSource = readFileSync(resolve(repoRoot, "app/api/integrations/github/callback/route.ts"), "utf8");
 
   assert.match(callbackSource, /clearGitHubCookies\(accountRedirect\(\{ github_error: "GitHub installation state did not match/);
-  assert.match(callbackSource, /catch \(err\) \{\s*return clearGitHubCookies\(accountRedirect\(\{ github_error: getSafeGitHubAppErrorMessage\(err\) \}\)\);/);
+  assert.match(callbackSource, /catch \(err\) \{\s*return clearGitHubCookies\(accountRedirect\(\{ github_error: getSafeGitHubAppErrorMessage\(err\) \},\s*origin\)\);/);
   assert.match(callbackSource, /clearGitHubCookies\(accountRedirect\(\{ github_error: "GitHub authorization state did not match/);
 });
 
