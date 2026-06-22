@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter, usePathname } from "next/navigation";
 import { getURL } from "@/lib/utils/url-helper";
 import { GuidedError } from "@/components/ui/GuidedError";
-import { getErrorGuidance } from "@/lib/error-guidance";
+import { getErrorGuidance, type AuthErrorFlow } from "@/lib/error-guidance";
 
 interface AuthFormProps {
   defaultMode: "login" | "signup";
@@ -32,8 +32,10 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
   const [fullName, setFullName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorAuthFlow, setErrorAuthFlow] = useState<AuthErrorFlow | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isMagicLinkSent, setIsMagicLinkSent] = useState(false);
+  const authFlow: AuthErrorFlow = isSignUp ? "signup" : usePassword ? "login" : "magic-link";
 
   // Sync state to URL
   useEffect(() => {
@@ -70,6 +72,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setErrorAuthFlow(authFlow);
     setSuccessMessage(null);
 
     if (!email) {
@@ -140,6 +143,8 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
 
   async function signInWithGoogle() {
     setIsLoading(true);
+    setError(null);
+    setErrorAuthFlow("oauth");
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -199,7 +204,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
       {error && (
         <div id={errorId}>
           <GuidedError
-            {...getErrorGuidance({ workflow: "auth", message: error })}
+            {...getErrorGuidance({ workflow: "auth", message: error, authFlow: errorAuthFlow ?? authFlow })}
             technicalDetails={error}
             compact
             className="animate-in slide-in-from-top-2 duration-300"

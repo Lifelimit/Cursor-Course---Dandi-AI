@@ -117,6 +117,9 @@ export default function BillingClient({
       }
       const res = await fetch("/api/usage"); // Full scope includes payment and billing display data.
       const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.error || "Failed to load billing information.");
+      }
       setData(json);
       isHydrated.current = true;
       fetchInvoices();
@@ -185,8 +188,9 @@ export default function BillingClient({
   const secondaryCount = secondaryPaymentMethods.length;
   const safeSecondaryIndex = secondaryCount > 0 ? Math.min(secondaryIndex, secondaryCount - 1) : 0;
   const activeSecondaryPosition = secondaryCount > 0 ? safeSecondaryIndex + 1 : 0;
-  const currentPlan = currentData?.plan || (activeUser?.user_metadata as { plan?: string })?.plan || "Hobby";
-  const billingInterval = (activeUser?.user_metadata as { billing_interval?: "month" | "year" })?.billing_interval || "month";
+  const metadata = activeUser?.user_metadata as { plan?: string; billing_interval?: "month" | "year" } | undefined;
+  const currentPlan = currentData?.plan || metadata?.plan || "Hobby";
+  const billingInterval = currentData?.billingInterval || metadata?.billing_interval || "month";
 
   const { monthlyLimit: currentLimit, isUnlimited } = getPlanLimits(currentPlan);
 
@@ -419,6 +423,7 @@ export default function BillingClient({
               {/* Plan Switcher */}
               <section className="space-y-6">
                 <PlanComparison
+                  key={`plan-comparison-${billingInterval}`}
                   currentPlan={currentPlan}
                   onUpgrade={handleUpgrade}
                   billingInterval={billingInterval}

@@ -1,0 +1,40 @@
+# GitHub App Installation Flow
+
+Date: 2026-06-22
+Status: Accepted
+
+## Context
+
+Dandi needs a real GitHub connection that can support repository-scoped private repository access later. The previous Account Settings integration state could be toggled locally and did not prove that GitHub authorization or repository grants existed.
+
+GitHub setup URLs can include an `installation_id`, but GitHub warns that the query parameter can be spoofed. Dandi should not persist an installation record or use installation tokens only because a browser reached the setup callback with an ID.
+
+## Decision
+
+Use a GitHub App installation flow with a Dandi-generated state cookie, then require a GitHub App OAuth verification callback before storing the installation. The OAuth callback exchanges the temporary code for a user access token, verifies that the GitHub user can access the installation, then discards the user token and stores only installation metadata.
+
+Persist GitHub App installation metadata in `public.github_app_installations` with RLS policies bound to the authenticated Supabase user. Do not store GitHub private keys, user access tokens, installation tokens, repository contents, or private file data in this table.
+
+Keep private repository summarization/indexing as a separate follow-up. Supporting API-key based private repository access requires a deliberate server-side trust boundary for resolving a validated API key user to an installation token.
+
+## Consequences
+
+The Account Settings UI can show real connected/disconnected state and list repositories returned by the GitHub installation. Disconnect removes Dandi's local record only; users must manage or uninstall the app on GitHub for GitHub-side revocation.
+
+The GitHub App must be configured with:
+
+- `GITHUB_APP_ID`
+- `GITHUB_APP_PRIVATE_KEY`
+- `GITHUB_APP_CLIENT_ID`
+- `GITHUB_APP_CLIENT_SECRET`
+- `GITHUB_APP_SLUG` or `GITHUB_APP_INSTALLATION_URL`
+
+The GitHub App callback URL should include `/api/integrations/github/callback`. If using the setup URL flow, the setup URL should also point at `/api/integrations/github/callback`.
+
+## Alternatives Considered
+
+Classic OAuth was rejected because it does not model repository-scoped installations as cleanly as GitHub Apps.
+
+Persisting the setup `installation_id` directly was rejected because it would trust a spoofable callback parameter.
+
+Using service-role reads for private repository API-key flows in this first change was deferred to avoid expanding authorization assumptions without a separate review.

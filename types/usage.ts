@@ -56,6 +56,7 @@ export type UsageData = {
   successRate?: number;
   dailyAnalytics?: DailyUsageTrend[];
   plan?: string;
+  billingInterval?: "month" | "year";
   paymentMethods?: PaymentMethodDisplay[] | null;
   customerBalance?: number | null;
   stripeCustomerId?: string | null;

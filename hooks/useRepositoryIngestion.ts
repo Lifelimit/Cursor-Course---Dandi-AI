@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import type { LogEntry } from "@/components/playground/NetworkLog";
 import { getToastErrorMessage } from "@/lib/error-guidance";
 import type { ApiKey } from "@/types/api";
@@ -36,6 +36,7 @@ type UseRepositoryIngestionOptions = {
   ragMessagesLength: number;
   setRagMessages: Dispatch<SetStateAction<RagMessage[]>>;
   isChatLoading: boolean;
+  isRepositoryTabActive: boolean;
 };
 
 type IngestionResponse = {
@@ -53,7 +54,24 @@ type IngestionResponse = {
   error?: string;
 };
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
+  if (signal?.aborted) {
+    reject(new DOMException("Ingestion run was cancelled.", "AbortError"));
+    return;
+  }
+
+  const timer = setTimeout(() => {
+    signal?.removeEventListener("abort", abort);
+    resolve();
+  }, ms);
+
+  const abort = () => {
+    clearTimeout(timer);
+    reject(new DOMException("Ingestion run was cancelled.", "AbortError"));
+  };
+
+  signal?.addEventListener("abort", abort, { once: true });
+});
 
 const getPerformanceNow = () => performance.now();
 
@@ -95,6 +113,8 @@ const getUnknownErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+const isAbortError = (error: unknown) => error instanceof DOMException && error.name === "AbortError";
+
 export function useRepositoryIngestion({
   apiKey,
   githubUrl,
@@ -107,12 +127,47 @@ export function useRepositoryIngestion({
   ragMessagesLength,
   setRagMessages,
   isChatLoading,
+  isRepositoryTabActive,
 }: UseRepositoryIngestionOptions) {
   const [indexedRequestLogs, setIndexedRequestLogs] = useState<LogEntry[]>([]);
   const [ingestStatus, setIngestStatus] = useState<RepositoryIngestStatus>("idle");
   const [indexingAttemptedRepo, setIndexingAttemptedRepo] = useState<string | null>(null);
   const [ingestedRepo, setIngestedRepo] = useState<string | null>(null);
   const [indexedRepositoryStats, setIndexedRepositoryStats] = useState<IndexedRepositoryStats | null>(null);
+  const latestRunIdRef = useRef(0);
+  const activeRunRef = useRef<{ id: number; controller: AbortController } | null>(null);
+  const selectedRequestRef = useRef({ apiKey, githubUrl });
+
+  const cancelActiveRun = useCallback(() => {
+    activeRunRef.current?.controller.abort();
+    activeRunRef.current = null;
+  }, []);
+
+  const startActiveRun = useCallback(() => {
+    cancelActiveRun();
+    const controller = new AbortController();
+    const id = latestRunIdRef.current + 1;
+    latestRunIdRef.current = id;
+    activeRunRef.current = { id, controller };
+    return { id, signal: controller.signal };
+  }, [cancelActiveRun]);
+
+  const isActiveRun = useCallback((runId: number) => (
+    activeRunRef.current?.id === runId && !activeRunRef.current.controller.signal.aborted
+  ), []);
+
+  const finishActiveRun = useCallback((runId: number) => {
+    if (activeRunRef.current?.id === runId) {
+      activeRunRef.current = null;
+    }
+  }, []);
+
+  const cancelActiveRunAndResetTransientState = useCallback(() => {
+    if (!activeRunRef.current) return;
+    cancelActiveRun();
+    setIngestStatus("idle");
+    setIngestedRepo(null);
+  }, [cancelActiveRun]);
 
   const setIndexedLogState = (id: string, updates: Partial<LogEntry>) => {
     setIndexedRequestLogs((prev) => updateLogEntries(prev, id, updates));
@@ -171,6 +226,7 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
         if (!res.ok) return;
         const jobs = Array.isArray(data.jobs) ? (data.jobs as IngestionJobSummary[]) : [];
         if (cancelled) return;
+        if (activeRunRef.current) return;
 
         const matchingJob = githubUrl ? jobs.find((job) => job.repoUrl === githubUrl) : null;
         if (!matchingJob) return;
@@ -189,14 +245,36 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey, githubUrl]);
 
+  useEffect(() => cancelActiveRun, [cancelActiveRun]);
+
+  useEffect(() => {
+    const previous = selectedRequestRef.current;
+    const selectionChanged = previous.apiKey !== apiKey || previous.githubUrl !== githubUrl;
+    selectedRequestRef.current = { apiKey, githubUrl };
+
+    if (selectionChanged) {
+      cancelActiveRunAndResetTransientState();
+    }
+  }, [apiKey, cancelActiveRunAndResetTransientState, githubUrl]);
+
+  useEffect(() => {
+    if (!isRepositoryTabActive) {
+      cancelActiveRunAndResetTransientState();
+    }
+  }, [cancelActiveRunAndResetTransientState, isRepositoryTabActive]);
+
   const handleIngest = async (e: FormEvent) => {
     e.preventDefault();
+    const { id: runId, signal } = startActiveRun();
+
     if (!apiKey) {
       setErrorMessage("An API key is required to ingest a repository.");
+      finishActiveRun(runId);
       return;
     }
     if (!githubUrl) {
       setErrorMessage("GitHub Repository URL is required.");
+      finishActiveRun(runId);
       return;
     }
 
@@ -223,7 +301,8 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
     });
 
     try {
-      await sleep(350);
+      await sleep(350, signal);
+      if (!isActiveRun(runId)) return;
       setIndexedLogState("auth", {
         status: "success",
         duration: Math.round(getPerformanceNow() - startTime),
@@ -245,14 +324,17 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
 
       const res = await fetch("/api/rag/ingest", {
         method: "POST",
+        signal,
         headers: {
           "Content-Type": "application/json",
           "x-api-key": apiKey,
         },
         body: JSON.stringify({ githubUrl }),
       });
+      if (!isActiveRun(runId)) return;
 
       const data = (await res.json()) as IngestionResponse;
+      if (!isActiveRun(runId)) return;
 
       if (!res.ok) {
         throw new Error(data.error || "Failed to ingest repository");
@@ -298,11 +380,15 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
 
       let completedJob = data;
       for (let attempt = 0; attempt < 90; attempt++) {
-        await sleep(2000);
+        await sleep(2000, signal);
+        if (!isActiveRun(runId)) return;
         const statusRes = await fetch(`/api/rag/ingest?jobId=${encodeURIComponent(data.jobId as string)}`, {
+          signal,
           headers: apiKey === "__demo__" ? { "x-api-key": apiKey } : undefined,
         });
+        if (!isActiveRun(runId)) return;
         const statusData = (await statusRes.json()) as IngestionResponse;
+        if (!isActiveRun(runId)) return;
 
         if (!statusRes.ok) {
           throw new Error(statusData.error || "Failed to check ingestion job status.");
@@ -391,6 +477,10 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       showToast("success", "Repository indexed and ready for questions.");
       void refreshKeys();
     } catch (err) {
+      if (isAbortError(err) || !isActiveRun(runId)) {
+        return;
+      }
+
       console.warn("Ask a Repository request failed:", err);
       const errMsg = getUnknownErrorMessage(err, "Ingestion process encountered an error.");
       const diagnosticError = {
@@ -417,10 +507,13 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         responseBody: diagnosticError,
       });
       showToast("error", getToastErrorMessage("repository-indexing", errMsg));
+    } finally {
+      finishActiveRun(runId);
     }
   };
 
   const resetIngestedRepository = () => {
+    cancelActiveRun();
     setIngestStatus("idle");
     setIngestedRepo(null);
   };

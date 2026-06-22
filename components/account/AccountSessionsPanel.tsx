@@ -11,10 +11,27 @@ type AccountSessionsPanelProps = {
   totalBrowserCount: number;
   canShowMoreBrowser: boolean;
   canShowLessBrowser: boolean;
+  loadError: string | null;
   onShowMoreBrowser: () => void;
   onShowLessBrowser: () => void;
   onRefreshSessions: () => void;
 };
+
+function SessionsLoadError({ message, onRefreshSessions }: { message: string; onRefreshSessions: () => void }) {
+  return (
+    <div role="alert" className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5 text-left">
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">Session data failed to load</p>
+      <h5 className="mt-1 text-sm font-black text-amber-50">Browser sessions are unavailable</h5>
+      <p className="mt-2 break-words text-xs font-semibold leading-5 text-amber-100/85">
+        Dandi could not load browser session telemetry. This is not an empty state.
+      </p>
+      <p className="mt-2 break-words font-mono text-[10px] leading-4 text-amber-100/70">{message}</p>
+      <button type="button" onClick={onRefreshSessions} className="mt-3 text-[10px] font-black uppercase tracking-[0.16em] text-amber-100 hover:underline">
+        Retry Sessions
+      </button>
+    </div>
+  );
+}
 
 export function AccountSessionsPanel({
   browserEnvironments,
@@ -23,6 +40,7 @@ export function AccountSessionsPanel({
   totalBrowserCount,
   canShowMoreBrowser,
   canShowLessBrowser,
+  loadError,
   onShowMoreBrowser,
   onShowLessBrowser,
   onRefreshSessions,
@@ -30,6 +48,7 @@ export function AccountSessionsPanel({
   return (
     <>
       <div className="space-y-3 md:hidden">
+        {loadError && <SessionsLoadError message={loadError} onRefreshSessions={onRefreshSessions} />}
         {visibleBrowserEnvironments.map((environment) => (
           <div key={environment.id} className="space-y-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4">
             <div className="space-y-1">
@@ -71,7 +90,7 @@ export function AccountSessionsPanel({
           onShowMore={onShowMoreBrowser}
           onShowLess={onShowLessBrowser}
         />
-        {browserEnvironments.length === 0 && (
+        {!loadError && browserEnvironments.length === 0 && (
           <EmptyState
             title="No browser session telemetry yet."
             description="Browser sessions appear after sign-in activity is recorded for this account."
@@ -97,6 +116,13 @@ export function AccountSessionsPanel({
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 font-medium">
+              {loadError && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8">
+                    <SessionsLoadError message={loadError} onRefreshSessions={onRefreshSessions} />
+                  </td>
+                </tr>
+              )}
               {visibleBrowserEnvironments.map((environment) => (
                 <tr key={environment.id} className="bg-emerald-500/[0.02] text-emerald-300 transition-colors hover:bg-white/5">
                   <td className="px-6 py-4">
@@ -118,7 +144,7 @@ export function AccountSessionsPanel({
                   </td>
                 </tr>
               ))}
-              {browserEnvironments.length === 0 && (
+              {!loadError && browserEnvironments.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-10 text-center">
                     <EmptyState

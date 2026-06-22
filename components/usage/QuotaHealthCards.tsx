@@ -24,10 +24,14 @@ type QuotaCardActions = {
 
 function DeleteConfirmationOverlay({
   keyName,
+  isDeleting,
+  errorMessage,
   onCancel,
   onConfirm,
 }: {
   keyName: string;
+  isDeleting: boolean;
+  errorMessage: string | null;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -44,6 +48,11 @@ function DeleteConfirmationOverlay({
         <span className="text-white">&quot;{keyName}&quot;</span> <br/>
         forever.
       </p>
+      {errorMessage && (
+        <div className="mb-4 w-full rounded-2xl border border-red-400/40 bg-red-500/15 p-3 text-center text-[10px] font-bold leading-relaxed text-red-100">
+          {errorMessage}
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
         <button
           onClick={onCancel}
@@ -53,9 +62,10 @@ function DeleteConfirmationOverlay({
         </button>
         <button
           onClick={onConfirm}
-          className="rounded-2xl bg-red-600 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-red-700 transition-all active:scale-95 shadow-xl shadow-red-900/40"
+          disabled={isDeleting}
+          className="rounded-2xl bg-red-600 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-red-700 transition-all active:scale-95 shadow-xl shadow-red-900/40 disabled:cursor-wait disabled:opacity-65"
         >
-          Confirm
+          {isDeleting ? "Deleting..." : "Confirm"}
         </button>
       </div>
     </div>
@@ -191,6 +201,8 @@ export function ActiveQuotaCard({
   planMonthlyLimit,
   confirmingDeleteId,
   confirmingKillId,
+  deletingKeyId,
+  deleteError,
   updatingKeyId,
   limitEditor,
   actions,
@@ -199,6 +211,8 @@ export function ActiveQuotaCard({
   planMonthlyLimit: number | null;
   confirmingDeleteId: string | null;
   confirmingKillId: string | null;
+  deletingKeyId: string | null;
+  deleteError: { keyId: string; message: string } | null;
   updatingKeyId: string | null;
   limitEditor: LimitEditor;
   actions: QuotaCardActions;
@@ -246,6 +260,8 @@ export function ActiveQuotaCard({
       {confirmingDeleteId === apiKey.id && (
         <DeleteConfirmationOverlay
           keyName={apiKey.name}
+          isDeleting={deletingKeyId === apiKey.id}
+          errorMessage={deleteError?.keyId === apiKey.id ? deleteError.message : null}
           onCancel={actions.onCancelDelete}
           onConfirm={() => void actions.onConfirmDelete(apiKey.id)}
         />
@@ -405,12 +421,16 @@ export function ActiveQuotaCard({
 export function InactiveQuotaCard({
   apiKey,
   confirmingDeleteId,
+  deletingKeyId,
+  deleteError,
   updatingKeyId,
   statusError,
   actions,
 }: {
   apiKey: UsageKeySummary;
   confirmingDeleteId: string | null;
+  deletingKeyId: string | null;
+  deleteError: { keyId: string; message: string } | null;
   updatingKeyId: string | null;
   statusError: { keyId: string; message: string } | null;
   actions: QuotaCardActions;
@@ -427,6 +447,8 @@ export function InactiveQuotaCard({
       {confirmingDeleteId === apiKey.id && (
         <DeleteConfirmationOverlay
           keyName={apiKey.name}
+          isDeleting={deletingKeyId === apiKey.id}
+          errorMessage={deleteError?.keyId === apiKey.id ? deleteError.message : null}
           onCancel={actions.onCancelDelete}
           onConfirm={() => void actions.onConfirmDelete(apiKey.id)}
         />

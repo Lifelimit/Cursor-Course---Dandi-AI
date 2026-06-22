@@ -5,6 +5,14 @@ import {
 } from "@/lib/status-tones";
 
 export function getWebhookDeliveryBadge(status: number) {
+  if (status === 0) {
+    return {
+      className: "border-indigo-400/25 bg-indigo-400/10 text-indigo-200",
+      dotClassName: "bg-indigo-300",
+      label: "Preview",
+    };
+  }
+
   const tone = getWebhookDeliveryStatusTone(status);
   const isSuccess = tone === "success";
 

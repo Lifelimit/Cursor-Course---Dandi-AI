@@ -28,6 +28,8 @@ export function QuotaHealthGrid({
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [updatingKeyId, setUpdatingKeyId] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<{ keyId: string; message: string } | null>(null);
+  const [deletingKeyId, setDeletingKeyId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<{ keyId: string; message: string } | null>(null);
   const limitEditor = useKeyLimitEditor({
     planMonthlyLimit,
     onUpdate,
@@ -73,15 +75,44 @@ export function QuotaHealthGrid({
   };
 
   const handleConfirmDelete = async (keyId: string) => {
-    await fetch(`/api/keys/${keyId}`, { method: "DELETE" });
-    setConfirmingDeleteId(null);
-    await onUpdate();
+    setDeletingKeyId(keyId);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/keys/${keyId}`, { method: "DELETE" });
+      const payload = await res.json().catch(() => null);
+
+      if (res.ok) {
+        setConfirmingDeleteId(null);
+        await onUpdate();
+        return;
+      }
+
+      setDeleteError({
+        keyId,
+        message: payload?.error || payload?.message || "Failed to delete API key.",
+      });
+    } catch (err) {
+      console.error(err);
+      setDeleteError({
+        keyId,
+        message: "Network error while deleting API key.",
+      });
+    } finally {
+      setDeletingKeyId(null);
+    }
   };
 
   const cardActions = {
     onUpdate,
-    onRequestDelete: setConfirmingDeleteId,
-    onCancelDelete: () => setConfirmingDeleteId(null),
+    onRequestDelete: (keyId: string) => {
+      setDeleteError(null);
+      setConfirmingDeleteId(keyId);
+    },
+    onCancelDelete: () => {
+      setDeleteError(null);
+      setConfirmingDeleteId(null);
+    },
     onConfirmDelete: handleConfirmDelete,
     onRequestKill: setConfirmingKillId,
     onCancelKill: () => setConfirmingKillId(null),
@@ -99,6 +130,8 @@ export function QuotaHealthGrid({
             planMonthlyLimit={planMonthlyLimit}
             confirmingDeleteId={confirmingDeleteId}
             confirmingKillId={confirmingKillId}
+            deletingKeyId={deletingKeyId}
+            deleteError={deleteError}
             updatingKeyId={updatingKeyId}
             limitEditor={limitEditor}
             actions={cardActions}
@@ -121,6 +154,8 @@ export function QuotaHealthGrid({
                 key={key.id}
                 apiKey={key}
                 confirmingDeleteId={confirmingDeleteId}
+                deletingKeyId={deletingKeyId}
+                deleteError={deleteError}
                 updatingKeyId={updatingKeyId}
                 statusError={statusError}
                 actions={cardActions}

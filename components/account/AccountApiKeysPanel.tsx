@@ -11,10 +11,24 @@ type AccountApiKeysPanelProps = {
   totalApiAccessCount: number;
   canShowMoreApiAccess: boolean;
   canShowLessApiAccess: boolean;
+  loadError: string | null;
   onShowMoreApiAccess: () => void;
   onShowLessApiAccess: () => void;
   onRevokeEnvironment: (environment: AccountEnvironment) => void;
 };
+
+function AccessLoadError({ message }: { message: string }) {
+  return (
+    <div role="alert" className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5 text-left">
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">Access data failed to load</p>
+      <h5 className="mt-1 text-sm font-black text-amber-50">API key access is unavailable</h5>
+      <p className="mt-2 break-words text-xs font-semibold leading-5 text-amber-100/85">
+        Dandi could not load API key access telemetry. This is not an empty state.
+      </p>
+      <p className="mt-2 break-words font-mono text-[10px] leading-4 text-amber-100/70">{message}</p>
+    </div>
+  );
+}
 
 export function AccountApiKeysPanel({
   apiAccessEnvironments,
@@ -23,6 +37,7 @@ export function AccountApiKeysPanel({
   totalApiAccessCount,
   canShowMoreApiAccess,
   canShowLessApiAccess,
+  loadError,
   onShowMoreApiAccess,
   onShowLessApiAccess,
   onRevokeEnvironment,
@@ -30,6 +45,7 @@ export function AccountApiKeysPanel({
   return (
     <>
       <div className="space-y-3 md:hidden">
+        {loadError && <AccessLoadError message={loadError} />}
         {visibleApiAccessEnvironments.map((environment) => (
           <div key={environment.id} className="space-y-4 rounded-2xl border border-white/5 bg-slate-950/40 p-4 shadow-xl backdrop-blur-xl">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -95,7 +111,7 @@ export function AccountApiKeysPanel({
           onShowMore={onShowMoreApiAccess}
           onShowLess={onShowLessApiAccess}
         />
-        {apiAccessEnvironments.length === 0 && (
+        {!loadError && apiAccessEnvironments.length === 0 && (
           <EmptyState
             title="No API access recorded yet."
             description="API access appears after you create a key or send a repository request from an external client."
@@ -122,6 +138,13 @@ export function AccountApiKeysPanel({
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 font-medium">
+              {loadError && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8">
+                    <AccessLoadError message={loadError} />
+                  </td>
+                </tr>
+              )}
               {visibleApiAccessEnvironments.map((environment) => (
                 <tr key={environment.id} className="text-zinc-300 transition-colors hover:bg-white/5">
                   <td className="px-6 py-4">
@@ -156,7 +179,7 @@ export function AccountApiKeysPanel({
                   </td>
                 </tr>
               ))}
-              {apiAccessEnvironments.length === 0 && (
+              {!loadError && apiAccessEnvironments.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-10 text-center">
                     <EmptyState

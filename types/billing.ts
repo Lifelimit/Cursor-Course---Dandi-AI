@@ -31,6 +31,7 @@ export type BillingUsageKey = {
 
 export type BillingData = {
   plan: string;
+  billingInterval?: "month" | "year";
   totalUsage: number;
   resetDate: string | null;
   nextInvoiceDate: string | null;

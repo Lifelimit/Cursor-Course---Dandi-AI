@@ -5,6 +5,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
+import { useSearchParams } from "next/navigation";
 import { CardSkeleton, TableRowsSkeleton } from "@/components/ui/SkeletonBlocks";
 import { GuidedError } from "@/components/ui/GuidedError";
 import type { Session } from "@supabase/supabase-js";
@@ -26,13 +27,90 @@ import { AccountWebhooksPanel } from "@/components/account/AccountWebhooksPanel"
 type AccountTab = "profile" | "integrations" | "webhooks" | "security";
 type AccessView = "api" | "browser";
 type DeliveryLogModalTab = "request" | "response";
+type AccountLoadKey = "profile" | "usage" | "environments";
+type AccountLoadFailures = Partial<Record<AccountLoadKey, string>>;
+
+type AccountLoadResult<T> = {
+  data: T | null;
+  error: string | null;
+};
+
+async function readApiError(response: Response, fallback: string) {
+  const payload = await response.json().catch(() => null) as { error?: string; message?: string } | null;
+  const detail = payload?.error || payload?.message;
+  const statusLabel = `${response.status}${response.statusText ? ` ${response.statusText}` : ""}`;
+  return detail ? `${fallback} (${statusLabel}): ${detail}` : `${fallback} (${statusLabel}).`;
+}
+
+async function fetchAccountJson<T>(url: string, fallback: string): Promise<AccountLoadResult<T>> {
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      return {
+        data: null,
+        error: await readApiError(response, fallback),
+      };
+    }
+
+    return {
+      data: await response.json() as T,
+      error: null,
+    };
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "Network request failed.";
+    return {
+      data: null,
+      error: `${fallback}: ${detail}`,
+    };
+  }
+}
+
+function InlineLoadWarning({
+  title,
+  message,
+  onRetry,
+}: {
+  title: string;
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div role="alert" className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-left shadow-[0_0_24px_rgba(251,191,36,0.08)]">
+      <div className="flex min-w-0 items-start gap-3">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-amber-300/25 bg-amber-300/10 text-amber-200" aria-hidden="true">
+          <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2.4">
+            <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">Partial load failure</p>
+          <h4 className="mt-1 text-sm font-black text-amber-50">{title}</h4>
+          <p className="mt-2 break-words text-xs font-semibold leading-5 text-amber-100/85">{message}</p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-3 inline-flex min-h-8 items-center rounded-full border border-amber-200/25 bg-amber-200/10 px-3 text-[9px] font-black uppercase tracking-[0.16em] text-amber-50 transition hover:border-amber-100/50 hover:bg-amber-200/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AccountClient({ initialSession }: { initialSession: Session | null }) {
   const activeSession = initialSession;
   const { toast, showToast } = useToast();
   const supabaseClient = createClient();
+  const searchParams = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState<AccountTab>("profile");
+  const [activeTab, setActiveTab] = useState<AccountTab>(() => (
+    searchParams.get("tab") === "integrations" || searchParams.has("github") || searchParams.has("github_error") || searchParams.has("github_notice")
+      ? "integrations"
+      : "profile"
+  ));
   const [accessView, setAccessView] = useState<AccessView>("api");
 
   const [fullName, setFullName] = useState("");
@@ -54,18 +132,13 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
   const webhookTestTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const [githubConnected, setGithubConnected] = useState(false);
-  const [isConnectingGithub, setIsConnectingGithub] = useState(false);
-  const [githubScope, setGithubScope] = useState<"all" | "selected">("all");
-  const [selectedRepos, setSelectedRepos] = useState<string[]>(["dandi-ai/summarizer-sdk"]);
-  const [searchQuery, setSearchQuery] = useState("");
-
   const [preferMagicLink, setPreferMagicLink] = useState(true);
 
   const [profile, setProfile] = useState<AccountProfileData | null>(null);
   const [usage, setUsage] = useState<AccountDataResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [accountLoadError, setAccountLoadError] = useState<string | null>(null);
+  const [loadFailures, setLoadFailures] = useState<AccountLoadFailures>({});
   const [environments, setEnvironments] = useState<AccountEnvironment[]>([]);
   const [webhookLogs, setWebhookLogs] = useState<WebhookLogEntry[]>([]);
 
@@ -73,45 +146,55 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const [modalActiveTab, setModalActiveTab] = useState<DeliveryLogModalTab>("request");
 
   const loadData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const [profileRes, usageRes, environmentsRes] = await Promise.all([
-        fetch("/api/profile"),
-        fetch("/api/usage?scope=summary"),
-        fetch("/api/account/environments")
-      ]);
+    setIsLoading(true);
 
-      if (profileRes.ok) {
-        const pData: AccountProfileData = await profileRes.json();
-        setProfile(pData);
-        setFullName(pData.fullName);
-        setOrgSlug(pData.orgSlug);
-        setWebhookUrl(pData.webhookUrl);
-        setWebhookSecret(pData.webhookSecret);
-        setGithubConnected(pData.githubConnected);
-      }
+    const [profileResult, usageResult, environmentsResult] = await Promise.all([
+      fetchAccountJson<AccountProfileData>("/api/profile", "Failed to load profile settings"),
+      fetchAccountJson<AccountDataResponse>("/api/usage?scope=summary", "Failed to load usage summary"),
+      fetchAccountJson<{ environments: AccountEnvironment[] }>("/api/account/environments", "Failed to load API access and browser sessions"),
+    ]);
 
-      if (usageRes.ok) {
-        const uData: AccountDataResponse = await usageRes.json();
-        setUsage(uData);
-      }
+    const nextFailures: AccountLoadFailures = {};
 
-      if (environmentsRes.ok) {
-        const envData: { environments: AccountEnvironment[] } = await environmentsRes.json();
-        setEnvironments((envData.environments || []).map(environment => ({
-          ...environment,
-          telemetryAge: formatRelativeTime(environment.lastSeenAt, { current: environment.current }),
-        })));
-      }
+    if (profileResult.data) {
+      const pData = profileResult.data;
+      setProfile(pData);
+      setFullName(pData.fullName);
+      setOrgSlug(pData.orgSlug);
+      setWebhookUrl(pData.webhookUrl);
+      setWebhookSecret(pData.webhookSecret);
       setAccountLoadError(null);
-    } catch (err) {
-      console.error("Error loading account details:", err);
-      const message = err instanceof Error ? err.message : "Failed to fetch developer profile data.";
-      setAccountLoadError(message);
-      showToast("error", getToastErrorMessage("account", message));
-    } finally {
-      setIsLoading(false);
+    } else if (profileResult.error) {
+      nextFailures.profile = profileResult.error;
+      setProfile(null);
+      setAccountLoadError(profileResult.error);
     }
+
+    if (usageResult.data) {
+      setUsage(usageResult.data);
+    } else if (usageResult.error) {
+      nextFailures.usage = usageResult.error;
+      setUsage(null);
+    }
+
+    if (environmentsResult.data) {
+      setEnvironments((environmentsResult.data.environments || []).map(environment => ({
+        ...environment,
+        telemetryAge: formatRelativeTime(environment.lastSeenAt, { current: environment.current }),
+      })));
+    } else if (environmentsResult.error) {
+      nextFailures.environments = environmentsResult.error;
+      setEnvironments([]);
+    }
+
+    setLoadFailures(nextFailures);
+
+    const nonBlockingFailures = [nextFailures.usage, nextFailures.environments].filter(Boolean);
+    if (nonBlockingFailures.length > 0) {
+      showToast("error", `Some account settings data failed to load. ${nonBlockingFailures[0]}`);
+    }
+
+    setIsLoading(false);
   }, [showToast]);
 
   useEffect(() => {
@@ -139,6 +222,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const { monthlyLimit: planLimit, isUnlimited } = getPlanLimits(userPlan);
   const alerts = computeSidebarAlerts(usage?.keys || []);
   const { apiAccessEnvironments, browserEnvironments } = splitAccountEnvironments(environments);
+  const usageLoadError = loadFailures.usage || null;
+  const environmentsLoadError = loadFailures.environments || null;
 
   const {
     visibleItems: visibleApiAccessEnvironments,
@@ -214,33 +299,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       showToast("error", getToastErrorMessage("webhook", "Error saving webhook settings."));
     } finally {
       setIsSavingWebhook(false);
-    }
-  };
-
-  const handleToggleGithub = async () => {
-    setIsConnectingGithub(true);
-    try {
-      const nextState = !githubConnected;
-      const res = await fetch("/api/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ githubConnected: nextState })
-      });
-
-      if (res.ok) {
-        setGithubConnected(nextState);
-        setProfile(prev => prev ? { ...prev, githubConnected: nextState } : null);
-        showToast(
-          "success",
-          nextState ? "GitHub Developer Integration successfully connected." : "GitHub Integration disconnected."
-        );
-      } else {
-        showToast("error", getToastErrorMessage("github", "Failed to update GitHub connection status."));
-      }
-    } catch {
-      showToast("error", getToastErrorMessage("github", "Connection error communicating with auth server."));
-    } finally {
-      setIsConnectingGithub(false);
     }
   };
 
@@ -328,13 +386,14 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
     setIsTestingWebhook(true);
     setTesterLogs([]);
 
+    // TODO: Replace this preview with a signed server-side test route when outbound webhook delivery is enabled.
     const steps = [
-      `[info] ${formatLocalTime(new Date())} - Resolving host URL '${webhookUrl}'...`,
-      `[info] ${formatLocalTime(new Date())} - Compiling payload event 'quota.warning' (current usage: 84.6%)`,
-      `[info] ${formatLocalTime(new Date())} - Generating SHA-256 HMAC signature using secret token...`,
-      `[info] ${formatLocalTime(new Date())} - Signature header added (x-dandi-signature).`,
-      `[info] ${formatLocalTime(new Date())} - Sent outgoing webhook HTTP POST request.`,
-      `[success] ${formatLocalTime(new Date())} - Connection established. Endpoint responded: 200 OK`
+      `[info] ${formatLocalTime(new Date())} - Simulated webhook preview for '${webhookUrl}'.`,
+      `[info] ${formatLocalTime(new Date())} - No request was sent to this endpoint.`,
+      `[info] ${formatLocalTime(new Date())} - Compiled payload event 'quota.warning' (current usage: 84.6%).`,
+      `[info] ${formatLocalTime(new Date())} - Previewed SHA-256 HMAC signature header format.`,
+      `[info] ${formatLocalTime(new Date())} - This preview shows the payload Dandi will send once webhook delivery is enabled.`,
+      `[preview] ${formatLocalTime(new Date())} - Simulated webhook preview complete. Endpoint response was not checked.`
     ];
 
     steps.forEach((step, index) => {
@@ -343,14 +402,14 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         if (index === steps.length - 1) {
           setIsTestingWebhook(false);
           webhookTestTimersRef.current = [];
-          showToast("success", "Webhook test payload sent successfully.");
+          showToast("success", "Webhook payload preview generated. No request was sent.");
 
           const newLog: WebhookLogEntry = {
             id: `w-${Date.now()}`,
             event: "quota.warning",
             url: webhookUrl,
-            status: 200,
-            latency: 38,
+            status: 0,
+            latency: 0,
             timestamp: Date.now(),
             requestBody: {
               event: "quota.warning",
@@ -360,14 +419,13 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
               percentage: 84.6
             },
             responseHeaders: {
-              "content-type": "application/json; charset=utf-8",
-              "connection": "keep-alive",
-              "server": "cloudflare"
+              "x-dandi-preview": "true",
+              "x-dandi-delivery": "not-sent"
             },
             responseBody: {
-              success: true,
-              received: true,
-              message: "Webhook event parsed and queued."
+              preview: true,
+              sent: false,
+              message: "No request was sent. This preview shows the payload format Dandi will send once webhook delivery is enabled."
             }
           };
           setWebhookLogs(prev => [newLog, ...prev]);
@@ -427,6 +485,14 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           />
         )}
 
+        {!isLoading && usageLoadError && (
+          <InlineLoadWarning
+            title="Usage summary did not load"
+            message={`Usage totals and alert badges are unavailable right now. Other account settings loaded successfully. ${usageLoadError}`}
+            onRetry={loadData}
+          />
+        )}
+
         {isLoading ? (
           <div className="space-y-6" role="status" aria-live="polite" aria-busy="true">
             <div className="rounded-[28px] border border-emerald-300/15 bg-slate-950/45 p-5 shadow-[0_0_28px_rgba(52,211,153,0.08)]">
@@ -460,18 +526,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
             )}
 
             {activeTab === "integrations" && (
-              <AccountEnvironmentPanel
-                githubConnected={githubConnected}
-                isConnectingGithub={isConnectingGithub}
-                githubScope={githubScope}
-                selectedRepos={selectedRepos}
-                searchQuery={searchQuery}
-                onToggleGithub={handleToggleGithub}
-                setGithubScope={setGithubScope}
-                setSelectedRepos={setSelectedRepos}
-                onSearchQueryChange={setSearchQuery}
-                showToast={showToast}
-              />
+              <AccountEnvironmentPanel />
             )}
 
             {activeTab === "webhooks" && (
@@ -517,6 +572,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                 newEmail={newEmail}
                 isSavingPassword={isSavingPassword}
                 isSavingEmail={isSavingEmail}
+                environmentsLoadError={environmentsLoadError}
                 onToggleMagicLink={() => {
                   setPreferMagicLink(!preferMagicLink);
                   showToast("success", "Authentication preferences successfully synced.");

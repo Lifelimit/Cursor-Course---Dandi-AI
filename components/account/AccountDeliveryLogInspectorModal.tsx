@@ -22,6 +22,7 @@ export function AccountDeliveryLogInspectorModal({
   showToast,
 }: AccountDeliveryLogInspectorModalProps) {
   const deliveryBadge = getWebhookDeliveryBadge(inspectedLog.status);
+  const isPreview = inspectedLog.status === 0;
 
   return (
     <ModalFrame
@@ -38,7 +39,9 @@ export function AccountDeliveryLogInspectorModal({
             </span>
             <span className="font-mono text-[9px] text-zinc-500 uppercase tracking-widest">{inspectedLog.event}</span>
           </div>
-          <h3 className="font-serif text-xl font-bold mt-1.5 text-white">Webhook Delivery Details</h3>
+          <h3 className="font-serif text-xl font-bold mt-1.5 text-white">
+            {isPreview ? "Webhook Payload Preview" : "Webhook Delivery Details"}
+          </h3>
           <p className="text-[10px] font-mono text-zinc-500 break-all">{inspectedLog.url}</p>
         </div>
         <ModalCloseButton
@@ -69,7 +72,7 @@ export function AccountDeliveryLogInspectorModal({
                 : "text-zinc-500 hover:text-white"
             }`}
           >
-            Response Context
+            {isPreview ? "Preview Context" : "Response Context"}
           </button>
         </div>
 
@@ -98,7 +101,9 @@ export function AccountDeliveryLogInspectorModal({
         ) : (
           <div className="space-y-6">
             <div className="space-y-2">
-              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Response Headers</span>
+              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">
+                {isPreview ? "Preview Headers" : "Response Headers"}
+              </span>
               <div className="font-mono text-[9px] text-zinc-300 bg-slate-950 p-4 rounded-2xl border border-white/5 space-y-1 overflow-x-auto">
                 {Object.entries(inspectedLog.responseHeaders).map(([key, val]) => (
                   <div key={key} className="flex gap-2">
@@ -110,7 +115,9 @@ export function AccountDeliveryLogInspectorModal({
             </div>
 
             <div className="space-y-2">
-              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Response Body</span>
+              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">
+                {isPreview ? "Preview Body" : "Response Body"}
+              </span>
               <pre className="font-mono text-[10px] text-zinc-300 bg-slate-950 p-5 rounded-2xl border border-white/5 leading-relaxed overflow-x-auto max-h-[160px]">
                 {typeof inspectedLog.responseBody === "object" && inspectedLog.responseBody !== null
                   ? JSON.stringify(inspectedLog.responseBody, null, 2)
@@ -123,7 +130,9 @@ export function AccountDeliveryLogInspectorModal({
       </div>
 
       <div className="px-6 md:p-8 py-5 bg-slate-950/80 border-t border-white/5 flex items-center justify-between">
-        <span className="font-mono text-[9px] text-zinc-500">Latency: {inspectedLog.latency}ms</span>
+        <span className="font-mono text-[9px] text-zinc-500">
+          {isPreview ? "No request sent" : `Latency: ${inspectedLog.latency}ms`}
+        </span>
         <button
           type="button"
           onClick={onClose}

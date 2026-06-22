@@ -37,14 +37,14 @@ export function AccountDeliveryLogsPanel({
     <div className="max-w-4xl space-y-6 border-t border-white/5 pt-8 md:pt-10">
       <div className="space-y-1">
         <h4 className="text-base font-bold text-white">Webhook Delivery Logs</h4>
-        <p className="text-xs text-zinc-400">Review recent webhook deliveries, payloads, and endpoint responses.</p>
+        <p className="text-xs text-zinc-400">Review webhook payload previews now. Delivery responses will appear here once outbound webhook delivery is enabled.</p>
       </div>
 
       <div className="space-y-3 md:hidden">
         {webhookLogs.length === 0 ? (
           <EmptyState
-            title="No webhook deliveries yet."
-            description="Delivery logs appear after you save an endpoint and Dandi sends a test or alert webhook."
+            title="No webhook payload previews yet."
+            description="Preview logs appear after you save an endpoint and generate a sample payload. Real delivery logs will appear once outbound webhook delivery is enabled."
             action={(
               <button
                 type="button"
@@ -52,7 +52,7 @@ export function AccountDeliveryLogsPanel({
                 disabled={isTestingWebhook}
                 className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15 disabled:opacity-50"
               >
-                {webhookUrl ? "Trigger Test Webhook" : "Configure Webhook URL"}
+                {webhookUrl ? "Preview Test Payload" : "Configure Webhook URL"}
               </button>
             )}
           />
@@ -75,7 +75,7 @@ export function AccountDeliveryLogsPanel({
                     <div className="space-y-1">
                       <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Method & URL</p>
                       <p className="break-all font-mono text-[10px] font-semibold text-zinc-400">
-                        <span className="mr-1.5 font-bold text-zinc-300">POST</span>
+                        <span className="mr-1.5 font-bold text-zinc-300">{log.status === 0 ? "PREVIEW" : "POST"}</span>
                         {log.url}
                       </p>
                     </div>
@@ -122,10 +122,10 @@ export function AccountDeliveryLogsPanel({
             <thead>
               <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Method & URL</th>
+                <th className="px-6 py-4">Mode & URL</th>
                 <th className="px-6 py-4">Event Type</th>
                 <th className="px-6 py-4">Latency</th>
-                <th className="px-6 py-4">Sent</th>
+                <th className="px-6 py-4">Created</th>
                 <th className="px-6 py-4 text-right">Payloads</th>
               </tr>
             </thead>
@@ -135,8 +135,8 @@ export function AccountDeliveryLogsPanel({
                   <td colSpan={6} className="px-6 py-10 text-center">
                     <EmptyState
                       className="mx-auto max-w-md"
-                      title="No webhook deliveries yet."
-                      description="Delivery logs appear after you save an endpoint and Dandi sends a test or alert webhook."
+                      title="No webhook payload previews yet."
+                      description="Preview logs appear after you save an endpoint and generate a sample payload. Real delivery logs will appear once outbound webhook delivery is enabled."
                       action={(
                         <button
                           type="button"
@@ -144,7 +144,7 @@ export function AccountDeliveryLogsPanel({
                           disabled={isTestingWebhook}
                           className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15 disabled:opacity-50"
                         >
-                          {webhookUrl ? "Trigger Test Webhook" : "Configure Webhook URL"}
+                          {webhookUrl ? "Preview Test Payload" : "Configure Webhook URL"}
                         </button>
                       )}
                     />
@@ -167,7 +167,7 @@ export function AccountDeliveryLogsPanel({
                         </span>
                       </td>
                       <td className="px-6 py-4 font-mono text-[10px] select-all max-w-[200px] truncate text-zinc-400">
-                        <span className="font-bold text-zinc-300 mr-1.5">POST</span>
+                        <span className="font-bold text-zinc-300 mr-1.5">{log.status === 0 ? "PREVIEW" : "POST"}</span>
                         {log.url}
                       </td>
                       <td className="px-6 py-4 font-mono text-[10px]">

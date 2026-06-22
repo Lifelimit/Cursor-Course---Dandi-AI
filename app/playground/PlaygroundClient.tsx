@@ -191,6 +191,7 @@ export default function PlaygroundClient({
     ragMessagesLength: ragMessages.length,
     setRagMessages,
     isChatLoading,
+    isRepositoryTabActive: activeTab === "rag",
   });
 
   useEffect(() => {

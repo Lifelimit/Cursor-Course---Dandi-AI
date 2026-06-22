@@ -11,14 +11,21 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user || !user.id) {
-      return NextResponse.json({ plan: "Hobby" });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("plan, full_name, avatar_url, org_slug, webhook_url, webhook_secret, github_connected")
+      .select("plan, full_name, avatar_url, org_slug, webhook_url, webhook_secret")
       .eq("id", user.id)
       .single();
+
+    const { data: githubInstallation } = await supabase
+      .from("github_app_installations")
+      .select("id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
 
     return NextResponse.json({
       plan: profile?.plan || "Hobby",
@@ -27,7 +34,7 @@ export async function GET() {
       orgSlug: profile?.org_slug || "",
       webhookUrl: profile?.webhook_url || "",
       webhookSecret: profile?.webhook_secret || "",
-      githubConnected: !!profile?.github_connected
+      githubConnected: Boolean(githubInstallation)
     });
   } catch (err) {
     console.error("Failed to fetch profile settings:", err);
@@ -45,7 +52,7 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json();
-    const { fullName, orgSlug, webhookUrl, githubConnected } = body;
+    const { fullName, orgSlug, webhookUrl } = body;
 
     // Server-side Input Validation & Sanitization
     let sanitizedOrgSlug = orgSlug;
@@ -95,7 +102,6 @@ export async function PATCH(req: Request) {
     if (orgSlug !== undefined) updateData.org_slug = sanitizedOrgSlug;
     if (webhookUrl !== undefined) updateData.webhook_url = webhookUrl;
     if (webhookSecret !== undefined) updateData.webhook_secret = webhookSecret;
-    if (githubConnected !== undefined) updateData.github_connected = githubConnected;
     updateData.updated_at = new Date().toISOString();
 
     const { data: updatedProfile, error } = await supabaseAdmin
@@ -110,6 +116,13 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    const { data: githubInstallation } = await supabase
+      .from("github_app_installations")
+      .select("id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
     return NextResponse.json({
       success: true,
       plan: updatedProfile?.plan || "Hobby",
@@ -118,7 +131,7 @@ export async function PATCH(req: Request) {
       orgSlug: updatedProfile?.org_slug || "",
       webhookUrl: updatedProfile?.webhook_url || "",
       webhookSecret: updatedProfile?.webhook_secret || "",
-      githubConnected: !!updatedProfile?.github_connected
+      githubConnected: Boolean(githubInstallation)
     });
   } catch (err) {
     console.error("Failed to patch profile settings:", err);

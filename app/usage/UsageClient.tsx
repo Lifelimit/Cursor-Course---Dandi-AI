@@ -115,7 +115,8 @@ export default function UsageClient({
     void Promise.resolve().then(fetchRecentJobs);
   }, [fetchRecentJobs]);
 
-  const currentPlan = activeSession?.user?.user_metadata?.plan || "Hobby";
+  const metadataPlan = (activeSession?.user?.user_metadata as { plan?: string } | undefined)?.plan;
+  const currentPlan = currentData?.plan || metadataPlan || "Hobby";
   const { monthlyLimit: currentLimit, isUnlimited, maxLimitCap } = getPlanLimits(currentPlan);
 
   const alerts = computeSidebarAlerts(currentData?.keys || [], maxLimitCap);

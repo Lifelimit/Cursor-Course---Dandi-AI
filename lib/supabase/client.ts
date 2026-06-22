@@ -1,9 +1,14 @@
 import { createBrowserClient } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { publicEnv } from '@/lib/env'
 
-export function createClient() {
-  return createBrowserClient(
+let browserClient: SupabaseClient | null = null;
+
+export function createClient(): SupabaseClient {
+  browserClient ??= createBrowserClient(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL,
     publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  )
+  );
+
+  return browserClient;
 }

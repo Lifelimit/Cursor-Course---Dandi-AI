@@ -40,6 +40,12 @@ const summarySchema = z
   .default({ summary: "", cool_facts: [] });
 
 type RepositorySummaryResult = z.infer<typeof summarySchema>;
+type RequestLogStageId = "auth" | "repo_fetch" | "ai_processing";
+
+type ResponseErrorDetails = {
+  message: string;
+  body: unknown;
+};
 
 const getPerformanceNow = () => performance.now();
 
@@ -108,6 +114,73 @@ const getUnknownErrorMessage = (error: unknown) => {
   return String(error || "Summary request failed.");
 };
 
+const readResponseErrorDetails = async (response: Response): Promise<ResponseErrorDetails> => {
+  const contentType = response.headers.get("content-type") || "";
+  try {
+    if (contentType.includes("application/json")) {
+      const body = await response.clone().json() as { error?: unknown; details?: unknown };
+      const message = [body.error, body.details].filter((value): value is string => typeof value === "string" && value.length > 0).join(" ");
+      return {
+        message: message || response.statusText || "Request failed.",
+        body,
+      };
+    }
+
+    const text = await response.clone().text();
+    return {
+      message: text || response.statusText || "Request failed.",
+      body: text || { error: response.statusText },
+    };
+  } catch {
+    return {
+      message: response.statusText || "Request failed.",
+      body: { error: response.statusText || "Request failed." },
+    };
+  }
+};
+
+const classifySummaryFailureStage = (message: string, status?: number): RequestLogStageId => {
+  const lower = message.toLowerCase();
+
+  if (
+    status === 401 ||
+    status === 403 ||
+    status === 429 ||
+    lower.includes("api key") ||
+    lower.includes("unauthorized") ||
+    lower.includes("quota") ||
+    lower.includes("limit exceeded") ||
+    lower.includes("rate limit") ||
+    lower.includes("too many requests")
+  ) {
+    return "auth";
+  }
+
+  if (
+    status === 400 ||
+    status === 422 ||
+    lower.includes("github") ||
+    lower.includes("repository") ||
+    lower.includes("repo") ||
+    lower.includes("not found") ||
+    lower.includes("private")
+  ) {
+    return "repo_fetch";
+  }
+
+  return "ai_processing";
+};
+
+const getFailureStatusText = (stage: RequestLogStageId, message: string, status?: number) => {
+  const lower = message.toLowerCase();
+  if (status === 429 || lower.includes("rate limit") || lower.includes("quota") || lower.includes("limit exceeded")) {
+    return "Rate Limited";
+  }
+  if (stage === "auth") return "Access Check Failed";
+  if (stage === "repo_fetch") return "Repository Fetch Failed";
+  return "Processing Failed";
+};
+
 export function useRepositorySummary({
   apiKey,
   githubUrl,
@@ -134,6 +207,107 @@ export function useRepositorySummary({
 
   useEffect(() => clearStagedLogTimers, [clearStagedLogTimers]);
 
+  const getSummaryAuthSuccessUpdate = (startTime: number, selectedKeyName: string): Partial<LogEntry> => ({
+      status: "success",
+      duration: Math.round(getPerformanceNow() - startTime),
+      statusCode: 200,
+      statusText: "OK",
+      responseHeaders: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
+        "X-Dandi-Engine": "v1.0.4",
+      },
+      responseBody: {
+        valid: true,
+        key_name: selectedKeyName,
+        permissions: ["summarize:write"],
+      },
+  });
+
+  const markSummaryAuthSuccess = (startTime: number, selectedKeyName: string) => {
+    setSummaryLogState("auth", getSummaryAuthSuccessUpdate(startTime, selectedKeyName));
+  };
+
+  const getSummaryRepoSuccessUpdate = (metadata: RepositoryMetadata | null, startTime: number): Partial<LogEntry> => ({
+      status: "success",
+      duration: Math.round(getPerformanceNow() - startTime),
+      statusCode: 200,
+      statusText: "OK",
+      responseHeaders: {
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      responseBody: metadata || { message: "Repository metadata accepted." },
+  });
+
+  const markSummaryRepoSuccess = (metadata: RepositoryMetadata | null, startTime: number) => {
+    setSummaryLogState("repo_fetch", getSummaryRepoSuccessUpdate(metadata, startTime));
+  };
+
+  const settleSummaryFailure = (stage: RequestLogStageId, message: string, options: {
+    status?: number;
+    body?: unknown;
+    selectedKeyName?: string;
+    startTime?: number;
+    skipIfAlreadyFailed?: boolean;
+  } = {}) => {
+    const duration = Math.round(getPerformanceNow() - (options.startTime || window.__dandi_stream_start || getPerformanceNow()));
+    const statusText = getFailureStatusText(stage, message, options.status);
+    const startTime = options.startTime || window.__dandi_stream_start || getPerformanceNow();
+
+    setSummaryRequestLogs((prev) => {
+      if (options.skipIfAlreadyFailed && prev.some((log) => log.status === "error")) {
+        return prev;
+      }
+
+      let next = prev;
+      const getLog = (id: RequestLogStageId) => next.find((log) => log.id === id);
+      const update = (id: RequestLogStageId, updates: Partial<LogEntry>) => {
+        next = updateLogEntries(next, id, updates);
+      };
+
+      if (stage !== "auth" && getLog("auth")?.status !== "success") {
+        update("auth", getSummaryAuthSuccessUpdate(startTime, options.selectedKeyName || "Selected Key"));
+      }
+
+      if (stage === "ai_processing" && getLog("repo_fetch")?.status !== "success") {
+        update("repo_fetch", getSummaryRepoSuccessUpdate(null, startTime));
+      }
+
+      update(stage, {
+        status: "error",
+        duration,
+        statusCode: options.status,
+        statusText,
+        responseHeaders: { "Content-Type": "application/json" },
+        responseBody: options.body || { error: message },
+      });
+
+      if (stage === "auth") {
+        update("repo_fetch", {
+          status: "error",
+          duration: 0,
+          statusText: "Skipped",
+          responseBody: { skipped: true, reason: "Authentication did not complete." },
+        });
+        update("ai_processing", {
+          status: "error",
+          duration: 0,
+          statusText: "Skipped",
+          responseBody: { skipped: true, reason: "Authentication did not complete." },
+        });
+      } else if (stage === "repo_fetch") {
+        update("ai_processing", {
+          status: "error",
+          duration: 0,
+          statusText: "Skipped",
+          responseBody: { skipped: true, reason: "Repository data was not available." },
+        });
+      }
+
+      return next;
+    });
+  };
+
   const {
     submit,
     object: summaryResult,
@@ -144,20 +318,27 @@ export function useRepositorySummary({
     headers: (): Record<string, string> => (apiKey ? { "x-api-key": apiKey } : {}),
     fetch: async (input, init) => {
       const response = await fetch(input, init);
+      const startTime = window.__dandi_stream_start || getPerformanceNow();
+      const selectedKeyName = apiKeys.find((key) => key.key_value === apiKey)?.name || "Custom Key";
+
+      if (!response.ok) {
+        const errorDetails = await readResponseErrorDetails(response);
+        const failureStage = classifySummaryFailureStage(errorDetails.message, response.status);
+        settleSummaryFailure(failureStage, errorDetails.message, {
+          status: response.status,
+          body: errorDetails.body,
+          selectedKeyName,
+          startTime,
+        });
+        throw new Error(errorDetails.message);
+      }
+
       const metadata = parseSummarizerMetadataHeader(response);
       if (metadata) {
         setRepoMetadata(metadata);
-        setSummaryLogState("repo_fetch", {
-          status: "success",
-          duration: Math.round(getPerformanceNow() - (window.__dandi_stream_start || getPerformanceNow())),
-          statusCode: 200,
-          statusText: "OK",
-          responseHeaders: {
-            "Content-Type": "application/json; charset=utf-8",
-          },
-          responseBody: metadata,
-        });
       }
+      markSummaryAuthSuccess(startTime, selectedKeyName);
+      markSummaryRepoSuccess(metadata, startTime);
       return response;
     },
     schema: summarySchema,
@@ -169,13 +350,9 @@ export function useRepositorySummary({
         setSummaryStatus("error");
         setSummaryIssue(message);
         setErrorMessage(message);
-        setSummaryLogState("ai_processing", {
-          status: "error",
-          duration: getSummaryStreamDuration(),
-          statusCode: 422,
-          statusText: "Invalid Stream",
-          responseHeaders: { "Content-Type": "text/plain; charset=utf-8" },
-          responseBody: { error: message },
+        settleSummaryFailure("ai_processing", message, {
+          status: 422,
+          body: { error: message },
         });
         return;
       }
@@ -202,13 +379,10 @@ export function useRepositorySummary({
       setSummaryStatus("error");
       setSummaryIssue(message);
       setErrorMessage(message);
-      setSummaryLogState("ai_processing", {
-        status: "error",
-        duration: getSummaryStreamDuration(),
-        statusCode: 500,
-        statusText: "Stream Error",
-        responseHeaders: { "Content-Type": "application/json" },
-        responseBody: { error: message },
+      settleSummaryFailure(classifySummaryFailureStage(message), message, {
+        status: 500,
+        body: { error: message },
+        skipIfAlreadyFailed: true,
       });
     },
   });
@@ -271,25 +445,6 @@ export function useRepositorySummary({
     });
 
     try {
-      stagedLogTimersRef.current.push(setTimeout(() => {
-        setSummaryLogState("auth", {
-          status: "success",
-          duration: Math.round(getPerformanceNow() - startTime),
-          statusCode: 200,
-          statusText: "OK",
-          responseHeaders: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-            "X-Dandi-Engine": "v1.0.4",
-          },
-          responseBody: {
-            valid: true,
-            key_name: selectedKeyName,
-            permissions: ["summarize:write"],
-          },
-        });
-      }, 350));
-
       void submit({ githubUrl });
     } catch (err) {
       clearStagedLogTimers();
@@ -297,6 +452,11 @@ export function useRepositorySummary({
       setSummaryStatus("error");
       setSummaryIssue(message);
       setErrorMessage(message);
+      settleSummaryFailure(classifySummaryFailureStage(message), message, {
+        body: { error: message },
+        selectedKeyName,
+        startTime,
+      });
     }
   };
 

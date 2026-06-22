@@ -26,6 +26,7 @@ type AccountSecurityPanelProps = {
   newEmail: string;
   isSavingPassword: boolean;
   isSavingEmail: boolean;
+  environmentsLoadError: string | null;
   onToggleMagicLink: () => void;
   onAccessViewChange: (view: AccessView) => void;
   onShowMoreApiAccess: () => void;
@@ -61,6 +62,7 @@ export function AccountSecurityPanel({
   newEmail,
   isSavingPassword,
   isSavingEmail,
+  environmentsLoadError,
   onToggleMagicLink,
   onAccessViewChange,
   onShowMoreApiAccess,
@@ -165,6 +167,7 @@ export function AccountSecurityPanel({
             totalApiAccessCount={totalApiAccessCount}
             canShowMoreApiAccess={canShowMoreApiAccess}
             canShowLessApiAccess={canShowLessApiAccess}
+            loadError={environmentsLoadError}
             onShowMoreApiAccess={onShowMoreApiAccess}
             onShowLessApiAccess={onShowLessApiAccess}
             onRevokeEnvironment={onRevokeEnvironment}
@@ -177,6 +180,7 @@ export function AccountSecurityPanel({
             totalBrowserCount={totalBrowserCount}
             canShowMoreBrowser={canShowMoreBrowser}
             canShowLessBrowser={canShowLessBrowser}
+            loadError={environmentsLoadError}
             onShowMoreBrowser={onShowMoreBrowser}
             onShowLessBrowser={onShowLessBrowser}
             onRefreshSessions={onRefreshSessions}

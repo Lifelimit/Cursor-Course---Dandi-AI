@@ -103,8 +103,8 @@ export function AccountWebhooksPanel({
       {webhookUrl && (
         <div className="max-w-4xl space-y-6 border-t border-white/5 pt-8 animate-in fade-in duration-300 md:pt-10">
           <div className="space-y-1">
-            <h4 className="text-base font-bold text-white">Interactive Webhook Tester</h4>
-            <p className="text-xs text-zinc-400">Send a test webhook payload to verify endpoint routing.</p>
+            <h4 className="text-base font-bold text-white">Simulated Webhook Preview</h4>
+            <p className="text-xs text-zinc-400">Preview the payload format Dandi will send once webhook delivery is enabled. No request is sent.</p>
           </div>
 
           <div className="flex flex-col items-stretch gap-6 md:flex-row">
@@ -126,17 +126,17 @@ X-Dandi-Event: quota.warning`}
                 disabled={isTestingWebhook}
                 className="mt-6 rounded-full bg-slate-900 border border-white/10 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-300 shadow transition hover:bg-white hover:text-zinc-950 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               >
-                {isTestingWebhook ? "Sending Webhook Event..." : "Trigger Test Webhook"}
+                {isTestingWebhook ? "Generating Payload Preview..." : "Preview Test Payload"}
               </button>
             </div>
 
-            <MockTerminal title="webhook-logger" status={isTestingWebhook ? "running" : testerLogs.length > 0 ? "success" : "idle"} maxHeight="220px" className="flex-1">
+            <MockTerminal title="webhook-preview" status={isTestingWebhook ? "running" : testerLogs.length > 0 ? "success" : "idle"} maxHeight="220px" className="flex-1">
               <div className="space-y-3 font-mono text-[10px]">
                 <div className="space-y-1.5 scrollbar-hide max-h-[140px] overflow-y-auto">
                   {testerLogs.length === 0 ? (
                     <div className="space-y-1 text-zinc-600">
-                      <p className="font-bold uppercase tracking-widest">Webhook tester idle</p>
-                      <p className="leading-relaxed">Trigger a test webhook to see request signing, delivery, and endpoint response details here.</p>
+                      <p className="font-bold uppercase tracking-widest">Webhook preview idle</p>
+                      <p className="leading-relaxed">Preview the signed payload shape here. The preview does not send a request or verify endpoint routing.</p>
                     </div>
                   ) : (
                     testerLogs.map((log, idx) => (
@@ -145,6 +145,8 @@ X-Dandi-Event: quota.warning`}
                         className={`leading-relaxed animate-in fade-in slide-in-from-left-2 duration-300 ${
                           log.includes("[success]")
                             ? "text-emerald-400"
+                            : log.includes("[preview]")
+                              ? "text-indigo-300"
                             : "text-zinc-400"
                         }`}
                       >
@@ -158,7 +160,7 @@ X-Dandi-Event: quota.warning`}
               {isTestingWebhook && (
                 <div className="flex items-center gap-2 text-[8px] font-bold text-amber-400 uppercase tracking-wider mt-4">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
-                  Sending test webhook
+                  Generating payload preview
                 </div>
               )}
             </MockTerminal>

@@ -13,10 +13,13 @@ type ErrorWorkflow =
   | "account"
   | "billing";
 
+export type AuthErrorFlow = "login" | "signup" | "magic-link" | "oauth";
+
 type GuidanceInput = {
   workflow: ErrorWorkflow;
   message?: string | null;
   status?: number;
+  authFlow?: AuthErrorFlow;
 };
 
 const technicalPattern = /(supabase|database|rpc|pgvector|gemini|stripe|redis|schema|json|hnsw|internal server|server error|failed to fetch|network|timeout|unauthorized|invalid api key|limit exceeded|rate limit|quota|repository|github|webhook|password|email)/i;
@@ -145,7 +148,55 @@ const workflowDefaults: Record<ErrorWorkflow, GuidedErrorCopy> = {
   },
 };
 
-export function getErrorGuidance({ workflow, message, status }: GuidanceInput): GuidedErrorCopy {
+function getAuthErrorGuidance(base: GuidedErrorCopy, category: ErrorCategory, authFlow?: AuthErrorFlow): GuidedErrorCopy {
+  if (authFlow === "signup") {
+    return {
+      ...base,
+      category,
+      title: "Account Creation Failed",
+      explanation: "We could not create your account with the details or provider response we received.",
+      nextAction: "Check the signup details, use a different email if needed, then try again.",
+      possibleCauses: ["The email is already registered", "The signup email could not be sent", "The auth provider rejected the account creation request"],
+      actionLabel: "Review Signup",
+    };
+  }
+
+  if (authFlow === "magic-link") {
+    return {
+      ...base,
+      category,
+      title: "Email Link Could Not Be Sent",
+      explanation: "We could not send a sign-in link to that email address.",
+      nextAction: "Check the email address and request a fresh sign-in link.",
+      possibleCauses: ["The email address is invalid", "Email delivery was temporarily unavailable", "The auth provider rejected the link request"],
+      actionLabel: "Try Again",
+    };
+  }
+
+  if (authFlow === "oauth") {
+    return {
+      ...base,
+      category,
+      title: "Provider Sign-in Failed",
+      explanation: "We could not complete sign-in with the provider response we received.",
+      nextAction: "Start provider sign-in again and complete the authorization prompt.",
+      possibleCauses: ["Provider authorization failed", "The provider did not return a valid session", "The sign-in window was closed early"],
+      actionLabel: "Try Again",
+    };
+  }
+
+  return {
+    ...base,
+    category,
+    title: "Sign-in Failed",
+    explanation: "We could not complete sign-in with the details or provider response we received.",
+    nextAction: "Check your email or password, then try again. If you used a link, request a fresh one.",
+    possibleCauses: ["The sign-in link expired", "The password is incorrect", "The provider did not return a valid session"],
+    actionLabel: "Try Again",
+  };
+}
+
+export function getErrorGuidance({ workflow, message, status, authFlow }: GuidanceInput): GuidedErrorCopy {
   const base = workflowDefaults[workflow];
   const category = classifyError(message, status);
   const lower = (message || "").toLowerCase();
@@ -161,11 +212,15 @@ export function getErrorGuidance({ workflow, message, status }: GuidanceInput): 
     };
   }
 
+  if (workflow === "auth") {
+    return getAuthErrorGuidance(base, category, authFlow);
+  }
+
   if (category === "Authentication") {
     return {
       ...base,
       category,
-      title: workflow === "auth" ? "Sign-in Failed" : "Access Check Failed",
+      title: "Access Check Failed",
       explanation: "Dandi could not confirm access for this request.",
       nextAction: "Sign in again or choose an active API key, then retry.",
       possibleCauses: ["Session expired", "API key is missing or inactive", "Provider authorization did not complete"],

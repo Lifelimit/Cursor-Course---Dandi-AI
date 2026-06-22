@@ -225,6 +225,9 @@ export async function buildUsageSummaryData({
   selfHeal,
 }: BuildUsageSummaryDataInput): Promise<UsageData> {
   const plan = profile?.plan || "Hobby";
+  const billingInterval = profile?.billing_interval === "month" || profile?.billing_interval === "year"
+    ? profile.billing_interval
+    : undefined;
   const resolved = resolvePlan(plan);
   const monthlyLimit = resolved.monthlyRequests;
   const currentMonth = now.toISOString().slice(0, 7);
@@ -273,6 +276,7 @@ export async function buildUsageSummaryData({
     resetDate,
     nextInvoiceDate,
     dailyAnalytics,
+    billingInterval,
     scheduledPlan: profile?.stripe_scheduled_plan || null,
     scheduledPlanDate: profile?.stripe_scheduled_plan_date || null,
   };
