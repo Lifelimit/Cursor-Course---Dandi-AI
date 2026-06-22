@@ -10,6 +10,7 @@ export type ModalFrameProps = {
   size?: "sm" | "md" | "lg" | "xl";
   titleId?: string;
   className?: string;
+  centered?: boolean;
 };
 
 const sizeClasses: Record<NonNullable<ModalFrameProps["size"]>, string> = {
@@ -35,6 +36,7 @@ export function ModalFrame({
   size = "md",
   titleId,
   className,
+  centered = true,
 }: ModalFrameProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -105,7 +107,10 @@ export function ModalFrame({
 
   return (
     <div
-      className="fixed inset-0 z-[1000] flex items-start justify-center overflow-y-auto bg-zinc-950/70 p-3 backdrop-blur-sm sm:p-6"
+      className={cx(
+        "fixed inset-0 z-[1000] flex justify-center overflow-y-auto bg-zinc-950/70 p-3 backdrop-blur-sm sm:p-6",
+        centered ? "items-center" : "items-start"
+      )}
       onClick={handleOverlayClick}
     >
       <div
