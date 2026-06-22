@@ -3,7 +3,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CommandPanel } from "@/components/command";
+import { CommandPanel, ModalFrame } from "@/components/command";
 import { formatLocalTime } from "@/lib/format";
 import type { ToastType } from "@/hooks/useToast";
 
@@ -88,7 +88,12 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
   const [status, setStatus] = useState<GitHubInstallationResponse | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isUninstallModalOpen, setIsUninstallModalOpen] = useState(false);
+  const [uninstallConfirmText, setUninstallConfirmText] = useState("");
+  const [isUninstalling, setIsUninstalling] = useState(false);
+  const [uninstallError, setUninstallError] = useState("");
   const notice = searchParams.get("github_notice");
   const connectedNotice = searchParams.get("github") === "connected";
   const callbackError = searchParams.get("github_error");
@@ -96,6 +101,7 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
   const loadStatus = useCallback(async () => {
     setLoadState("loading");
     setErrorMessage("");
+    setSuccessMessage("");
 
     try {
       const response = await fetch("/api/integrations/github/installation", {
@@ -132,8 +138,14 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
   const isLoading = loadState === "loading" || loadState === "idle";
 
   const handleRemove = async () => {
+    const confirmed = window.confirm(
+      "This will disconnect GitHub inside Dandi, but it will not uninstall the GitHub App from your GitHub account.\n\nTo revoke repository access or uninstall the app, use Manage on GitHub."
+    );
+    if (!confirmed) return;
+
     setIsRemoving(true);
     setErrorMessage("");
+    setSuccessMessage("");
 
     try {
       const response = await fetch("/api/integrations/github/installation", {
@@ -149,10 +161,51 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
         configured: status?.configured ?? true,
         repositories: [],
       });
+      setSuccessMessage("Removed the GitHub installation from Dandi. Manage or uninstall the GitHub App from GitHub if needed.");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "GitHub installation could not be removed from Dandi.");
     } finally {
       setIsRemoving(false);
+    }
+  };
+
+  const handleUninstall = async () => {
+    if (uninstallConfirmText !== "UNINSTALL") return;
+
+    setIsUninstalling(true);
+    setUninstallError("");
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const response = await fetch("/api/integrations/github/installation/uninstall", {
+        method: "DELETE",
+      });
+
+      const data = await response.json().catch(() => null) as {
+        success?: boolean;
+        alreadyRemoved?: boolean;
+        partialFailure?: boolean;
+        error?: string;
+        message?: string;
+      } | null;
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to uninstall GitHub App.");
+      }
+
+      setStatus({
+        connected: false,
+        configured: status?.configured ?? true,
+        repositories: [],
+      });
+      setSuccessMessage(data?.message || "Dandi's GitHub App was successfully uninstalled from GitHub and disconnected from Dandi.");
+      setIsUninstallModalOpen(false);
+      setUninstallConfirmText("");
+    } catch (err) {
+      setUninstallError(err instanceof Error ? err.message : "GitHub App could not be uninstalled.");
+    } finally {
+      setIsUninstalling(false);
     }
   };
 
@@ -175,7 +228,7 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
         </button>
       </div>
 
-      {(connectedNotice || notice || callbackError || errorMessage) && (
+      {(connectedNotice || notice || callbackError || errorMessage || successMessage) && (
         <div
           role={callbackError || errorMessage ? "alert" : "status"}
           className={`rounded-lg border p-4 ${
@@ -185,7 +238,7 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
           }`}
         >
           <p className="text-xs font-semibold leading-5">
-            {callbackError || errorMessage || notice || "GitHub connected successfully."}
+            {callbackError || errorMessage || successMessage || notice || "GitHub connected successfully."}
           </p>
         </div>
       )}
@@ -273,11 +326,11 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
                   disabled={isRemoving}
                   className="flex min-h-10 flex-1 items-center justify-center rounded-lg border border-red-300/20 bg-red-400/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-red-100 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isRemoving ? "Removing..." : "Remove from Dandi"}
+                  {isRemoving ? "Disconnecting..." : "Disconnect from Dandi"}
                 </button>
               </div>
               <p className="text-[11px] font-medium leading-5 text-slate-500">
-                Reconnect to refresh the verified repository list. Removing the connection deletes Dandi&apos;s local installation record only. Manage or uninstall the app on GitHub to revoke GitHub-side access.
+                Reconnect to refresh the verified repository list. Disconnect from Dandi deletes the local connection record only. To revoke repository access or uninstall the app, use Manage on GitHub.
               </p>
             </div>
           ) : (
@@ -363,6 +416,105 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
           )}
         </section>
       </div>
+
+      {isConnected && (
+        <section className="mt-8 rounded-lg border border-red-500/20 bg-slate-950/40 p-6 shadow-xl backdrop-blur-xl">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-red-200">Advanced / Destructive Actions</h4>
+              <p className="text-xs font-semibold leading-5 text-slate-400">
+                Uninstall Dandi&apos;s GitHub App from your GitHub account and remove the connection.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsUninstallModalOpen(true);
+                setUninstallConfirmText("");
+                setUninstallError("");
+              }}
+              disabled={isLoading}
+              className="flex min-h-10 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Uninstall GitHub App from GitHub
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* Uninstall Confirmation Modal */}
+      <ModalFrame
+        open={isUninstallModalOpen}
+        onClose={() => {
+          if (!isUninstalling) {
+            setIsUninstallModalOpen(false);
+            setUninstallConfirmText("");
+            setUninstallError("");
+          }
+        }}
+        size="md"
+        titleId="uninstall-modal-title"
+      >
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <h3 id="uninstall-modal-title" className="font-serif text-2xl font-bold tracking-tight text-red-200">
+              Uninstall GitHub App?
+            </h3>
+            <p className="text-xs font-semibold leading-5 text-slate-400">
+              This action is destructive and cannot be undone:
+            </p>
+            <ul className="list-disc pl-4 text-xs font-semibold leading-5 text-slate-400 space-y-1">
+              <li>It will uninstall Dandi&apos;s GitHub App from your GitHub account.</li>
+              <li>All repository permissions granted to Dandi will be revoked on the GitHub side.</li>
+              <li>Dandi&apos;s local connection and repository records will be completely deleted.</li>
+            </ul>
+          </div>
+
+          {uninstallError && (
+            <div role="alert" className="rounded-lg border border-red-300/20 bg-red-400/10 p-4 text-red-100">
+              <p className="text-xs font-semibold leading-5">{uninstallError}</p>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <label htmlFor="uninstall-confirm-input" className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              To confirm, type <span className="text-red-300 font-mono font-bold">UNINSTALL</span> below:
+            </label>
+            <input
+              id="uninstall-confirm-input"
+              type="text"
+              value={uninstallConfirmText}
+              onChange={(e) => setUninstallConfirmText(e.target.value)}
+              placeholder="UNINSTALL"
+              disabled={isUninstalling}
+              className="h-12 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 text-sm font-medium text-white placeholder-zinc-700 outline-none transition focus:border-red-500/40 focus:ring-4 focus:ring-red-500/10 disabled:opacity-50"
+            />
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              disabled={isUninstalling}
+              onClick={() => {
+                setIsUninstallModalOpen(false);
+                setUninstallConfirmText("");
+                setUninstallError("");
+              }}
+              className="flex min-h-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] px-5 text-[10px] font-black uppercase tracking-[0.16em] text-slate-300 transition hover:bg-white/[0.06] disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={uninstallConfirmText !== "UNINSTALL" || isUninstalling}
+              onClick={handleUninstall}
+              className="flex min-h-10 items-center justify-center rounded-lg border border-red-500 bg-red-600 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isUninstalling ? "Uninstalling..." : "Uninstall from GitHub"}
+            </button>
+          </div>
+        </div>
+      </ModalFrame>
     </CommandPanel>
   );
 }

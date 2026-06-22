@@ -1311,3 +1311,180 @@ test("GitHub service supports optional installation token for private repositori
     globalThis.fetch = originalFetch;
   }
 });
+
+test("GitHub App uninstall endpoint and service behave securely and handle cleanups correctly", async () => {
+  const { supabaseAdmin } = loadTsModule("lib/supabase-admin.ts");
+  const githubAppService = loadTsModule("lib/services/github-app.service.ts");
+  const { uninstallGitHubAppInstallationForUser } = githubAppService;
+
+  // Static checks on routes
+  const localDeleteRouteSrc = readFileSync(
+    resolve(repoRoot, "app/api/integrations/github/installation/route.ts"),
+    "utf8"
+  );
+  const uninstallRouteSrc = readFileSync(
+    resolve(repoRoot, "app/api/integrations/github/installation/uninstall/route.ts"),
+    "utf8"
+  );
+
+  // 1. Verify DELETE /api/integrations/github/installation remains local-only
+  // It should call removeGitHubInstallationFromDandi but NOT make fetch calls to api.github.com/app/installations
+  assert.match(localDeleteRouteSrc, /removeGitHubInstallationFromDandi/);
+  assert.doesNotMatch(localDeleteRouteSrc, /uninstallGitHubAppInstallationForUser/);
+  assert.doesNotMatch(localDeleteRouteSrc, /fetch\([^)]*app\/installations/);
+
+  // 2. Verify DELETE /api/integrations/github/installation/uninstall performs GitHub-side uninstall
+  assert.match(uninstallRouteSrc, /uninstallGitHubAppInstallationForUser/);
+
+  // 3. Verify uninstall route ignores any client-sent installation_id
+  // The route should resolve user.id first and should not read or parse installation_id from Request body/payload.
+  assert.doesNotMatch(uninstallRouteSrc, /installation_id/);
+  assert.doesNotMatch(uninstallRouteSrc, /installationId/);
+
+  // 4. Test service layer behavior with mocked database and fetch
+  const originalFrom = supabaseAdmin.from;
+  const originalFetch = globalThis.fetch;
+  const originalCreateSign = crypto.createSign;
+
+  // Mock JWT creation
+  crypto.createSign = () => ({
+    update: () => ({
+      sign: () => Buffer.from("mock-jwt-signature"),
+    }),
+  });
+
+  let dbDeleted = false;
+  let dbDeleteTargetUserId = null;
+  let dbDeleteTargetInstallationId = null;
+  let mockInstallationResult = {
+    installation_id: 141986350,
+  };
+
+  supabaseAdmin.from = (table) => {
+    if (table === "github_app_installations") {
+      return {
+        select: () => ({
+          eq: (col) => {
+            assert.equal(col, "user_id");
+            return {
+              order: () => ({
+                limit: () => ({
+                  maybeSingle: async () => ({ data: mockInstallationResult, error: null }),
+                }),
+              }),
+            };
+          },
+        }),
+        delete: () => {
+          return {
+            eq: (colId, valId) => {
+              if (colId === "user_id") {
+                dbDeleteTargetUserId = valId;
+              }
+              return {
+                eq: (colInst, valInst) => {
+                  if (colInst === "installation_id") {
+                    dbDeleteTargetInstallationId = valInst;
+                  }
+                  dbDeleted = true;
+                  return Promise.resolve({ data: null, error: null });
+                }
+              };
+            }
+          };
+        }
+      };
+    }
+    return originalFrom(table);
+  };
+
+  try {
+    // A. Verify 204 deletes local record
+    let fetchCalled = false;
+    let fetchUrl = null;
+    let fetchMethod = null;
+    let fetchHeaders = null;
+
+    globalThis.fetch = async (url, options) => {
+      fetchCalled = true;
+      fetchUrl = String(url);
+      fetchMethod = options?.method;
+      fetchHeaders = options?.headers;
+      return {
+        status: 204,
+        statusText: "No Content",
+        ok: true,
+      };
+    };
+
+    dbDeleted = false;
+    dbDeleteTargetUserId = null;
+    dbDeleteTargetInstallationId = null;
+
+    const res204 = await uninstallGitHubAppInstallationForUser("user-111");
+    assert.equal(res204.success, true);
+    assert.equal(res204.alreadyRemoved, false);
+    assert.equal(dbDeleted, true);
+    assert.equal(dbDeleteTargetUserId, "user-111");
+    assert.equal(dbDeleteTargetInstallationId, 141986350);
+    assert.equal(fetchCalled, true);
+    assert.equal(fetchUrl, "https://api.github.com/app/installations/141986350");
+    assert.equal(fetchMethod, "DELETE");
+    assert.equal(fetchHeaders["Accept"], "application/vnd.github+json");
+    assert.equal(fetchHeaders["X-GitHub-Api-Version"], "2022-11-28");
+    assert.match(fetchHeaders["Authorization"], /^Bearer /);
+
+    // Verify JWT is not exposed in returned result
+    assert.equal(res204.hasOwnProperty("token"), false);
+    assert.equal(res204.hasOwnProperty("jwt"), false);
+
+    // B. Verify 404 deletes local record (already removed)
+    fetchCalled = false;
+    globalThis.fetch = async () => {
+      fetchCalled = true;
+      return {
+        status: 404,
+        statusText: "Not Found",
+        ok: false,
+      };
+    };
+
+    dbDeleted = false;
+    const res404 = await uninstallGitHubAppInstallationForUser("user-111");
+    assert.equal(res404.success, true);
+    assert.equal(res404.alreadyRemoved, true);
+    assert.equal(dbDeleted, true);
+
+    // C. Verify 401/403/5xx do NOT delete local record
+    const errorStatuses = [401, 403, 429, 500];
+    for (const status of errorStatuses) {
+      fetchCalled = false;
+      globalThis.fetch = async () => {
+        fetchCalled = true;
+        return {
+          status,
+          statusText: "GitHub Error",
+          ok: false,
+          json: async () => ({ message: `Error details ${status}` }),
+        };
+      };
+
+      dbDeleted = false;
+      await assert.rejects(
+        uninstallGitHubAppInstallationForUser("user-111"),
+        (err) => {
+          assert.equal(err.status, status);
+          assert.match(err.message, new RegExp(`Error details ${status}`));
+          return true;
+        }
+      );
+      assert.equal(dbDeleted, false, `DB should not delete for status ${status}`);
+    }
+
+  } finally {
+    supabaseAdmin.from = originalFrom;
+    globalThis.fetch = originalFetch;
+    crypto.createSign = originalCreateSign;
+  }
+});
+

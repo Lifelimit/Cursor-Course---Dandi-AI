@@ -101,6 +101,16 @@ export class GitHubAppApiError extends Error {
   }
 }
 
+export class GitHubAppPartialFailureError extends Error {
+  status: number;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "GitHubAppPartialFailureError";
+    this.status = 500;
+  }
+}
+
 export function getSafeGitHubAppErrorMessage(err: unknown) {
   if (err instanceof GitHubAppConfigurationError) {
     return err.message;
@@ -479,6 +489,55 @@ export async function removeGitHubInstallationFromDandi(input: {
   if (error) {
     throw new Error("Dandi could not remove the GitHub installation.");
   }
+}
+
+export async function uninstallGitHubAppInstallationForUser(userId: string): Promise<{
+  success: boolean;
+  partialFailure: boolean;
+  alreadyRemoved: boolean;
+}> {
+  const installation = await getPrimaryGitHubInstallationForUser(userId);
+  if (!installation) {
+    throw new GitHubAppApiError("No installation found for user.", 404);
+  }
+
+  const installationId = installation.installation_id;
+  const appJwt = createGitHubAppJwt();
+
+  const response = await fetch(`https://api.github.com/app/installations/${installationId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${appJwt}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": GITHUB_USER_AGENT,
+      "X-GitHub-Api-Version": GITHUB_API_VERSION,
+    },
+  });
+
+  if (response.status === 204 || response.status === 404) {
+    try {
+      await removeGitHubInstallationFromDandi({ userId, installationId });
+    } catch {
+      if (response.status === 204) {
+        throw new GitHubAppPartialFailureError(
+          "GitHub App was uninstalled from GitHub, but Dandi could not remove the local connection record from the database."
+        );
+      }
+      throw new GitHubAppPartialFailureError(
+        "GitHub App was already removed from GitHub, but Dandi could not remove the local connection record from the database."
+      );
+    }
+
+    return {
+      success: true,
+      partialFailure: false,
+      alreadyRemoved: response.status === 404,
+    };
+  }
+
+  // GitHub returned something other than 204 / 404 (e.g. 401/403/429/5xx). Do NOT delete local record.
+  const errorMsg = await readGitHubError(response);
+  throw new GitHubAppApiError(errorMsg, response.status);
 }
 
 export async function getPrimaryGitHubInstallationForUser(userId: string) {
