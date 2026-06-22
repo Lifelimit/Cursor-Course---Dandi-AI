@@ -2,8 +2,11 @@ import { getServerEnv } from "@/lib/env";
 import { getGitHubRepositoryParts } from "@/lib/github-url";
 
 export class GitHubAuthError extends Error {
-  constructor(public code: "GITHUB_PRIVATE_REPO_NOT_CONNECTED" | "GITHUB_PRIVATE_REPO_NOT_GRANTED" | "GITHUB_PRIVATE_REPO_TOKEN_FAILED" | "GITHUB_REPO_NOT_FOUND") {
-    super(code);
+  constructor(
+    public code: "GITHUB_PRIVATE_REPO_NOT_CONNECTED" | "GITHUB_PRIVATE_REPO_NOT_GRANTED" | "GITHUB_PRIVATE_REPO_TOKEN_FAILED" | "GITHUB_REPO_NOT_FOUND",
+    message?: string
+  ) {
+    super(message || code);
     this.name = "GitHubAuthError";
   }
 }
@@ -138,7 +141,10 @@ export async function fetchRepositoryDataWithAuth(input: {
     });
 
     if (!access.authorized) {
-      throw new GitHubAuthError(access.errorCode);
+      throw new GitHubAuthError(
+        access.errorCode,
+        access.errorCode === "GITHUB_PRIVATE_REPO_TOKEN_FAILED" ? access.details : undefined
+      );
     }
 
     // 3. Retry fetching with the installation token
@@ -150,7 +156,10 @@ export async function fetchRepositoryDataWithAuth(input: {
       return { readmeContent, metadata };
     } catch (privateErr) {
       console.error("Fetch with installation token failed:", privateErr);
-      throw new GitHubAuthError("GITHUB_PRIVATE_REPO_TOKEN_FAILED");
+      throw new GitHubAuthError(
+        "GITHUB_PRIVATE_REPO_TOKEN_FAILED",
+        privateErr instanceof Error ? privateErr.message : String(privateErr)
+      );
     }
   }
 }

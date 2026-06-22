@@ -499,7 +499,11 @@ export async function getPrimaryGitHubInstallationForUser(userId: string) {
 
 export type GitHubRepoAccessResult = 
   | { authorized: true; token: string }
-  | { authorized: false; errorCode: "GITHUB_PRIVATE_REPO_NOT_CONNECTED" | "GITHUB_PRIVATE_REPO_NOT_GRANTED" | "GITHUB_PRIVATE_REPO_TOKEN_FAILED" };
+  | { 
+      authorized: false; 
+      errorCode: "GITHUB_PRIVATE_REPO_NOT_CONNECTED" | "GITHUB_PRIVATE_REPO_NOT_GRANTED" | "GITHUB_PRIVATE_REPO_TOKEN_FAILED"; 
+      details?: string;
+    };
 
 export async function resolveGitHubRepoAccessForSummary(input: {
   userId: string | null;
@@ -535,6 +539,10 @@ export async function resolveGitHubRepoAccessForSummary(input: {
     return { authorized: true, token };
   } catch (err) {
     console.error("Failed to generate installation token:", err);
-    return { authorized: false, errorCode: "GITHUB_PRIVATE_REPO_TOKEN_FAILED" };
+    return { 
+      authorized: false, 
+      errorCode: "GITHUB_PRIVATE_REPO_TOKEN_FAILED", 
+      details: err instanceof Error ? err.message : String(err) 
+    };
   }
 }
