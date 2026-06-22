@@ -1,17 +1,28 @@
 import { getServerEnv } from "@/lib/env";
 import { getGitHubRepositoryParts } from "@/lib/github-url";
 
-function getGitHubHeaders(): Record<string, string> {
+export class GitHubAuthError extends Error {
+  constructor(public code: "GITHUB_PRIVATE_REPO_NOT_CONNECTED" | "GITHUB_PRIVATE_REPO_NOT_GRANTED" | "GITHUB_PRIVATE_REPO_TOKEN_FAILED" | "GITHUB_REPO_NOT_FOUND") {
+    super(code);
+    this.name = "GitHubAuthError";
+  }
+}
+
+function getGitHubHeaders(token?: string): Record<string, string> {
   const headers: Record<string, string> = {
     "Accept": "application/vnd.github.v3+json",
     "User-Agent": "Dandi-AI-Summarizer"
   };
 
-  const githubToken = getServerEnv().GITHUB_TOKEN;
-  if (githubToken) {
-    headers["Authorization"] = githubToken.startsWith("token ") || githubToken.startsWith("Bearer ")
-      ? githubToken
-      : `token ${githubToken}`;
+  if (token) {
+    headers["Authorization"] = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+  } else {
+    const githubToken = getServerEnv().GITHUB_TOKEN;
+    if (githubToken) {
+      headers["Authorization"] = githubToken.startsWith("token ") || githubToken.startsWith("Bearer ")
+        ? githubToken
+        : `token ${githubToken}`;
+    }
   }
 
   return headers;
@@ -20,11 +31,11 @@ function getGitHubHeaders(): Record<string, string> {
 /**
  * Helper function to fetch README.md from a GitHub URL
  */
-export async function fetchGitHubReadme(githubUrl: string): Promise<string> {
+export async function fetchGitHubReadme(githubUrl: string, token?: string): Promise<string> {
   const { owner, repo } = getGitHubRepositoryParts(githubUrl);
 
   // Primary method: Use GitHub API to automatically resolve the default branch (e.g., canary, develop)
-  const headers = getGitHubHeaders();
+  const headers = getGitHubHeaders(token);
   headers["Accept"] = "application/vnd.github.v3.raw"; // Get raw text instead of base64 JSON
 
   const apiResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`, {
@@ -40,7 +51,7 @@ export async function fetchGitHubReadme(githubUrl: string): Promise<string> {
   for (const branch of branches) {
     const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/README.md`;
     const response = await fetch(rawUrl, {
-      headers: getGitHubHeaders()
+      headers: getGitHubHeaders(token)
     });
 
     if (response.ok) {
@@ -54,12 +65,12 @@ export async function fetchGitHubReadme(githubUrl: string): Promise<string> {
 /**
  * Fetches repository metadata (stars, license, version) from the GitHub API
  */
-export async function fetchGitHubMetadata(githubUrl: string) {
+export async function fetchGitHubMetadata(githubUrl: string, token?: string) {
   const { owner, repo } = getGitHubRepositoryParts(githubUrl);
 
   // 1. Fetch Repository Details (Stars, License)
   const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-    headers: getGitHubHeaders()
+    headers: getGitHubHeaders(token)
   });
 
   if (!repoResponse.ok) {
@@ -72,7 +83,7 @@ export async function fetchGitHubMetadata(githubUrl: string) {
   let version = "Unknown";
   try {
     const releaseResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`, {
-      headers: getGitHubHeaders()
+      headers: getGitHubHeaders(token)
     });
     
     if (releaseResponse.ok) {
@@ -81,7 +92,7 @@ export async function fetchGitHubMetadata(githubUrl: string) {
     } else {
       // Fallback to latest tag if no official release
       const tagsResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/tags`, {
-        headers: getGitHubHeaders()
+        headers: getGitHubHeaders(token)
       });
       if (tagsResponse.ok) {
         const tagsData = await tagsResponse.json();
@@ -100,6 +111,50 @@ export async function fetchGitHubMetadata(githubUrl: string) {
     description: repoData.description
   };
 }
+
+/**
+ * Fetches repository data, checking for public access first, then falling back to private access if authorized.
+ */
+export async function fetchRepositoryDataWithAuth(input: {
+  githubUrl: string;
+  userId: string | null;
+}) {
+  const { owner, repo } = getGitHubRepositoryParts(input.githubUrl);
+  const repoFullName = `${owner}/${repo}`;
+
+  // 1. Attempt public fetch first
+  try {
+    const [readmeContent, metadata] = await Promise.all([
+      fetchGitHubReadme(input.githubUrl),
+      fetchGitHubMetadata(input.githubUrl)
+    ]);
+    return { readmeContent, metadata };
+  } catch {
+    // 2. Public fetch failed. Resolve access for private retry
+    const { resolveGitHubRepoAccessForSummary } = await import("./github-app.service");
+    const access = await resolveGitHubRepoAccessForSummary({
+      userId: input.userId,
+      repoFullName,
+    });
+
+    if (!access.authorized) {
+      throw new GitHubAuthError(access.errorCode);
+    }
+
+    // 3. Retry fetching with the installation token
+    try {
+      const [readmeContent, metadata] = await Promise.all([
+        fetchGitHubReadme(input.githubUrl, access.token),
+        fetchGitHubMetadata(input.githubUrl, access.token)
+      ]);
+      return { readmeContent, metadata };
+    } catch (privateErr) {
+      console.error("Fetch with installation token failed:", privateErr);
+      throw new GitHubAuthError("GITHUB_PRIVATE_REPO_TOKEN_FAILED");
+    }
+  }
+}
+
 
 /**
  * Fetches default branch of a GitHub repository

@@ -480,3 +480,61 @@ export async function removeGitHubInstallationFromDandi(input: {
     throw new Error("Dandi could not remove the GitHub installation.");
   }
 }
+
+export async function getPrimaryGitHubInstallationForUser(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("github_app_installations")
+    .select("*")
+    .eq("user_id", userId)
+    .order("connected_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error("Dandi could not load the GitHub installation.");
+  }
+
+  return data as GitHubAppInstallationRecord | null;
+}
+
+export type GitHubRepoAccessResult = 
+  | { authorized: true; token: string }
+  | { authorized: false; errorCode: "GITHUB_PRIVATE_REPO_NOT_CONNECTED" | "GITHUB_PRIVATE_REPO_NOT_GRANTED" | "GITHUB_PRIVATE_REPO_TOKEN_FAILED" };
+
+export async function resolveGitHubRepoAccessForSummary(input: {
+  userId: string | null;
+  repoFullName: string;
+}): Promise<GitHubRepoAccessResult> {
+  if (!input.userId) {
+    return { authorized: false, errorCode: "GITHUB_PRIVATE_REPO_NOT_CONNECTED" };
+  }
+
+  const installation = await getPrimaryGitHubInstallationForUser(input.userId);
+  if (!installation) {
+    return { authorized: false, errorCode: "GITHUB_PRIVATE_REPO_NOT_CONNECTED" };
+  }
+
+  const normalizedRepo = input.repoFullName.toLowerCase();
+  const verifiedRepositories = Array.isArray(installation.verified_repositories)
+    ? installation.verified_repositories
+    : [];
+
+  const isGranted = (verifiedRepositories as Array<Record<string, unknown>>).some(
+    (r) => {
+      const name = r.fullName || r.full_name;
+      return typeof name === "string" && name.toLowerCase() === normalizedRepo;
+    }
+  );
+
+  if (!isGranted) {
+    return { authorized: false, errorCode: "GITHUB_PRIVATE_REPO_NOT_GRANTED" };
+  }
+
+  try {
+    const { token } = await createGitHubInstallationAccessToken(installation.installation_id);
+    return { authorized: true, token };
+  } catch (err) {
+    console.error("Failed to generate installation token:", err);
+    return { authorized: false, errorCode: "GITHUB_PRIVATE_REPO_TOKEN_FAILED" };
+  }
+}

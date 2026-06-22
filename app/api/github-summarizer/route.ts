@@ -1,5 +1,5 @@
 import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
-import { fetchGitHubReadme, fetchGitHubMetadata } from "@/lib/services/github.service";
+import { fetchRepositoryDataWithAuth, GitHubAuthError } from "@/lib/services/github.service";
 import { streamGithubSummary } from "@/lib/services/ai.service";
 import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOriginAllowed } from "@/lib/cors";
 import { checkRateLimit, createIpRateLimit } from "@/lib/rate-limit";
@@ -65,17 +65,50 @@ export async function POST(request: Request) {
 
     const startTime = Date.now();
 
-    // 4. Fetch README and Metadata
+    // Resolve user ID for GitHub App authorization
+    let userId: string | null = null;
+    if (keyData.browserUserId) {
+      userId = keyData.browserUserId;
+    } else if (keyData.user_id && keyData.user_id !== "demo-user-id") {
+      userId = keyData.user_id;
+    }
+
+    // 4. Fetch README and Metadata with auth
     let readmeContent = "";
     let metadata = null;
     try {
-      [readmeContent, metadata] = await Promise.all([
-        fetchGitHubReadme(githubUrl),
-        fetchGitHubMetadata(githubUrl)
-      ]);
+      const repoData = await fetchRepositoryDataWithAuth({
+        githubUrl,
+        userId,
+      });
+      readmeContent = repoData.readmeContent;
+      metadata = repoData.metadata;
     } catch (fetchErr) {
       const latencyMs = Date.now() - startTime;
       await incrementKeyUsage(keyData, githubUrl, latencyMs, "error", request);
+
+      if (fetchErr instanceof GitHubAuthError) {
+        let status = 403;
+        let message = "";
+
+        switch (fetchErr.code) {
+          case "GITHUB_PRIVATE_REPO_NOT_CONNECTED":
+            message = "Connect GitHub and grant Dandi access to this repository to summarize it.";
+            break;
+          case "GITHUB_PRIVATE_REPO_NOT_GRANTED":
+            message = "This repository is not included in your GitHub App installation. Reconnect GitHub and grant access.";
+            break;
+          case "GITHUB_PRIVATE_REPO_TOKEN_FAILED":
+            message = "Failed to verify GitHub App installation access. Please try reconnecting.";
+            break;
+          case "GITHUB_REPO_NOT_FOUND":
+            status = 404;
+            message = "Repository not found on GitHub. Please check the URL.";
+            break;
+        }
+
+        return jsonError({ error: message, code: fetchErr.code }, status, corsHeaders);
+      }
       
       return jsonError(
         { error: fetchErr instanceof Error ? fetchErr.message : "Failed to fetch repository data" },

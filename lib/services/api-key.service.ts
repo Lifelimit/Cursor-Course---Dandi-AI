@@ -25,6 +25,7 @@ function isValidGitHubUrl(url: string): boolean {
 export async function validateApiKey(keyValue: string) {
   // Special case for Playground Demo Key
   if (keyValue === "__demo__") {
+    let activeUser;
     // Prevent bypass / direct cURL/CLI abuse by validating caller's active browser session via Supabase SSR
     try {
       const { createClient } = await import("@/lib/supabase/server");
@@ -33,6 +34,7 @@ export async function validateApiKey(keyValue: string) {
       if (!user || !user.email) {
         throw new Error("Unauthorized: Active browser session required to use the Demo Key.");
       }
+      activeUser = user;
     } catch (sessionError) {
       console.error("Demo key session validation failed:", sessionError);
       throw new Error("Unauthorized: Active browser session required to use the Demo Key.");
@@ -57,6 +59,7 @@ export async function validateApiKey(keyValue: string) {
       usage_count: currentKeyUsage,
       monthly_limit: 1000,
       user_id: "demo-user-id",
+      browserUserId: activeUser.id,
       key_type: "production" as const,
       plan: "Hobby"
     };

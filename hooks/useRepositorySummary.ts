@@ -49,7 +49,20 @@ const getSummaryStreamDuration = () =>
   Math.round(getPerformanceNow() - (window.__dandi_stream_start || getPerformanceNow()));
 
 const getFriendlySummaryStreamError = (error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error || "");
+  let message = error instanceof Error ? error.message : String(error || "");
+
+  // Try to parse if it is JSON (common with API errors wrapped in ResponseError)
+  try {
+    const parsed = JSON.parse(message);
+    if (parsed && typeof parsed === "object" && "error" in parsed) {
+      message = String(parsed.error);
+    } else if (parsed && typeof parsed === "object" && "message" in parsed) {
+      message = String(parsed.message);
+    }
+  } catch {
+    // Not JSON, keep original message
+  }
+
   const lowerMessage = message.toLowerCase();
 
   if (

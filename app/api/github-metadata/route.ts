@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchGitHubMetadata } from "@/lib/services/github.service";
+import { fetchRepositoryDataWithAuth, GitHubAuthError } from "@/lib/services/github.service";
 import { validateApiKey } from "@/lib/services/api-key.service";
 import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { validateGitHubRepoUrl } from "@/lib/request-validation";
@@ -36,16 +36,51 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "API key is required" }, { status: 401, headers: corsHeaders });
   }
 
+  let keyData;
   try {
-    await validateApiKey(apiKey);
+    keyData = await validateApiKey(apiKey);
   } catch (keyError) {
     return NextResponse.json({ error: (keyError as Error).message }, { status: 401, headers: corsHeaders });
   }
 
+  // Resolve user ID for GitHub App authorization
+  let userId: string | null = null;
+  if (keyData.browserUserId) {
+    userId = keyData.browserUserId;
+  } else if (keyData.user_id && keyData.user_id !== "demo-user-id") {
+    userId = keyData.user_id;
+  }
+
   try {
-    const metadata = await fetchGitHubMetadata(githubUrl);
+    const { metadata } = await fetchRepositoryDataWithAuth({
+      githubUrl,
+      userId,
+    });
     return NextResponse.json(metadata, { headers: corsHeaders });
   } catch (err) {
+    if (err instanceof GitHubAuthError) {
+      let status = 403;
+      let message = "";
+
+      switch (err.code) {
+        case "GITHUB_PRIVATE_REPO_NOT_CONNECTED":
+          message = "Connect GitHub and grant Dandi access to this repository to summarize it.";
+          break;
+        case "GITHUB_PRIVATE_REPO_NOT_GRANTED":
+          message = "This repository is not included in your GitHub App installation. Reconnect GitHub and grant access.";
+          break;
+        case "GITHUB_PRIVATE_REPO_TOKEN_FAILED":
+          message = "Failed to verify GitHub App installation access. Please try reconnecting.";
+          break;
+        case "GITHUB_REPO_NOT_FOUND":
+          status = 404;
+          message = "Repository not found on GitHub. Please check the URL.";
+          break;
+      }
+
+      return NextResponse.json({ error: message, code: err.code }, { status, headers: corsHeaders });
+    }
+
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err) },
       { status: 500, headers: corsHeaders }

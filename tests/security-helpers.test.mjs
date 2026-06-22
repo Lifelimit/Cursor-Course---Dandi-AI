@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import ts from "typescript";
+import crypto from "node:crypto";
 
 const require = createRequire(import.meta.url);
 const moduleCache = new Map();
@@ -29,6 +30,9 @@ function loadTsModule(relativePath) {
   moduleCache.set(filename, loadedModule);
 
   const localRequire = (specifier) => {
+    if (specifier === "server-only") {
+      return {};
+    }
     if (specifier.startsWith("@/")) {
       return loadTsModule(`${specifier.slice(2)}.ts`);
     }
@@ -58,6 +62,8 @@ process.env.UPSTASH_REDIS_REST_URL = "https://mock.upstash.io";
 process.env.UPSTASH_REDIS_REST_TOKEN = "mock-token";
 process.env.GOOGLE_API_KEY = "google-key";
 process.env.API_KEY_HMAC_SECRET = "mock-hmac-secret-key-32-chars-for-tests";
+process.env.GITHUB_APP_ID = "12345";
+process.env.GITHUB_APP_PRIVATE_KEY = "dummy-private-key";
 
 const googleEnvNames = [
   "GOOGLE_API_KEYS",
@@ -1086,4 +1092,222 @@ test("calculates next invoice dates correctly for different subscription plans",
   assert.equal(yearlyResDate.getDate(), 24);
   assert.equal(yearlyResDate.getMonth(), 4); // May
   assert.equal(yearlyResDate.getFullYear(), 2027);
+});
+
+test("validateApiKey maps users and sessions correctly", async () => {
+  const serverFilename = resolve(repoRoot, "lib/supabase/server.ts");
+  const originalMock = moduleCache.get(serverFilename);
+  
+  let mockSupabaseUser = null;
+  moduleCache.set(serverFilename, {
+    exports: {
+      createClient: async () => ({
+        auth: {
+          getUser: async () => ({ data: { user: mockSupabaseUser } }),
+        },
+      }),
+    },
+  });
+
+  const { validateApiKey } = loadTsModule("lib/services/api-key.service.ts");
+  
+  try {
+    // 1. Demo key without session should throw
+    mockSupabaseUser = null;
+    await assert.rejects(
+      async () => await validateApiKey("__demo__"),
+      /Active browser session required/
+    );
+
+    // 2. Demo key with session should return real user ID in browserUserId
+    mockSupabaseUser = { id: "real-browser-user-uuid", email: "user@example.com" };
+    const demoKeyResult = await validateApiKey("__demo__");
+    assert.equal(demoKeyResult.user_id, "demo-user-id");
+    assert.equal(demoKeyResult.browserUserId, "real-browser-user-uuid");
+
+    // 3. Custom key resolves to owner user ID and does not have browserUserId
+    const { supabaseAdmin } = loadTsModule("lib/supabase-admin.ts");
+    const originalFrom = supabaseAdmin.from;
+    supabaseAdmin.from = (table) => {
+      assert.equal(table, "api_keys");
+      return {
+        select: () => ({
+          eq: () => ({
+            eq: () => ({
+              single: async () => ({
+                data: {
+                  id: "key-123",
+                  name: "Prod Key",
+                  user_id: "key-owner-uuid",
+                  usage_count: 5,
+                  monthly_limit: 1000,
+                  is_active: true,
+                  profiles: { plan: "Hobby", email: "owner@example.com" },
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      };
+    };
+
+    const customKeyResult = await validateApiKey("my-custom-api-key");
+    assert.equal(customKeyResult.user_id, "key-owner-uuid");
+    assert.equal(customKeyResult.browserUserId, undefined);
+
+    supabaseAdmin.from = originalFrom;
+  } finally {
+    if (originalMock) {
+      moduleCache.set(serverFilename, originalMock);
+    } else {
+      moduleCache.delete(serverFilename);
+    }
+  }
+});
+
+test("resolveGitHubRepoAccessForSummary resolves access securely", async () => {
+  const { supabaseAdmin } = loadTsModule("lib/supabase-admin.ts");
+  const githubAppService = loadTsModule("lib/services/github-app.service.ts");
+  const { resolveGitHubRepoAccessForSummary } = githubAppService;
+  
+  const originalFrom = supabaseAdmin.from;
+  let mockInstallationResult = null;
+  
+  try {
+    supabaseAdmin.from = (table) => {
+      assert.equal(table, "github_app_installations");
+      return {
+        select: () => ({
+          eq: (col) => {
+            assert.equal(col, "user_id");
+            return {
+              order: () => ({
+                limit: () => ({
+                  maybeSingle: async () => ({ data: mockInstallationResult, error: null }),
+                }),
+              }),
+            };
+          },
+        }),
+      };
+    };
+    
+    // 1. If userId is null, access is denied (not connected)
+    const res1 = await resolveGitHubRepoAccessForSummary({ userId: null, repoFullName: "owner/repo" });
+    assert.equal(res1.authorized, false);
+    assert.equal(res1.errorCode, "GITHUB_PRIVATE_REPO_NOT_CONNECTED");
+    
+    // 2. If no installation found in DB, access is denied (not connected)
+    mockInstallationResult = null;
+    const res2 = await resolveGitHubRepoAccessForSummary({ userId: "user-123", repoFullName: "owner/repo" });
+    assert.equal(res2.authorized, false);
+    assert.equal(res2.errorCode, "GITHUB_PRIVATE_REPO_NOT_CONNECTED");
+    
+    // 3. If installation exists but repository is not in snapshot, access is denied (not granted)
+    mockInstallationResult = {
+      installation_id: 12345,
+      verified_repositories: [
+        { fullName: "owner/other-repo", private: true },
+      ],
+    };
+    const res3 = await resolveGitHubRepoAccessForSummary({ userId: "user-123", repoFullName: "owner/repo" });
+    assert.equal(res3.authorized, false);
+    assert.equal(res3.errorCode, "GITHUB_PRIVATE_REPO_NOT_GRANTED");
+
+    // 4. If repository is in snapshot (even with case difference), it attempts to authorize
+    const originalCreateSign = crypto.createSign;
+    crypto.createSign = () => ({
+      update: () => ({
+        sign: () => Buffer.from("mock-signature"),
+      }),
+    });
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      if (String(url).includes("/access_tokens")) {
+        return {
+          ok: true,
+          json: async () => ({ token: "mock-install-token", expires_at: null }),
+        };
+      }
+      return { ok: false };
+    };
+
+    mockInstallationResult = {
+      installation_id: 12345,
+      verified_repositories: [
+        { fullName: "OWNER/repo", private: true },
+      ],
+    };
+    
+    try {
+      const res4 = await resolveGitHubRepoAccessForSummary({ userId: "user-123", repoFullName: "owner/repo" });
+      assert.equal(res4.authorized, true);
+      assert.equal(res4.token, "mock-install-token");
+    } finally {
+      crypto.createSign = originalCreateSign;
+      globalThis.fetch = originalFetch;
+    }
+  } finally {
+    supabaseAdmin.from = originalFrom;
+  }
+});
+
+test("GitHub service supports optional installation token for private repositories", async () => {
+  const originalFetch = globalThis.fetch;
+  const { fetchGitHubReadme, fetchGitHubMetadata } = loadTsModule("lib/services/github.service.ts");
+  const calls = [];
+
+  try {
+    globalThis.fetch = async (url, options) => {
+      calls.push({
+        url: String(url),
+        authHeader: options?.headers?.["Authorization"] || null,
+      });
+
+      if (String(url).endsWith("/readme")) {
+        return {
+          ok: true,
+          text: async () => "# Private Repo Readme",
+        };
+      }
+
+      return {
+        ok: true,
+        json: async () => ({
+          stargazers_count: 42,
+          license: { spdx_id: "MIT" },
+          forks_count: 5,
+          description: "A private repo",
+          default_branch: "main",
+        }),
+      };
+    };
+
+    const originalToken = process.env.GITHUB_TOKEN;
+    delete process.env.GITHUB_TOKEN;
+
+    const readmeNoToken = await fetchGitHubReadme("https://github.com/owner/repo");
+    const metaNoToken = await fetchGitHubMetadata("https://github.com/owner/repo");
+
+    assert.equal(readmeNoToken, "# Private Repo Readme");
+    assert.equal(metaNoToken.stars, 42);
+    assert.equal(calls[0].authHeader, null);
+
+    calls.length = 0;
+    const readmeWithToken = await fetchGitHubReadme("https://github.com/owner/repo", "my-installation-token");
+    const metaWithToken = await fetchGitHubMetadata("https://github.com/owner/repo", "my-installation-token");
+
+    assert.equal(readmeWithToken, "# Private Repo Readme");
+    assert.equal(metaWithToken.stars, 42);
+    assert.equal(calls[0].authHeader, "Bearer my-installation-token");
+    assert.equal(calls[1].authHeader, "Bearer my-installation-token");
+
+    if (originalToken) {
+      process.env.GITHUB_TOKEN = originalToken;
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
