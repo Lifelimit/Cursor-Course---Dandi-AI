@@ -70,7 +70,7 @@ export async function GET(request: Request) {
           message = "This repository is not included in your GitHub App installation. Reconnect GitHub and grant access.";
           break;
         case "GITHUB_PRIVATE_REPO_TOKEN_FAILED":
-          message = `Failed to verify GitHub App installation access. Please try reconnecting. Details: ${err.message}`;
+          message = `Failed to verify GitHub App installation access. Please check the Dandi GitHub App configuration or access permissions. Details: ${err.message}`;
           break;
         case "GITHUB_REPO_NOT_FOUND":
           status = 404;
