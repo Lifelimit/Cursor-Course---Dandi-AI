@@ -312,6 +312,57 @@ test("computes configurable CORS headers", () => {
   else process.env.ALLOWED_API_ORIGINS = originalAllowed;
 });
 
+test("GitHub App installation migration keeps direct clients read-only", () => {
+  const baseMigration = readFileSync(resolve(repoRoot, "supabase/migrations/20260622_create_github_app_installations.sql"), "utf8");
+  const hardeningMigration = readFileSync(resolve(repoRoot, "supabase/migrations/20260622120000_harden_github_app_installations.sql"), "utf8");
+  const combinedSql = `${baseMigration}\n${hardeningMigration}`;
+
+  assert.match(combinedSql, /ALTER TABLE public\.github_app_installations ENABLE ROW LEVEL SECURITY;/);
+  assert.match(combinedSql, /REVOKE ALL ON public\.github_app_installations FROM anon;/);
+  assert.match(combinedSql, /REVOKE ALL ON public\.github_app_installations FROM authenticated;/);
+  assert.match(combinedSql, /GRANT SELECT ON public\.github_app_installations TO authenticated;/);
+  assert.doesNotMatch(combinedSql, /GRANT\s+SELECT\s*,\s*INSERT\s*,\s*UPDATE\s*,\s*DELETE\s+ON public\.github_app_installations TO authenticated;/i);
+  assert.doesNotMatch(combinedSql, /CREATE POLICY "Users can insert their GitHub App installations"/);
+  assert.doesNotMatch(combinedSql, /CREATE POLICY "Users can update their GitHub App installations"/);
+  assert.doesNotMatch(combinedSql, /CREATE POLICY "Users can delete their GitHub App installations"/);
+  assert.match(combinedSql, /verified_repositories jsonb NOT NULL DEFAULT '\[\]'::jsonb/);
+});
+
+test("GitHub App callback persists only verified user-accessible repositories", () => {
+  const callbackSource = readFileSync(resolve(repoRoot, "app/api/integrations/github/callback/route.ts"), "utf8");
+  const serviceSource = readFileSync(resolve(repoRoot, "lib/services/github-app.service.ts"), "utf8");
+
+  assert.match(callbackSource, /listGitHubUserAccessibleInstallationRepositories/);
+  assert.match(callbackSource, /verifiedRepositories: verifiedRepoList\.repositories/);
+  assert.match(callbackSource, /verifiedRepositoryCount: verifiedRepoList\.totalCount/);
+  assert.doesNotMatch(callbackSource, /persistGitHubAppInstallation\(\{\s*db:/);
+  assert.match(serviceSource, /from\("github_app_installations"\)\s*\.upsert/);
+  assert.match(serviceSource, /verified_repositories: input\.verifiedRepositories/);
+  assert.match(serviceSource, /verified_repository_count: input\.verifiedRepositoryCount/);
+  const persistFunction = serviceSource.slice(
+    serviceSource.indexOf("export async function persistGitHubAppInstallation"),
+    serviceSource.indexOf("export async function getPrimaryGitHubInstallationForUserWithClient")
+  );
+  assert.doesNotMatch(persistFunction, /userAccessToken|access_token/);
+});
+
+test("GitHub App status displays verified snapshot instead of installation-wide token data", () => {
+  const statusSource = readFileSync(resolve(repoRoot, "app/api/integrations/github/installation/route.ts"), "utf8");
+
+  assert.match(statusSource, /installation\.verified_repositories/);
+  assert.match(statusSource, /repositoryAccessBoundary: "github-user"/);
+  assert.doesNotMatch(statusSource, /listGitHubInstallationRepositories/);
+  assert.doesNotMatch(statusSource, /updateGitHubInstallationSyncMetadata/);
+});
+
+test("GitHub App callback clears state cookies for invalid state and setup config failures", () => {
+  const callbackSource = readFileSync(resolve(repoRoot, "app/api/integrations/github/callback/route.ts"), "utf8");
+
+  assert.match(callbackSource, /clearGitHubCookies\(accountRedirect\(\{ github_error: "GitHub installation state did not match/);
+  assert.match(callbackSource, /catch \(err\) \{\s*return clearGitHubCookies\(accountRedirect\(\{ github_error: getSafeGitHubAppErrorMessage\(err\) \}\)\);/);
+  assert.match(callbackSource, /clearGitHubCookies\(accountRedirect\(\{ github_error: "GitHub authorization state did not match/);
+});
+
 test("prioritizes RAG files deterministically with folder diversity", () => {
   const { selectRagFiles } = loadTsModule("lib/services/rag-file-selection.service.ts");
   const tree = [
