@@ -133,16 +133,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const { apiAccessEnvironments, browserEnvironments } = splitAccountEnvironments(environments);
 
   const {
-    visibleItems: visibleApiAccessEnvironments,
-    visibleCount: visibleApiAccessCount,
-    totalCount: totalApiAccessCount,
-    canShowMore: canShowMoreApiAccess,
-    canShowLess: canShowLessApiAccess,
-    showMore: handleShowMoreApiAccess,
-    showLess: handleShowLessApiAccess,
-  } = useProgressiveList(apiAccessEnvironments);
-
-  const {
     visibleItems: visibleWebhookLogs,
     canShowMore: canShowMoreWebhookLogs,
     canShowLess: canShowLessWebhookLogs,
@@ -481,11 +471,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                 accessView={accessView}
                 apiAccessEnvironments={apiAccessEnvironments}
                 browserEnvironments={browserEnvironments}
-                visibleApiAccessEnvironments={visibleApiAccessEnvironments}
-                visibleApiAccessCount={visibleApiAccessCount}
-                totalApiAccessCount={totalApiAccessCount}
-                canShowMoreApiAccess={canShowMoreApiAccess}
-                canShowLessApiAccess={canShowLessApiAccess}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}
                 newEmail={newEmail}
@@ -496,8 +481,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                   showToast("success", "Authentication preferences successfully synced.");
                 }}
                 onAccessViewChange={setAccessView}
-                onShowMoreApiAccess={handleShowMoreApiAccess}
-                onShowLessApiAccess={handleShowLessApiAccess}
                 onRevokeEnvironment={handleRevokeEnvironment}
                 onRefreshSessions={loadData}
                 onNewPasswordChange={setNewPassword}

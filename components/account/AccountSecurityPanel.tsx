@@ -11,11 +11,6 @@ type AccountSecurityPanelProps = {
   accessView: AccessView;
   apiAccessEnvironments: AccountEnvironment[];
   browserEnvironments: AccountEnvironment[];
-  visibleApiAccessEnvironments: AccountEnvironment[];
-  visibleApiAccessCount: number;
-  totalApiAccessCount: number;
-  canShowMoreApiAccess: boolean;
-  canShowLessApiAccess: boolean;
   newPassword: string;
   confirmPassword: string;
   newEmail: string;
@@ -23,8 +18,6 @@ type AccountSecurityPanelProps = {
   isSavingEmail: boolean;
   onToggleMagicLink: () => void;
   onAccessViewChange: (view: AccessView) => void;
-  onShowMoreApiAccess: () => void;
-  onShowLessApiAccess: () => void;
   onRevokeEnvironment: (environment: AccountEnvironment) => void;
   onRefreshSessions: () => void;
   onNewPasswordChange: (value: string) => void;
@@ -39,11 +32,6 @@ export function AccountSecurityPanel({
   accessView,
   apiAccessEnvironments,
   browserEnvironments,
-  visibleApiAccessEnvironments,
-  visibleApiAccessCount,
-  totalApiAccessCount,
-  canShowMoreApiAccess,
-  canShowLessApiAccess,
   newPassword,
   confirmPassword,
   newEmail,
@@ -51,8 +39,6 @@ export function AccountSecurityPanel({
   isSavingEmail,
   onToggleMagicLink,
   onAccessViewChange,
-  onShowMoreApiAccess,
-  onShowLessApiAccess,
   onRevokeEnvironment,
   onRefreshSessions,
   onNewPasswordChange,
@@ -148,13 +134,6 @@ export function AccountSecurityPanel({
         {accessView === "api" ? (
           <AccountApiKeysPanel
             apiAccessEnvironments={apiAccessEnvironments}
-            visibleApiAccessEnvironments={visibleApiAccessEnvironments}
-            visibleApiAccessCount={visibleApiAccessCount}
-            totalApiAccessCount={totalApiAccessCount}
-            canShowMoreApiAccess={canShowMoreApiAccess}
-            canShowLessApiAccess={canShowLessApiAccess}
-            onShowMoreApiAccess={onShowMoreApiAccess}
-            onShowLessApiAccess={onShowLessApiAccess}
             onRevokeEnvironment={onRevokeEnvironment}
           />
         ) : (
