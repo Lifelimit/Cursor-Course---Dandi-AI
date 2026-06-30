@@ -49,6 +49,7 @@ export function TabsBar({
   return (
     <ScrollFrame
       axis="x"
+      focusable={false}
       className={cx(
         "command-tabs w-full pb-2 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0",
         className,

@@ -8,6 +8,7 @@ export type ScrollFrameProps = {
   maxHeight?: string;
   className?: string;
   label?: string;
+  focusable?: boolean;
 };
 
 const axisClasses: Record<NonNullable<ScrollFrameProps["axis"]>, string> = {
@@ -23,9 +24,11 @@ export function ScrollFrame({
   maxHeight,
   className,
   label,
+  focusable,
 }: ScrollFrameProps) {
   const frameStyle: CSSProperties | undefined = maxHeight ? { maxHeight } : undefined;
   const innerStyle: CSSProperties | undefined = minWidth ? { minWidth } : undefined;
+  const tabIndex = focusable === false ? -1 : focusable || label ? 0 : undefined;
 
   return (
     <div
@@ -33,7 +36,7 @@ export function ScrollFrame({
       style={frameStyle}
       role={label ? "region" : undefined}
       aria-label={label}
-      tabIndex={label ? 0 : undefined}
+      tabIndex={tabIndex}
     >
       <div className={cx(axis === "y" ? "min-w-0" : undefined, minWidth && "w-full")} style={innerStyle}>
         {children}
