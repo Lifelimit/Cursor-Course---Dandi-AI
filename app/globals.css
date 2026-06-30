@@ -114,6 +114,16 @@ body {
   outline-offset: 3px;
 }
 
+.command-tabs,
+.command-tabs:focus,
+.command-tabs:focus-visible,
+.command-tabs [role="tablist"],
+.command-tabs [role="tablist"]:focus,
+.command-tabs [role="tablist"]:focus-visible,
+.command-tabs-tab:focus {
+  outline: none;
+}
+
 @keyframes scale-up-center {
   0% { transform: scale(0.95); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }

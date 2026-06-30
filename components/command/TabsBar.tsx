@@ -47,12 +47,18 @@ export function TabsBar({
   };
 
   return (
-    <ScrollFrame axis="x" className={cx("w-full pb-2", className)}>
+    <ScrollFrame
+      axis="x"
+      className={cx(
+        "command-tabs w-full pb-2 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0",
+        className,
+      )}
+    >
       <div
         role="tablist"
         aria-label={ariaLabel}
         className={cx(
-          "flex min-w-max snap-x snap-mandatory items-center gap-1.5 sm:gap-2",
+          "flex min-w-max snap-x snap-mandatory items-center gap-1.5 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 sm:gap-2",
           variant === "underline" && "border-b border-[var(--command-border)]",
           variant === "pills" &&
             "isolate overflow-hidden rounded-full border border-[var(--command-border)] bg-white/[0.03] p-1",
@@ -77,7 +83,7 @@ export function TabsBar({
               onClick={() => onChange(tab.id)}
               onKeyDown={(event) => handleKeyDown(event, index)}
               className={cx(
-                "inline-flex shrink-0 snap-start items-center justify-center gap-1.5 whitespace-nowrap text-[9px] font-black uppercase tracking-[0.12em] outline-none transition focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:gap-2 sm:text-[10px] sm:tracking-[0.18em]",
+                "command-tabs-tab inline-flex shrink-0 snap-start items-center justify-center gap-1.5 whitespace-nowrap text-[9px] font-black uppercase tracking-[0.12em] outline-none transition focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:gap-2 sm:text-[10px] sm:tracking-[0.18em]",
                 variant === "underline" &&
                   "border-b-2 px-2.5 pb-3 pt-1 sm:px-3 " +
                     (selected
