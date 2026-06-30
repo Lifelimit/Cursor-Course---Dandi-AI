@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
   createGitHubAppState,
-  getGitHubInstallUrl,
+  getGitHubOAuthUrl,
   getSafeGitHubAppErrorMessage,
   githubAppCookies,
 } from "@/lib/services/github-app.service";
@@ -23,15 +23,16 @@ export async function GET(request: NextRequest) {
     }
 
     const state = createGitHubAppState();
-    const installUrl = getGitHubInstallUrl(state);
-    const response = NextResponse.redirect(installUrl);
-    response.cookies.set(githubAppCookies.installState, state, {
+    const redirectUri = `${origin}/api/integrations/github/callback`;
+    const response = NextResponse.redirect(getGitHubOAuthUrl({ state, redirectUri }));
+    response.cookies.set(githubAppCookies.oauthState, `${state}.relink`, {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
-      maxAge: 15 * 60,
+      maxAge: 10 * 60,
     });
+    response.cookies.delete(githubAppCookies.installState);
 
     return response;
   } catch (err) {

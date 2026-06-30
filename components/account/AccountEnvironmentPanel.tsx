@@ -365,6 +365,9 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
               <p className="text-xs font-semibold leading-5 text-slate-400">
                 Connecting GitHub lets Dandi verify which installation repositories your GitHub user can access. Repository contents are not stored by this connection step.
               </p>
+              <p className="text-xs font-semibold leading-5 text-slate-500">
+                Already installed on GitHub? Click Connect GitHub to re-link it with Dandi. If GitHub opens the app configuration page, choose Configure or Update to return here.
+              </p>
               {status?.configured === false && (
                 <div className="rounded-lg border border-amber-300/20 bg-amber-300/10 p-4">
                   <p className="text-xs font-semibold leading-5 text-amber-100">

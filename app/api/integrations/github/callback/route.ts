@@ -4,10 +4,12 @@ import {
   createGitHubAppState,
   exchangeGitHubUserCode,
   getGitHubOAuthUrl,
+  getGitHubInstallUrl,
   getSafeGitHubAppErrorMessage,
   githubAppCookies,
   listGitHubUserAccessibleInstallationRepositories,
   persistGitHubAppInstallation,
+  relinkGitHubAppInstallationForUser,
 } from "@/lib/services/github-app.service";
 import { publicEnv } from "@/lib/env";
 import { getTrustedCallbackOrigin } from "@/lib/api-request";
@@ -37,11 +39,21 @@ function parseInstallationId(value: string | null) {
 
 function parseOAuthCookie(value: string | undefined) {
   if (!value) return null;
-  const [state, installationId] = value.split(".");
+  const [state, modeOrInstallationId] = value.split(".");
+  if (state && modeOrInstallationId === "relink") {
+    return {
+      state,
+      mode: "relink" as const,
+      installationId: null,
+    };
+  }
+
+  const installationId = modeOrInstallationId;
   const parsedInstallationId = parseInstallationId(installationId || null);
   if (!state || !parsedInstallationId) return null;
   return {
     state,
+    mode: "installation" as const,
     installationId: parsedInstallationId,
   };
 }
@@ -80,16 +92,13 @@ async function handleSetupCallback(request: NextRequest) {
       return clearGitHubCookies(accountRedirect({ github_error: "GitHub installation was not completed." }, origin));
     }
 
-    const installationId = parseInstallationId(request.nextUrl.searchParams.get("installation_id"));
-    if (!installationId) {
-      return clearGitHubCookies(accountRedirect({ github_error: "GitHub did not return an installation id." }, origin));
-    }
-
     const oauthState = createGitHubAppState();
+    const installationId = parseInstallationId(request.nextUrl.searchParams.get("installation_id"));
+    const oauthCookieValue = installationId ? `${oauthState}.${installationId}` : `${oauthState}.relink`;
     const redirectUri = `${origin}/api/integrations/github/callback`;
     const response = NextResponse.redirect(getGitHubOAuthUrl({ state: oauthState, redirectUri }));
     response.cookies.delete(githubAppCookies.installState);
-    response.cookies.set(githubAppCookies.oauthState, `${oauthState}.${installationId}`, {
+    response.cookies.set(githubAppCookies.oauthState, oauthCookieValue, {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
@@ -123,7 +132,35 @@ async function handleOAuthCallback(request: NextRequest) {
   }
 
   try {
-    const userAccessToken = await exchangeGitHubUserCode(code);
+    const redirectUri = `${origin}/api/integrations/github/callback`;
+    const userAccessToken = await exchangeGitHubUserCode(code, redirectUri);
+    if (oauthState.mode === "relink") {
+      const relinkResult = await relinkGitHubAppInstallationForUser({
+        userId: user.id,
+        userAccessToken,
+      });
+
+      if (relinkResult.relinked) {
+        return clearGitHubCookies(accountRedirect({ github: "connected" }, origin));
+      }
+
+      const installState = createGitHubAppState();
+      const response = NextResponse.redirect(getGitHubInstallUrl(installState));
+      response.cookies.delete(githubAppCookies.oauthState);
+      response.cookies.set(githubAppCookies.installState, installState, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 15 * 60,
+      });
+      return response;
+    }
+
+    if (!oauthState.installationId) {
+      return clearGitHubCookies(accountRedirect({ github_error: "GitHub did not return an installation id." }, origin));
+    }
+
     const verifiedRepoList = await listGitHubUserAccessibleInstallationRepositories({
       userAccessToken,
       installationId: oauthState.installationId,

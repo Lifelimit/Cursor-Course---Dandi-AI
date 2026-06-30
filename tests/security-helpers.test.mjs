@@ -347,9 +347,30 @@ test("GitHub App callback persists only verified user-accessible repositories", 
   assert.match(serviceSource, /verified_repository_count: input\.verifiedRepositoryCount/);
   const persistFunction = serviceSource.slice(
     serviceSource.indexOf("export async function persistGitHubAppInstallation"),
-    serviceSource.indexOf("export async function getPrimaryGitHubInstallationForUserWithClient")
+    serviceSource.indexOf("export async function relinkGitHubAppInstallationForUser")
   );
   assert.doesNotMatch(persistFunction, /userAccessToken|access_token/);
+});
+
+test("GitHub App reconnect keeps connect and manage flows separate", () => {
+  const startSource = readFileSync(resolve(repoRoot, "app/api/integrations/github/start/route.ts"), "utf8");
+  const callbackSource = readFileSync(resolve(repoRoot, "app/api/integrations/github/callback/route.ts"), "utf8");
+  const accountSource = readFileSync(resolve(repoRoot, "components/account/AccountEnvironmentPanel.tsx"), "utf8");
+  const serviceSource = readFileSync(resolve(repoRoot, "lib/services/github-app.service.ts"), "utf8");
+
+  assert.match(startSource, /getGitHubOAuthUrl/);
+  assert.match(startSource, /\$\{state\}\.relink/);
+  assert.doesNotMatch(startSource, /getGitHubAppManagementUrl/);
+  assert.match(callbackSource, /relinkGitHubAppInstallationForUser/);
+  assert.match(callbackSource, /getGitHubInstallUrl\(installState\)/);
+  assert.match(callbackSource, /setupAction && setupAction !== "install" && setupAction !== "update"/);
+  assert.match(callbackSource, /oauthCookieValue = installationId \? `\$\{oauthState\}\.\$\{installationId\}` : `\$\{oauthState\}\.relink`/);
+  assert.match(serviceSource, /listGitHubUserAccessibleAppInstallations/);
+  assert.match(serviceSource, /listGitHubUserAccessibleInstallationRepositories\(\{\s*userAccessToken: input\.userAccessToken,\s*installationId: installation\.id/s);
+  assert.match(serviceSource, /persistGitHubAppInstallation\(\{\s*userId: input\.userId,\s*installationId: installation\.id/s);
+  assert.match(accountSource, /href="\/api\/integrations\/github\/start"/);
+  assert.match(accountSource, /Manage on GitHub/);
+  assert.match(accountSource, /Already installed on GitHub\?/);
 });
 
 test("GitHub App status displays verified snapshot instead of installation-wide token data", () => {
@@ -1312,6 +1333,127 @@ test("GitHub service supports optional installation token for private repositori
   }
 });
 
+test("GitHub App reconnect after local disconnect verifies and recreates the local record", async () => {
+  const { supabaseAdmin } = loadTsModule("lib/supabase-admin.ts");
+  const githubAppService = loadTsModule("lib/services/github-app.service.ts");
+  const { relinkGitHubAppInstallationForUser } = githubAppService;
+
+  const originalFrom = supabaseAdmin.from;
+  const originalFetch = globalThis.fetch;
+  const originalCreateSign = crypto.createSign;
+  const calls = [];
+  let persistedRow = null;
+
+  crypto.createSign = () => ({
+    update: () => ({
+      sign: () => Buffer.from("mock-jwt-signature"),
+    }),
+  });
+
+  supabaseAdmin.from = (table) => {
+    assert.equal(table, "github_app_installations");
+    return {
+      upsert: (row, options) => {
+        persistedRow = { row, options };
+        return {
+          select: () => ({
+            single: async () => ({
+              data: { id: "row-1", ...row },
+              error: null,
+            }),
+          }),
+        };
+      },
+    };
+  };
+
+  try {
+    globalThis.fetch = async (url, options) => {
+      calls.push({
+        url: String(url),
+        method: options?.method,
+        authHeader: options?.headers?.Authorization,
+      });
+
+      if (String(url).includes("/user/installations?")) {
+        return jsonResponse({
+          total_count: 1,
+          installations: [
+            {
+              id: 987654,
+              app_id: 12345,
+              account: { id: 42, login: "octo-org", name: "Octo Org", type: "Organization" },
+              repository_selection: "selected",
+            },
+          ],
+        });
+      }
+
+      if (String(url).includes("/user/installations/987654/repositories")) {
+        return jsonResponse({
+          total_count: 1,
+          repositories: [
+            {
+              id: 1001,
+              name: "repo",
+              full_name: "octo-org/repo",
+              private: true,
+              html_url: "https://github.com/octo-org/repo",
+              description: "Verified repo",
+              default_branch: "main",
+              updated_at: "2026-06-30T00:00:00Z",
+            },
+          ],
+        });
+      }
+
+      if (String(url).endsWith("/app/installations/987654")) {
+        return jsonResponse({
+          id: 987654,
+          account: { id: 42, login: "octo-org", name: "Octo Org", type: "Organization" },
+          repository_selection: "selected",
+        });
+      }
+
+      return jsonResponse({ message: "not found" }, { status: 404, statusText: "Not Found" });
+    };
+
+    const result = await relinkGitHubAppInstallationForUser({
+      userId: "user-after-local-disconnect",
+      userAccessToken: "github-user-token",
+    });
+
+    assert.equal(result.relinked, true);
+    assert.equal(result.installation.installation_id, 987654);
+    assert.equal(persistedRow.options.onConflict, "user_id,installation_id");
+    assert.equal(persistedRow.row.user_id, "user-after-local-disconnect");
+    assert.equal(persistedRow.row.installation_id, 987654);
+    assert.equal(persistedRow.row.github_account_login, "octo-org");
+    assert.equal(persistedRow.row.repository_selection, "selected");
+    assert.equal(persistedRow.row.verified_repository_count, 1);
+    assert.deepEqual(persistedRow.row.verified_repositories, [
+      {
+        id: 1001,
+        name: "repo",
+        fullName: "octo-org/repo",
+        private: true,
+        htmlUrl: "https://github.com/octo-org/repo",
+        description: "Verified repo",
+        defaultBranch: "main",
+        updatedAt: "2026-06-30T00:00:00Z",
+      },
+    ]);
+    assert.equal(calls.some((call) => call.url.includes("/installation/repositories")), false);
+    assert.equal(calls.some((call) => call.url.includes("/access_tokens")), false);
+    assert(calls.some((call) => call.url.includes("/user/installations/987654/repositories")));
+    assert(calls.every((call) => call.authHeader !== "Bearer undefined"));
+  } finally {
+    supabaseAdmin.from = originalFrom;
+    globalThis.fetch = originalFetch;
+    crypto.createSign = originalCreateSign;
+  }
+});
+
 test("GitHub App uninstall endpoint and service behave securely and handle cleanups correctly", async () => {
   const { supabaseAdmin } = loadTsModule("lib/supabase-admin.ts");
   const githubAppService = loadTsModule("lib/services/github-app.service.ts");
@@ -1487,4 +1629,3 @@ test("GitHub App uninstall endpoint and service behave securely and handle clean
     crypto.createSign = originalCreateSign;
   }
 });
-

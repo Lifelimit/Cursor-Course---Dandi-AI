@@ -53,6 +53,11 @@ type GitHubAccount = {
 
 type GitHubInstallation = {
   id: number;
+  app_id?: number;
+  app?: {
+    id?: number;
+    slug?: string;
+  } | null;
   account?: GitHubAccount | null;
   repository_selection?: string;
 };
@@ -82,6 +87,11 @@ type GitHubUserTokenResponse = {
 type GitHubRepositoriesResponse = {
   total_count?: number;
   repositories?: GitHubRepository[];
+};
+
+type GitHubUserInstallationsResponse = {
+  total_count?: number;
+  installations?: GitHubInstallation[];
 };
 
 export class GitHubAppConfigurationError extends Error {
@@ -161,6 +171,15 @@ function getGitHubAppConfig() {
     installationUrl: env.GITHUB_APP_INSTALLATION_URL,
     slug: env.GITHUB_APP_SLUG,
   };
+}
+
+function getGitHubAppIdNumber() {
+  const { appId } = getGitHubAppConfig();
+  const parsed = Number(appId);
+  if (!Number.isSafeInteger(parsed)) {
+    throw new GitHubAppConfigurationError("GITHUB_APP_ID must be a numeric GitHub App id.");
+  }
+  return parsed;
 }
 
 export function isGitHubAppConfigured() {
@@ -310,7 +329,7 @@ export async function getGitHubAppInstallation(installationId: number) {
   );
 }
 
-export async function exchangeGitHubUserCode(code: string) {
+export async function exchangeGitHubUserCode(code: string, redirectUri?: string) {
   const config = getGitHubAppConfig();
   if (!config.clientId || !config.clientSecret) {
     throw new GitHubAppConfigurationError("Set GITHUB_APP_CLIENT_ID and GITHUB_APP_CLIENT_SECRET to verify GitHub App installations.");
@@ -327,7 +346,7 @@ export async function exchangeGitHubUserCode(code: string) {
       client_id: config.clientId,
       client_secret: config.clientSecret,
       code,
-      redirect_uri: new URL("/api/integrations/github/callback", publicEnv.NEXT_PUBLIC_APP_URL).toString(),
+      redirect_uri: redirectUri || new URL("/api/integrations/github/callback", publicEnv.NEXT_PUBLIC_APP_URL).toString(),
     }),
   });
 
@@ -370,6 +389,38 @@ export async function listGitHubUserAccessibleInstallationRepositories(input: {
     repositories,
     totalCount,
   };
+}
+
+export async function listGitHubUserAccessibleAppInstallations(input: {
+  userAccessToken: string;
+  maxPages?: number;
+}) {
+  const appId = getGitHubAppIdNumber();
+  const maxPages = Math.min(Math.max(input.maxPages ?? 3, 1), 10);
+  const installations: GitHubInstallation[] = [];
+  let totalCount = 0;
+
+  for (let page = 1; page <= maxPages; page += 1) {
+    const data = await githubJson<GitHubUserInstallationsResponse>(
+      `https://api.github.com/user/installations?per_page=100&page=${page}`,
+      {
+        method: "GET",
+        token: input.userAccessToken,
+      }
+    );
+
+    totalCount = typeof data.total_count === "number" ? data.total_count : installations.length;
+    const pageInstallations = data.installations || [];
+    installations.push(
+      ...pageInstallations.filter((installation) => installation.app_id === appId || installation.app?.id === appId)
+    );
+
+    if (pageInstallations.length < 100 || page * 100 >= totalCount) {
+      break;
+    }
+  }
+
+  return installations;
 }
 
 function normalizeRepositorySelection(value: unknown): "all" | "selected" | "unknown" {
@@ -461,6 +512,39 @@ export async function persistGitHubAppInstallation(input: {
   }
 
   return data as GitHubAppInstallationRecord;
+}
+
+export async function relinkGitHubAppInstallationForUser(input: {
+  userId: string;
+  userAccessToken: string;
+}) {
+  const installations = await listGitHubUserAccessibleAppInstallations({
+    userAccessToken: input.userAccessToken,
+  });
+  const installation = installations[0];
+
+  if (!installation) {
+    return {
+      relinked: false,
+      installation: null,
+    };
+  }
+
+  const verifiedRepoList = await listGitHubUserAccessibleInstallationRepositories({
+    userAccessToken: input.userAccessToken,
+    installationId: installation.id,
+  });
+  const persistedInstallation = await persistGitHubAppInstallation({
+    userId: input.userId,
+    installationId: installation.id,
+    verifiedRepositories: verifiedRepoList.repositories,
+    verifiedRepositoryCount: verifiedRepoList.totalCount,
+  });
+
+  return {
+    relinked: true,
+    installation: persistedInstallation,
+  };
 }
 
 export async function getPrimaryGitHubInstallationForUserWithClient(input: {
