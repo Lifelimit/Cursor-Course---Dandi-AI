@@ -229,7 +229,7 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
   };
 
   return (
-    <CommandPanel id="account-integrations-panel" role="tabpanel" aria-labelledby="integrations-tab" className="space-y-8 p-8 md:p-10">
+    <CommandPanel id="account-integrations-panel" role="tabpanel" aria-labelledby="integrations-tab" className="min-w-0 space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-10">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="space-y-1">
           <h3 className="font-serif text-xl font-bold text-white sm:text-2xl">Git Provider Connections</h3>
@@ -272,9 +272,9 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <section className="rounded-lg border border-white/10 bg-slate-950/40 p-6 shadow-xl backdrop-blur-xl">
-          <div className="flex items-start justify-between gap-4">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <section className="min-w-0 rounded-lg border border-white/10 bg-slate-950/40 p-4 shadow-xl backdrop-blur-xl sm:p-6">
+          <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-slate-900 text-white">
                 <GitHubMark />
@@ -286,7 +286,7 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
                 </p>
               </div>
             </div>
-            <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-widest ${
+            <span className={`w-fit shrink-0 rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-widest ${
               isConnected
                 ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-200"
                 : "border-slate-600/50 bg-slate-900/80 text-slate-400"
@@ -334,18 +334,18 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
                 )}
               </dl>
 
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex min-w-0 flex-col gap-3 lg:flex-row">
                 <a
                   href={manageInstallationUrl(installation)}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex min-h-10 flex-1 items-center justify-center rounded-lg border border-emerald-300/25 bg-emerald-300/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:bg-emerald-300/15"
+                  className="flex min-h-10 min-w-0 flex-1 items-center justify-center rounded-lg border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.12em] text-emerald-100 transition hover:bg-emerald-300/15 sm:tracking-[0.16em]"
                 >
                   Manage on GitHub
                 </a>
                 <a
                   href="/api/integrations/github/start"
-                  className="flex min-h-10 flex-1 items-center justify-center rounded-lg border border-sky-300/25 bg-sky-300/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-sky-100 transition hover:bg-sky-300/15"
+                  className="flex min-h-10 min-w-0 flex-1 items-center justify-center rounded-lg border border-sky-300/25 bg-sky-300/10 px-4 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.12em] text-sky-100 transition hover:bg-sky-300/15 sm:tracking-[0.16em]"
                 >
                   Reconnect to Refresh
                 </a>
@@ -356,7 +356,7 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
                     setIsDisconnectModalOpen(true);
                   }}
                   disabled={isRemoving || isLoading}
-                  className="flex min-h-10 flex-1 items-center justify-center rounded-lg border border-red-300/20 bg-red-400/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-red-100 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex min-h-10 min-w-0 flex-1 items-center justify-center rounded-lg border border-red-300/20 bg-red-400/10 px-4 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.12em] text-red-100 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-50 sm:tracking-[0.16em]"
                 >
                   Disconnect from Dandi
                 </button>
@@ -390,9 +390,9 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
           )}
         </section>
 
-        <section className="rounded-lg border border-white/10 bg-slate-950/40 p-6 shadow-xl backdrop-blur-xl">
-          <div className="flex items-start justify-between gap-4">
-            <div>
+        <section className="min-w-0 rounded-lg border border-white/10 bg-slate-950/40 p-4 shadow-xl backdrop-blur-xl sm:p-6">
+          <div className="flex min-w-0 items-start justify-between gap-4">
+            <div className="min-w-0">
               <h4 className="text-sm font-bold text-white">Accessible Repositories</h4>
               <p className="mt-1 text-xs font-semibold text-slate-500">
                 {isConnected
@@ -417,15 +417,15 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
                     href={repo.htmlUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex min-w-0 items-center justify-between gap-4 p-4 transition hover:bg-white/[0.03]"
+                    className="flex min-w-0 flex-col gap-2 p-4 transition hover:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 max-w-full">
                       <p className="truncate font-mono text-xs font-bold text-slate-100">{repo.fullName}</p>
                       <p className="mt-1 truncate text-[11px] font-medium text-slate-500">
                         {repo.description || `Default branch: ${repo.defaultBranch}`}
                       </p>
                     </div>
-                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${
+                    <span className={`w-fit shrink-0 rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${
                       repo.private
                         ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
                         : "border-slate-600/50 bg-slate-900 text-slate-400"

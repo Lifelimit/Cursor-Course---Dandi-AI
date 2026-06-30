@@ -16,7 +16,7 @@ Create or edit the GitHub App in GitHub developer settings.
 Required repository permissions:
 
 - Metadata: read-only. GitHub Apps receive this permission by default and Dandi uses repository metadata for Account Settings display.
-- Contents: read-only. This is required before future private repository summarization can read repository files, but summarization/indexing is intentionally not wired in the current verification task.
+- Contents: read-only. This is required for private Repository Summary to read granted repository files through a server-side installation token. Private RAG, indexing, and chat remain out of scope.
 
 Repository access expectation:
 
@@ -77,7 +77,7 @@ After applying, verify:
 10. Click Disconnect from Dandi and confirm only the local Dandi record is removed.
 11. Click Uninstall GitHub App from GitHub, type UNINSTALL, and confirm both GitHub-side revoke and local cleanup succeed.
 
-Do not use this flow as proof that private repository summarization is ready. That requires a separate authorization design for resolving a Dandi user/API key to installation-token repository access.
+After the connection is verified, Repository Summary can summarize private repositories that are present in the verified repository snapshot. Ask a Repository, RAG indexing, and private chat remain out of scope and should continue to fail closed for private repositories.
 
 ## Connection Cleanup Operations
 

@@ -17,7 +17,7 @@ Persist GitHub App installation metadata in `public.github_app_installations` wi
 
 Account Settings displays only repositories returned by GitHub's user-token installation repositories endpoint during the verified connection flow. Dandi does not display installation-wide repository access unless a later owner/admin verification model is designed.
 
-Keep private repository summarization/indexing as a separate follow-up. Supporting API-key based private repository access requires a deliberate server-side trust boundary for resolving a validated API key user to an installation token.
+Private Repository Summary may use the verified repository snapshot to authorize a server-side installation token fetch for repositories granted to the connected GitHub App installation. Private RAG, indexing, and chat remain a separate follow-up and must not gain private repository access without a new authorization and data-retention review.
 
 ## Consequences
 
@@ -39,4 +39,4 @@ Classic OAuth was rejected because it does not model repository-scoped installat
 
 Persisting the setup `installation_id` directly was rejected because it would trust a spoofable callback parameter.
 
-Using service-role reads for private repository API-key flows in this first change was deferred to avoid expanding authorization assumptions without a separate review.
+Using GitHub App installation access for private RAG/indexing/chat was deferred to avoid expanding authorization, retrieval, and data-retention assumptions without a separate review.
