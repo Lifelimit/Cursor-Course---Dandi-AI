@@ -168,6 +168,29 @@ export function isGitHubAppConfigured() {
   return Boolean(env.GITHUB_APP_ID && env.GITHUB_APP_PRIVATE_KEY && env.GITHUB_APP_CLIENT_ID && env.GITHUB_APP_CLIENT_SECRET);
 }
 
+export function getGitHubAppManagementUrl() {
+  const env = getServerEnv();
+  if (env.GITHUB_APP_SLUG) {
+    return `https://github.com/apps/${env.GITHUB_APP_SLUG}`;
+  }
+
+  if (!env.GITHUB_APP_INSTALLATION_URL) {
+    return null;
+  }
+
+  try {
+    const url = new URL(env.GITHUB_APP_INSTALLATION_URL);
+    const [, appsSegment, slug] = url.pathname.split("/");
+    if (url.hostname === "github.com" && appsSegment === "apps" && slug) {
+      return `https://github.com/apps/${slug}`;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 export function createGitHubAppState() {
   return crypto.randomBytes(24).toString("base64url");
 }

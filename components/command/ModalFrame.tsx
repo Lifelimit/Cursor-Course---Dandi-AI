@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { cx } from "./utils";
 
 export type ModalFrameProps = {
@@ -40,9 +41,26 @@ export function ModalFrame({
 }: ModalFrameProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setMounted(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !mounted) return;
 
     previousFocusRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
@@ -96,16 +114,16 @@ export function ModalFrame({
       previousFocusRef.current?.focus({ preventScroll: true });
       previousFocusRef.current = null;
     };
-  }, [onClose, open]);
+  }, [mounted, onClose, open]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const handleOverlayClick = (event: MouseEvent<HTMLDivElement>) => {
     if (!onClose || event.target !== event.currentTarget) return;
     onClose();
   };
 
-  return (
+  return createPortal(
     <div
       className={cx(
         "fixed inset-0 z-[1000] flex justify-center overflow-y-auto bg-zinc-950/70 p-3 backdrop-blur-sm sm:p-6",
@@ -128,6 +146,7 @@ export function ModalFrame({
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

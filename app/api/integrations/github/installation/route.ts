@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
+  getGitHubAppManagementUrl,
   getPrimaryGitHubInstallationForUserWithClient,
   isGitHubAppConfigured,
   removeGitHubInstallationFromDandi,
@@ -34,6 +35,7 @@ export async function GET() {
         connected: false,
         configured: isGitHubAppConfigured(),
         repositories: [],
+        githubAppManagementUrl: getGitHubAppManagementUrl(),
       });
     }
 
@@ -57,6 +59,7 @@ export async function GET() {
       },
       repositories,
       repositoryAccessBoundary: "github-user",
+      githubAppManagementUrl: getGitHubAppManagementUrl(),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load GitHub installation.";
@@ -81,7 +84,12 @@ export async function DELETE() {
     });
 
     if (!installation) {
-      return NextResponse.json({ success: true, connected: false });
+      return NextResponse.json({
+        success: true,
+        connected: false,
+        githubUninstalled: false,
+        githubAppManagementUrl: getGitHubAppManagementUrl(),
+      });
     }
 
     await removeGitHubInstallationFromDandi({
@@ -93,7 +101,8 @@ export async function DELETE() {
       success: true,
       connected: false,
       githubUninstalled: false,
-      message: "Removed the GitHub installation from Dandi. Manage or uninstall the GitHub App from GitHub if needed.",
+      githubAppManagementUrl: getGitHubAppManagementUrl(),
+      message: "GitHub was disconnected inside Dandi. The GitHub App may still be installed on GitHub.",
     });
   } catch {
     return NextResponse.json({ error: "Failed to remove GitHub installation." }, { status: 500 });

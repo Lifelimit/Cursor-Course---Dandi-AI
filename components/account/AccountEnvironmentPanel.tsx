@@ -36,6 +36,7 @@ type GitHubInstallationResponse = {
   installation?: GitHubInstallation;
   repositories: GitHubRepository[];
   repositoryAccessBoundary?: "github-user";
+  githubAppManagementUrl?: string | null;
   error?: string;
 };
 
@@ -95,6 +96,7 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
   const [uninstallConfirmText, setUninstallConfirmText] = useState("");
   const [isUninstalling, setIsUninstalling] = useState(false);
   const [uninstallError, setUninstallError] = useState("");
+  const [postDisconnectManageUrl, setPostDisconnectManageUrl] = useState<string | null>(null);
   const notice = searchParams.get("github_notice");
   const connectedNotice = searchParams.get("github") === "connected";
   const callbackError = searchParams.get("github_error");
@@ -113,7 +115,13 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
         throw new Error(await readStatusError(response));
       }
 
-      setStatus(await response.json() as GitHubInstallationResponse);
+      const nextStatus = await response.json() as GitHubInstallationResponse;
+      setStatus(nextStatus);
+      if (nextStatus.connected && nextStatus.installation) {
+        setPostDisconnectManageUrl(manageInstallationUrl(nextStatus.installation));
+      } else if (nextStatus.githubAppManagementUrl) {
+        setPostDisconnectManageUrl(nextStatus.githubAppManagementUrl);
+      }
       setLoadState("ready");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "GitHub integration status could not be loaded.");
@@ -152,12 +160,22 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
         throw new Error(await readStatusError(response));
       }
 
+      const data = await response.json().catch(() => null) as {
+        githubAppManagementUrl?: string | null;
+        message?: string;
+      } | null;
+      const managementUrl = installation
+        ? manageInstallationUrl(installation)
+        : data?.githubAppManagementUrl || status?.githubAppManagementUrl || postDisconnectManageUrl;
+
       setStatus({
         connected: false,
         configured: status?.configured ?? true,
         repositories: [],
+        githubAppManagementUrl: data?.githubAppManagementUrl || status?.githubAppManagementUrl || null,
       });
-      setSuccessMessage("Removed the GitHub installation from Dandi. Manage or uninstall the GitHub App from GitHub if needed.");
+      setPostDisconnectManageUrl(managementUrl || null);
+      setSuccessMessage(data?.message || "GitHub was disconnected inside Dandi. The GitHub App may still be installed on GitHub.");
       setIsDisconnectModalOpen(false);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "GitHub installation could not be removed from Dandi.");
@@ -195,7 +213,9 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
         connected: false,
         configured: status?.configured ?? true,
         repositories: [],
+        githubAppManagementUrl: status?.githubAppManagementUrl || null,
       });
+      setPostDisconnectManageUrl(null);
       setSuccessMessage(data?.message || "Dandi's GitHub App was successfully uninstalled from GitHub and disconnected from Dandi.");
       setIsUninstallModalOpen(false);
       setUninstallConfirmText("");
@@ -237,6 +257,16 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
           <p className="text-xs font-semibold leading-5">
             {callbackError || errorMessage || successMessage || notice || "GitHub connected successfully."}
           </p>
+          {!callbackError && !errorMessage && successMessage && postDisconnectManageUrl && (
+            <a
+              href={postDisconnectManageUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-flex min-h-9 items-center justify-center rounded-lg border border-emerald-300/25 bg-emerald-300/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:bg-emerald-300/15"
+            >
+              Manage on GitHub
+            </a>
+          )}
         </div>
       )}
 
