@@ -227,8 +227,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   };
 
   const handleRevokeEnvironment = async (environment: AccountEnvironment) => {
-    if (!environment.apiKeyId || !environment.revocable) {
-      showToast("error", getToastErrorMessage("browser-session", "This environment cannot be revoked from here."));
+    if (environment.kind !== "api_key" || !environment.apiKeyId || !environment.revocable) {
+      showToast("error", getToastErrorMessage("api-key", "This API key cannot be revoked from here."));
       return;
     }
 
@@ -241,14 +241,14 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to revoke environment.");
+        throw new Error(data.error || "Failed to revoke API key.");
       }
 
       setEnvironments(prev => prev.filter(env => env.apiKeyId !== environment.apiKeyId));
-      showToast("success", "Developer environment access successfully revoked.");
+      showToast("success", "API key successfully revoked.");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to revoke environment.";
-      showToast("error", getToastErrorMessage("browser-session", message));
+      const message = err instanceof Error ? err.message : "Failed to revoke API key.";
+      showToast("error", getToastErrorMessage("api-key", message));
     }
   };
 

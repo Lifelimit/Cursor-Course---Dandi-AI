@@ -121,7 +121,7 @@ export function buildAccountEnvironments(input: {
       location: formatEnvironmentLocation(log),
       lastSeenAt: log.usedAt || null,
       current: false,
-      revocable: !!log.keyId,
+      revocable: false,
       apiKeyId: log.keyId,
     });
   }
