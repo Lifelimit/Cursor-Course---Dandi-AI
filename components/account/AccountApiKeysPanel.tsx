@@ -6,7 +6,7 @@ import type { AccountApiKeyAccess, AccountApiRequestActivity } from "@/types/acc
 type AccountApiKeysPanelProps = {
   apiKeys: AccountApiKeyAccess[];
   recentRequests: AccountApiRequestActivity[];
-  onRevokeEnvironment: (apiKey: AccountApiKeyAccess) => void;
+  onRevokeApiKey: (apiKey: AccountApiKeyAccess) => void;
 };
 
 function getApiKeyEnvironmentLabel(apiKey: AccountApiKeyAccess) {
@@ -26,7 +26,7 @@ function CreateApiKeyLink() {
 export function AccountApiKeysPanel({
   apiKeys,
   recentRequests,
-  onRevokeEnvironment,
+  onRevokeApiKey,
 }: AccountApiKeysPanelProps) {
   return (
     <div className="space-y-8">
@@ -67,7 +67,7 @@ export function AccountApiKeysPanel({
                   {canRevokeApiKey ? (
                     <button
                       type="button"
-                      onClick={() => onRevokeEnvironment(apiKey)}
+                      onClick={() => onRevokeApiKey(apiKey)}
                       className="w-full rounded-xl border border-rose-500/20 bg-rose-950/20 px-4 py-3 text-[9px] font-black uppercase tracking-widest text-rose-400 transition-all hover:bg-rose-500 hover:text-white active:scale-[0.98]"
                       title="Disable this API key"
                     >
@@ -126,7 +126,7 @@ export function AccountApiKeysPanel({
                         {canRevokeApiKey ? (
                           <button
                             type="button"
-                            onClick={() => onRevokeEnvironment(apiKey)}
+                            onClick={() => onRevokeApiKey(apiKey)}
                             className="rounded-full border border-rose-500/20 bg-rose-950/20 px-3.5 py-2 text-[8px] font-black uppercase tracking-widest text-rose-400 shadow-sm transition-all hover:bg-rose-500 hover:text-white active:scale-[0.97]"
                             title="Disable this API key"
                           >

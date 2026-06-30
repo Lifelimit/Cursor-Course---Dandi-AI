@@ -24,6 +24,7 @@ import type {
   CurrentBrowserTelemetry,
   WebhookLogEntry,
 } from "@/types/account";
+import { AccountApiKeyRevocationModal } from "@/components/account/AccountApiKeyRevocationModal";
 import { AccountDeliveryLogInspectorModal } from "@/components/account/AccountDeliveryLogInspectorModal";
 import { AccountEnvironmentPanel } from "@/components/account/AccountEnvironmentPanel";
 import { AccountProfilePanel } from "@/components/account/AccountProfilePanel";
@@ -79,6 +80,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
   const [inspectedLog, setInspectedLog] = useState<WebhookLogEntry | null>(null);
   const [modalActiveTab, setModalActiveTab] = useState<DeliveryLogModalTab>("request");
+  const [apiKeyPendingRevocation, setApiKeyPendingRevocation] = useState<AccountApiKeyAccess | null>(null);
+  const [isRevokingApiKey, setIsRevokingApiKey] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -232,12 +235,23 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
     }
   };
 
-  const handleRevokeEnvironment = async (apiKey: AccountApiKeyAccess) => {
+  const handleRevokeApiKey = (apiKey: AccountApiKeyAccess) => {
     if (!apiKey.apiKeyId || !apiKey.revocable) {
       showToast("error", getToastErrorMessage("api-key", "This API key cannot be revoked from here."));
       return;
     }
 
+    setApiKeyPendingRevocation(apiKey);
+  };
+
+  const handleConfirmRevokeApiKey = async () => {
+    const apiKey = apiKeyPendingRevocation;
+    if (!apiKey?.apiKeyId || !apiKey.revocable || isRevokingApiKey) {
+      showToast("error", getToastErrorMessage("api-key", "This API key cannot be revoked from here."));
+      return;
+    }
+
+    setIsRevokingApiKey(true);
     try {
       const res = await fetch(`/api/keys/${apiKey.apiKeyId}`, {
         method: "PATCH",
@@ -251,10 +265,13 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       }
 
       setApiKeys(prev => prev.filter(key => key.apiKeyId !== apiKey.apiKeyId));
+      setApiKeyPendingRevocation(null);
       showToast("success", "API key successfully revoked.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to revoke API key.";
       showToast("error", getToastErrorMessage("api-key", message));
+    } finally {
+      setIsRevokingApiKey(false);
     }
   };
 
@@ -498,7 +515,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                   showToast("success", "Authentication preferences successfully synced.");
                 }}
                 onAccessViewChange={setAccessView}
-                onRevokeEnvironment={handleRevokeEnvironment}
+                onRevokeApiKey={handleRevokeApiKey}
                 onRefreshSessions={loadData}
                 onNewPasswordChange={setNewPassword}
                 onConfirmPasswordChange={setConfirmPassword}
@@ -520,6 +537,17 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           showToast={showToast}
         />
       )}
+
+      <AccountApiKeyRevocationModal
+        apiKey={apiKeyPendingRevocation}
+        isRevoking={isRevokingApiKey}
+        onCancel={() => {
+          if (!isRevokingApiKey) {
+            setApiKeyPendingRevocation(null);
+          }
+        }}
+        onConfirm={handleConfirmRevokeApiKey}
+      />
 
       <Toast toast={toast} />
     </>
