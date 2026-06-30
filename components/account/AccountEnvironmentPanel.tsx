@@ -92,6 +92,7 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
   const [successMessage, setSuccessMessage] = useState("");
   const [isRemoving, setIsRemoving] = useState(false);
   const [isDisconnectModalOpen, setIsDisconnectModalOpen] = useState(false);
+  const [disconnectError, setDisconnectError] = useState("");
   const [isUninstallModalOpen, setIsUninstallModalOpen] = useState(false);
   const [uninstallConfirmText, setUninstallConfirmText] = useState("");
   const [isUninstalling, setIsUninstalling] = useState(false);
@@ -148,6 +149,7 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
 
   const handleRemove = async () => {
     setIsRemoving(true);
+    setDisconnectError("");
     setErrorMessage("");
     setSuccessMessage("");
 
@@ -178,7 +180,7 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
       setSuccessMessage(data?.message || "GitHub was disconnected inside Dandi. The GitHub App may still be installed on GitHub.");
       setIsDisconnectModalOpen(false);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "GitHub installation could not be removed from Dandi.");
+      setDisconnectError(err instanceof Error ? err.message : "GitHub installation could not be removed from Dandi.");
     } finally {
       setIsRemoving(false);
     }
@@ -349,7 +351,10 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
                 </a>
                 <button
                   type="button"
-                  onClick={() => setIsDisconnectModalOpen(true)}
+                  onClick={() => {
+                    setDisconnectError("");
+                    setIsDisconnectModalOpen(true);
+                  }}
                   disabled={isRemoving || isLoading}
                   className="flex min-h-10 flex-1 items-center justify-center rounded-lg border border-red-300/20 bg-red-400/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-red-100 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -478,6 +483,7 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
         onClose={() => {
           if (!isRemoving) {
             setIsDisconnectModalOpen(false);
+            setDisconnectError("");
           }
         }}
         size="md"
@@ -496,11 +502,20 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
             </p>
           </div>
 
+          {disconnectError && (
+            <div role="alert" className="rounded-lg border border-red-300/20 bg-red-400/10 p-4 text-red-100">
+              <p className="text-xs font-semibold leading-5">{disconnectError}</p>
+            </div>
+          )}
+
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <button
               type="button"
               disabled={isRemoving}
-              onClick={() => setIsDisconnectModalOpen(false)}
+              onClick={() => {
+                setIsDisconnectModalOpen(false);
+                setDisconnectError("");
+              }}
               className="flex min-h-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] px-5 text-[10px] font-black uppercase tracking-[0.16em] text-slate-300 transition hover:bg-white/[0.06] disabled:opacity-50"
             >
               Cancel
@@ -509,9 +524,10 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
               type="button"
               disabled={isRemoving}
               onClick={handleRemove}
-              className="flex min-h-10 items-center justify-center rounded-lg border border-red-500 bg-red-600 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-busy={isRemoving}
+              className="flex min-h-10 min-w-[13.5rem] items-center justify-center rounded-lg border border-red-500 bg-red-600 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed"
             >
-              {isRemoving ? "Disconnecting..." : "Disconnect from Dandi"}
+              Disconnect from Dandi
             </button>
           </div>
         </div>
@@ -578,9 +594,12 @@ export function AccountEnvironmentPanel(_props: AccountEnvironmentPanelProps = {
               type="button"
               disabled={uninstallConfirmText !== "UNINSTALL" || isUninstalling}
               onClick={handleUninstall}
-              className="flex min-h-10 items-center justify-center rounded-lg border border-red-500 bg-red-600 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-busy={isUninstalling}
+              className={`flex min-h-10 min-w-[12.75rem] items-center justify-center rounded-lg border border-red-500 bg-red-600 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed ${
+                uninstallConfirmText !== "UNINSTALL" ? "opacity-50" : ""
+              }`}
             >
-              {isUninstalling ? "Uninstalling..." : "Uninstall from GitHub"}
+              Uninstall from GitHub
             </button>
           </div>
         </div>
