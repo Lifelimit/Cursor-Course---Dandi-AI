@@ -402,6 +402,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
             activeId={activeTab}
             onChange={(id) => setActiveTab(id as AccountTab)}
             variant="pills"
+            ariaLabel="Account settings sections"
           />
         </DashboardPageHeader>
 

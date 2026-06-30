@@ -17,6 +17,7 @@ export type TabsBarProps = {
   onChange: (id: string) => void;
   variant?: "underline" | "pills";
   className?: string;
+  ariaLabel?: string;
 };
 
 export function TabsBar({
@@ -25,6 +26,7 @@ export function TabsBar({
   onChange,
   variant = "underline",
   className,
+  ariaLabel = "Sections",
 }: TabsBarProps) {
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -45,9 +47,10 @@ export function TabsBar({
   };
 
   return (
-    <ScrollFrame axis="x" className={cx("w-full pb-2", className)} label="Tabs">
+    <ScrollFrame axis="x" className={cx("w-full pb-2", className)}>
       <div
         role="tablist"
+        aria-label={ariaLabel}
         className={cx(
           "flex min-w-max snap-x snap-mandatory items-center gap-1.5 sm:gap-2",
           variant === "underline" && "border-b border-[var(--command-border)]",
@@ -74,7 +77,7 @@ export function TabsBar({
               onClick={() => onChange(tab.id)}
               onKeyDown={(event) => handleKeyDown(event, index)}
               className={cx(
-                "inline-flex shrink-0 snap-start items-center justify-center gap-1.5 whitespace-nowrap text-[9px] font-black uppercase tracking-[0.12em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:gap-2 sm:text-[10px] sm:tracking-[0.18em]",
+                "inline-flex shrink-0 snap-start items-center justify-center gap-1.5 whitespace-nowrap text-[9px] font-black uppercase tracking-[0.12em] outline-none transition focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:gap-2 sm:text-[10px] sm:tracking-[0.18em]",
                 variant === "underline" &&
                   "border-b-2 px-2.5 pb-3 pt-1 sm:px-3 " +
                     (selected
