@@ -1,18 +1,16 @@
 import { EmptyState } from "@/components/ui/EmptyState";
-import type { AccountEnvironment } from "@/types/account";
+import type { CurrentBrowserTelemetry } from "@/types/account";
 import { getBrowserSessionBadgeClassName } from "./account-display-utils";
 
 type AccountSessionsPanelProps = {
-  browserEnvironments: AccountEnvironment[];
+  currentBrowser: CurrentBrowserTelemetry | null;
   onRefreshSessions: () => void;
 };
 
 export function AccountSessionsPanel({
-  browserEnvironments,
+  currentBrowser,
   onRefreshSessions,
 }: AccountSessionsPanelProps) {
-  const currentBrowser = browserEnvironments.find((environment) => environment.current) ?? browserEnvironments[0];
-
   if (!currentBrowser) {
     return (
       <EmptyState

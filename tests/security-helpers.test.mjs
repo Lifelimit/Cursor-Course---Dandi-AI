@@ -590,10 +590,10 @@ test("resolves subscription SCA and billing payload helpers", () => {
   assert.equal(isDuplicateWebhookEventError({ code: "42P01" }), false);
 });
 
-test("builds account environments from browser, active keys, and request telemetry", () => {
-  const { buildAccountEnvironments, splitAccountEnvironments } = loadTsModule("lib/account-environments.ts");
+test("builds structured account access from browser, active keys, and request telemetry", () => {
+  const { buildAccountAccess } = loadTsModule("lib/account-environments.ts");
 
-  const environments = buildAccountEnvironments({
+  const accountAccess = buildAccountAccess({
     now: new Date("2026-06-02T12:00:00.000Z"),
     currentRequest: {
       ip: "203.0.113.1",
@@ -629,31 +629,23 @@ test("builds account environments from browser, active keys, and request telemet
     ],
   });
 
-  assert.equal(environments[0].id, "browser-current");
-  assert.equal(environments[0].current, true);
-  assert.equal(environments[0].revocable, false);
-  assert.equal(environments[0].location, "Dublin, IE");
+  assert.equal(accountAccess.currentBrowser.id, "browser-current");
+  assert.equal(accountAccess.currentBrowser.current, true);
+  assert.equal(accountAccess.currentBrowser.revocable, false);
+  assert.equal(accountAccess.currentBrowser.location, "Dublin, IE");
 
-  const apiKeyEnvironment = environments.find((env) => env.id === "api-key-key-active");
-  assert.equal(apiKeyEnvironment?.label, "Production Key");
-  assert.equal(apiKeyEnvironment?.revocable, true);
-  assert.equal(apiKeyEnvironment?.apiKeyId, "key-active");
+  assert.equal(accountAccess.apiKeys.length, 1);
+  assert.equal(accountAccess.apiKeys[0]?.id, "api-key-key-active");
+  assert.equal(accountAccess.apiKeys[0]?.label, "Production Key");
+  assert.equal(accountAccess.apiKeys[0]?.keyType, "production");
+  assert.equal(accountAccess.apiKeys[0]?.revocable, true);
+  assert.equal(accountAccess.apiKeys[0]?.apiKeyId, "key-active");
 
-  const requestEnvironment = environments.find((env) => env.kind === "api_request");
-  assert.equal(requestEnvironment?.label, "Terminal curl command");
-  assert.equal(requestEnvironment?.ip, "198.51.100.7");
-  assert.equal(requestEnvironment?.revocable, true);
-
-  assert.equal(environments.some((env) => env.id === "api-key-key-disabled"), false);
-
-  const { apiAccessEnvironments, browserEnvironments } = splitAccountEnvironments(environments);
-  assert.deepEqual(
-    apiAccessEnvironments.map((env) => env.kind).sort(),
-    ["api_key", "api_request"]
-  );
-  assert.deepEqual(browserEnvironments.map((env) => env.kind), ["browser"]);
-  assert.equal(apiAccessEnvironments.every((env) => env.revocable), true);
-  assert.equal(browserEnvironments[0].revocable, false);
+  assert.equal(accountAccess.recentRequests.length, 1);
+  assert.equal(accountAccess.recentRequests[0]?.label, "Terminal curl command");
+  assert.equal(accountAccess.recentRequests[0]?.ip, "198.51.100.7");
+  assert.equal(accountAccess.recentRequests[0]?.revocable, false);
+  assert.equal(accountAccess.recentRequests[0]?.apiKeyId, "key-active");
 });
 
 test("uses friendlier fallback labels for missing or custom clients", () => {

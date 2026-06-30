@@ -1,6 +1,6 @@
 import type { FormEvent } from "react";
 import { CommandPanel } from "@/components/command";
-import type { AccountEnvironment } from "@/types/account";
+import type { AccountApiKeyAccess, AccountApiRequestActivity, CurrentBrowserTelemetry } from "@/types/account";
 import { AccountApiKeysPanel } from "./AccountApiKeysPanel";
 import { AccountSessionsPanel } from "./AccountSessionsPanel";
 
@@ -9,8 +9,9 @@ type AccessView = "api" | "browser";
 type AccountSecurityPanelProps = {
   preferMagicLink: boolean;
   accessView: AccessView;
-  apiAccessEnvironments: AccountEnvironment[];
-  browserEnvironments: AccountEnvironment[];
+  currentBrowser: CurrentBrowserTelemetry | null;
+  apiKeys: AccountApiKeyAccess[];
+  recentRequests: AccountApiRequestActivity[];
   newPassword: string;
   confirmPassword: string;
   newEmail: string;
@@ -18,7 +19,7 @@ type AccountSecurityPanelProps = {
   isSavingEmail: boolean;
   onToggleMagicLink: () => void;
   onAccessViewChange: (view: AccessView) => void;
-  onRevokeEnvironment: (environment: AccountEnvironment) => void;
+  onRevokeEnvironment: (apiKey: AccountApiKeyAccess) => void;
   onRefreshSessions: () => void;
   onNewPasswordChange: (value: string) => void;
   onConfirmPasswordChange: (value: string) => void;
@@ -30,8 +31,9 @@ type AccountSecurityPanelProps = {
 export function AccountSecurityPanel({
   preferMagicLink,
   accessView,
-  apiAccessEnvironments,
-  browserEnvironments,
+  currentBrowser,
+  apiKeys,
+  recentRequests,
   newPassword,
   confirmPassword,
   newEmail,
@@ -133,12 +135,13 @@ export function AccountSecurityPanel({
 
         {accessView === "api" ? (
           <AccountApiKeysPanel
-            apiAccessEnvironments={apiAccessEnvironments}
+            apiKeys={apiKeys}
+            recentRequests={recentRequests}
             onRevokeEnvironment={onRevokeEnvironment}
           />
         ) : (
           <AccountSessionsPanel
-            browserEnvironments={browserEnvironments}
+            currentBrowser={currentBrowser}
             onRefreshSessions={onRefreshSessions}
           />
         )}

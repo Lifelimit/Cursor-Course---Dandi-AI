@@ -1,16 +1,17 @@
 import Link from "next/link";
 import { ScrollFrame } from "@/components/command";
 import { EmptyState } from "@/components/ui/EmptyState";
-import type { AccountEnvironment } from "@/types/account";
+import type { AccountApiKeyAccess, AccountApiRequestActivity } from "@/types/account";
 
 type AccountApiKeysPanelProps = {
-  apiAccessEnvironments: AccountEnvironment[];
-  onRevokeEnvironment: (environment: AccountEnvironment) => void;
+  apiKeys: AccountApiKeyAccess[];
+  recentRequests: AccountApiRequestActivity[];
+  onRevokeEnvironment: (apiKey: AccountApiKeyAccess) => void;
 };
 
-function getApiKeyEnvironmentLabel(environment: AccountEnvironment) {
-  if (environment.detail?.toLowerCase().includes("production")) return "Production";
-  if (environment.detail?.toLowerCase().includes("development")) return "Development";
+function getApiKeyEnvironmentLabel(apiKey: AccountApiKeyAccess) {
+  if (apiKey.keyType === "production") return "Production";
+  if (apiKey.keyType === "development") return "Development";
   return "API key";
 }
 
@@ -23,12 +24,10 @@ function CreateApiKeyLink() {
 }
 
 export function AccountApiKeysPanel({
-  apiAccessEnvironments,
+  apiKeys,
+  recentRequests,
   onRevokeEnvironment,
 }: AccountApiKeysPanelProps) {
-  const apiKeyRows = apiAccessEnvironments.filter((environment) => environment.kind === "api_key");
-  const apiRequestRows = apiAccessEnvironments.filter((environment) => environment.kind === "api_request");
-
   return (
     <div className="space-y-8">
       <section className="space-y-4">
@@ -38,29 +37,29 @@ export function AccountApiKeysPanel({
         </div>
 
         <div className="space-y-3 md:hidden">
-          {apiKeyRows.map((environment) => {
-            const canRevokeApiKey = environment.kind === "api_key" && environment.revocable;
+          {apiKeys.map((apiKey) => {
+            const canRevokeApiKey = apiKey.revocable;
 
             return (
-              <div key={environment.id} className="space-y-4 rounded-2xl border border-white/5 bg-slate-950/40 p-4 shadow-xl backdrop-blur-xl">
+              <div key={apiKey.id} className="space-y-4 rounded-2xl border border-white/5 bg-slate-950/40 p-4 shadow-xl backdrop-blur-xl">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1 space-y-1">
-                    <p className="break-words font-bold text-white">{environment.label}</p>
-                    <p className="break-words text-[10px] font-medium text-zinc-500">{environment.detail || "API key credential"}</p>
+                    <p className="break-words font-bold text-white">{apiKey.label}</p>
+                    <p className="break-words text-[10px] font-medium text-zinc-500">{apiKey.detail || "API key credential"}</p>
                   </div>
                   <span className="rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-indigo-300">
-                    {getApiKeyEnvironmentLabel(environment)}
+                    {getApiKeyEnvironmentLabel(apiKey)}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="space-y-1">
                     <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Type</p>
-                    <p className="font-bold text-zinc-400">{getApiKeyEnvironmentLabel(environment)}</p>
+                    <p className="font-bold text-zinc-400">{getApiKeyEnvironmentLabel(apiKey)}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Created</p>
-                    <p className="font-bold text-zinc-400">{environment.telemetryAge || "Unknown"}</p>
+                    <p className="font-bold text-zinc-400">{apiKey.telemetryAge || "Unknown"}</p>
                   </div>
                 </div>
 
@@ -68,7 +67,7 @@ export function AccountApiKeysPanel({
                   {canRevokeApiKey ? (
                     <button
                       type="button"
-                      onClick={() => onRevokeEnvironment(environment)}
+                      onClick={() => onRevokeEnvironment(apiKey)}
                       className="w-full rounded-xl border border-rose-500/20 bg-rose-950/20 px-4 py-3 text-[9px] font-black uppercase tracking-widest text-rose-400 transition-all hover:bg-rose-500 hover:text-white active:scale-[0.98]"
                       title="Disable this API key"
                     >
@@ -83,7 +82,7 @@ export function AccountApiKeysPanel({
               </div>
             );
           })}
-          {apiKeyRows.length === 0 && (
+          {apiKeys.length === 0 && (
             <EmptyState
               title="No API keys yet."
               description="API keys appear here after you create a key."
@@ -104,30 +103,30 @@ export function AccountApiKeysPanel({
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 font-medium">
-                {apiKeyRows.map((environment) => {
-                  const canRevokeApiKey = environment.kind === "api_key" && environment.revocable;
+                {apiKeys.map((apiKey) => {
+                  const canRevokeApiKey = apiKey.revocable;
 
                   return (
-                    <tr key={environment.id} className="text-zinc-300 transition-colors hover:bg-white/5">
+                    <tr key={apiKey.id} className="text-zinc-300 transition-colors hover:bg-white/5">
                       <td className="px-6 py-4">
                         <div className="flex max-w-[320px] flex-col gap-1">
-                          <span className="truncate font-bold text-white" title={environment.label}>{environment.label}</span>
-                          <span className="truncate text-[10px] font-medium text-zinc-500" title={environment.detail || "API key credential"}>
-                            {environment.detail || "API key credential"}
+                          <span className="truncate font-bold text-white" title={apiKey.label}>{apiKey.label}</span>
+                          <span className="truncate text-[10px] font-medium text-zinc-500" title={apiKey.detail || "API key credential"}>
+                            {apiKey.detail || "API key credential"}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <span className="rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-indigo-300">
-                          {getApiKeyEnvironmentLabel(environment)}
+                          {getApiKeyEnvironmentLabel(apiKey)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 font-bold text-zinc-400">{environment.telemetryAge || "Unknown"}</td>
+                      <td className="px-6 py-4 font-bold text-zinc-400">{apiKey.telemetryAge || "Unknown"}</td>
                       <td className="px-6 py-4 text-right">
                         {canRevokeApiKey ? (
                           <button
                             type="button"
-                            onClick={() => onRevokeEnvironment(environment)}
+                            onClick={() => onRevokeEnvironment(apiKey)}
                             className="rounded-full border border-rose-500/20 bg-rose-950/20 px-3.5 py-2 text-[8px] font-black uppercase tracking-widest text-rose-400 shadow-sm transition-all hover:bg-rose-500 hover:text-white active:scale-[0.97]"
                             title="Disable this API key"
                           >
@@ -140,7 +139,7 @@ export function AccountApiKeysPanel({
                     </tr>
                   );
                 })}
-                {apiKeyRows.length === 0 && (
+                {apiKeys.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-6 py-10 text-center">
                       <EmptyState
@@ -165,32 +164,32 @@ export function AccountApiKeysPanel({
         </div>
 
         <div className="space-y-3 md:hidden">
-          {apiRequestRows.map((environment) => (
-            <div key={environment.id} className="space-y-4 rounded-2xl border border-white/5 bg-slate-950/40 p-4 shadow-xl backdrop-blur-xl">
+          {recentRequests.map((request) => (
+            <div key={request.id} className="space-y-4 rounded-2xl border border-white/5 bg-slate-950/40 p-4 shadow-xl backdrop-blur-xl">
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="break-words font-bold text-white">{environment.label}</p>
+                  <p className="break-words font-bold text-white">{request.label}</p>
                   <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-sky-300">
                     Activity
                   </span>
                 </div>
-                {environment.detail && (
-                  <p className="break-words text-[10px] font-medium text-zinc-500">{environment.detail}</p>
+                {request.detail && (
+                  <p className="break-words text-[10px] font-medium text-zinc-500">{request.detail}</p>
                 )}
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="space-y-1">
                   <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">IP</p>
-                  <p className="break-all font-mono text-zinc-400">{environment.ip || "Unknown"}</p>
+                  <p className="break-all font-mono text-zinc-400">{request.ip || "Unknown"}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Location</p>
-                  <p className="break-words text-zinc-400">{environment.location || "Unknown"}</p>
+                  <p className="break-words text-zinc-400">{request.location || "Unknown"}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Last Seen</p>
-                  <p className="font-bold text-zinc-400">{environment.telemetryAge || "No activity"}</p>
+                  <p className="font-bold text-zinc-400">{request.telemetryAge || "No activity"}</p>
                 </div>
               </div>
 
@@ -199,7 +198,7 @@ export function AccountApiKeysPanel({
               </p>
             </div>
           ))}
-          {apiRequestRows.length === 0 && (
+          {recentRequests.length === 0 && (
             <EmptyState
               title="No recent API activity yet."
               description="Recent requests made with your API keys will appear here."
@@ -220,22 +219,22 @@ export function AccountApiKeysPanel({
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 font-medium">
-                {apiRequestRows.map((environment) => (
-                  <tr key={environment.id} className="text-zinc-300 transition-colors hover:bg-white/5">
+                {recentRequests.map((request) => (
+                  <tr key={request.id} className="text-zinc-300 transition-colors hover:bg-white/5">
                     <td className="px-6 py-4">
-                      <span className="block max-w-[220px] truncate font-bold text-white" title={environment.label}>{environment.label}</span>
+                      <span className="block max-w-[220px] truncate font-bold text-white" title={request.label}>{request.label}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="block max-w-[280px] truncate text-zinc-400" title={environment.detail || "Recent API request"}>
-                        {environment.detail || "Recent API request"}
+                      <span className="block max-w-[280px] truncate text-zinc-400" title={request.detail || "Recent API request"}>
+                        {request.detail || "Recent API request"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-mono text-zinc-400 select-all">{environment.ip || "Unknown"}</td>
-                    <td className="px-6 py-4 text-zinc-400">{environment.location || "Unknown"}</td>
-                    <td className="px-6 py-4 font-bold text-zinc-400">{environment.telemetryAge || "No activity"}</td>
+                    <td className="px-6 py-4 font-mono text-zinc-400 select-all">{request.ip || "Unknown"}</td>
+                    <td className="px-6 py-4 text-zinc-400">{request.location || "Unknown"}</td>
+                    <td className="px-6 py-4 font-bold text-zinc-400">{request.telemetryAge || "No activity"}</td>
                   </tr>
                 ))}
-                {apiRequestRows.length === 0 && (
+                {recentRequests.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-6 py-10 text-center">
                       <EmptyState

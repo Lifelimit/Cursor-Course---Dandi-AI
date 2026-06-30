@@ -11,12 +11,19 @@ import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
-import { splitAccountEnvironments } from "@/lib/account-environments";
 import { CommandPanel, TabsBar } from "@/components/command";
 import { useProgressiveList } from "@/hooks/useProgressiveList";
 import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
 import { formatLocalTime, formatRelativeTime } from "@/lib/format";
-import type { AccountDataResponse, AccountEnvironment, AccountProfileData, WebhookLogEntry } from "@/types/account";
+import type {
+  AccountAccessResponse,
+  AccountApiKeyAccess,
+  AccountApiRequestActivity,
+  AccountDataResponse,
+  AccountProfileData,
+  CurrentBrowserTelemetry,
+  WebhookLogEntry,
+} from "@/types/account";
 import { AccountDeliveryLogInspectorModal } from "@/components/account/AccountDeliveryLogInspectorModal";
 import { AccountEnvironmentPanel } from "@/components/account/AccountEnvironmentPanel";
 import { AccountProfilePanel } from "@/components/account/AccountProfilePanel";
@@ -65,7 +72,9 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const [usage, setUsage] = useState<AccountDataResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [accountLoadError, setAccountLoadError] = useState<string | null>(null);
-  const [environments, setEnvironments] = useState<AccountEnvironment[]>([]);
+  const [currentBrowser, setCurrentBrowser] = useState<CurrentBrowserTelemetry | null>(null);
+  const [apiKeys, setApiKeys] = useState<AccountApiKeyAccess[]>([]);
+  const [recentRequests, setRecentRequests] = useState<AccountApiRequestActivity[]>([]);
   const [webhookLogs, setWebhookLogs] = useState<WebhookLogEntry[]>([]);
 
   const [inspectedLog, setInspectedLog] = useState<WebhookLogEntry | null>(null);
@@ -74,7 +83,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [profileRes, usageRes, environmentsRes] = await Promise.all([
+      const [profileRes, usageRes, accessRes] = await Promise.all([
         fetch("/api/profile"),
         fetch("/api/usage"),
         fetch("/api/account/environments")
@@ -95,11 +104,19 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         setUsage(uData);
       }
 
-      if (environmentsRes.ok) {
-        const envData: { environments: AccountEnvironment[] } = await environmentsRes.json();
-        setEnvironments((envData.environments || []).map(environment => ({
-          ...environment,
-          telemetryAge: formatRelativeTime(environment.lastSeenAt, { current: environment.current }),
+      if (accessRes.ok) {
+        const accessData: AccountAccessResponse = await accessRes.json();
+        setCurrentBrowser({
+          ...accessData.currentBrowser,
+          telemetryAge: formatRelativeTime(accessData.currentBrowser.lastSeenAt, { current: true }),
+        });
+        setApiKeys((accessData.apiKeys || []).map((apiKey) => ({
+          ...apiKey,
+          telemetryAge: formatRelativeTime(apiKey.lastSeenAt),
+        })));
+        setRecentRequests((accessData.recentRequests || []).map((request) => ({
+          ...request,
+          telemetryAge: formatRelativeTime(request.lastSeenAt),
         })));
       }
       setAccountLoadError(null);
@@ -130,7 +147,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const userPlan = profile?.plan || "Hobby";
   const { monthlyLimit: planLimit, isUnlimited } = getPlanLimits(userPlan);
   const alerts = computeSidebarAlerts(usage?.keys || []);
-  const { apiAccessEnvironments, browserEnvironments } = splitAccountEnvironments(environments);
 
   const {
     visibleItems: visibleWebhookLogs,
@@ -216,14 +232,14 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
     }
   };
 
-  const handleRevokeEnvironment = async (environment: AccountEnvironment) => {
-    if (environment.kind !== "api_key" || !environment.apiKeyId || !environment.revocable) {
+  const handleRevokeEnvironment = async (apiKey: AccountApiKeyAccess) => {
+    if (!apiKey.apiKeyId || !apiKey.revocable) {
       showToast("error", getToastErrorMessage("api-key", "This API key cannot be revoked from here."));
       return;
     }
 
     try {
-      const res = await fetch(`/api/keys/${environment.apiKeyId}`, {
+      const res = await fetch(`/api/keys/${apiKey.apiKeyId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: false }),
@@ -234,7 +250,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         throw new Error(data.error || "Failed to revoke API key.");
       }
 
-      setEnvironments(prev => prev.filter(env => env.apiKeyId !== environment.apiKeyId));
+      setApiKeys(prev => prev.filter(key => key.apiKeyId !== apiKey.apiKeyId));
       showToast("success", "API key successfully revoked.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to revoke API key.";
@@ -469,8 +485,9 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
               <AccountSecurityPanel
                 preferMagicLink={preferMagicLink}
                 accessView={accessView}
-                apiAccessEnvironments={apiAccessEnvironments}
-                browserEnvironments={browserEnvironments}
+                currentBrowser={currentBrowser}
+                apiKeys={apiKeys}
+                recentRequests={recentRequests}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}
                 newEmail={newEmail}

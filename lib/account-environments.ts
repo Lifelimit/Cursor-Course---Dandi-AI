@@ -1,10 +1,19 @@
-import type { AccountApiKey, AccountEnvironment, AccountUsageLog } from "@/types/account";
+import type {
+  AccountAccessResponse,
+  AccountApiKey,
+  AccountApiKeyAccess,
+  AccountApiRequestActivity,
+  AccountUsageLog,
+  CurrentBrowserTelemetry,
+} from "@/types/account";
 
 export type {
+  AccountAccessResponse,
   AccountApiKey,
-  AccountEnvironment,
-  AccountEnvironmentKind,
+  AccountApiKeyAccess,
+  AccountApiRequestActivity,
   AccountUsageLog,
+  CurrentBrowserTelemetry,
 } from "@/types/account";
 
 export function getRequestIp(request: Request) {
@@ -54,7 +63,7 @@ export function describeUserAgent(userAgent?: string | null) {
   return `Custom client`;
 }
 
-export function buildAccountEnvironments(input: {
+export function buildAccountAccess(input: {
   currentRequest: {
     ip: string | null;
     userAgent: string | null;
@@ -65,35 +74,32 @@ export function buildAccountEnvironments(input: {
   apiKeys: AccountApiKey[];
   usageLogs: AccountUsageLog[];
   now?: Date;
-}): AccountEnvironment[] {
-  const environments: AccountEnvironment[] = [
-    {
-      id: "browser-current",
-      kind: "browser",
-      label: describeUserAgent(input.currentRequest.userAgent),
-      detail: "Authenticated account session",
-      ip: input.currentRequest.ip,
-      location: formatEnvironmentLocation(input.currentRequest),
-      lastSeenAt: input.now?.toISOString() ?? new Date().toISOString(),
-      current: true,
-      revocable: false,
-    },
-  ];
+}): AccountAccessResponse {
+  const currentBrowser: CurrentBrowserTelemetry = {
+    id: "browser-current",
+    label: describeUserAgent(input.currentRequest.userAgent),
+    detail: "Authenticated account session",
+    ip: input.currentRequest.ip,
+    location: formatEnvironmentLocation(input.currentRequest),
+    lastSeenAt: input.now?.toISOString() ?? new Date().toISOString(),
+    current: true,
+    revocable: false,
+  };
 
-  for (const key of input.apiKeys.filter((key) => key.is_active)) {
-    environments.push({
+  const apiKeys: AccountApiKeyAccess[] = input.apiKeys
+    .filter((key) => key.is_active)
+    .map((key) => ({
       id: `api-key-${key.id}`,
-      kind: "api_key",
       label: key.name,
       detail: `${key.key_type === "production" ? "Production" : "Development"} API key`,
+      keyType: key.key_type,
       ip: null,
       location: null,
       lastSeenAt: key.created_at ?? null,
       current: false,
       revocable: true,
       apiKeyId: key.id,
-    });
-  }
+    }));
 
   const latestByFingerprint = new Map<string, AccountUsageLog>();
   for (const log of input.usageLogs) {
@@ -111,10 +117,9 @@ export function buildAccountEnvironments(input: {
     }
   }
 
-  for (const [fingerprint, log] of latestByFingerprint) {
-    environments.push({
+  const recentRequests: AccountApiRequestActivity[] = [...latestByFingerprint.entries()]
+    .map(([fingerprint, log]): AccountApiRequestActivity => ({
       id: `api-request-${fingerprint}`,
-      kind: "api_request",
       label: describeUserAgent(log.userAgent),
       detail: log.repoUrl ? `Recent API request: ${log.repoUrl}` : "Recent API request",
       ip: log.ip || null,
@@ -123,23 +128,16 @@ export function buildAccountEnvironments(input: {
       current: false,
       revocable: false,
       apiKeyId: log.keyId,
+    }))
+    .sort((a, b) => {
+      const aTime = a.lastSeenAt ? Date.parse(a.lastSeenAt) : 0;
+      const bTime = b.lastSeenAt ? Date.parse(b.lastSeenAt) : 0;
+      return bTime - aTime;
     });
-  }
 
-  return environments.sort((a, b) => {
-    if (a.current) return -1;
-    if (b.current) return 1;
-    const aTime = a.lastSeenAt ? Date.parse(a.lastSeenAt) : 0;
-    const bTime = b.lastSeenAt ? Date.parse(b.lastSeenAt) : 0;
-    return bTime - aTime;
-  });
-}
-
-export function splitAccountEnvironments<T extends AccountEnvironment>(environments: T[]) {
   return {
-    apiAccessEnvironments: environments.filter(
-      (environment) => environment.kind === "api_key" || environment.kind === "api_request"
-    ),
-    browserEnvironments: environments.filter((environment) => environment.kind === "browser"),
+    currentBrowser,
+    apiKeys,
+    recentRequests,
   };
 }

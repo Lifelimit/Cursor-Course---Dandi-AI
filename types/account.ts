@@ -1,19 +1,48 @@
 import type { AccountUsageData } from "@/types/usage";
 
-export type AccountEnvironmentKind = "browser" | "api_key" | "api_request";
-
-export type AccountEnvironment = {
+export type CurrentBrowserTelemetry = {
   id: string;
-  kind: AccountEnvironmentKind;
   label: string;
   detail?: string;
   ip: string | null;
   location: string | null;
   lastSeenAt: string | null;
-  current: boolean;
+  current: true;
+  revocable: false;
+  telemetryAge?: string;
+};
+
+export type AccountApiKeyAccess = {
+  id: string;
+  label: string;
+  detail?: string;
+  keyType: string;
+  ip: null;
+  location: null;
+  lastSeenAt: string | null;
+  current: false;
   revocable: boolean;
+  apiKeyId: string;
+  telemetryAge?: string;
+};
+
+export type AccountApiRequestActivity = {
+  id: string;
+  label: string;
+  detail?: string;
+  ip: string | null;
+  location: string | null;
+  lastSeenAt: string | null;
+  current: false;
+  revocable: false;
   apiKeyId?: string;
   telemetryAge?: string;
+};
+
+export type AccountAccessResponse = {
+  currentBrowser: CurrentBrowserTelemetry;
+  apiKeys: AccountApiKeyAccess[];
+  recentRequests: AccountApiRequestActivity[];
 };
 
 export type AccountUsageLog = {

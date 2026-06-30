@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  buildAccountEnvironments,
+  buildAccountAccess,
   getRequestTelemetry,
   type AccountUsageLog,
 } from "@/lib/account-environments";
@@ -40,12 +40,16 @@ export async function GET(request: Request) {
       }
     });
 
+    const accountAccess = buildAccountAccess({
+      currentRequest: getRequestTelemetry(request),
+      apiKeys: apiKeys || [],
+      usageLogs,
+    });
+
     return NextResponse.json({
-      environments: buildAccountEnvironments({
-        currentRequest: getRequestTelemetry(request),
-        apiKeys: apiKeys || [],
-        usageLogs,
-      }),
+      currentBrowser: accountAccess.currentBrowser,
+      apiKeys: accountAccess.apiKeys,
+      recentRequests: accountAccess.recentRequests,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unauthorized";
