@@ -29,6 +29,10 @@ export function AccountApiKeysPanel({
 }: AccountApiKeysPanelProps) {
   return (
     <>
+      <div className="rounded-2xl border border-white/5 bg-slate-950/30 p-4 text-xs leading-5 text-zinc-400">
+        API key rows represent keys you can manage. Recent request rows are API activity captured from external client requests, not browser sessions.
+      </div>
+
       <div className="space-y-3 md:hidden">
         {visibleApiAccessEnvironments.map((environment) => (
           <div key={environment.id} className="space-y-4 rounded-2xl border border-white/5 bg-slate-950/40 p-4 shadow-xl backdrop-blur-xl">
@@ -41,14 +45,14 @@ export function AccountApiKeysPanel({
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1.5">
                 <span className="rounded-full px-2 py-0.5 text-[7px] font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-300 border border-indigo-500/25">
-                  {environment.kind === "api_key" ? "API Key" : "API Request"}
+                  {environment.kind === "api_key" ? "API Key" : "Request Activity"}
                 </span>
                 <span className={`rounded-full px-2 py-0.5 text-[7px] font-black uppercase tracking-widest border ${
                   environment.revocable
                     ? "bg-rose-500/10 text-rose-400 border-rose-500/25"
                     : "bg-slate-950 text-zinc-500 border-white/5"
                 }`}>
-                  {environment.revocable ? "Revocable" : "Activity"}
+                  {environment.revocable ? "API Key Linked" : "Activity Only"}
                 </span>
               </div>
             </div>
@@ -74,13 +78,13 @@ export function AccountApiKeysPanel({
                   type="button"
                   onClick={() => onRevokeEnvironment(environment)}
                   className="w-full rounded-xl border border-rose-500/20 bg-rose-950/20 px-4 py-3 text-[9px] font-black uppercase tracking-widest text-rose-400 transition-all hover:bg-rose-500 hover:text-white active:scale-[0.98]"
-                  title="Disable the API key behind this environment"
+                  title="Disable the API key linked to this row"
                 >
-                  Revoke Access
+                  Revoke API Key
                 </button>
               ) : (
                 <p className="text-center text-[8px] font-black uppercase tracking-widest text-zinc-500">
-                  Activity only · No API key to revoke
+                  Request activity only - no API key to revoke
                 </p>
               )}
             </div>
@@ -97,8 +101,8 @@ export function AccountApiKeysPanel({
         />
         {apiAccessEnvironments.length === 0 && (
           <EmptyState
-            title="No API access recorded yet."
-            description="API access appears after you create a key or send a repository request from an external client."
+            title="No API keys yet."
+            description="API keys appear here after you create a key. Recent API request activity will show alongside key rows after requests are recorded."
             action={(
               <Link href="/dashboards" className="mt-4 inline-flex text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
                 Create API Key
@@ -109,11 +113,11 @@ export function AccountApiKeysPanel({
       </div>
 
       <div className="hidden md:block">
-        <ScrollFrame axis="x" minWidth="760px" label="API key and browser session table">
+        <ScrollFrame axis="x" minWidth="760px" label="API keys and request activity table">
           <table className="min-w-[760px] w-full border-collapse text-left font-sans text-xs">
             <thead>
               <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
-                <th className="px-6 py-4">Access</th>
+                <th className="px-6 py-4">Key or Activity</th>
                 <th className="px-6 py-4">Type</th>
                 <th className="px-6 py-4">IP</th>
                 <th className="px-6 py-4">Location</th>
@@ -134,7 +138,7 @@ export function AccountApiKeysPanel({
                   </td>
                   <td className="px-6 py-4">
                     <span className="rounded-full px-2 py-0.5 text-[7px] font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-300 border border-indigo-500/25">
-                      {environment.kind === "api_key" ? "API Key" : "API Request"}
+                      {environment.kind === "api_key" ? "API Key" : "Request Activity"}
                     </span>
                   </td>
                   <td className="px-6 py-4 font-mono select-all text-zinc-400">{environment.ip || "Unknown"}</td>
@@ -146,12 +150,12 @@ export function AccountApiKeysPanel({
                         type="button"
                         onClick={() => onRevokeEnvironment(environment)}
                         className="rounded-full bg-rose-950/20 border border-rose-500/20 px-3.5 py-2 text-[8px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-[0.97]"
-                        title="Disable the API key behind this environment"
+                        title="Disable the API key linked to this row"
                       >
-                        Revoke Access
+                        Revoke API Key
                       </button>
                     ) : (
-                      <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 pr-4 select-none">Activity Only</span>
+                      <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 pr-4 select-none">Request Activity</span>
                     )}
                   </td>
                 </tr>
@@ -161,8 +165,8 @@ export function AccountApiKeysPanel({
                   <td colSpan={6} className="px-6 py-10 text-center">
                     <EmptyState
                       className="mx-auto max-w-md"
-                      title="No API access recorded yet."
-                      description="API access appears after you create a key or send a repository request from an external client."
+                      title="No API keys yet."
+                      description="API keys appear here after you create a key. Recent API request activity will show alongside key rows after requests are recorded."
                       action={(
                         <Link href="/dashboards" className="mt-4 inline-flex text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
                           Create API Key

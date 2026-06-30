@@ -16,11 +16,6 @@ type AccountSecurityPanelProps = {
   totalApiAccessCount: number;
   canShowMoreApiAccess: boolean;
   canShowLessApiAccess: boolean;
-  visibleBrowserEnvironments: AccountEnvironment[];
-  visibleBrowserCount: number;
-  totalBrowserCount: number;
-  canShowMoreBrowser: boolean;
-  canShowLessBrowser: boolean;
   newPassword: string;
   confirmPassword: string;
   newEmail: string;
@@ -30,8 +25,6 @@ type AccountSecurityPanelProps = {
   onAccessViewChange: (view: AccessView) => void;
   onShowMoreApiAccess: () => void;
   onShowLessApiAccess: () => void;
-  onShowMoreBrowser: () => void;
-  onShowLessBrowser: () => void;
   onRevokeEnvironment: (environment: AccountEnvironment) => void;
   onRefreshSessions: () => void;
   onNewPasswordChange: (value: string) => void;
@@ -51,11 +44,6 @@ export function AccountSecurityPanel({
   totalApiAccessCount,
   canShowMoreApiAccess,
   canShowLessApiAccess,
-  visibleBrowserEnvironments,
-  visibleBrowserCount,
-  totalBrowserCount,
-  canShowMoreBrowser,
-  canShowLessBrowser,
   newPassword,
   confirmPassword,
   newEmail,
@@ -65,8 +53,6 @@ export function AccountSecurityPanel({
   onAccessViewChange,
   onShowMoreApiAccess,
   onShowLessApiAccess,
-  onShowMoreBrowser,
-  onShowLessBrowser,
   onRevokeEnvironment,
   onRefreshSessions,
   onNewPasswordChange,
@@ -103,8 +89,10 @@ export function AccountSecurityPanel({
 
       <div className="space-y-6">
         <div className="space-y-1">
-          <h4 className="text-base font-bold">API Keys & Browser Sessions</h4>
-          <p className="text-xs text-zinc-400">Review API key activity separately from browser sign-in activity.</p>
+          <h4 className="text-base font-bold">Access & Activity</h4>
+          <p className="max-w-2xl text-xs leading-5 text-zinc-400">
+            Manage API keys and review recent API request activity. Dandi also shows telemetry for the browser currently signed in to this page.
+          </p>
         </div>
 
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -121,7 +109,7 @@ export function AccountSecurityPanel({
                   : "text-zinc-500 hover:text-white"
               }`}
             >
-              API Keys & Access ({apiAccessEnvironments.length})
+              API Keys
             </button>
             <button
               type="button"
@@ -135,7 +123,7 @@ export function AccountSecurityPanel({
                   : "text-zinc-500 hover:text-white"
               }`}
             >
-              Browser Sessions ({browserEnvironments.length})
+              Current Browser
             </button>
           </div>
 
@@ -145,14 +133,14 @@ export function AccountSecurityPanel({
                 ? "bg-rose-500/10 text-rose-400 border-rose-500/25"
                 : "bg-slate-950 text-zinc-500 border-white/5"
             }`}>
-              API Key Access
+              API Keys
             </span>
             <span className={`rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-widest border ${
               accessView === "browser"
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
                 : "bg-slate-950 text-zinc-500 border-white/5"
             }`}>
-              Browser Sessions
+              Current Browser
             </span>
           </div>
         </div>
@@ -172,13 +160,6 @@ export function AccountSecurityPanel({
         ) : (
           <AccountSessionsPanel
             browserEnvironments={browserEnvironments}
-            visibleBrowserEnvironments={visibleBrowserEnvironments}
-            visibleBrowserCount={visibleBrowserCount}
-            totalBrowserCount={totalBrowserCount}
-            canShowMoreBrowser={canShowMoreBrowser}
-            canShowLessBrowser={canShowLessBrowser}
-            onShowMoreBrowser={onShowMoreBrowser}
-            onShowLessBrowser={onShowLessBrowser}
             onRefreshSessions={onRefreshSessions}
           />
         )}

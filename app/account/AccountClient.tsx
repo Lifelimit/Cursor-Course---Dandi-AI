@@ -143,16 +143,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   } = useProgressiveList(apiAccessEnvironments);
 
   const {
-    visibleItems: visibleBrowserEnvironments,
-    visibleCount: visibleBrowserCount,
-    totalCount: totalBrowserCount,
-    canShowMore: canShowMoreBrowser,
-    canShowLess: canShowLessBrowser,
-    showMore: handleShowMoreBrowser,
-    showLess: handleShowLessBrowser,
-  } = useProgressiveList(browserEnvironments);
-
-  const {
     visibleItems: visibleWebhookLogs,
     canShowMore: canShowMoreWebhookLogs,
     canShowLess: canShowLessWebhookLogs,
@@ -420,7 +410,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           <div className="space-y-6" role="status" aria-live="polite" aria-busy="true">
             <div className="rounded-[28px] border border-emerald-300/15 bg-slate-950/45 p-5 shadow-[0_0_28px_rgba(52,211,153,0.08)]">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/80">Fetching account details</p>
-              <p className="mt-2 text-sm font-medium text-slate-400">Loading profile, usage, API access, and browser session data.</p>
+              <p className="mt-2 text-sm font-medium text-slate-400">Loading profile, usage, API access, and current browser telemetry.</p>
             </div>
             <div className="grid gap-6 lg:grid-cols-2">
               <CardSkeleton lines={4} className="min-h-64" />
@@ -429,7 +419,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
             <CommandPanel className="space-y-4 p-5 sm:p-8">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/70">Security & Sign-in</p>
-                <p className="mt-1 text-sm font-medium text-slate-400">Preparing API key access and browser session rows.</p>
+                <p className="mt-1 text-sm font-medium text-slate-400">Preparing API key access and current browser details.</p>
               </div>
               <TableRowsSkeleton rows={6} columns={5} />
             </CommandPanel>
@@ -496,11 +486,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                 totalApiAccessCount={totalApiAccessCount}
                 canShowMoreApiAccess={canShowMoreApiAccess}
                 canShowLessApiAccess={canShowLessApiAccess}
-                visibleBrowserEnvironments={visibleBrowserEnvironments}
-                visibleBrowserCount={visibleBrowserCount}
-                totalBrowserCount={totalBrowserCount}
-                canShowMoreBrowser={canShowMoreBrowser}
-                canShowLessBrowser={canShowLessBrowser}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}
                 newEmail={newEmail}
@@ -513,8 +498,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                 onAccessViewChange={setAccessView}
                 onShowMoreApiAccess={handleShowMoreApiAccess}
                 onShowLessApiAccess={handleShowLessApiAccess}
-                onShowMoreBrowser={handleShowMoreBrowser}
-                onShowLessBrowser={handleShowLessBrowser}
                 onRevokeEnvironment={handleRevokeEnvironment}
                 onRefreshSessions={loadData}
                 onNewPasswordChange={setNewPassword}
