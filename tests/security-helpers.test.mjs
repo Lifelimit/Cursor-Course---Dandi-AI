@@ -1382,6 +1382,59 @@ test("GitHub service supports optional installation token for private repositori
   }
 });
 
+test("GitHub summary metadata can skip release and tag lookup on the hot path", async () => {
+  const originalFetch = globalThis.fetch;
+  const { fetchRepositoryDataWithAuth } = loadTsModule("lib/services/github.service.ts");
+  const calls = [];
+
+  try {
+    globalThis.fetch = async (url, options) => {
+      calls.push({
+        url: String(url),
+        authHeader: options?.headers?.["Authorization"] || null,
+      });
+
+      if (String(url).endsWith("/readme")) {
+        return {
+          ok: true,
+          text: async () => "# Summary Repo Readme",
+        };
+      }
+
+      if (String(url).endsWith("/releases/latest") || String(url).endsWith("/tags")) {
+        throw new Error("Version lookup should not run on the summary hot path");
+      }
+
+      return {
+        ok: true,
+        json: async () => ({
+          stargazers_count: 42,
+          license: { spdx_id: "MIT" },
+          forks_count: 5,
+          description: "A summary repo",
+          default_branch: "main",
+        }),
+      };
+    };
+
+    const repoData = await fetchRepositoryDataWithAuth({
+      githubUrl: "https://github.com/owner/repo",
+      userId: "user-123",
+      includeVersionMetadata: false,
+    });
+
+    assert.equal(repoData.readmeContent, "# Summary Repo Readme");
+    assert.equal(repoData.metadata.stars, 42);
+    assert.equal(repoData.metadata.forks, 5);
+    assert.equal(repoData.metadata.license, "MIT");
+    assert.equal(repoData.metadata.description, "A summary repo");
+    assert.equal(repoData.metadata.version, "Unknown");
+    assert.equal(calls.some((call) => call.url.endsWith("/releases/latest") || call.url.endsWith("/tags")), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("GitHub App reconnect after local disconnect verifies and recreates the local record", async () => {
   const { supabaseAdmin } = loadTsModule("lib/supabase-admin.ts");
   const githubAppService = loadTsModule("lib/services/github-app.service.ts");

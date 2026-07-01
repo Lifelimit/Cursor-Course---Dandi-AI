@@ -80,6 +80,7 @@ export async function POST(request: Request) {
       const repoData = await fetchRepositoryDataWithAuth({
         githubUrl,
         userId,
+        includeVersionMetadata: false,
       });
       readmeContent = repoData.readmeContent;
       metadata = repoData.metadata;

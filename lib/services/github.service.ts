@@ -65,11 +65,50 @@ export async function fetchGitHubReadme(githubUrl: string, token?: string): Prom
   throw new Error(`Could not find README.md for repository ${owner}/${repo}.`);
 }
 
+type FetchGitHubMetadataOptions = {
+  includeVersion?: boolean;
+};
+
+async function fetchGitHubVersion(owner: string, repo: string, token?: string) {
+  try {
+    const releaseResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`, {
+      headers: getGitHubHeaders(token)
+    });
+
+    if (releaseResponse.ok) {
+      const releaseData = await releaseResponse.json();
+      if (typeof releaseData.tag_name === "string" && releaseData.tag_name.length > 0) {
+        return releaseData.tag_name;
+      }
+    }
+
+    const tagsResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/tags`, {
+      headers: getGitHubHeaders(token)
+    });
+    if (tagsResponse.ok) {
+      const tagsData = await tagsResponse.json();
+      if (Array.isArray(tagsData) && typeof tagsData[0]?.name === "string" && tagsData[0].name.length > 0) {
+        return tagsData[0].name;
+      }
+    }
+  } catch (err) {
+    console.error("Failed to fetch version:", err);
+  }
+
+  return "Unknown";
+}
+
 /**
- * Fetches repository metadata (stars, license, version) from the GitHub API
+ * Fetches repository metadata from the GitHub API. Version lookup is optional because
+ * release/tag requests are nice-to-have and can delay summary streaming.
  */
-export async function fetchGitHubMetadata(githubUrl: string, token?: string) {
+export async function fetchGitHubMetadata(
+  githubUrl: string,
+  token?: string,
+  options: FetchGitHubMetadataOptions = {}
+) {
   const { owner, repo } = getGitHubRepositoryParts(githubUrl);
+  const { includeVersion = true } = options;
 
   // 1. Fetch Repository Details (Stars, License)
   const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
@@ -82,29 +121,7 @@ export async function fetchGitHubMetadata(githubUrl: string, token?: string) {
 
   const repoData = await repoResponse.json();
 
-  // 2. Fetch Latest Release (Version)
-  let version = "Unknown";
-  try {
-    const releaseResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`, {
-      headers: getGitHubHeaders(token)
-    });
-    
-    if (releaseResponse.ok) {
-      const releaseData = await releaseResponse.json();
-      version = releaseData.tag_name;
-    } else {
-      // Fallback to latest tag if no official release
-      const tagsResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/tags`, {
-        headers: getGitHubHeaders(token)
-      });
-      if (tagsResponse.ok) {
-        const tagsData = await tagsResponse.json();
-        if (tagsData.length > 0) version = tagsData[0].name;
-      }
-    }
-  } catch (err) {
-    console.error("Failed to fetch version:", err);
-  }
+  const version = includeVersion ? await fetchGitHubVersion(owner, repo, token) : "Unknown";
 
   return {
     stars: repoData.stargazers_count,
@@ -121,15 +138,17 @@ export async function fetchGitHubMetadata(githubUrl: string, token?: string) {
 export async function fetchRepositoryDataWithAuth(input: {
   githubUrl: string;
   userId: string | null;
+  includeVersionMetadata?: boolean;
 }) {
   const { owner, repo } = getGitHubRepositoryParts(input.githubUrl);
   const repoFullName = `${owner}/${repo}`;
+  const metadataOptions = { includeVersion: input.includeVersionMetadata ?? true };
 
   // 1. Attempt public fetch first
   try {
     const [readmeContent, metadata] = await Promise.all([
       fetchGitHubReadme(input.githubUrl),
-      fetchGitHubMetadata(input.githubUrl)
+      fetchGitHubMetadata(input.githubUrl, undefined, metadataOptions)
     ]);
     return { readmeContent, metadata };
   } catch {
@@ -151,7 +170,7 @@ export async function fetchRepositoryDataWithAuth(input: {
     try {
       const [readmeContent, metadata] = await Promise.all([
         fetchGitHubReadme(input.githubUrl, access.token),
-        fetchGitHubMetadata(input.githubUrl, access.token)
+        fetchGitHubMetadata(input.githubUrl, access.token, metadataOptions)
       ]);
       return { readmeContent, metadata };
     } catch (privateErr) {
