@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { ScrollFrame } from "@/components/command";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { AccountApiKeyAccess, AccountApiRequestActivity } from "@/types/account";
@@ -6,6 +5,7 @@ import type { AccountApiKeyAccess, AccountApiRequestActivity } from "@/types/acc
 type AccountApiKeysPanelProps = {
   apiKeys: AccountApiKeyAccess[];
   recentRequests: AccountApiRequestActivity[];
+  onCreateApiKey: () => void;
   onRevokeApiKey: (apiKey: AccountApiKeyAccess) => void;
 };
 
@@ -15,25 +15,39 @@ function getApiKeyEnvironmentLabel(apiKey: AccountApiKeyAccess) {
   return "API key";
 }
 
-function CreateApiKeyLink() {
+function CreateApiKeyButton({ onClick }: { onClick: () => void }) {
   return (
-    <Link href="/dashboards" className="mt-4 inline-flex text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-4 inline-flex text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline"
+    >
       Create API Key
-    </Link>
+    </button>
   );
 }
 
 export function AccountApiKeysPanel({
   apiKeys,
   recentRequests,
+  onCreateApiKey,
   onRevokeApiKey,
 }: AccountApiKeysPanelProps) {
   return (
     <div className="space-y-8">
       <section className="space-y-4">
-        <div className="space-y-1">
-          <h5 className="text-sm font-bold text-white">API Keys</h5>
-          <p className="text-xs leading-5 text-zinc-400">Credentials used by external clients and scripts.</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <h5 className="text-sm font-bold text-white">API Keys</h5>
+            <p className="text-xs leading-5 text-zinc-400">Credentials used by external clients and scripts.</p>
+          </div>
+          <button
+            type="button"
+            onClick={onCreateApiKey}
+            className="inline-flex w-full items-center justify-center rounded-full bg-emerald-500 px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:w-auto"
+          >
+            Create API Key
+          </button>
         </div>
 
         <div className="space-y-3 md:hidden">
@@ -86,7 +100,7 @@ export function AccountApiKeysPanel({
             <EmptyState
               title="No API keys yet."
               description="API keys appear here after you create a key."
-              action={<CreateApiKeyLink />}
+              action={<CreateApiKeyButton onClick={onCreateApiKey} />}
             />
           )}
         </div>
@@ -146,7 +160,7 @@ export function AccountApiKeysPanel({
                         className="mx-auto max-w-md"
                         title="No API keys yet."
                         description="API keys appear here after you create a key."
-                        action={<CreateApiKeyLink />}
+                        action={<CreateApiKeyButton onClick={onCreateApiKey} />}
                       />
                     </td>
                   </tr>

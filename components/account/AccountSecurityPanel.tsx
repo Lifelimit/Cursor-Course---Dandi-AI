@@ -19,6 +19,7 @@ type AccountSecurityPanelProps = {
   isSavingEmail: boolean;
   onToggleMagicLink: () => void;
   onAccessViewChange: (view: AccessView) => void;
+  onCreateApiKey: () => void;
   onRevokeApiKey: (apiKey: AccountApiKeyAccess) => void;
   onRefreshSessions: () => void;
   onNewPasswordChange: (value: string) => void;
@@ -41,6 +42,7 @@ export function AccountSecurityPanel({
   isSavingEmail,
   onToggleMagicLink,
   onAccessViewChange,
+  onCreateApiKey,
   onRevokeApiKey,
   onRefreshSessions,
   onNewPasswordChange,
@@ -137,6 +139,7 @@ export function AccountSecurityPanel({
           <AccountApiKeysPanel
             apiKeys={apiKeys}
             recentRequests={recentRequests}
+            onCreateApiKey={onCreateApiKey}
             onRevokeApiKey={onRevokeApiKey}
           />
         ) : (
