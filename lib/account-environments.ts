@@ -86,20 +86,44 @@ export function buildAccountAccess(input: {
     revocable: false,
   };
 
+  const logsByApiKey = new Map<string, AccountUsageLog[]>();
+  for (const log of input.usageLogs) {
+    if (!log.keyId) continue;
+    const keyLogs = logsByApiKey.get(log.keyId) ?? [];
+    keyLogs.push(log);
+    logsByApiKey.set(log.keyId, keyLogs);
+  }
+
   const apiKeys: AccountApiKeyAccess[] = input.apiKeys
     .filter((key) => key.is_active)
-    .map((key) => ({
-      id: `api-key-${key.id}`,
-      label: key.name,
-      detail: `${key.key_type === "production" ? "Production" : "Development"} API key`,
-      keyType: key.key_type,
-      ip: null,
-      location: null,
-      lastSeenAt: key.created_at ?? null,
-      current: false,
-      revocable: true,
-      apiKeyId: key.id,
-    }));
+    .map((key) => {
+      const keyLogs = logsByApiKey.get(key.id) ?? [];
+      const latestLog = keyLogs.reduce<AccountUsageLog | null>((latest, log) => {
+        const latestTime = latest?.usedAt ? Date.parse(latest.usedAt) : 0;
+        const logTime = log.usedAt ? Date.parse(log.usedAt) : 0;
+        return !latest || logTime >= latestTime ? log : latest;
+      }, null);
+
+      return {
+        id: `api-key-${key.id}`,
+        label: key.name,
+        detail: `${key.key_type === "production" ? "Production" : "Development"} API key`,
+        keyType: key.key_type,
+        ip: null,
+        location: null,
+        lastSeenAt: key.created_at ?? null,
+        current: false,
+        revocable: true,
+        apiKeyId: key.id,
+        requestsThisMonth: keyLogs.length,
+        lastUsedAt: latestLog?.usedAt ?? null,
+        lastUsedClient: latestLog ? describeUserAgent(latestLog.userAgent) : null,
+        lastUsedIp: latestLog?.ip ?? null,
+        lastUsedLocation: latestLog ? formatEnvironmentLocation(latestLog) : null,
+        latestRepoUrl: latestLog?.repoUrl ?? null,
+        latestStatus: latestLog?.status ?? null,
+      };
+    });
 
   const latestByFingerprint = new Map<string, AccountUsageLog>();
   for (const log of input.usageLogs) {

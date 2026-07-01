@@ -24,6 +24,13 @@ export type AccountApiKeyAccess = {
   revocable: boolean;
   apiKeyId: string;
   telemetryAge?: string;
+  requestsThisMonth?: number;
+  lastUsedAt?: string | null;
+  lastUsedClient?: string | null;
+  lastUsedIp?: string | null;
+  lastUsedLocation?: string | null;
+  latestRepoUrl?: string | null;
+  latestStatus?: string | null;
 };
 
 export type AccountApiRequestActivity = {

@@ -7,6 +7,11 @@ export type UsageLog = {
   repoUrl?: string;
   repo_url?: string;
   usedAt: string;
+  ip?: string | null;
+  userAgent?: string | null;
+  city?: string | null;
+  region?: string | null;
+  country?: string | null;
 };
 
 export type DailyUsageTrend = {

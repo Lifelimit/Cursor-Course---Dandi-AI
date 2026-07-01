@@ -626,6 +626,16 @@ test("builds structured account access from browser, active keys, and request te
         userAgent: "curl/8.7.1",
         country: "GB",
       },
+      {
+        keyId: "key-active",
+        repoUrl: "https://github.com/vercel/next.js",
+        usedAt: "2026-06-02T11:30:00.000Z",
+        ip: "198.51.100.8",
+        userAgent: "node-fetch",
+        city: "London",
+        country: "GB",
+        status: "success",
+      },
     ],
   });
 
@@ -640,10 +650,17 @@ test("builds structured account access from browser, active keys, and request te
   assert.equal(accountAccess.apiKeys[0]?.keyType, "production");
   assert.equal(accountAccess.apiKeys[0]?.revocable, true);
   assert.equal(accountAccess.apiKeys[0]?.apiKeyId, "key-active");
+  assert.equal(accountAccess.apiKeys[0]?.requestsThisMonth, 2);
+  assert.equal(accountAccess.apiKeys[0]?.lastUsedAt, "2026-06-02T11:30:00.000Z");
+  assert.equal(accountAccess.apiKeys[0]?.lastUsedClient, "Node.js client");
+  assert.equal(accountAccess.apiKeys[0]?.lastUsedIp, "198.51.100.8");
+  assert.equal(accountAccess.apiKeys[0]?.lastUsedLocation, "London, GB");
+  assert.equal(accountAccess.apiKeys[0]?.latestRepoUrl, "https://github.com/vercel/next.js");
+  assert.equal(accountAccess.apiKeys[0]?.latestStatus, "success");
 
-  assert.equal(accountAccess.recentRequests.length, 1);
-  assert.equal(accountAccess.recentRequests[0]?.label, "Terminal curl command");
-  assert.equal(accountAccess.recentRequests[0]?.ip, "198.51.100.7");
+  assert.equal(accountAccess.recentRequests.length, 2);
+  assert.equal(accountAccess.recentRequests[0]?.label, "Node.js client");
+  assert.equal(accountAccess.recentRequests[0]?.ip, "198.51.100.8");
   assert.equal(accountAccess.recentRequests[0]?.revocable, false);
   assert.equal(accountAccess.recentRequests[0]?.apiKeyId, "key-active");
 });

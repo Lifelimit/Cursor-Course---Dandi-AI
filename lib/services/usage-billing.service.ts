@@ -45,6 +45,11 @@ export function parseUsageLogs(
         repoUrl: typeof usageLog.repoUrl === "string" ? usageLog.repoUrl : undefined,
         repo_url: options.includeSnakeRepoUrl && typeof usageLog.repo_url === "string" ? usageLog.repo_url : undefined,
         usedAt: usageLog.usedAt,
+        ip: typeof usageLog.ip === "string" ? usageLog.ip : null,
+        userAgent: typeof usageLog.userAgent === "string" ? usageLog.userAgent : null,
+        city: typeof usageLog.city === "string" ? usageLog.city : null,
+        region: typeof usageLog.region === "string" ? usageLog.region : null,
+        country: typeof usageLog.country === "string" ? usageLog.country : null,
       }];
     } catch {
       return [];

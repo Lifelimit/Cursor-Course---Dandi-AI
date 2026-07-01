@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import {
   buildAccountAccess,
   getRequestTelemetry,
-  type AccountUsageLog,
 } from "@/lib/account-environments";
-import { redis } from "@/lib/redis";
+import { getDisplayUsageLogs } from "@/lib/services/usage-billing.service";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 
@@ -25,19 +24,9 @@ export async function GET(request: Request) {
     }
 
     const currentMonth = new Date().toISOString().slice(0, 7);
-    let rawLogs: unknown[] = [];
-    try {
-      rawLogs = await redis.lrange(`logs:user:${userId}:${currentMonth}`, 0, 99);
-    } catch (err) {
-      console.warn("⚠️ Display Redis log read failed; using empty account environment usage logs:", err);
-    }
-
-    const usageLogs: AccountUsageLog[] = rawLogs.map((log: unknown) => {
-      try {
-        return typeof log === "string" ? JSON.parse(log) : log;
-      } catch {
-        return {};
-      }
+    const usageLogs = await getDisplayUsageLogs(`logs:user:${userId}:${currentMonth}`, 0, 99, {
+      requireKeyId: true,
+      warning: "⚠️ Display Redis log read failed; using empty account environment usage logs:",
     });
 
     const accountAccess = buildAccountAccess({

@@ -1,5 +1,6 @@
 import { ScrollFrame } from "@/components/command";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { formatRelativeTime, formatRequestCount } from "@/lib/format";
 import type { AccountApiKeyAccess, AccountApiRequestActivity } from "@/types/account";
 
 type AccountApiKeysPanelProps = {
@@ -13,6 +14,30 @@ function getApiKeyEnvironmentLabel(apiKey: AccountApiKeyAccess) {
   if (apiKey.keyType === "production") return "Production";
   if (apiKey.keyType === "development") return "Development";
   return "API key";
+}
+
+function getApiKeyLastUsedLabel(apiKey: AccountApiKeyAccess) {
+  return apiKey.lastUsedAt
+    ? formatRelativeTime(apiKey.lastUsedAt, { emptyLabel: "Never used" })
+    : "Never used";
+}
+
+function getApiKeyUsageLocation(apiKey: AccountApiKeyAccess) {
+  return apiKey.lastUsedLocation || apiKey.lastUsedIp || null;
+}
+
+function getApiKeyUsageDetail(apiKey: AccountApiKeyAccess) {
+  const parts = [
+    apiKey.lastUsedClient,
+    getApiKeyUsageLocation(apiKey),
+    apiKey.latestRepoUrl,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" | ") : null;
+}
+
+function getApiKeyRequestCount(apiKey: AccountApiKeyAccess) {
+  return formatRequestCount(apiKey.requestsThisMonth ?? 0);
 }
 
 function CreateApiKeyButton({ onClick }: { onClick: () => void }) {
@@ -75,7 +100,21 @@ export function AccountApiKeysPanel({
                     <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Created</p>
                     <p className="font-bold text-zinc-400">{apiKey.telemetryAge || "Unknown"}</p>
                   </div>
+                  <div className="space-y-1">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Last Used</p>
+                    <p className="font-bold text-zinc-400">{getApiKeyLastUsedLabel(apiKey)}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Requests</p>
+                    <p className="font-bold text-zinc-400">{getApiKeyRequestCount(apiKey)}</p>
+                  </div>
                 </div>
+
+                {getApiKeyUsageDetail(apiKey) && (
+                  <p className="break-words rounded-xl border border-white/5 bg-slate-950/30 px-3 py-2 text-[10px] font-medium leading-5 text-zinc-500">
+                    {getApiKeyUsageDetail(apiKey)}
+                  </p>
+                )}
 
                 <div className="border-t border-white/5 pt-3">
                   {canRevokeApiKey ? (
@@ -106,13 +145,15 @@ export function AccountApiKeysPanel({
         </div>
 
         <div className="hidden md:block">
-          <ScrollFrame axis="x" minWidth="680px" label="API keys table">
-            <table className="min-w-[680px] w-full border-collapse text-left font-sans text-xs">
+          <ScrollFrame axis="x" minWidth="980px" label="API keys table">
+            <table className="min-w-[980px] w-full border-collapse text-left font-sans text-xs">
               <thead>
                 <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
                   <th className="px-6 py-4">Key Name</th>
                   <th className="px-6 py-4">Type</th>
                   <th className="px-6 py-4">Created</th>
+                  <th className="px-6 py-4">Last Used</th>
+                  <th className="px-6 py-4">Requests This Month</th>
                   <th className="px-6 py-4 text-right">Action</th>
                 </tr>
               </thead>
@@ -136,6 +177,24 @@ export function AccountApiKeysPanel({
                         </span>
                       </td>
                       <td className="px-6 py-4 font-bold text-zinc-400">{apiKey.telemetryAge || "Unknown"}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex max-w-[280px] flex-col gap-1">
+                          <span className="font-bold text-zinc-400">{getApiKeyLastUsedLabel(apiKey)}</span>
+                          {getApiKeyUsageDetail(apiKey) && (
+                            <span className="truncate text-[10px] font-medium text-zinc-500" title={getApiKeyUsageDetail(apiKey) || undefined}>
+                              {getApiKeyUsageDetail(apiKey)}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-bold text-zinc-400">{getApiKeyRequestCount(apiKey)}</span>
+                          {apiKey.latestStatus && (
+                            <span className="text-[10px] font-medium capitalize text-zinc-500">{apiKey.latestStatus}</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 text-right">
                         {canRevokeApiKey ? (
                           <button
@@ -155,7 +214,7 @@ export function AccountApiKeysPanel({
                 })}
                 {apiKeys.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-6 py-10 text-center">
+                    <td colSpan={6} className="px-6 py-10 text-center">
                       <EmptyState
                         className="mx-auto max-w-md"
                         title="No API keys yet."
