@@ -44,6 +44,12 @@ export type AccountApiRequestActivity = {
   revocable: false;
   apiKeyId?: string;
   telemetryAge?: string;
+  repoUrl?: string | null;
+  status?: string | null;
+  latencyMs?: number | null;
+  usedAt?: string | null;
+  client?: string | null;
+  userAgent?: string | null;
 };
 
 export type AccountAccessResponse = {

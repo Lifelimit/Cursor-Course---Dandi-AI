@@ -152,6 +152,12 @@ export function buildAccountAccess(input: {
       current: false,
       revocable: false,
       apiKeyId: log.keyId,
+      repoUrl: log.repoUrl ?? null,
+      status: log.status ?? null,
+      latencyMs: typeof log.latencyMs === "number" ? log.latencyMs : null,
+      usedAt: log.usedAt ?? null,
+      client: describeUserAgent(log.userAgent),
+      userAgent: log.userAgent ?? null,
     }))
     .sort((a, b) => {
       const aTime = a.lastSeenAt ? Date.parse(a.lastSeenAt) : 0;

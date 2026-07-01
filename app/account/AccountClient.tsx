@@ -24,6 +24,7 @@ import type {
   CurrentBrowserTelemetry,
   WebhookLogEntry,
 } from "@/types/account";
+import { AccountApiActivityInspectorModal } from "@/components/account/AccountApiActivityInspectorModal";
 import { AccountApiKeyCreateModal } from "@/components/account/AccountApiKeyCreateModal";
 import { AccountApiKeyRevocationModal } from "@/components/account/AccountApiKeyRevocationModal";
 import { AccountDeliveryLogInspectorModal } from "@/components/account/AccountDeliveryLogInspectorModal";
@@ -81,6 +82,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
   const [inspectedLog, setInspectedLog] = useState<WebhookLogEntry | null>(null);
   const [modalActiveTab, setModalActiveTab] = useState<DeliveryLogModalTab>("request");
+  const [inspectedApiActivity, setInspectedApiActivity] = useState<AccountApiRequestActivity | null>(null);
   const [isCreateApiKeyOpen, setIsCreateApiKeyOpen] = useState(false);
   const [apiKeyPendingRevocation, setApiKeyPendingRevocation] = useState<AccountApiKeyAccess | null>(null);
   const [isRevokingApiKey, setIsRevokingApiKey] = useState(false);
@@ -518,6 +520,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                 }}
                 onAccessViewChange={setAccessView}
                 onCreateApiKey={() => setIsCreateApiKeyOpen(true)}
+                onInspectApiActivity={setInspectedApiActivity}
                 onRevokeApiKey={handleRevokeApiKey}
                 onRefreshSessions={loadData}
                 onNewPasswordChange={setNewPassword}
@@ -547,6 +550,12 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         onCreated={() => {
           void loadData();
         }}
+        showToast={showToast}
+      />
+
+      <AccountApiActivityInspectorModal
+        activity={inspectedApiActivity}
+        onClose={() => setInspectedApiActivity(null)}
         showToast={showToast}
       />
 

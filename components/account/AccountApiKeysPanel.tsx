@@ -7,6 +7,7 @@ type AccountApiKeysPanelProps = {
   apiKeys: AccountApiKeyAccess[];
   recentRequests: AccountApiRequestActivity[];
   onCreateApiKey: () => void;
+  onInspectApiActivity: (activity: AccountApiRequestActivity) => void;
   onRevokeApiKey: (apiKey: AccountApiKeyAccess) => void;
 };
 
@@ -56,6 +57,7 @@ export function AccountApiKeysPanel({
   apiKeys,
   recentRequests,
   onCreateApiKey,
+  onInspectApiActivity,
   onRevokeApiKey,
 }: AccountApiKeysPanelProps) {
   return (
@@ -266,9 +268,18 @@ export function AccountApiKeysPanel({
                 </div>
               </div>
 
-              <p className="border-t border-white/5 pt-3 text-center text-[8px] font-black uppercase tracking-widest text-zinc-500">
-                Request activity only
-              </p>
+              <div className="border-t border-white/5 pt-3">
+                <button
+                  type="button"
+                  onClick={() => onInspectApiActivity(request)}
+                  className="w-full rounded-xl border border-sky-500/20 bg-sky-950/20 px-4 py-3 text-[9px] font-black uppercase tracking-widest text-sky-300 transition-all hover:bg-sky-500 hover:text-white active:scale-[0.98]"
+                >
+                  View Details
+                </button>
+                <p className="mt-3 text-center text-[8px] font-black uppercase tracking-widest text-zinc-500">
+                  Request activity only
+                </p>
+              </div>
             </div>
           ))}
           {recentRequests.length === 0 && (
@@ -280,8 +291,8 @@ export function AccountApiKeysPanel({
         </div>
 
         <div className="hidden md:block">
-          <ScrollFrame axis="x" minWidth="760px" label="Recent API activity table">
-            <table className="min-w-[760px] w-full border-collapse text-left font-sans text-xs">
+          <ScrollFrame axis="x" minWidth="860px" label="Recent API activity table">
+            <table className="min-w-[860px] w-full border-collapse text-left font-sans text-xs">
               <thead>
                 <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
                   <th className="px-6 py-4">Client</th>
@@ -289,6 +300,7 @@ export function AccountApiKeysPanel({
                   <th className="px-6 py-4">IP</th>
                   <th className="px-6 py-4">Location</th>
                   <th className="px-6 py-4">Last Seen</th>
+                  <th className="px-6 py-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 font-medium">
@@ -305,11 +317,20 @@ export function AccountApiKeysPanel({
                     <td className="px-6 py-4 font-mono text-zinc-400 select-all">{request.ip || "Unknown"}</td>
                     <td className="px-6 py-4 text-zinc-400">{request.location || "Unknown"}</td>
                     <td className="px-6 py-4 font-bold text-zinc-400">{request.telemetryAge || "No activity"}</td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => onInspectApiActivity(request)}
+                        className="rounded-full border border-sky-500/20 bg-sky-950/20 px-3.5 py-2 text-[8px] font-black uppercase tracking-widest text-sky-300 shadow-sm transition-all hover:bg-sky-500 hover:text-white active:scale-[0.97]"
+                      >
+                        View Details
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {recentRequests.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center">
+                    <td colSpan={6} className="px-6 py-10 text-center">
                       <EmptyState
                         className="mx-auto max-w-md"
                         title="No recent API activity yet."

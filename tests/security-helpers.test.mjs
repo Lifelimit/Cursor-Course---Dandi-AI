@@ -663,6 +663,10 @@ test("builds structured account access from browser, active keys, and request te
   assert.equal(accountAccess.recentRequests[0]?.ip, "198.51.100.8");
   assert.equal(accountAccess.recentRequests[0]?.revocable, false);
   assert.equal(accountAccess.recentRequests[0]?.apiKeyId, "key-active");
+  assert.equal(accountAccess.recentRequests[0]?.repoUrl, "https://github.com/vercel/next.js");
+  assert.equal(accountAccess.recentRequests[0]?.status, "success");
+  assert.equal(accountAccess.recentRequests[0]?.usedAt, "2026-06-02T11:30:00.000Z");
+  assert.equal(accountAccess.recentRequests[0]?.client, "Node.js client");
 });
 
 test("uses friendlier fallback labels for missing or custom clients", () => {
