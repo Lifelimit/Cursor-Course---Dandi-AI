@@ -278,6 +278,7 @@ export default function PlaygroundClient({
     requestLogs,
     ingestStatus,
     hasIndexingFailure,
+    currentIndexStats,
     getRepoPath,
   });
   const indexingLoadingStages = buildIndexingLoadingStages({
@@ -431,6 +432,7 @@ export default function PlaygroundClient({
                     summaryRepoStage={summaryRepoStage}
                     summaryAiStage={summaryAiStage}
                     ingestStatus={ingestStatus}
+                    currentStep={currentIndexStats?.currentStep}
                     ingestedRepo={ingestedRepo}
                     setApiKey={setApiKey}
                     setSelectedKey={setSelectedKey}

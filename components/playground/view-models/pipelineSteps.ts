@@ -160,14 +160,23 @@ export function buildRagProcessingSteps({
   requestLogs,
   ingestStatus,
   hasIndexingFailure,
+  currentIndexStats,
   getRepoPath,
 }: {
   githubUrl: string;
   requestLogs: LogEntry[];
   ingestStatus: RepositoryIngestStatus;
   hasIndexingFailure: boolean;
+  currentIndexStats: IndexedRepositoryStats | null;
   getRepoPath: (url: string) => string;
 }): PipelineFlowStep[] {
+  const currentIngestionStep = currentIndexStats?.currentStep;
+  const isQueued = currentIngestionStep === "queued";
+  const isCloning = currentIngestionStep === "cloning";
+  const isAnalyzing = currentIngestionStep === "analyzing";
+  const isIndexing = currentIngestionStep === "indexing";
+  const isReady = currentIngestionStep === "ready" || ingestStatus === "completed";
+
   return [
     {
       id: "rag-url",
@@ -185,13 +194,23 @@ export function buildRagProcessingSteps({
       id: "rag-queue",
       label: "Queued",
       sublabel: "Create ingestion job",
-      status: ingestStatus === "idle" ? "idle" : getPipelineStatus(requestLogs, "repo_fetch"),
+      status: hasIndexingFailure
+        ? "error"
+        : isQueued
+          ? "active"
+          : isCloning || isAnalyzing || isIndexing || isReady
+            ? "done"
+            : ingestStatus === "idle" ? "idle" : getPipelineStatus(requestLogs, "repo_fetch"),
     },
     {
       id: "rag-index",
-      label: "Indexing",
-      sublabel: "Chunk files and store embeddings",
-      status: ingestStatus === "embedding" || ingestStatus === "crawling" ? "active" : ingestStatus === "completed" ? "done" : hasIndexingFailure ? "error" : "idle",
+      label: isCloning ? "Cloning" : isAnalyzing ? "Analyzing" : "Indexing",
+      sublabel: isCloning
+        ? "Read branch and repository tree"
+        : isAnalyzing
+          ? "Select files and create chunks"
+          : "Embed chunks and store vectors",
+      status: isIndexing || isCloning || isAnalyzing ? "active" : isReady ? "done" : hasIndexingFailure ? "error" : "idle",
     },
     {
       id: "rag-ready",
@@ -230,6 +249,8 @@ export function buildLifecycleSteps({
   indexedChunksLabel: string;
 }): PipelineFlowStep[] {
   const currentIngestionStep = currentIndexStats?.currentStep;
+  const reachedAnalyzing = ["analyzing", "indexing", "ready"].includes(currentIngestionStep || "") || ingestStatus === "completed";
+  const reachedIndexing = ["indexing", "ready"].includes(currentIngestionStep || "") || ingestStatus === "completed";
 
   return [
     {
@@ -246,7 +267,7 @@ export function buildLifecycleSteps({
         ? getPipelineStatus(requestLogs, "repo_fetch")
         : currentIngestionStep === "cloning"
           ? "active"
-          : ["analyzing", "indexing", "ready"].includes(currentIngestionStep || "") || ingestStatus === "embedding" || ingestStatus === "completed"
+          : reachedAnalyzing
             ? "done"
             : getPipelineStatus(requestLogs, "repo_fetch"),
     },
@@ -258,9 +279,9 @@ export function buildLifecycleSteps({
         ? getPipelineStatus(requestLogs, "ai_processing")
         : currentIngestionStep === "analyzing"
           ? "active"
-          : ["indexing", "ready"].includes(currentIngestionStep || "") || ingestStatus === "embedding" || ingestStatus === "completed"
+          : reachedIndexing
             ? "done"
-            : ingestStatus === "crawling" ? "active" : hasIndexingFailure ? "error" : "idle",
+            : hasIndexingFailure ? "error" : "idle",
     },
     {
       id: "lifecycle-summarizing",
@@ -278,7 +299,7 @@ export function buildLifecycleSteps({
         : currentIndexStats?.status === "completed" ? `${indexedFilesLabel} files / ${indexedChunksLabel} chunks` : currentIngestionStep === "indexing" || ingestStatus === "embedding" ? "Creating searchable chunks" : "Index a repository once to ask source-backed questions",
       status: activeTab === "summary"
         ? "idle"
-        : currentIngestionStep === "ready" || ingestStatus === "completed" && currentIndexStats?.status === "completed" ? "done" : currentIngestionStep === "indexing" || ingestStatus === "embedding" || ingestStatus === "crawling" ? "active" : hasIndexingFailure ? "error" : "idle",
+        : currentIngestionStep === "ready" || ingestStatus === "completed" && currentIndexStats?.status === "completed" ? "done" : currentIngestionStep === "indexing" || ingestStatus === "embedding" ? "active" : hasIndexingFailure ? "error" : "idle",
     },
     {
       id: "lifecycle-ready",

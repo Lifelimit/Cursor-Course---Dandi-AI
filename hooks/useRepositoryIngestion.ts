@@ -22,6 +22,7 @@ export type IndexedRepositoryStats = {
   failedAt?: string | null;
   updatedAt?: string;
   error?: string;
+  errorMessage?: string;
 };
 
 type UseRepositoryIngestionOptions = {
@@ -51,9 +52,16 @@ type IngestionResponse = {
   failedAt?: string | null;
   updatedAt?: string;
   error?: string;
+  errorMessage?: string;
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const getIngestionPollDelay = (attempt: number) => {
+  if (attempt === 0) return 0;
+  if (attempt <= 4) return 500;
+  if (attempt <= 8) return 1000;
+  return 2000;
+};
 
 const getPerformanceNow = () => performance.now();
 
@@ -85,6 +93,23 @@ const toLocalIngestStatus = (job: IngestionJobSummary): RepositoryIngestStatus =
   if (job.status === "running" || job.status === "queued") return "crawling";
   return "idle";
 };
+
+const toIngestionJobSummary = (response: IngestionResponse, repoUrl: string): IngestionJobSummary => ({
+  jobId: response.jobId || "",
+  status: response.status === "failed" || response.status === "completed" || response.status === "running" ? response.status : "queued",
+  currentStep: response.currentStep as IngestionJobSummary["currentStep"],
+  repoUrl,
+  error: response.error,
+  errorMessage: response.errorMessage || response.error,
+  filesCount: response.filesCount,
+  chunksCount: response.chunksCount,
+  indexedFileCount: response.indexedFileCount,
+  chunkCount: response.chunkCount,
+  indexAvailable: response.indexAvailable,
+  completedAt: response.completedAt,
+  failedAt: response.failedAt,
+  updatedAt: response.updatedAt,
+});
 
 const getUnknownErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof Error) return error.message;
@@ -212,6 +237,7 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
     const selectedKeyName = apiKeys.find((key) => key.key_value === apiKey)?.name || "Custom Key";
 
     const startTime = getPerformanceNow();
+    let jobAccepted = false;
 
     setIndexedLogState("auth", {
       label: "Authentication Check",
@@ -223,19 +249,9 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
     });
 
     try {
-      await sleep(350);
-      setIndexedLogState("auth", {
-        status: "success",
-        duration: Math.round(getPerformanceNow() - startTime),
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: { "Content-Type": "application/json" },
-        responseBody: { valid: true, key_name: selectedKeyName, permissions: ["rag:write"] },
-      });
-
       const crawlStartTime = getPerformanceNow();
       setIndexedLogState("repo_fetch", {
-        label: "Recursive Tree Crawl",
+        label: "Create Ingestion Job",
         status: "pending",
         method: "POST",
         url: "/api/rag/ingest",
@@ -255,21 +271,29 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
       const data = (await res.json()) as IngestionResponse;
 
       if (!res.ok) {
+        setIndexedLogState("auth", {
+          status: res.status === 401 || res.status === 403 ? "error" : "success",
+          duration: Math.round(getPerformanceNow() - startTime),
+          statusCode: res.status === 401 || res.status === 403 ? res.status : 200,
+          statusText: res.status === 401 || res.status === 403 ? "Rejected" : "OK",
+          responseHeaders: { "Content-Type": "application/json" },
+          responseBody: res.status === 401 || res.status === 403
+            ? { valid: false, error: data.error || "API key validation failed." }
+            : { valid: true, key_name: selectedKeyName, permissions: ["rag:write"] },
+        });
         throw new Error(data.error || "Failed to ingest repository");
       }
 
-      setIndexedRepositoryStats({
-        repoUrl: githubUrl,
-        jobId: data.jobId,
-        status: data.status || "queued",
-        currentStep: data.currentStep,
-        filesCount: data.indexedFileCount ?? data.filesCount,
-        chunksCount: data.chunkCount ?? data.chunksCount,
-        indexedFileCount: data.indexedFileCount,
-        chunkCount: data.chunkCount,
-        indexAvailable: data.indexAvailable,
-        updatedAt: data.updatedAt,
+      jobAccepted = true;
+      setIndexedLogState("auth", {
+        status: "success",
+        duration: Math.round(getPerformanceNow() - startTime),
+        statusCode: 200,
+        statusText: "OK",
+        responseHeaders: { "Content-Type": "application/json" },
+        responseBody: { valid: true, key_name: selectedKeyName, permissions: ["rag:write"] },
       });
+      applyDurableJobState(toIngestionJobSummary(data, githubUrl));
 
       setIndexedLogState("repo_fetch", {
         status: "success",
@@ -285,20 +309,22 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
         },
       });
 
-      setIngestStatus("embedding");
       const embeddingStartTime = getPerformanceNow();
       setIndexedLogState("ai_processing", {
-        label: "Index Repository Content",
+        label: "Run Repository Ingestion",
         status: "pending",
-        method: "INSERT",
-        url: "repository_chunks",
+        method: "GET",
+        url: "/api/rag/ingest",
         requestHeaders: { "Content-Type": "application/json" },
         requestBody: { jobId: data.jobId, status: data.status },
       });
 
       let completedJob = data;
       for (let attempt = 0; attempt < 90; attempt++) {
-        await sleep(2000);
+        const pollDelay = getIngestionPollDelay(attempt);
+        if (pollDelay > 0) {
+          await sleep(pollDelay);
+        }
         const statusRes = await fetch(`/api/rag/ingest?jobId=${encodeURIComponent(data.jobId as string)}`, {
           headers: { "x-api-key": apiKey },
         });
@@ -319,20 +345,7 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
             chunkCount: statusData.chunkCount,
           },
         });
-        setIndexedRepositoryStats({
-          repoUrl: githubUrl,
-          jobId: data.jobId,
-          status: statusData.status,
-          currentStep: statusData.currentStep,
-          filesCount: statusData.indexedFileCount ?? statusData.filesCount,
-          chunksCount: statusData.chunkCount ?? statusData.chunksCount,
-          indexedFileCount: statusData.indexedFileCount,
-          chunkCount: statusData.chunkCount,
-          indexAvailable: statusData.indexAvailable,
-          completedAt: statusData.completedAt,
-          failedAt: statusData.failedAt,
-          updatedAt: statusData.updatedAt,
-        });
+        applyDurableJobState(toIngestionJobSummary(statusData, githubUrl));
 
         if (statusData.status === "completed") {
           completedJob = statusData;
@@ -340,7 +353,7 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
         }
 
         if (statusData.status === "failed") {
-          throw new Error(statusData.error || "Ingestion job failed.");
+          throw new Error(statusData.errorMessage || statusData.error || "Ingestion job failed.");
         }
       }
 
@@ -410,7 +423,9 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         error: errMsg,
       }));
 
-      setIndexedLogState("repo_fetch", { status: "error", responseBody: diagnosticError });
+      if (!jobAccepted) {
+        setIndexedLogState("repo_fetch", { status: "error", responseBody: diagnosticError });
+      }
       setIndexedLogState("ai_processing", {
         status: "error",
         statusText: errMsg.includes("rate limit") ? "Rate Limited" : "Failed",

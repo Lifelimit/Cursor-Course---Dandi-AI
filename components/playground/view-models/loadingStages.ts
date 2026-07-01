@@ -96,6 +96,13 @@ export function buildIndexingLoadingStages({
   const indexedAuthStage = getModeLogStatus(indexedRequestLogs, "auth");
   const indexedRepoStage = getModeLogStatus(indexedRequestLogs, "repo_fetch");
   const indexedAiStage = getModeLogStatus(indexedRequestLogs, "ai_processing");
+  const currentStep = currentIndexStats?.currentStep;
+  const isQueued = currentStep === "queued";
+  const isCloning = currentStep === "cloning";
+  const isAnalyzing = currentStep === "analyzing";
+  const isIndexing = currentStep === "indexing";
+  const isReady = currentStep === "ready" || ingestStatus === "completed";
+  const hasAnalyzed = isIndexing || isReady;
 
   return [
     {
@@ -106,27 +113,27 @@ export function buildIndexingLoadingStages({
     },
     {
       id: "index-read",
-      label: "Reading repository contents",
-      detail: "Starting ingestion and repository traversal",
-      status: indexedRepoStage,
+      label: "Queueing ingestion job",
+      detail: "Creating or reusing the repository preparation job",
+      status: isQueued && indexedRepoStage === "done" ? "active" : indexedRepoStage,
     },
     {
       id: "index-chunks",
-      label: "Creating searchable chunks",
-      detail: currentIndexStats?.filesCount ? `${indexedFilesLabel} files selected` : "Splitting eligible files into searchable sections",
-      status: ingestStatus === "crawling" ? "active" : ingestStatus === "embedding" || ingestStatus === "completed" ? "done" : hasIndexingFailure ? "error" : "idle",
+      label: isCloning ? "Reading repository contents" : "Analyzing eligible files",
+      detail: currentIndexStats?.filesCount ? `${indexedFilesLabel} files selected` : "Reading the default branch and selecting text/code files",
+      status: hasIndexingFailure ? "error" : isCloning || isAnalyzing ? "active" : hasAnalyzed ? "done" : "idle",
     },
     {
       id: "index-embeddings",
       label: "Generating embeddings",
-      detail: "Encoding chunks for semantic search",
-      status: ingestStatus === "embedding" ? "active" : ingestStatus === "completed" ? "done" : hasIndexingFailure && indexedAiStage === "error" ? "error" : "idle",
+      detail: currentIndexStats?.chunksCount ? `${indexedChunksLabel} chunks prepared` : "Encoding chunks for semantic search",
+      status: isIndexing ? "active" : isReady ? "done" : hasIndexingFailure && indexedAiStage === "error" ? "error" : "idle",
     },
     {
       id: "index-store",
       label: "Preparing repository for questions",
       detail: currentIndexStats?.chunksCount ? `${indexedChunksLabel} searchable chunks` : "Saving chunks and vector index",
-      status: ingestStatus === "completed" ? "done" : ingestStatus === "embedding" ? "active" : hasIndexingFailure ? "error" : "idle",
+      status: isReady ? "done" : isIndexing ? "active" : hasIndexingFailure ? "error" : "idle",
     },
     {
       id: "index-ready",

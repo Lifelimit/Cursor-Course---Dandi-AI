@@ -53,14 +53,6 @@ function deriveCurrentStep(job: IngestionJob): IngestionJobStep {
   return "queued";
 }
 
-function getIndexedFileCount(job: IngestionJob) {
-  return job.indexed_file_count ?? job.files_count;
-}
-
-function getChunkCount(job: IngestionJob) {
-  return job.chunk_count ?? job.chunks_count;
-}
-
 function sanitizeIngestionError(err: unknown) {
   if (isGeminiEmbeddingRateLimitError(err)) {
     return "Gemini embedding rate limit reached during ingestion. Please retry this repository after the quota window resets.";
@@ -85,8 +77,8 @@ function sanitizeIngestionError(err: unknown) {
 }
 
 export function formatIngestionJob(job: IngestionJob): IngestionJobSummary {
-  const indexedFileCount = getIndexedFileCount(job);
-  const chunkCount = getChunkCount(job);
+  const indexedFileCount = job.status === "completed" ? job.indexed_file_count ?? job.files_count : job.indexed_file_count;
+  const chunkCount = job.status === "completed" ? job.chunk_count ?? job.chunks_count : job.chunk_count;
   const errorMessage = job.error_message ?? job.error;
 
   return {
@@ -317,6 +309,10 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
       throw new Error("No queryable text or code assets found in this repository.");
     }
 
+    job = await updateJob(job.id, {
+      files_count: filesToIngest.length,
+    });
+
     await supabaseAdmin
       .from("repository_chunks")
       .delete()
@@ -341,6 +337,7 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
 
     job = await updateJob(job.id, {
       current_step: "indexing",
+      chunks_count: allChunks.length,
     });
 
     if (allChunks.length > 0) {

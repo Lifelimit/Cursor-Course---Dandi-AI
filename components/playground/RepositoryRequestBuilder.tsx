@@ -20,6 +20,7 @@ type RepositoryRequestBuilderProps = {
   summaryRepoStage: LoadingStageStatus;
   summaryAiStage: LoadingStageStatus;
   ingestStatus: RepositoryIngestStatus;
+  currentStep?: string;
   ingestedRepo: string | null;
   setApiKey: Dispatch<SetStateAction<string>>;
   setSelectedKey: Dispatch<SetStateAction<string>>;
@@ -42,6 +43,7 @@ export function RepositoryRequestBuilder({
   summaryRepoStage,
   summaryAiStage,
   ingestStatus,
+  currentStep,
   ingestedRepo,
   setApiKey,
   setSelectedKey,
@@ -51,6 +53,18 @@ export function RepositoryRequestBuilder({
   handleIngest,
   handleDemoMode,
 }: RepositoryRequestBuilderProps) {
+  const isIngesting = ingestStatus === "crawling" || ingestStatus === "embedding";
+  const ingestingLabel =
+    currentStep === "queued"
+      ? "Queued..."
+      : currentStep === "cloning"
+        ? "Reading Repository..."
+        : currentStep === "analyzing"
+          ? "Analyzing Files..."
+          : currentStep === "indexing" || ingestStatus === "embedding"
+            ? "Generating Embeddings..."
+            : "Preparing Repository...";
+
   return (
     <CommandPanel padding="none" className="p-5 sm:p-8">
       <form onSubmit={activeTab === "summary" ? handleSummarize : handleIngest} className="space-y-8">
@@ -204,13 +218,13 @@ export function RepositoryRequestBuilder({
           ) : (
             <button
               type="submit"
-              disabled={ingestStatus === "crawling" || ingestStatus === "embedding" || isOverLimit}
+              disabled={isIngesting || isOverLimit}
               className="group flex flex-1 items-center justify-center gap-2.5 rounded-2xl bg-emerald-400 px-5 py-4 text-[10px] font-black uppercase tracking-[0.16em] text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.18)] transition-all hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-3 sm:px-8 sm:py-5 sm:text-xs sm:tracking-widest cursor-pointer"
             >
-              {ingestStatus === "crawling" || ingestStatus === "embedding" ? (
+              {isIngesting ? (
                 <>
                   <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950"></div>
-                  {ingestStatus === "embedding" ? "Generating Embeddings..." : "Reading Repository..."}
+                  {ingestingLabel}
                 </>
               ) : (
                 <>
