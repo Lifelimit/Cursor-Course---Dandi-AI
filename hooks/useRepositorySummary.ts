@@ -145,6 +145,18 @@ const getResponseHeadersForLog = (response: Response): Record<string, string> =>
   return headers;
 };
 
+const isRepositoryRequestError = (response: Response, responseBody: Record<string, unknown>) => {
+  const errorText = typeof responseBody.error === "string" ? responseBody.error.toLowerCase() : "";
+  const githubErrorCode = typeof responseBody.code === "string" ? responseBody.code : "";
+
+  return (
+    githubErrorCode.startsWith("GITHUB_") ||
+    response.status === 404 ||
+    response.status === 422 ||
+    (response.status === 400 && errorText.includes("github repository url"))
+  );
+};
+
 export function useRepositorySummary({
   apiKey,
   githubUrl,
@@ -236,8 +248,7 @@ export function useRepositorySummary({
       } else {
         const responseText = await response.clone().text();
         const responseBody = parseJsonObject(responseText) || { error: responseText || response.statusText };
-        const githubErrorCode = typeof responseBody.code === "string" ? responseBody.code : "";
-        const isRepositoryError = githubErrorCode.startsWith("GITHUB_") || response.status === 404 || response.status === 422;
+        const isRepositoryError = isRepositoryRequestError(response, responseBody);
 
         if (isRepositoryError) {
           setSummaryLogState("auth", {

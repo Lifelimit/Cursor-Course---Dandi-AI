@@ -404,8 +404,8 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       showToast("success", "Repository indexed and ready for questions.");
       void refreshKeys();
     } catch (err) {
-      console.warn("Ask a Repository request failed:", err);
       const errMsg = getUnknownErrorMessage(err, "Ingestion process encountered an error.");
+      console.warn("Ask a Repository request failed:", errMsg);
       const diagnosticError = {
         status: "failed",
         detail: "Ask a Repository request failed. See the Repository Chat error card for the reason and next action.",
@@ -426,11 +426,13 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       if (!jobAccepted) {
         setIndexedLogState("repo_fetch", { status: "error", responseBody: diagnosticError });
       }
-      setIndexedLogState("ai_processing", {
-        status: "error",
-        statusText: errMsg.includes("rate limit") ? "Rate Limited" : "Failed",
-        responseBody: diagnosticError,
-      });
+      if (jobAccepted) {
+        setIndexedLogState("ai_processing", {
+          status: "error",
+          statusText: errMsg.includes("rate limit") ? "Rate Limited" : "Failed",
+          responseBody: diagnosticError,
+        });
+      }
       showToast("error", getToastErrorMessage("repository-indexing", errMsg));
     }
   };

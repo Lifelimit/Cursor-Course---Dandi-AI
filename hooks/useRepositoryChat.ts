@@ -32,6 +32,7 @@ type UseRepositoryChatOptions = {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const getPerformanceNow = () => performance.now();
+const getMaskedApiKey = (key: string) => key === "__demo__" ? "__demo__" : `${key.substring(0, 8)}••••••••`;
 
 export const isLightweightGreeting = (message: string) => {
   const normalized = message.trim().toLowerCase().replace(/[!?.\s]+$/g, "");
@@ -123,7 +124,9 @@ export function useRepositoryChat({
     scrollToSection(chatBottomRef);
 
     const startTime = getPerformanceNow();
-    const maskedKey = apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`;
+    const maskedKey = getMaskedApiKey(apiKey);
+    let searchStarted = false;
+    let streamStarted = false;
 
     setIndexedLogState("auth", {
       label: "Validate API Key",
@@ -135,23 +138,14 @@ export function useRepositoryChat({
     });
 
     try {
-      await sleep(150);
-      setIndexedLogState("auth", {
-        status: "success",
-        duration: 150,
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: { "Content-Type": "application/json" },
-        responseBody: { valid: true },
-      });
-
+      searchStarted = true;
       setIndexedLogState("repo_fetch", {
         label: "pgvector Semantic Search",
         status: "pending",
         method: "RPC",
         url: "match_repository_chunks",
         requestHeaders: { "Content-Type": "application/json" },
-        requestBody: { query: userMsg, repo_url: githubUrl, match_count: 5 },
+        requestBody: { query: "[current chat message]", repo_url: githubUrl, match_count: 5 },
       });
       setChatProgressStep("ranking");
 
@@ -169,8 +163,27 @@ export function useRepositoryChat({
 
       if (!response.ok) {
         const errorData = await response.json();
+        setIndexedLogState("auth", {
+          status: response.status === 401 || response.status === 403 ? "error" : "success",
+          duration: Math.round(getPerformanceNow() - startTime),
+          statusCode: response.status === 401 || response.status === 403 ? response.status : 200,
+          statusText: response.status === 401 || response.status === 403 ? "Rejected" : "OK",
+          responseHeaders: { "Content-Type": "application/json" },
+          responseBody: response.status === 401 || response.status === 403
+            ? { valid: false, error: errorData.error || "API key validation failed." }
+            : { valid: true },
+        });
         throw new Error(errorData.error || "Repository question request failed.");
       }
+
+      setIndexedLogState("auth", {
+        status: "success",
+        duration: Math.round(getPerformanceNow() - startTime),
+        statusCode: 200,
+        statusText: "OK",
+        responseHeaders: { "Content-Type": "application/json" },
+        responseBody: { valid: true },
+      });
 
       const sourcesHeader = response.headers.get("x-rag-sources");
       let sources: RagSource[] = [];
@@ -203,6 +216,7 @@ export function useRepositoryChat({
         requestHeaders: { "Content-Type": "text/event-stream" },
         requestBody: { model: "gemini-3.1-flash-lite", temperature: 0.2 },
       });
+      streamStarted = true;
       setChatProgressStep("answer");
 
       setRagMessages((prev) => {
@@ -251,14 +265,27 @@ export function useRepositoryChat({
       void markAskedRepositoryComplete();
       void refreshKeys();
     } catch (err) {
-      console.error(err);
       const errMsg = getUnknownErrorMessage(err, "Failed to stream answer.");
+      console.warn("Repository chat request failed:", errMsg);
       setErrorMessage(errMsg);
-      setIndexedLogState("ai_processing", {
-        status: "error",
-        statusText: errMsg.includes("rate limit") ? "Rate Limited" : "Stream Error",
-        responseBody: { error: errMsg },
-      });
+      if (searchStarted && !streamStarted) {
+        setIndexedLogState("repo_fetch", {
+          status: "error",
+          duration: Math.round(getPerformanceNow() - startTime),
+          statusText: errMsg.includes("rate limit") ? "Rate Limited" : "Search Error",
+          responseBody: {
+            error: errMsg,
+            detail: "Repository chat request did not complete.",
+          },
+        });
+      }
+      if (streamStarted) {
+        setIndexedLogState("ai_processing", {
+          status: "error",
+          statusText: errMsg.includes("rate limit") ? "Rate Limited" : "Stream Error",
+          responseBody: { error: errMsg },
+        });
+      }
 
       setRagMessages((prev) => {
         const updated = [...prev];

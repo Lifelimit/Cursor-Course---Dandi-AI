@@ -11,6 +11,12 @@ type CodeSnippetProps = {
   mode?: "summary" | "rag";
 };
 
+const maskSnippetApiKey = (apiKey: string) => {
+  if (!apiKey) return "sk_live_YOUR_API_KEY";
+  if (apiKey === "__demo__") return "__demo__";
+  return `${apiKey.substring(0, 8)}••••••••`;
+};
+
 export function CodeSnippet({ apiKey, githubUrl, onCopy, mode = "summary" }: CodeSnippetProps) {
   const [activeTab, setActiveTab] = useState<"curl" | "fetch" | "python">("curl");
 
@@ -21,7 +27,7 @@ export function CodeSnippet({ apiKey, githubUrl, onCopy, mode = "summary" }: Cod
     setApiBaseUrl(window.location.origin);
   }, []);
 
-  const displayKey = apiKey || "sk_live_YOUR_API_KEY";
+  const displayKey = maskSnippetApiKey(apiKey);
   const displayUrl = githubUrl || "https://github.com/facebook/react";
   const finalEndpointUrl = mode === "rag" 
     ? `${apiBaseUrl}/api/rag/chat` 
