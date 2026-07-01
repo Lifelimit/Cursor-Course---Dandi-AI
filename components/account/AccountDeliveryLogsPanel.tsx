@@ -163,11 +163,7 @@ export function AccountDeliveryLogsPanel({
                   const deliveryBadge = getWebhookDeliveryBadge(log.status);
                   const dateStr = formatWebhookTime(log.timestamp);
                   return (
-                    <tr
-                      key={log.id}
-                      className="transition-colors hover:bg-white/5 text-zinc-300 cursor-pointer"
-                      onClick={() => onInspectLog(log)}
-                    >
+                    <tr key={log.id} className="transition-colors hover:bg-white/5 text-zinc-300">
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${deliveryBadge.className}`}>
                           <span className={`h-1 w-1 rounded-full ${deliveryBadge.dotClassName}`} />
@@ -188,7 +184,9 @@ export function AccountDeliveryLogsPanel({
                       <td className="px-6 py-4 text-right">
                         <button
                           type="button"
+                          onClick={() => onInspectLog(log)}
                           className="rounded-full bg-slate-900 border border-white/10 px-3.5 py-1.5 text-[8px] font-black uppercase tracking-widest text-slate-300 hover:bg-white hover:text-zinc-950 transition-all shadow-sm active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                          aria-label={`Inspect webhook delivery to ${log.url}`}
                         >
                           Inspect
                         </button>

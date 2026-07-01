@@ -7,7 +7,6 @@ import { AccountSessionsPanel } from "./AccountSessionsPanel";
 type AccessView = "api" | "browser";
 
 type AccountSecurityPanelProps = {
-  preferMagicLink: boolean;
   accessView: AccessView;
   accessError?: string | null;
   currentBrowser: CurrentBrowserTelemetry | null;
@@ -18,7 +17,6 @@ type AccountSecurityPanelProps = {
   newEmail: string;
   isSavingPassword: boolean;
   isSavingEmail: boolean;
-  onToggleMagicLink: () => void;
   onAccessViewChange: (view: AccessView) => void;
   onCreateApiKey: () => void;
   onInspectApiActivity: (activity: AccountApiRequestActivity) => void;
@@ -32,7 +30,6 @@ type AccountSecurityPanelProps = {
 };
 
 export function AccountSecurityPanel({
-  preferMagicLink,
   accessView,
   accessError,
   currentBrowser,
@@ -43,7 +40,6 @@ export function AccountSecurityPanel({
   newEmail,
   isSavingPassword,
   isSavingEmail,
-  onToggleMagicLink,
   onAccessViewChange,
   onCreateApiKey,
   onInspectApiActivity,
@@ -62,27 +58,7 @@ export function AccountSecurityPanel({
     <CommandPanel id="account-security-panel" role="tabpanel" aria-labelledby="security-tab" className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
       <div className="space-y-1">
         <h3 className="font-serif text-xl font-bold text-white sm:text-2xl">Security & Sign-in</h3>
-        <p className="text-sm text-slate-400">Manage password settings and review recent account access.</p>
-      </div>
-
-      <div className="flex max-w-2xl flex-col gap-4 rounded-3xl border border-white/5 bg-slate-950/20 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="space-y-1 text-left">
-          <h4 className="text-sm font-bold">Magic Link Sign-in</h4>
-          <p className="text-xs text-zinc-400 leading-relaxed">
-            Prefer passwordless email sign-in when available.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onToggleMagicLink}
-          className={`w-full rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all sm:w-auto cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
-            preferMagicLink
-              ? "bg-white text-zinc-950"
-              : "border border-white/10 text-zinc-500 hover:text-white hover:bg-white/5"
-          }`}
-        >
-          {preferMagicLink ? "Magic Link Preferred" : "Password Preferred"}
-        </button>
+        <p className="text-sm text-slate-400">Manage password and email changes, API key credentials, and read-only request telemetry.</p>
       </div>
 
       <div className="space-y-6">

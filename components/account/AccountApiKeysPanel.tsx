@@ -216,6 +216,7 @@ export function AccountApiKeysPanel({
                             onClick={() => onRevokeApiKey(apiKey)}
                             className="rounded-full border border-rose-500/20 bg-rose-950/20 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-rose-400 shadow-sm transition-all hover:bg-rose-500 hover:text-white active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                             title="Disable this API key"
+                            aria-label={`Revoke API key ${apiKey.label}`}
                           >
                             Revoke
                           </button>
@@ -340,6 +341,7 @@ export function AccountApiKeysPanel({
                         type="button"
                         onClick={() => onInspectApiActivity(request)}
                         className="rounded-full border border-sky-500/20 bg-sky-950/20 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-sky-300 shadow-sm transition-all hover:bg-sky-500 hover:text-white active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                        aria-label={`View API activity details for ${request.label}`}
                       >
                         View
                       </button>

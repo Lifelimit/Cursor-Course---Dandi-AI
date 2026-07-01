@@ -53,10 +53,12 @@ export function AccountDeliveryLogInspectorModal({
           <p className="text-xs leading-5 text-zinc-400">
             This inspector shows the signed test payload and sanitized endpoint response captured for this in-page delivery log. Signing secrets and signature header values are not displayed.
           </p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto" role="tablist" aria-label="Delivery log detail sections">
           <button
             type="button"
             onClick={() => onActiveTabChange("request")}
+            role="tab"
+            aria-selected={activeTab === "request"}
             className={`rounded-full px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
               activeTab === "request"
                 ? "bg-white text-zinc-950 shadow-sm"
@@ -68,6 +70,8 @@ export function AccountDeliveryLogInspectorModal({
           <button
             type="button"
             onClick={() => onActiveTabChange("response")}
+            role="tab"
+            aria-selected={activeTab === "response"}
             className={`rounded-full px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
               activeTab === "response"
                 ? "bg-white text-zinc-950 shadow-sm"
@@ -131,12 +135,12 @@ export function AccountDeliveryLogInspectorModal({
         )}
       </div>
 
-      <div className="px-6 md:p-8 py-5 bg-slate-950/80 border-t border-white/5 flex items-center justify-between">
-        <span className="font-mono text-[9px] text-zinc-500">Latency: {inspectedLog.latency}ms</span>
+      <div className="flex flex-col gap-3 border-t border-white/5 bg-slate-950/80 px-6 py-5 sm:flex-row sm:items-center sm:justify-between md:p-8">
+        <span className="break-words font-mono text-[9px] text-zinc-500">Latency: {inspectedLog.latency}ms</span>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full bg-slate-900 border border-white/10 px-6 py-2.5 text-[9px] font-black uppercase tracking-widest text-slate-300 shadow transition hover:bg-white hover:text-zinc-950 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+          className="w-full rounded-full border border-white/10 bg-slate-900 px-6 py-2.5 text-[9px] font-black uppercase tracking-widest text-slate-300 shadow transition hover:bg-white hover:text-zinc-950 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:w-auto"
         >
           Close
         </button>

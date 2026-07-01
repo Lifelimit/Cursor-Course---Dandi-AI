@@ -53,7 +53,6 @@ async function readResponseError(response: Response, fallback: string) {
 }
 
 export default function AccountClient({ initialSession }: { initialSession: Session | null }) {
-  const activeSession = initialSession;
   const { toast, showToast } = useToast();
   const supabaseClient = createClient();
   const searchParams = useSearchParams();
@@ -74,13 +73,10 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const [isSavingEmail, setIsSavingEmail] = useState(false);
 
   const [webhookUrl, setWebhookUrl] = useState("");
-  const [webhookSecret, setWebhookSecret] = useState("");
   const [isSavingWebhook, setIsSavingWebhook] = useState(false);
 
   const [testerLogs, setTesterLogs] = useState<string[]>([]);
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
-
-  const [preferMagicLink, setPreferMagicLink] = useState(true);
 
   const [profile, setProfile] = useState<AccountProfileData | null>(null);
   const [usage, setUsage] = useState<AccountDataResponse | null>(null);
@@ -115,7 +111,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         setFullName(pData.fullName);
         setOrgSlug(pData.orgSlug);
         setWebhookUrl(pData.webhookUrl);
-        setWebhookSecret(pData.webhookSecret);
       } else {
         nextAccountLoadError = await readResponseError(profileRes, "Developer profile could not be loaded.");
       }
@@ -250,7 +245,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         avatarUrl: data?.avatarUrl ?? prev?.avatarUrl ?? "",
         plan: data?.plan ?? prev?.plan ?? userPlan,
         webhookUrl: data?.webhookUrl ?? prev?.webhookUrl ?? webhookUrl,
-        webhookSecret: data?.webhookSecret ?? prev?.webhookSecret ?? webhookSecret,
+        webhookSecret: data?.webhookSecret ?? prev?.webhookSecret ?? "",
         githubConnected: data?.githubConnected ?? prev?.githubConnected ?? false,
       }));
       setProfileSaveMessage({ type: "success", text: "Developer profile saved. The values shown here match what Dandi stored." });
@@ -275,9 +270,16 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       });
 
       if (res.ok) {
-        const data = await res.json();
-        setWebhookSecret(data.webhookSecret);
-        setProfile(prev => prev ? { ...prev, webhookUrl: data.webhookUrl, webhookSecret: data.webhookSecret } : null);
+        const data = await res.json() as Partial<AccountProfileData>;
+        setProfile(prev => ({
+          fullName: prev?.fullName ?? fullName,
+          orgSlug: prev?.orgSlug ?? orgSlug,
+          avatarUrl: prev?.avatarUrl ?? "",
+          plan: prev?.plan ?? userPlan,
+          webhookUrl: data.webhookUrl ?? webhookUrl,
+          webhookSecret: data.webhookSecret ?? prev?.webhookSecret ?? "",
+          githubConnected: data.githubConnected ?? prev?.githubConnected ?? false,
+        }));
         showToast("success", "Alert webhook configuration updated.");
       } else {
         showToast("error", getToastErrorMessage("webhook", "Failed to save webhook settings."));
@@ -496,7 +498,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {activeTab === "profile" && (
               <AccountProfilePanel
-                email={activeSession?.user?.email || ""}
+                email={initialSession?.user?.email || ""}
                 plan={profile?.plan || userPlan}
                 avatarUrl={profile?.avatarUrl || ""}
                 fullName={fullName}
@@ -523,7 +525,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
               <AccountWebhooksPanel
                 webhookUrl={webhookUrl}
                 savedWebhookUrl={profile?.webhookUrl || ""}
-                webhookSecret={webhookSecret}
+                webhookSecret={profile?.webhookSecret || ""}
                 isSavingWebhook={isSavingWebhook}
                 testerLogs={testerLogs}
                 isTestingWebhook={isTestingWebhook}
@@ -544,7 +546,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
             {activeTab === "security" && (
               <AccountSecurityPanel
-                preferMagicLink={preferMagicLink}
                 accessView={accessView}
                 accessError={accessLoadError}
                 currentBrowser={currentBrowser}
@@ -555,10 +556,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                 newEmail={newEmail}
                 isSavingPassword={isSavingPassword}
                 isSavingEmail={isSavingEmail}
-                onToggleMagicLink={() => {
-                  setPreferMagicLink(!preferMagicLink);
-                  showToast("success", "Authentication preferences successfully synced.");
-                }}
                 onAccessViewChange={setAccessView}
                 onCreateApiKey={() => setIsCreateApiKeyOpen(true)}
                 onInspectApiActivity={setInspectedApiActivity}

@@ -1,13 +1,19 @@
+"use client";
+
+import dynamic from "next/dynamic";
 import type { Dispatch, SetStateAction } from "react";
 import { CommandPanel, LiveIndicator, TabsBar } from "@/components/command";
 import { CardSkeleton } from "@/components/ui/SkeletonBlocks";
 import { GuidedError } from "@/components/ui/GuidedError";
 import { LoadingStages, type LoadingStage } from "@/components/ui/LoadingStages";
-import { JsonViewer } from "@/components/playground/JsonViewer";
 import type { LogEntry } from "@/components/playground/NetworkLog";
 import { getErrorGuidance } from "@/lib/error-guidance";
 import { formatRequestCount } from "@/lib/format";
 import type { IndexedRepositoryStats, RepositoryIngestStatus } from "@/hooks/useRepositoryIngestion";
+
+const JsonViewer = dynamic(() => import("@/components/playground/JsonViewer").then((mod) => mod.JsonViewer), {
+  loading: () => <CardSkeleton lines={6} className="min-h-[28rem]" />,
+});
 
 type RepositoryMetadata = {
   stars: number;

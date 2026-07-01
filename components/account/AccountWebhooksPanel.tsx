@@ -57,8 +57,8 @@ export function AccountWebhooksPanel({
   return (
     <CommandPanel id="account-webhooks-panel" role="tabpanel" aria-labelledby="webhooks-tab" className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
       <div className="space-y-1">
-        <h3 className="font-serif text-xl font-bold text-white sm:text-2xl">Webhook Notifications</h3>
-        <p className="text-sm text-slate-400">Configure a webhook endpoint and signing secret. Test deliveries are live; persisted alert delivery history is not available yet.</p>
+        <h3 className="font-serif text-xl font-bold text-white sm:text-2xl">Alert Webhooks</h3>
+        <p className="text-sm text-slate-400">Configure the endpoint Dandi uses for alert webhook deliveries. Test deliveries are live; persisted alert delivery history is not available yet.</p>
       </div>
 
       <form onSubmit={onSubmit} className="max-w-xl space-y-6">
@@ -101,7 +101,7 @@ export function AccountWebhooksPanel({
               </button>
             </div>
             <p className="text-[8px] text-zinc-500 leading-relaxed italic ml-1">
-              Hidden by default. Use this secret server-side to verify the X-Dandi-Signature header on incoming deliveries.
+              Masked in the UI. Copy only to a server-side secret store that verifies the X-Dandi-Signature header on incoming deliveries.
             </p>
           </div>
         )}
@@ -132,7 +132,7 @@ export function AccountWebhooksPanel({
 {`POST /hooks/dandi HTTP/1.1
 Host: your-api-endpoint.com
 Content-Type: application/json
-X-Dandi-Signature: t=1612...,hmac=4a2e...
+X-Dandi-Signature: [hidden]
 X-Dandi-Event: dandi.test_delivery`}
                 </pre>
               </div>
@@ -155,7 +155,7 @@ X-Dandi-Event: dandi.test_delivery`}
 
             <MockTerminal title="webhook-logger" status={isTestingWebhook ? "running" : testerLogs.length > 0 ? "success" : "idle"} maxHeight="220px" className="flex-1">
               <div className="space-y-3 font-mono text-[10px]">
-                <div className="space-y-1.5 scrollbar-hide max-h-[140px] overflow-y-auto">
+                <div className="space-y-1.5 scrollbar-hide max-h-[140px] overflow-y-auto" role="log" aria-live="polite" aria-relevant="additions text">
                   {testerLogs.length === 0 ? (
                     <div className="space-y-1 text-zinc-600">
                       <p className="font-bold uppercase tracking-widest">Webhook tester idle</p>
