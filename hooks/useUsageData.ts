@@ -60,16 +60,24 @@ export function useUsageData<TUsageData extends UsageData = UsageData>({
       if (requestCache) init.cache = requestCache;
 
       const response = await fetch("/api/usage", init);
-      const json = await response.json();
+      let json: unknown = null;
+      try {
+        json = await response.json();
+      } catch {
+        if (requireOkResponse) throw new Error(fallbackErrorMessage);
+      }
 
       if (requireOkResponse && !response.ok) {
-        throw new Error(json?.error || fallbackErrorMessage);
+        const message = json && typeof json === "object" && "error" in json
+          ? String((json as { error?: unknown }).error || fallbackErrorMessage)
+          : fallbackErrorMessage;
+        throw new Error(message);
       }
 
       const nextData = json as TUsageData;
       setData(nextData);
       setError(null);
-      isHydrated.current = false;
+      isHydrated.current = true;
       onSuccess?.(nextData, { background });
       return nextData;
     } catch (err) {

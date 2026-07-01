@@ -93,6 +93,12 @@ export function formatRequestLimit(value: number | null | undefined, unlimitedLa
   return typeof value === "number" ? formatRequestCount(value) : unlimitedLabel;
 }
 
+export function formatMaskedApiKey(value: string | null | undefined) {
+  if (!value) return "Hidden";
+  if (value.length <= 12) return "Hidden";
+  return `${value.slice(0, 8)} ... ${value.slice(-4)}`;
+}
+
 export function formatCurrency(value: number, options: { fromCents?: boolean } = {}) {
   const displayValue = options.fromCents ? value / 100 : value;
   const amount = `$${Math.abs(displayValue).toFixed(2)}`;

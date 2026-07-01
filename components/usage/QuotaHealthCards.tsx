@@ -38,24 +38,24 @@ function DeleteConfirmationOverlay({
           <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
-      <h3 className="mb-2 font-serif text-xl font-bold italic tracking-tight">PERMANENT PURGE?</h3>
+      <h3 className="mb-2 font-serif text-xl font-bold italic tracking-tight">Delete API key?</h3>
       <p className="mb-8 text-center text-[10px] font-black uppercase tracking-[0.2em] text-white/50">
-        This will erase <br/>
+        This permanently removes <br/>
         <span className="text-white">&quot;{keyName}&quot;</span> <br/>
-        forever.
+        from your account.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
         <button
           onClick={onCancel}
           className="rounded-2xl bg-white/20 border border-white/40 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-white/30 transition-all active:scale-95 backdrop-blur-md"
         >
-          Abort
+          Cancel
         </button>
         <button
           onClick={onConfirm}
           className="rounded-2xl bg-red-600 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-red-700 transition-all active:scale-95 shadow-xl shadow-red-900/40"
         >
-          Confirm
+          Delete
         </button>
       </div>
     </div>
@@ -80,7 +80,7 @@ function KillConfirmationOverlay({
           <path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
-      <h3 className="mb-2 font-serif text-2xl font-bold italic tracking-tight">INITIATE KILL?</h3>
+      <h3 className="mb-2 font-serif text-2xl font-bold italic tracking-tight">Deactivate API key?</h3>
       <p className="mb-8 text-center text-[10px] font-black uppercase tracking-[0.2em] text-white/70">
         This will immediately deactivate <br/>
         <span className="text-white">&quot;{keyName}&quot;</span>
@@ -90,14 +90,14 @@ function KillConfirmationOverlay({
           onClick={onCancel}
           className="flex-1 rounded-2xl bg-white/10 border border-white/30 px-4 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-white/20 transition-all active:scale-95"
         >
-          Abort
+          Cancel
         </button>
         <button
           onClick={onConfirm}
           disabled={isUpdating}
           className="flex-1 rounded-2xl bg-white px-4 py-4 text-[10px] font-black uppercase tracking-widest text-red-600 hover:bg-zinc-100 transition-all active:scale-95 shadow-xl"
         >
-          {isUpdating ? "Killing..." : "Confirm Kill"}
+          {isUpdating ? "Deactivating..." : "Deactivate"}
         </button>
       </div>
     </div>
@@ -282,7 +282,7 @@ export function ActiveQuotaCard({
             <button
               onClick={() => actions.onRequestKill(apiKey.id)}
               className="group/kill rounded-full bg-rose-50 p-2.5 text-rose-400 hover:bg-rose-600 hover:text-white transition-all shadow-sm border border-rose-100 hover:border-rose-600 active:scale-95"
-              title="Kill API Key"
+              title="Deactivate API key"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
                 <path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -321,7 +321,7 @@ export function ActiveQuotaCard({
             )}
           </div>
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">
-            / {apiKey.monthly_limit ? formatRequestCount(apiKey.monthly_limit) : "∞"} <br/>Credits
+            / {apiKey.monthly_limit ? formatRequestCount(apiKey.monthly_limit) : "∞"} <br/>requests
           </span>
         </div>
 
@@ -362,7 +362,7 @@ export function ActiveQuotaCard({
               onClick={() => actions.onRequestKill(apiKey.id)}
               className="flex min-h-11 items-center justify-center rounded-2xl border border-red-500/30 bg-zinc-900 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-300 transition hover:border-red-400 hover:bg-red-950/40 active:scale-95"
             >
-              Kill Switch
+              Deactivate
             </button>
           </div>
 
@@ -454,7 +454,7 @@ export function InactiveQuotaCard({
             {formatRequestCount(apiKey.usage_count)}
           </span>
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">
-            / {limitDisplay} <br/>Credits
+            / {limitDisplay} <br/>requests
           </span>
         </div>
         <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">

@@ -13,7 +13,7 @@ import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader"
 import { QuotaHealthGrid } from "@/components/usage/QuotaHealthGrid";
 import { TopReposTable } from "@/components/usage/TopReposTable";
 import { AnalyticsDashboard } from "@/components/usage/AnalyticsDashboard";
-import { CommandPanel, StatusPill, TabsBar } from "@/components/command";
+import { CommandPanel, MetricCard, StatusPill, TabsBar } from "@/components/command";
 import { useProgressiveList } from "@/hooks/useProgressiveList";
 import { useUsageData } from "@/hooks/useUsageData";
 import { createClient } from "@/lib/supabase/client";
@@ -21,7 +21,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
-import { formatJobDateTime, formatRepositoryLabel, formatRequestCount, formatShortDate } from "@/lib/format";
+import { formatJobDateTime, formatRepositoryLabel, formatRequestCount, formatRequestLimit, formatShortDate } from "@/lib/format";
 import { getIngestionStatusTone } from "@/lib/status-tones";
 import type { IngestionJobSummary } from "@/types/rag";
 import type { UsageData } from "@/types/usage";
@@ -61,6 +61,7 @@ export default function UsageClient({
     fallbackErrorMessage: "Failed to load usage analytics.",
     logErrorLabel: "Usage Fetch Error:",
     backgroundSyncResetDelayMs: 600,
+    setErrorOnBackground: true,
     onError: handleUsageError,
   });
   const refreshUsageData = useCallback(async (background = false) => {
@@ -115,8 +116,20 @@ export default function UsageClient({
     void Promise.resolve().then(fetchRecentJobs);
   }, [fetchRecentJobs]);
 
-  const currentPlan = activeSession?.user?.user_metadata?.plan || "Hobby";
+  const currentPlan = currentData?.plan || activeSession?.user?.user_metadata?.plan || "Hobby";
   const { monthlyLimit: currentLimit, isUnlimited, maxLimitCap } = getPlanLimits(currentPlan);
+  const totalUsage = currentData?.totalUsage ?? 0;
+  const remainingQuota = isUnlimited ? null : Math.max(currentLimit - totalUsage, 0);
+  const usagePct = isUnlimited || currentLimit <= 0 ? 0 : Math.min((totalUsage / currentLimit) * 100, 100);
+  const activeKeyCount = currentData?.keys.filter((key) => key.is_active).length ?? 0;
+  const totalKeyCount = currentData?.keys.length ?? 0;
+  const quotaTone = !currentData
+    ? "neutral"
+    : !isUnlimited && totalUsage >= currentLimit
+      ? "danger"
+      : !isUnlimited && usagePct >= 80
+        ? "warning"
+        : "success";
 
   const alerts = computeSidebarAlerts(currentData?.keys || [], maxLimitCap);
 
@@ -207,7 +220,7 @@ export default function UsageClient({
       <DashboardShell
         variant="usage"
         sidebar={{
-          totalUsage: currentData?.totalUsage || 0,
+          totalUsage,
           plan: currentPlan,
           limit: currentLimit,
           isUnlimited,
@@ -282,7 +295,68 @@ export default function UsageClient({
                 />
               )}
 
-              {/* Reset Info moved to Header */}
+              {usageError && currentData && (
+                <GuidedError
+                  {...{
+                    ...getErrorGuidance({ workflow: "usage", message: usageError }),
+                    explanation: "Usage analytics could not refresh. The metrics below show the last loaded data.",
+                    nextAction: "Refresh usage analytics when your connection or the usage service is available.",
+                  }}
+                  technicalDetails={usageError}
+                  onAction={() => refreshUsageData(false)}
+                  actionLabel="Refresh"
+                  compact
+                />
+              )}
+
+              {currentData && (
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <MetricCard
+                    label="Request Activity"
+                    value={formatRequestCount(totalUsage)}
+                    detail="Billable requests this cycle"
+                    tone="success"
+                    icon={
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                        <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    }
+                  />
+                  <MetricCard
+                    label="Monthly Limit"
+                    value={isUnlimited ? "Unlimited" : formatRequestLimit(currentLimit)}
+                    detail={`${currentPlan} plan${currentData.resetDate ? ` · resets ${formatShortDate(currentData.resetDate)}` : ""}`}
+                    tone={isUnlimited ? "success" : "info"}
+                    icon={
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                        <path d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    }
+                  />
+                  <MetricCard
+                    label="Remaining Quota"
+                    value={isUnlimited ? "Unlimited" : formatRequestCount(remainingQuota ?? 0)}
+                    detail={isUnlimited ? "No monthly request cap" : `${Math.round(usagePct)}% of monthly limit used`}
+                    tone={quotaTone}
+                    icon={
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                        <path d="M4 7h16M4 12h10M4 17h7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    }
+                  />
+                  <MetricCard
+                    label="API Key Activity"
+                    value={`${activeKeyCount}/${totalKeyCount}`}
+                    detail={totalKeyCount === 0 ? "No API keys yet" : "Active API keys tracked"}
+                    tone={totalKeyCount === 0 ? "warning" : "neutral"}
+                    icon={
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                        <path d="M15 7a2 2 0 012 2m4 0a6 6 0 11-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    }
+                  />
+                </div>
+              )}
 
               {activeTab === "credentials" ? (
                 <div

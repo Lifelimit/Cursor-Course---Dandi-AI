@@ -15,10 +15,10 @@ export function UsageSparkline({ data, color = "#10b981", isLoading = false }: {
     return <div className="h-12 w-full animate-pulse rounded-xl bg-white/10" />;
   }
 
-  if (!data || data.length < 2) {
+  if (!data || data.length < 2 || data.every(point => point.count === 0)) {
     return (
       <div className="h-12 w-full flex items-center justify-center rounded-xl border border-dashed border-white/10 bg-slate-950/50 text-[8px] font-black uppercase tracking-widest text-slate-500 select-none">
-        Trend Data Unavailable
+        No Request Activity Yet
       </div>
     );
   }

@@ -147,6 +147,6 @@ export async function GET() {
     return NextResponse.json(responseBody);
   } catch (err) {
     console.error("❌ Usage API: Critical failure:", err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return NextResponse.json({ error: "Usage analytics are temporarily unavailable. Please try again." }, { status: 500 });
   }
 }

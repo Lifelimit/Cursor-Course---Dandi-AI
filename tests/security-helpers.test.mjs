@@ -139,6 +139,7 @@ test("formats shared presentation values without changing legacy display strings
     formatGitHubRepo,
     formatIsoDate,
     formatIsoDatePart,
+    formatMaskedApiKey,
     formatPercentage,
     formatRelativeTime,
     formatRepositoryLabel,
@@ -151,6 +152,8 @@ test("formats shared presentation values without changing legacy display strings
   assert.equal(formatRequestCount(1234567), "1,234,567");
   assert.equal(formatRequestLimit(null), "∞");
   assert.equal(formatRequestLimit(5000), "5,000");
+  assert.equal(formatMaskedApiKey("sk_live_1234567890abcdef"), "sk_live_ ... cdef");
+  assert.equal(formatMaskedApiKey("short"), "Hidden");
   assert.equal(formatCurrency(12.5), "$12.50");
   assert.equal(formatCurrencyFromCents(-1234), "-$12.34");
   assert.equal(formatPercentage(99.95, 1), "100.0%");

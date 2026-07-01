@@ -39,7 +39,7 @@ export function AnalyticsDashboard({
   const chartRef = useRef<SVGSVGElement | null>(null);
   const resizeRef = useRef<HTMLDivElement | null>(null);
   const [chartWidth, setChartWidth] = useState<number>(600);
-  const hasAnyUsageData = keys.some(key => key.usage_count > 0) || dailyAnalytics.some(day => day.count > 0);
+  const hasAnyUsageData = keys.some(key => key.usage_count > 0) || dailyAnalytics.some(day => day.count > 0 || day.error > 0);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -79,6 +79,14 @@ export function AnalyticsDashboard({
     return dataset.reduce((acc, curr) => acc + curr.count, 0);
   }, [dataset]);
 
+  const currentErrorCount = useMemo(() => {
+    return dataset.reduce((acc, curr) => acc + curr.error, 0);
+  }, [dataset]);
+
+  const currentAttemptCount = useMemo(() => {
+    return dataset.reduce((acc, curr) => acc + curr.success + curr.error, 0);
+  }, [dataset]);
+
   const currentAvgLatency = useMemo(() => {
     const activeDays = dataset.filter(day => day.count > 0);
     if (activeDays.length === 0) return selectedKeyId === "all" ? globalAvgLatency : 0;
@@ -89,9 +97,13 @@ export function AnalyticsDashboard({
     const totalSuccess = dataset.reduce((acc, curr) => acc + curr.success, 0);
     const totalErrors = dataset.reduce((acc, curr) => acc + curr.error, 0);
     const totalAttempts = totalSuccess + totalErrors;
-    if (totalAttempts === 0) return selectedKeyId === "all" ? globalSuccessRate || 100 : 100;
+    if (totalAttempts === 0) {
+      return selectedKeyId === "all" && globalSuccessRate > 0 ? Number(globalSuccessRate.toFixed(1)) : null;
+    }
     return Number(((totalSuccess / totalAttempts) * 100).toFixed(1));
   }, [dataset, selectedKeyId, globalSuccessRate]);
+
+  const hasAttempts = currentAttemptCount > 0 || (selectedKeyId === "all" && globalSuccessRate > 0);
 
   const chartHeight = 240;
   const paddingLeft = 40;
@@ -115,6 +127,12 @@ export function AnalyticsDashboard({
     }
     const maxVal = Math.max(...values, 5);
     return Math.ceil(maxVal * 1.15);
+  }, [dataset, metricView]);
+
+  const hasChartActivity = useMemo(() => {
+    if (metricView === "requests") return dataset.some(day => day.count > 0);
+    if (metricView === "latency") return dataset.some(day => day.avgLatency > 0);
+    return dataset.some(day => day.success > 0 || day.error > 0);
   }, [dataset, metricView]);
 
   const chartPoints = useMemo(() => {
@@ -219,6 +237,9 @@ export function AnalyticsDashboard({
         currentTotalRequests={currentTotalRequests}
         currentAvgLatency={currentAvgLatency}
         currentSuccessRate={currentSuccessRate}
+        currentErrorCount={currentErrorCount}
+        currentAttemptCount={currentAttemptCount}
+        hasAttempts={hasAttempts}
       />
 
       <UsageHistoryChartPanel
@@ -228,6 +249,7 @@ export function AnalyticsDashboard({
         reliabilityErrorColor={reliabilityErrorColor}
         reliabilitySuccessColor={reliabilitySuccessColor}
         dataset={dataset}
+        hasChartActivity={hasChartActivity}
         chartRef={chartRef}
         resizeRef={resizeRef}
         chartWidth={chartWidth}
@@ -250,6 +272,8 @@ export function AnalyticsDashboard({
         hasAnyUsageData={hasAnyUsageData}
         currentTotalRequests={currentTotalRequests}
         currentSuccessRate={currentSuccessRate}
+        currentErrorCount={currentErrorCount}
+        currentAttemptCount={currentAttemptCount}
       />
     </div>
   );

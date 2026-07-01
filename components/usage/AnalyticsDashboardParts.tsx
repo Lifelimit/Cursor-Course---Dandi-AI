@@ -2,7 +2,6 @@ import Link from "next/link";
 import type React from "react";
 import { CommandPanel, MetricCard, ScrollFrame, StatusPill } from "@/components/command";
 import {
-  formatCurrency,
   formatLongDate,
   formatPercentage,
   formatRepositoryLabel,
@@ -155,20 +154,26 @@ export function AnalyticsOverviewCards({
   currentTotalRequests,
   currentAvgLatency,
   currentSuccessRate,
+  currentErrorCount,
+  currentAttemptCount,
+  hasAttempts,
 }: {
   currentTotalRequests: number;
   currentAvgLatency: number;
-  currentSuccessRate: number;
+  currentSuccessRate: number | null;
+  currentErrorCount: number;
+  currentAttemptCount: number;
+  hasAttempts: boolean;
 }) {
-  const estimatedSavings = formatCurrency(currentTotalRequests * 0.02);
+  const errorRate = currentAttemptCount > 0 ? Number(((currentErrorCount / currentAttemptCount) * 100).toFixed(1)) : null;
 
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
       <MetricCard
-        label="Aggregate Requests"
-        value={formatRequestCount(currentTotalRequests)}
-        detail="Billable requests (30d)"
-        tone="success"
+        label="Request Events"
+        value={hasAttempts ? formatRequestCount(currentAttemptCount) : "--"}
+        detail={hasAttempts ? `${formatRequestCount(currentTotalRequests)} successful requests` : "No request activity yet"}
+        tone={hasAttempts ? "success" : "neutral"}
         icon={
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
             <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -178,9 +183,9 @@ export function AnalyticsOverviewCards({
 
       <MetricCard
         label="Average Latency"
-        value={<>{currentAvgLatency}<span className="ml-1 text-xs font-normal font-sans text-slate-400">ms</span></>}
-        detail={currentAvgLatency === 0 ? "No data yet" : currentAvgLatency < 250 ? "Fast response" : currentAvgLatency < 500 ? "Good speed" : "Delayed"}
-        tone={currentAvgLatency < 250 ? "success" : currentAvgLatency < 500 ? "warning" : "danger"}
+        value={currentAvgLatency > 0 ? <>{currentAvgLatency}<span className="ml-1 text-xs font-normal font-sans text-slate-400">ms</span></> : "--"}
+        detail={currentAvgLatency === 0 ? "No latency data yet" : currentAvgLatency < 250 ? "Fast response" : currentAvgLatency < 500 ? "Good speed" : "Delayed"}
+        tone={currentAvgLatency === 0 ? "neutral" : currentAvgLatency < 250 ? "success" : currentAvgLatency < 500 ? "warning" : "danger"}
         icon={
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
             <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -190,9 +195,9 @@ export function AnalyticsOverviewCards({
 
       <MetricCard
         label="Success Rate"
-        value={formatPercentage(currentSuccessRate)}
-        detail="Successful requests"
-        tone="info"
+        value={currentSuccessRate === null ? "--" : formatPercentage(currentSuccessRate)}
+        detail={hasAttempts ? "Successful request events" : "No successes or errors yet"}
+        tone={currentSuccessRate === null ? "neutral" : currentSuccessRate >= 95 ? "success" : currentSuccessRate >= 80 ? "warning" : "danger"}
         icon={
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
             <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -200,7 +205,17 @@ export function AnalyticsOverviewCards({
         }
       />
 
-      <MetricCard label="Estimated Savings" value={estimatedSavings} detail="Compared with manual review" tone="warning" icon={<span className="text-xs font-black leading-none">$</span>} />
+      <MetricCard
+        label="Error Health"
+        value={hasAttempts ? formatRequestCount(currentErrorCount) : "--"}
+        detail={errorRate === null ? "No error data yet" : `${formatPercentage(errorRate)} error rate`}
+        tone={!hasAttempts ? "neutral" : currentErrorCount === 0 ? "success" : errorRate !== null && errorRate >= 10 ? "danger" : "warning"}
+        icon={
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+            <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        }
+      />
     </div>
   );
 }
@@ -212,6 +227,7 @@ export function UsageHistoryChartPanel({
   reliabilityErrorColor,
   reliabilitySuccessColor,
   dataset,
+  hasChartActivity,
   chartRef,
   resizeRef,
   chartWidth,
@@ -234,6 +250,7 @@ export function UsageHistoryChartPanel({
   reliabilityErrorColor: string;
   reliabilitySuccessColor: string;
   dataset: DailyUsageTrend[];
+  hasChartActivity: boolean;
   chartRef: React.RefObject<SVGSVGElement | null>;
   resizeRef: React.RefObject<HTMLDivElement | null>;
   chartWidth: number;
@@ -290,7 +307,7 @@ export function UsageHistoryChartPanel({
             />
           )}
 
-          {dataset.length < 2 ? (
+          {dataset.length < 2 || !hasChartActivity ? (
             <div className="h-[240px] w-full flex flex-col items-center justify-center border border-dashed border-white/10 rounded-3xl bg-slate-950/40">
               <svg viewBox="0 0 24 24" className="h-8 w-8 text-slate-600 mb-3" fill="none" stroke="currentColor">
                 <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 01-2 2h-2a2 2 0 01-2-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -300,7 +317,7 @@ export function UsageHistoryChartPanel({
               </p>
               <h4 className="mt-2 text-sm font-bold text-slate-200">No trend line yet.</h4>
               <p className="mt-1 max-w-md text-center text-xs font-medium leading-5 text-slate-500">
-                Charts need successful requests across at least two days or request events. Analyze a repository to start filling this timeline.
+                Charts appear after request activity is recorded for this metric. Analyze a repository to start filling this timeline.
               </p>
               <Link
                 href="/playground?mode=summary"
@@ -542,24 +559,33 @@ export function AnalyticsInsightsGrid({
   hasAnyUsageData,
   currentTotalRequests,
   currentSuccessRate,
+  currentErrorCount,
+  currentAttemptCount,
 }: {
   globalTopRepos: TopRepositoryUsage[];
   hasAnyUsageData: boolean;
   currentTotalRequests: number;
-  currentSuccessRate: number;
+  currentSuccessRate: number | null;
+  currentErrorCount: number;
+  currentAttemptCount: number;
 }) {
+  const successRateDisplay = currentSuccessRate === null ? "not enough data" : formatPercentage(currentSuccessRate);
+  const errorRateDisplay = currentAttemptCount > 0
+    ? formatPercentage(Number(((currentErrorCount / currentAttemptCount) * 100).toFixed(1)))
+    : "not enough data";
+
   return (
     <div className="grid gap-8 lg:grid-cols-3">
       <CommandPanel className="flex flex-col justify-between p-6 sm:p-8">
         <div>
           <div className="flex items-center justify-between mb-6">
-            <StatusPill tone="success" compact>Insight</StatusPill>
-            <span className="text-[10px] font-bold text-white/50">ROBUSTNESS</span>
+            <StatusPill tone={currentErrorCount > 0 ? "warning" : "success"} compact>Health</StatusPill>
+            <span className="text-[10px] font-bold text-white/50">REQUEST ACTIVITY</span>
           </div>
-          <h3 className="font-serif text-3xl font-bold italic tracking-tight mb-4 text-white">Efficiency Ledger</h3>
+          <h3 className="font-serif text-3xl font-bold italic tracking-tight mb-4 text-white">Usage Health</h3>
           {hasAnyUsageData ? (
             <p className="text-sm leading-relaxed text-zinc-400 mb-6">
-              Your API architecture processed <strong className="text-white font-mono">{currentTotalRequests}</strong> transactions in the current billing epoch with a target reliability index of <strong className="text-white font-mono">{formatPercentage(currentSuccessRate)}</strong>.
+              Dandi recorded <strong className="text-white font-mono">{formatRequestCount(currentTotalRequests)}</strong> successful requests in this view, with a success rate of <strong className="text-white font-mono">{successRateDisplay}</strong> and an error rate of <strong className="text-white font-mono">{errorRateDisplay}</strong>.
             </p>
           ) : (
             <p className="text-sm leading-relaxed text-zinc-400 mb-6">
@@ -570,7 +596,9 @@ export function AnalyticsInsightsGrid({
         <div className="border-t border-white/10 pt-6 mt-4">
           <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Suggested Action</p>
           {hasAnyUsageData ? (
-            <p className="text-xs font-bold text-emerald-400 mt-1">Your key usage profile is optimized. No rate limit leaks detected.</p>
+            <p className="text-xs font-bold text-emerald-400 mt-1">
+              {currentErrorCount > 0 ? "Review recent errors and retry after resolving repository or quota issues." : "Request activity is healthy. No errors are visible in the current usage window."}
+            </p>
           ) : (
             <Link href="/playground?mode=summary" className="mt-2 inline-flex text-xs font-bold text-emerald-300 hover:underline">
               Analyze your first repository
@@ -582,8 +610,8 @@ export function AnalyticsInsightsGrid({
       <CommandPanel className="p-6 sm:p-8 lg:col-span-2">
         <div className="flex items-center justify-between mb-6">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/70">Popularity Analytics</p>
-            <h3 className="font-serif text-xl font-bold tracking-tight text-white">Active Ingested Repositories</h3>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/70">Repository Summary</p>
+            <h3 className="font-serif text-xl font-bold tracking-tight text-white">Top repositories</h3>
           </div>
           <StatusPill tone="info" compact>Top Repos</StatusPill>
         </div>
@@ -610,7 +638,7 @@ export function AnalyticsInsightsGrid({
                     <span className="font-mono font-bold truncate text-slate-300 hover:text-emerald-300 transition cursor-pointer">
                       {repoLabel}
                     </span>
-                    <span className="font-mono font-bold tabular-nums text-slate-400">{repo.count} Summarizations</span>
+                    <span className="font-mono font-bold tabular-nums text-slate-400">{formatRequestCount(repo.count)} requests</span>
                   </div>
                   <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
                     <div

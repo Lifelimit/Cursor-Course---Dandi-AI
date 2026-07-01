@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 import { resolvePlan } from "@/lib/constants";
-import { formatIsoDate, formatLocalDate, formatLocalDateTime, formatLocalTime, formatRequestCount } from "@/lib/format";
+import { formatIsoDate, formatLocalDate, formatLocalDateTime, formatLocalTime, formatMaskedApiKey, formatRequestCount } from "@/lib/format";
 
 export async function GET() {
   try {
@@ -15,7 +15,7 @@ export async function GET() {
         repo_url,
         status,
         latency_ms,
-        api_keys (name, key_type, key_value, monthly_limit)
+        api_keys (id, name, key_type, monthly_limit)
       `)
       .eq("user_id", userId)
       .order("used_at", { ascending: false });
@@ -46,9 +46,9 @@ export async function GET() {
     ];
 
     // Generate CSV Table Data
-    const headers = ["Date", "Time", "Repository URL", "Credential Name", "Type", "Signature", "Monthly Limit", "Status", "Latency (ms)"];
+    const headers = ["Date", "Time", "Repository URL", "API Key Name", "Type", "Key Reference", "Monthly Limit", "Status", "Latency (ms)"];
     const rows = (logs || []).map(log => {
-      const keyInfo = log.api_keys as unknown as { name: string, key_type: string, key_value: string, monthly_limit: number | null } | null;
+      const keyInfo = log.api_keys as unknown as { id: string, name: string, key_type: string, monthly_limit: number | null } | null;
       const usedAt = new Date(log.used_at);
       
       const limit = keyInfo ? (keyInfo.monthly_limit ?? planMonthlyLimit) : planMonthlyLimit;
@@ -59,7 +59,7 @@ export async function GET() {
         log.repo_url || "N/A",
         keyInfo?.name || "Unknown",
         keyInfo?.key_type || "N/A",
-        keyInfo?.key_value || "N/A",
+        keyInfo?.id ? formatMaskedApiKey(`key_${keyInfo.id.replace(/-/g, "")}`) : "Hidden",
         limit ? `${formatRequestCount(limit)} requests` : "Unlimited",
         log.status || "success",
         log.latency_ms ?? 0
@@ -79,6 +79,7 @@ export async function GET() {
       }
     });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    console.error("Usage export failed:", err);
+    return NextResponse.json({ error: "Usage export is temporarily unavailable. Please try again." }, { status: 500 });
   }
 }

@@ -110,7 +110,7 @@ export async function getServerUsageData(): Promise<ServerUsageData | null> {
     // 4. Fetch all API keys for the user
     const { data: keys, error: keysError } = await supabase
       .from("api_keys")
-      .select("id, name, key_value, key_type, is_active, monthly_limit, alert_threshold, alert_channels, alert_phone, created_at")
+      .select("id, name, key_type, is_active, monthly_limit, alert_threshold, alert_channels, alert_phone, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
