@@ -116,9 +116,9 @@ export function AccountApiKeyCreateModal({
     <ModalFrame open={isOpen} onClose={isSubmitting ? undefined : closeAndForgetKey} size="lg" titleId="account-create-api-key-title">
       <div className="mb-8 flex items-start justify-between gap-4 border-b border-white/5 pb-6">
         <div className="space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">API Key Access</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">API key access</p>
           <h3 id="account-create-api-key-title" className="font-serif text-3xl font-bold italic tracking-tight text-white sm:text-4xl">
-            {hasCreatedKey ? "Save This Key" : "Create API Key"}
+            {hasCreatedKey ? "Save this API key" : "Create API key"}
           </h3>
           <p className="text-sm font-medium leading-6 text-slate-400">
             {hasCreatedKey
@@ -144,7 +144,7 @@ export function AccountApiKeyCreateModal({
 
           <div className="space-y-3">
             <label className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Plaintext API Key
+              Plaintext API key
             </label>
             <div className="flex min-w-0 flex-col gap-3 rounded-2xl border border-white/10 bg-slate-950/70 p-4 sm:flex-row sm:items-center">
               <code className="min-w-0 flex-1 break-all font-mono text-xs font-bold leading-6 tracking-wide text-slate-200">
@@ -160,7 +160,7 @@ export function AccountApiKeyCreateModal({
                 }`}
               >
                 {isCopied ? <CopyCheckIcon className="h-4 w-4" /> : <CopyLockedIcon className="h-4 w-4" />}
-                {isCopied ? "Copied" : "Copy API Key"}
+                {isCopied ? "Copied" : "Copy API key"}
               </button>
             </div>
           </div>
@@ -203,7 +203,7 @@ export function AccountApiKeyCreateModal({
 
           <fieldset className="space-y-3" disabled={isSubmitting}>
             <legend className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Environment
+              API key type
             </legend>
             <div className="grid gap-3 sm:grid-cols-2">
               {(["development", "production"] as const).map((type) => (
@@ -245,7 +245,7 @@ export function AccountApiKeyCreateModal({
               disabled={isSubmitting}
               className="rounded-full bg-emerald-500 px-7 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-60"
             >
-              {isSubmitting ? "Creating..." : "Create API Key"}
+              {isSubmitting ? "Creating..." : "Create API key"}
             </button>
           </div>
         </form>

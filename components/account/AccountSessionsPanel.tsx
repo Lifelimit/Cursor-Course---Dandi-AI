@@ -15,10 +15,10 @@ export function AccountSessionsPanel({
     return (
       <EmptyState
         title="No browser telemetry yet."
-        description="Dandi shows details for the browser currently viewing this page after account telemetry is refreshed."
+        description="Refresh to show request telemetry for the browser currently viewing this page."
         action={(
-          <button type="button" onClick={onRefreshSessions} className="mt-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">
-            Refresh Browser Info
+          <button type="button" onClick={onRefreshSessions} className="mt-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
+            Refresh browser info
           </button>
         )}
       />
@@ -31,18 +31,16 @@ export function AccountSessionsPanel({
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <h5 className="break-words text-sm font-bold text-white">{currentBrowser.label}</h5>
-            <span className={getBrowserSessionBadgeClassName(currentBrowser.current)}>Current Browser</span>
+            <span className={getBrowserSessionBadgeClassName(currentBrowser.current)}>Current request</span>
           </div>
-          {currentBrowser.detail && (
-            <p className="break-words text-[10px] font-medium text-zinc-500">{currentBrowser.detail}</p>
-          )}
+          <p className="break-words text-[10px] font-medium text-zinc-500">Telemetry for the browser currently viewing this page.</p>
         </div>
         <button
           type="button"
           onClick={onRefreshSessions}
-          className="w-full shrink-0 rounded-full border border-emerald-500/20 bg-emerald-950/20 px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-emerald-300 transition-all hover:bg-emerald-500 hover:text-white active:scale-[0.98] sm:w-auto"
+          className="w-full shrink-0 rounded-full border border-emerald-500/20 bg-emerald-950/20 px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-emerald-300 transition-all hover:bg-emerald-500 hover:text-white active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:w-auto"
         >
-          Refresh Browser Info
+          Refresh browser info
         </button>
       </div>
 
@@ -66,7 +64,7 @@ export function AccountSessionsPanel({
       </div>
 
       <p className="rounded-xl border border-white/5 bg-slate-950/30 p-3 text-xs leading-5 text-zinc-400">
-        Dandi currently shows only the browser viewing this page. Full multi-device session management is not enabled yet.
+        This is current request telemetry only. Dandi does not show or manage other browser sessions from this view.
       </p>
     </div>
   );

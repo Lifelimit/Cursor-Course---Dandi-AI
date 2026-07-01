@@ -75,6 +75,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const [usage, setUsage] = useState<AccountDataResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [accountLoadError, setAccountLoadError] = useState<string | null>(null);
+  const [accessLoadError, setAccessLoadError] = useState<string | null>(null);
   const [currentBrowser, setCurrentBrowser] = useState<CurrentBrowserTelemetry | null>(null);
   const [apiKeys, setApiKeys] = useState<AccountApiKeyAccess[]>([]);
   const [recentRequests, setRecentRequests] = useState<AccountApiRequestActivity[]>([]);
@@ -125,12 +126,17 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           ...request,
           telemetryAge: formatRelativeTime(request.lastSeenAt),
         })));
+        setAccessLoadError(null);
+      } else {
+        const errorData = await accessRes.json().catch(() => ({})) as { error?: string };
+        setAccessLoadError(errorData.error || "Failed to load API key and request telemetry.");
       }
       setAccountLoadError(null);
     } catch (err) {
       console.error("Error loading account details:", err);
       const message = err instanceof Error ? err.message : "Failed to fetch developer profile data.";
       setAccountLoadError(message);
+      setAccessLoadError(message);
       showToast("error", getToastErrorMessage("account", message));
     } finally {
       setIsLoading(false);
@@ -437,7 +443,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           <div className="space-y-6" role="status" aria-live="polite" aria-busy="true">
             <div className="rounded-[28px] border border-emerald-300/15 bg-slate-950/45 p-5 shadow-[0_0_28px_rgba(52,211,153,0.08)]">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/80">Fetching account details</p>
-              <p className="mt-2 text-sm font-medium text-slate-400">Loading profile, usage, API access, and current browser telemetry.</p>
+              <p className="mt-2 text-sm font-medium text-slate-400">Loading profile, usage, API keys, recent API activity, and current browser telemetry.</p>
             </div>
             <div className="grid gap-6 lg:grid-cols-2">
               <CardSkeleton lines={4} className="min-h-64" />
@@ -446,7 +452,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
             <CommandPanel className="space-y-4 p-5 sm:p-8">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/70">Security & Sign-in</p>
-                <p className="mt-1 text-sm font-medium text-slate-400">Preparing API key access and current browser details.</p>
+                <p className="mt-1 text-sm font-medium text-slate-400">Preparing API keys, read-only request activity, and current browser details.</p>
               </div>
               <TableRowsSkeleton rows={6} columns={5} />
             </CommandPanel>
@@ -506,6 +512,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
               <AccountSecurityPanel
                 preferMagicLink={preferMagicLink}
                 accessView={accessView}
+                accessError={accessLoadError}
                 currentBrowser={currentBrowser}
                 apiKeys={apiKeys}
                 recentRequests={recentRequests}

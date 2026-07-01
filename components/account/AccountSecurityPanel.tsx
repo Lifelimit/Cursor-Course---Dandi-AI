@@ -9,6 +9,7 @@ type AccessView = "api" | "browser";
 type AccountSecurityPanelProps = {
   preferMagicLink: boolean;
   accessView: AccessView;
+  accessError?: string | null;
   currentBrowser: CurrentBrowserTelemetry | null;
   apiKeys: AccountApiKeyAccess[];
   recentRequests: AccountApiRequestActivity[];
@@ -33,6 +34,7 @@ type AccountSecurityPanelProps = {
 export function AccountSecurityPanel({
   preferMagicLink,
   accessView,
+  accessError,
   currentBrowser,
   apiKeys,
   recentRequests,
@@ -53,6 +55,9 @@ export function AccountSecurityPanel({
   onUpdatePassword,
   onUpdateEmail,
 }: AccountSecurityPanelProps) {
+  const apiKeyCountLabel = `${apiKeys.length} API ${apiKeys.length === 1 ? "key" : "keys"}`;
+  const recentRequestCountLabel = `${recentRequests.length} recent ${recentRequests.length === 1 ? "request" : "requests"}`;
+
   return (
     <CommandPanel id="account-security-panel" role="tabpanel" aria-labelledby="security-tab" className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
       <div className="space-y-1">
@@ -68,8 +73,9 @@ export function AccountSecurityPanel({
           </p>
         </div>
         <button
+          type="button"
           onClick={onToggleMagicLink}
-          className={`w-full rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all sm:w-auto cursor-pointer ${
+          className={`w-full rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all sm:w-auto cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
             preferMagicLink
               ? "bg-white text-zinc-950"
               : "border border-white/10 text-zinc-500 hover:text-white hover:bg-white/5"
@@ -83,7 +89,7 @@ export function AccountSecurityPanel({
         <div className="space-y-1">
           <h4 className="text-base font-bold">Access & Activity</h4>
           <p className="max-w-2xl text-xs leading-5 text-zinc-400">
-            Manage API keys and review recent API request activity. Dandi also shows telemetry for the browser currently signed in to this page.
+            Manage API key credentials and review read-only API request telemetry. Current browser details reflect only this page request.
           </p>
         </div>
 
@@ -95,13 +101,13 @@ export function AccountSecurityPanel({
                 onAccessViewChange("api");
                 event.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
               }}
-              className={`whitespace-nowrap rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+              className={`whitespace-nowrap rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                 accessView === "api"
                   ? "bg-white text-zinc-950 shadow-sm"
                   : "text-zinc-500 hover:text-white"
               }`}
             >
-              API Keys
+              API keys
             </button>
             <button
               type="button"
@@ -109,35 +115,41 @@ export function AccountSecurityPanel({
                 onAccessViewChange("browser");
                 event.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
               }}
-              className={`whitespace-nowrap rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+              className={`whitespace-nowrap rounded-full px-5 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                 accessView === "browser"
                   ? "bg-white text-zinc-950 shadow-sm"
                   : "text-zinc-500 hover:text-white"
               }`}
             >
-              Current Browser
+              Current browser
             </button>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <span className={`rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-widest border ${
-              accessView === "api"
-                ? "bg-rose-500/10 text-rose-400 border-rose-500/25"
-                : "bg-slate-950 text-zinc-500 border-white/5"
-            }`}>
-              API Keys
+            <span className="rounded-full border border-white/5 bg-slate-950 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-zinc-400">
+              {apiKeyCountLabel}
             </span>
-            <span className={`rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-widest border ${
-              accessView === "browser"
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
-                : "bg-slate-950 text-zinc-500 border-white/5"
-            }`}>
-              Current Browser
+            <span className="rounded-full border border-white/5 bg-slate-950 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-zinc-400">
+              {recentRequestCountLabel}
             </span>
           </div>
         </div>
 
-        {accessView === "api" ? (
+        {accessError ? (
+          <div role="alert" className="rounded-2xl border border-rose-500/20 bg-rose-950/20 p-5">
+            <p className="text-sm font-bold text-rose-200">Access & Activity could not be loaded.</p>
+            <p className="mt-2 max-w-2xl text-xs leading-5 text-rose-200/80">
+              API keys and request telemetry are temporarily unavailable. Account password and email settings are still shown below.
+            </p>
+            <button
+              type="button"
+              onClick={onRefreshSessions}
+              className="mt-4 rounded-full border border-rose-400/25 px-4 py-2 text-[9px] font-black uppercase tracking-widest text-rose-100 transition-all hover:bg-rose-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+            >
+              Retry
+            </button>
+          </div>
+        ) : accessView === "api" ? (
           <AccountApiKeysPanel
             apiKeys={apiKeys}
             recentRequests={recentRequests}

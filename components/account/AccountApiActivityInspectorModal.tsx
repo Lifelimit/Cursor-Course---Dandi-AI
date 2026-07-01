@@ -68,7 +68,7 @@ function CopyButton({
           showToast("error", `Failed to copy ${label.toLowerCase()}.`);
         }
       }}
-      className="rounded-full border border-white/10 px-4 py-2 text-[9px] font-black uppercase tracking-widest text-slate-300 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+      className="w-full rounded-full border border-white/10 px-4 py-2 text-[9px] font-black uppercase tracking-widest text-slate-300 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:w-auto"
     >
       Copy {label}
     </button>
@@ -90,7 +90,7 @@ export function AccountApiActivityInspectorModal({
     <ModalFrame open={true} onClose={onClose} size="lg" titleId="account-api-activity-inspector-title">
       <div className="mb-6 flex items-start justify-between gap-4 border-b border-white/5 pb-5">
         <div className="min-w-0 space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-300">Recent API Activity</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-300">Recent API activity</p>
           <h3 id="account-api-activity-inspector-title" className="font-serif text-2xl font-bold italic text-white sm:text-3xl">
             Request Details
           </h3>
@@ -128,7 +128,7 @@ export function AccountApiActivityInspectorModal({
         </div>
 
         <div className="flex flex-col gap-3 border-t border-white/5 pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <CopyButton label="URL" value={repoUrl} showToast={showToast} />
             <CopyButton label="IP" value={activity.ip} showToast={showToast} />
             <CopyButton label="Status" value={status} showToast={showToast} />
@@ -136,7 +136,7 @@ export function AccountApiActivityInspectorModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full bg-white px-6 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+            className="w-full rounded-full bg-white px-6 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:w-auto"
           >
             Close
           </button>
