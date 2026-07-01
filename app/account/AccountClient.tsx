@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { useToast } from "@/hooks/useToast";
@@ -37,12 +38,19 @@ type AccountTab = "profile" | "integrations" | "webhooks" | "security";
 type AccessView = "api" | "browser";
 type DeliveryLogModalTab = "request" | "response";
 
+function parseAccountTab(value: string | null): AccountTab {
+  return value === "integrations" || value === "webhooks" || value === "security" || value === "profile"
+    ? value
+    : "profile";
+}
+
 export default function AccountClient({ initialSession }: { initialSession: Session | null }) {
   const activeSession = initialSession;
   const { toast, showToast } = useToast();
   const supabaseClient = createClient();
+  const searchParams = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState<AccountTab>("profile");
+  const [activeTab, setActiveTab] = useState<AccountTab>(() => parseAccountTab(searchParams.get("tab")));
   const [accessView, setAccessView] = useState<AccessView>("api");
 
   const [fullName, setFullName] = useState("");
@@ -62,12 +70,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
   const [testerLogs, setTesterLogs] = useState<string[]>([]);
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
-
-  const [githubConnected, setGithubConnected] = useState(false);
-  const [isConnectingGithub, setIsConnectingGithub] = useState(false);
-  const [githubScope, setGithubScope] = useState<"all" | "selected">("all");
-  const [selectedRepos, setSelectedRepos] = useState<string[]>(["dandi-ai/summarizer-sdk"]);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const [preferMagicLink, setPreferMagicLink] = useState(true);
 
@@ -104,7 +106,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         setOrgSlug(pData.orgSlug);
         setWebhookUrl(pData.webhookUrl);
         setWebhookSecret(pData.webhookSecret);
-        setGithubConnected(pData.githubConnected);
       }
 
       if (usageRes.ok) {
@@ -156,6 +157,21 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       active = false;
     };
   }, [loadData]);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (!tab) return;
+
+    let active = true;
+    queueMicrotask(() => {
+      if (active) {
+        setActiveTab(parseAccountTab(tab));
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [searchParams]);
 
   const userPlan = profile?.plan || "Hobby";
   const { monthlyLimit: planLimit, isUnlimited } = getPlanLimits(userPlan);
@@ -215,33 +231,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       showToast("error", getToastErrorMessage("webhook", "Error saving webhook settings."));
     } finally {
       setIsSavingWebhook(false);
-    }
-  };
-
-  const handleToggleGithub = async () => {
-    setIsConnectingGithub(true);
-    try {
-      const nextState = !githubConnected;
-      const res = await fetch("/api/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ githubConnected: nextState })
-      });
-
-      if (res.ok) {
-        setGithubConnected(nextState);
-        setProfile(prev => prev ? { ...prev, githubConnected: nextState } : null);
-        showToast(
-          "success",
-          nextState ? "GitHub Developer Integration successfully connected." : "GitHub Integration disconnected."
-        );
-      } else {
-        showToast("error", getToastErrorMessage("github", "Failed to update GitHub connection status."));
-      }
-    } catch {
-      showToast("error", getToastErrorMessage("github", "Connection error communicating with auth server."));
-    } finally {
-      setIsConnectingGithub(false);
     }
   };
 
@@ -463,18 +452,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
             )}
 
             {activeTab === "integrations" && (
-              <AccountEnvironmentPanel
-                githubConnected={githubConnected}
-                isConnectingGithub={isConnectingGithub}
-                githubScope={githubScope}
-                selectedRepos={selectedRepos}
-                searchQuery={searchQuery}
-                onToggleGithub={handleToggleGithub}
-                setGithubScope={setGithubScope}
-                setSelectedRepos={setSelectedRepos}
-                onSearchQueryChange={setSearchQuery}
-                showToast={showToast}
-              />
+              <AccountEnvironmentPanel />
             )}
 
             {activeTab === "webhooks" && (
