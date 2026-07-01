@@ -7,6 +7,13 @@ import {
 export function getWebhookDeliveryBadge(status: number) {
   const tone = getWebhookDeliveryStatusTone(status);
   const isSuccess = tone === "success";
+  if (status === 0) {
+    return {
+      className: "border-rose-500/25 bg-rose-500/10 text-rose-400",
+      dotClassName: "bg-rose-500",
+      label: "Not sent",
+    };
+  }
 
   return {
     className: isSuccess

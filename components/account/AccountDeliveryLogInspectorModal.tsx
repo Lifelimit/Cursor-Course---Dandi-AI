@@ -28,6 +28,7 @@ export function AccountDeliveryLogInspectorModal({
       open={Boolean(inspectedLog)}
       onClose={onClose}
       size="lg"
+      titleId="account-delivery-log-inspector-title"
       className="max-w-2xl overflow-hidden rounded-[28px] border-white/10 bg-slate-950/90 p-0 shadow-2xl backdrop-blur-xl animate-in zoom-in-95 duration-300 sm:rounded-[32px]"
     >
       <div className="p-6 md:p-8 border-b border-white/5 flex items-start justify-between gap-4">
@@ -38,7 +39,7 @@ export function AccountDeliveryLogInspectorModal({
             </span>
             <span className="font-mono text-[9px] text-zinc-500 uppercase tracking-widest">{inspectedLog.event}</span>
           </div>
-          <h3 className="font-serif text-xl font-bold mt-1.5 text-white">Webhook Delivery Details</h3>
+          <h3 id="account-delivery-log-inspector-title" className="font-serif text-xl font-bold mt-1.5 text-white">Test delivery details</h3>
           <p className="text-[10px] font-mono text-zinc-500 break-all">{inspectedLog.url}</p>
         </div>
         <ModalCloseButton
@@ -48,41 +49,47 @@ export function AccountDeliveryLogInspectorModal({
       </div>
 
       <div className="max-h-[calc(100dvh-13rem)] overflow-y-auto p-5 space-y-6 sm:max-h-[60vh] md:p-8">
-        <div className="flex gap-2 border-b border-white/5 pb-4">
+        <div className="space-y-3 border-b border-white/5 pb-4">
+          <p className="text-xs leading-5 text-zinc-400">
+            This inspector shows the signed test payload and sanitized endpoint response captured for this in-page delivery log. Signing secrets and signature header values are not displayed.
+          </p>
+          <div className="flex gap-2">
           <button
             type="button"
             onClick={() => onActiveTabChange("request")}
-            className={`rounded-full px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+            className={`rounded-full px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
               activeTab === "request"
                 ? "bg-white text-zinc-950 shadow-sm"
                 : "text-zinc-500 hover:text-white"
             }`}
           >
-            Request Payload
+            Request payload
           </button>
           <button
             type="button"
             onClick={() => onActiveTabChange("response")}
-            className={`rounded-full px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+            className={`rounded-full px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
               activeTab === "response"
                 ? "bg-white text-zinc-950 shadow-sm"
                 : "text-zinc-500 hover:text-white"
             }`}
           >
-            Response Context
+            Response
           </button>
+          </div>
         </div>
 
         {activeTab === "request" ? (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">HTTP POST Request Payload JSON</span>
+              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">HTTP POST request body</span>
               <button
+                type="button"
                 onClick={() => {
                   navigator.clipboard.writeText(JSON.stringify(inspectedLog.requestBody, null, 2));
                   showToast("success", "Request payload copied to clipboard.");
                 }}
-                className="inline-flex items-center gap-1.5 text-[9px] font-bold text-zinc-400 hover:text-white transition-colors"
+                className="inline-flex items-center gap-1.5 text-[9px] font-bold text-zinc-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                 aria-label="Copy request payload"
               >
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -98,19 +105,21 @@ export function AccountDeliveryLogInspectorModal({
         ) : (
           <div className="space-y-6">
             <div className="space-y-2">
-              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Response Headers</span>
+              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Sanitized response headers</span>
               <div className="font-mono text-[9px] text-zinc-300 bg-slate-950 p-4 rounded-2xl border border-white/5 space-y-1 overflow-x-auto">
-                {Object.entries(inspectedLog.responseHeaders).map(([key, val]) => (
+                {Object.entries(inspectedLog.responseHeaders).length > 0 ? Object.entries(inspectedLog.responseHeaders).map(([key, val]) => (
                   <div key={key} className="flex gap-2">
                     <span className="text-zinc-500 font-bold">{key}:</span>
                     <span className="text-zinc-300 select-all">{val}</span>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-zinc-500">No safe response headers were recorded.</p>
+                )}
               </div>
             </div>
 
             <div className="space-y-2">
-              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Response Body</span>
+              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Response body</span>
               <pre className="font-mono text-[10px] text-zinc-300 bg-slate-950 p-5 rounded-2xl border border-white/5 leading-relaxed overflow-x-auto max-h-[160px]">
                 {typeof inspectedLog.responseBody === "object" && inspectedLog.responseBody !== null
                   ? JSON.stringify(inspectedLog.responseBody, null, 2)
@@ -127,9 +136,9 @@ export function AccountDeliveryLogInspectorModal({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full bg-slate-900 border border-white/10 px-6 py-2.5 text-[9px] font-black uppercase tracking-widest text-slate-300 shadow transition hover:bg-white hover:text-zinc-950 active:scale-[0.98]"
+          className="rounded-full bg-slate-900 border border-white/10 px-6 py-2.5 text-[9px] font-black uppercase tracking-widest text-slate-300 shadow transition hover:bg-white hover:text-zinc-950 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         >
-          Close Audit
+          Close
         </button>
       </div>
     </ModalFrame>

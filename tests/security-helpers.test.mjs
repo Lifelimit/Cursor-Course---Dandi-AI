@@ -276,6 +276,42 @@ test("maps domain statuses to stable UI tones", () => {
   assert.equal(getNetworkLogStatusTone("error"), "danger");
 });
 
+test("webhook test helpers sign payloads and sanitize delivery details", () => {
+  const {
+    buildWebhookTestPayload,
+    isPrivateOrReservedIp,
+    parseSafeResponseBody,
+    sanitizeResponseHeaders,
+    signWebhookPayload,
+  } = loadTsModule("lib/services/webhook-test.service.ts");
+
+  const payloadBody = JSON.stringify({ event: "dandi.test_delivery" });
+  const signature = signWebhookPayload(payloadBody, "whsec_test", 1234567890);
+  const expectedDigest = crypto
+    .createHmac("sha256", "whsec_test")
+    .update(`1234567890.${payloadBody}`)
+    .digest("hex");
+
+  assert.equal(signature, `t=1234567890,hmac=${expectedDigest}`);
+  assert.equal(buildWebhookTestPayload(new Date("2026-06-01T12:00:00Z")).event, "dandi.test_delivery");
+  assert.equal(isPrivateOrReservedIp("127.0.0.1"), true);
+  assert.equal(isPrivateOrReservedIp("10.0.0.5"), true);
+  assert.equal(isPrivateOrReservedIp("8.8.8.8"), false);
+  assert.equal(isPrivateOrReservedIp("::1"), true);
+
+  const headers = new Headers({
+    "content-type": "application/json",
+    "set-cookie": "session=secret",
+    "x-api-key": "secret",
+    "x-request-id": "req_123",
+  });
+  assert.deepEqual(sanitizeResponseHeaders(headers), {
+    "content-type": "application/json",
+    "x-request-id": "req_123",
+  });
+  assert.deepEqual(parseSafeResponseBody("{\"ok\":true}", "application/json"), { ok: true });
+});
+
 test("computes configurable CORS headers", () => {
   const { getCorsHeaders, isCorsOriginAllowed } = loadTsModule("lib/cors.ts");
   const originalNodeEnv = process.env.NODE_ENV;

@@ -14,7 +14,7 @@ import { computeSidebarAlerts } from "@/lib/alerts";
 import { CommandPanel, TabsBar } from "@/components/command";
 import { useProgressiveList } from "@/hooks/useProgressiveList";
 import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
-import { formatLocalTime, formatRelativeTime } from "@/lib/format";
+import { formatRelativeTime } from "@/lib/format";
 import type {
   AccountAccessResponse,
   AccountApiKeyAccess,
@@ -333,59 +333,50 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
     }
   };
 
-  const runWebhookTest = () => {
+  const runWebhookTest = async () => {
     if (!webhookUrl) {
-      showToast("error", getToastErrorMessage("webhook", "Webhook URL is required."));
+      showToast("error", getToastErrorMessage("webhook", "Webhook endpoint is required."));
       return;
     }
+
+    if (profile?.webhookUrl !== webhookUrl) {
+      showToast("error", getToastErrorMessage("webhook", "Save the webhook endpoint before sending a test delivery."));
+      return;
+    }
+
     setIsTestingWebhook(true);
-    setTesterLogs([]);
+    setTesterLogs(["[info] Preparing real test delivery from saved webhook configuration."]);
 
-    const steps = [
-      `[info] ${formatLocalTime(new Date())} - Resolving host URL '${webhookUrl}'...`,
-      `[info] ${formatLocalTime(new Date())} - Compiling payload event 'quota.warning' (current usage: 84.6%)`,
-      `[info] ${formatLocalTime(new Date())} - Generating SHA-256 HMAC signature using secret token...`,
-      `[info] ${formatLocalTime(new Date())} - Signature header added (x-dandi-signature).`,
-      `[info] ${formatLocalTime(new Date())} - Sent outgoing webhook HTTP POST request.`,
-      `[success] ${formatLocalTime(new Date())} - Connection established. Endpoint responded: 200 OK`
-    ];
+    try {
+      const response = await fetch("/api/profile/webhook-test", { method: "POST" });
+      const data = await response.json().catch(() => ({})) as {
+        success?: boolean;
+        logs?: string[];
+        delivery?: WebhookLogEntry;
+        error?: string;
+      };
 
-    steps.forEach((step, index) => {
-      setTimeout(() => {
-        setTesterLogs(prev => [...prev, step]);
-        if (index === steps.length - 1) {
-          setIsTestingWebhook(false);
-          showToast("success", "Webhook test payload sent successfully.");
+      if (!response.ok) {
+        throw new Error(data.error || "Webhook test delivery failed.");
+      }
 
-          const newLog: WebhookLogEntry = {
-            id: `w-${Date.now()}`,
-            event: "quota.warning",
-            url: webhookUrl,
-            status: 200,
-            latency: 38,
-            timestamp: Date.now(),
-            requestBody: {
-              event: "quota.warning",
-              userId: activeSession?.user?.id || "usr_dev_dandi",
-              currentUsage: 8460,
-              limit: 10000,
-              percentage: 84.6
-            },
-            responseHeaders: {
-              "content-type": "application/json; charset=utf-8",
-              "connection": "keep-alive",
-              "server": "cloudflare"
-            },
-            responseBody: {
-              success: true,
-              received: true,
-              message: "Webhook event parsed and queued."
-            }
-          };
-          setWebhookLogs(prev => [newLog, ...prev]);
-        }
-      }, (index + 1) * 800);
-    });
+      setTesterLogs(data.logs || []);
+      if (data.delivery) {
+        setWebhookLogs(prev => [data.delivery as WebhookLogEntry, ...prev]);
+      }
+
+      if (data.success) {
+        showToast("success", "Test delivery completed successfully.");
+      } else {
+        showToast("error", getToastErrorMessage("webhook", "Test delivery reached the endpoint but did not receive a success response."));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Webhook test delivery failed.";
+      setTesterLogs(prev => [...prev, `[error] ${message}`]);
+      showToast("error", getToastErrorMessage("webhook", message));
+    } finally {
+      setIsTestingWebhook(false);
+    }
   };
 
   const focusWebhookUrlInput = () => {
@@ -489,6 +480,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
             {activeTab === "webhooks" && (
               <AccountWebhooksPanel
                 webhookUrl={webhookUrl}
+                savedWebhookUrl={profile?.webhookUrl || ""}
                 webhookSecret={webhookSecret}
                 isSavingWebhook={isSavingWebhook}
                 testerLogs={testerLogs}

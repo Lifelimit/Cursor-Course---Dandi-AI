@@ -6,6 +6,7 @@ import { getWebhookDeliveryBadge } from "./account-display-utils";
 
 type AccountDeliveryLogsPanelProps = {
   webhookUrl: string;
+  savedWebhookUrl: string;
   webhookLogs: WebhookLogEntry[];
   visibleWebhookLogs: WebhookLogEntry[];
   canShowMoreWebhookLogs: boolean;
@@ -20,6 +21,7 @@ type AccountDeliveryLogsPanelProps = {
 
 export function AccountDeliveryLogsPanel({
   webhookUrl,
+  savedWebhookUrl,
   webhookLogs,
   visibleWebhookLogs,
   canShowMoreWebhookLogs,
@@ -31,28 +33,34 @@ export function AccountDeliveryLogsPanel({
   onShowLessWebhookLogs,
   onInspectLog,
 }: AccountDeliveryLogsPanelProps) {
-  const handleEmptyAction = webhookUrl ? onRunWebhookTest : onFocusWebhookUrlInput;
+  const hasSavedEndpoint = Boolean(savedWebhookUrl);
+  const hasUnsavedEndpointChange = webhookUrl.trim() !== savedWebhookUrl.trim();
+  const canRunTestDelivery = Boolean(hasSavedEndpoint && !hasUnsavedEndpointChange);
+  const handleEmptyAction = canRunTestDelivery ? onRunWebhookTest : onFocusWebhookUrlInput;
+  const emptyActionLabel = canRunTestDelivery ? "Send test delivery" : "Review webhook endpoint";
 
   return (
     <div className="max-w-4xl space-y-6 border-t border-white/5 pt-8 md:pt-10">
       <div className="space-y-1">
-        <h4 className="text-base font-bold text-white">Webhook Delivery Logs</h4>
-        <p className="text-xs text-zinc-400">Review recent webhook deliveries, payloads, and endpoint responses.</p>
+        <h4 className="text-base font-bold text-white">Delivery logs</h4>
+        <p className="max-w-2xl text-xs leading-5 text-zinc-400">
+          Review test deliveries sent from this page. Persisted alert delivery history is not available yet.
+        </p>
       </div>
 
       <div className="space-y-3 md:hidden">
         {webhookLogs.length === 0 ? (
           <EmptyState
             title="No webhook deliveries yet."
-            description="Delivery logs appear after you save an endpoint and Dandi sends a test or alert webhook."
+            description="Send a test delivery to record the signed request and sanitized endpoint response in this page."
             action={(
               <button
                 type="button"
                 onClick={handleEmptyAction}
                 disabled={isTestingWebhook}
-                className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15 disabled:opacity-50"
+                className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
               >
-                {webhookUrl ? "Trigger Test Webhook" : "Configure Webhook URL"}
+                {emptyActionLabel}
               </button>
             )}
           />
@@ -96,9 +104,9 @@ export function AccountDeliveryLogsPanel({
                   <button
                     type="button"
                     onClick={() => onInspectLog(log)}
-                    className="w-full rounded-full border border-white/10 bg-slate-900 px-3.5 py-2 text-[8px] font-black uppercase tracking-widest text-slate-300 shadow-sm transition-all hover:bg-white hover:text-zinc-950 active:scale-[0.97]"
+                    className="w-full rounded-full border border-white/10 bg-slate-900 px-3.5 py-2 text-[8px] font-black uppercase tracking-widest text-slate-300 shadow-sm transition-all hover:bg-white hover:text-zinc-950 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                   >
-                    Inspect Payload
+                    Inspect delivery
                   </button>
                 </div>
               );
@@ -123,10 +131,10 @@ export function AccountDeliveryLogsPanel({
               <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Method & URL</th>
-                <th className="px-6 py-4">Event Type</th>
+                <th className="px-6 py-4">Event</th>
                 <th className="px-6 py-4">Latency</th>
                 <th className="px-6 py-4">Sent</th>
-                <th className="px-6 py-4 text-right">Payloads</th>
+                <th className="px-6 py-4 text-right">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 font-medium">
@@ -136,15 +144,15 @@ export function AccountDeliveryLogsPanel({
                     <EmptyState
                       className="mx-auto max-w-md"
                       title="No webhook deliveries yet."
-                      description="Delivery logs appear after you save an endpoint and Dandi sends a test or alert webhook."
+                      description="Send a test delivery to record the signed request and sanitized endpoint response in this page."
                       action={(
                         <button
                           type="button"
                           onClick={handleEmptyAction}
                           disabled={isTestingWebhook}
-                          className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15 disabled:opacity-50"
+                          className="mt-4 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                         >
-                          {webhookUrl ? "Trigger Test Webhook" : "Configure Webhook URL"}
+                          {emptyActionLabel}
                         </button>
                       )}
                     />
@@ -180,7 +188,7 @@ export function AccountDeliveryLogsPanel({
                       <td className="px-6 py-4 text-right">
                         <button
                           type="button"
-                          className="rounded-full bg-slate-900 border border-white/10 px-3.5 py-1.5 text-[8px] font-black uppercase tracking-widest text-slate-300 hover:bg-white hover:text-zinc-950 transition-all shadow-sm active:scale-[0.97]"
+                          className="rounded-full bg-slate-900 border border-white/10 px-3.5 py-1.5 text-[8px] font-black uppercase tracking-widest text-slate-300 hover:bg-white hover:text-zinc-950 transition-all shadow-sm active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                         >
                           Inspect
                         </button>
