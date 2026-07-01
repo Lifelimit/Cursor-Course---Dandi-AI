@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { ApiKey } from "@/types/api";
 import { EditIcon, TrashIcon } from "../icons";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
@@ -107,7 +108,7 @@ export const ApiKeyMobileSkeleton = () => (
 );
 
 export const QuickStartEmptyState = ({ onOpenCreateModal }: { onOpenCreateModal: () => void }) => (
-  <CommandPanel className="space-y-10 p-10 text-center animate-in fade-in duration-500 md:p-12" tone="elevated">
+  <CommandPanel className="space-y-8 p-6 text-center animate-in fade-in duration-500 sm:p-8 md:p-10" tone="elevated">
     <div className="space-y-4 max-w-xl mx-auto">
       <div className="inline-flex h-16 w-16 items-center justify-center rounded-[24px] border border-emerald-300/20 bg-emerald-300/10 text-emerald-300 shadow-[0_0_40px_rgba(52,211,153,0.12)]">
         <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2">
@@ -119,28 +120,28 @@ export const QuickStartEmptyState = ({ onOpenCreateModal }: { onOpenCreateModal:
         No API keys yet.
       </h3>
       <p className="text-xs font-semibold text-slate-400 leading-relaxed">
-        Create an API key to call Dandi endpoints and test requests in the playground.
+        Create an API key first, then open Playground to run a public repository summary and start building request history.
       </p>
     </div>
 
-    <div className="grid gap-6 md:grid-cols-3 max-w-4xl mx-auto">
+    <div className="grid gap-4 md:grid-cols-3 max-w-4xl mx-auto">
       {[
         {
           step: "Step 01",
-          title: "Generate Key",
+          title: "Create Key",
           desc: "Create a development or production key. Plaintext keys are never stored.",
           icon: "M15 7a2 2 0 012 2m4 0a6 6 0 11-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z",
         },
         {
           step: "Step 02",
-          title: "Integrate SDK",
-          desc: "Use a lightweight client or direct HTTP request from your terminal.",
+          title: "Test Summary",
+          desc: "Use Playground with a public repository URL to confirm your first Dandi request.",
           icon: "M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
         },
         {
           step: "Step 03",
-          title: "Test Request",
-          desc: "Send requests in the API playground and inspect response logs.",
+          title: "Review Usage",
+          desc: "Watch requests, limits, latency, and repository activity populate after successful runs.",
           icon: "M13 10V3L4 14h7v7l9-11h-7z",
         },
       ].map((card, idx) => (
@@ -164,7 +165,7 @@ export const QuickStartEmptyState = ({ onOpenCreateModal }: { onOpenCreateModal:
       ))}
     </div>
 
-    <div className="pt-2">
+    <div className="flex flex-col items-center justify-center gap-3 pt-2 sm:flex-row">
       <PrimaryButton
         onClick={onOpenCreateModal}
         icon={
@@ -175,6 +176,12 @@ export const QuickStartEmptyState = ({ onOpenCreateModal }: { onOpenCreateModal:
       >
         Create API Key
       </PrimaryButton>
+      <Link
+        href="/playground?mode=summary"
+        className="inline-flex min-h-11 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-300/10 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-100 transition hover:border-cyan-200/45 hover:bg-cyan-300/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+      >
+        Open Playground
+      </Link>
     </div>
   </CommandPanel>
 );

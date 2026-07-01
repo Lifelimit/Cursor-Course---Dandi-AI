@@ -19,7 +19,6 @@ import { DashboardOverviewCards } from "@/components/dashboard/DashboardOverview
 import { PlanStatusCard } from "@/components/dashboard/PlanStatusCard";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/client";
 import { GettingStartedChecklist } from "@/components/dashboard/GettingStartedChecklist";
 import { EyeOffIcon, ShieldIcon, CopyLockedIcon, CopyCheckIcon } from "@/components/icons";
 import { GuidedError } from "@/components/ui/GuidedError";
@@ -28,12 +27,8 @@ import { formatPercentage } from "@/lib/format";
 import type { DailyUsageTrend, UsageData } from "@/types/usage";
 
 import { DecryptingKeyText } from "@/components/ui/DecryptingKeyText";
-type DandiOnboardingMetadata = {
-  started?: boolean;
-  askedRepository?: boolean;
-  reviewedUsage?: boolean;
-  dismissed?: boolean;
-};
+
+const FIRST_RUN_USAGE_THRESHOLD = 3;
 
 export default function DashboardClient({
   initialUser,
@@ -55,7 +50,6 @@ export default function DashboardClient({
   initialHasAskedRepository?: boolean;
 }) {
   const router = useRouter();
-  const supabase = createClient();
   const activeUser = initialUser;
 
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey, refreshKeys } = useApiKeys(initialKeys);
@@ -123,43 +117,11 @@ export default function DashboardClient({
   const [createdPlainKey, setCreatedPlainKey] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [isPlainKeyVisible, setIsPlainKeyVisible] = useState(true);
-  const [onboardingMetadata, setOnboardingMetadata] = useState<DandiOnboardingMetadata>(() => {
-    const metadata = activeUser?.user_metadata as { dandi_onboarding?: DandiOnboardingMetadata } | undefined;
-    return metadata?.dandi_onboarding || {};
-  });
-
-  const persistOnboardingMetadata = async (patch: DandiOnboardingMetadata) => {
-    const nextMetadata = { ...onboardingMetadata, ...patch };
-    setOnboardingMetadata(nextMetadata);
-
-    if (!activeUser) return;
-
-    const { error } = await supabase.auth.updateUser({
-      data: {
-        ...(activeUser.user_metadata || {}),
-        dandi_onboarding: nextMetadata,
-      },
-    });
-
-    if (error) {
-      showToast("error", getToastErrorMessage("account", "Could not save getting started progress."));
-    }
-  };
-
-  const hasCompletedOnboarding = Boolean(
-    apiKeys.length > 0 &&
-    successfulRepositoryAnalysis &&
-    (initialHasAskedRepository || onboardingMetadata.askedRepository) &&
-    onboardingMetadata.reviewedUsage
-  );
   const shouldShowGettingStarted = Boolean(
-    !onboardingMetadata.dismissed &&
-    (onboardingMetadata.started || (!hasCompletedOnboarding && (!apiKeys.length || !successfulRepositoryAnalysis)))
+    apiKeys.length === 0 ||
+    totalUsage < FIRST_RUN_USAGE_THRESHOLD ||
+    !successfulRepositoryAnalysis
   );
-
-  const markGettingStartedActive = () => {
-    void persistOnboardingMetadata({ started: true });
-  };
 
   const handleOpenCreateModal = () => {
     setEditingKey(null);
@@ -314,27 +276,8 @@ export default function DashboardClient({
               <GettingStartedChecklist
                 hasApiKey={apiKeys.length > 0}
                 hasSuccessfulRepositoryAnalysis={successfulRepositoryAnalysis}
-                hasAskedRepository={Boolean(initialHasAskedRepository || onboardingMetadata.askedRepository)}
-                hasReviewedUsage={Boolean(onboardingMetadata.reviewedUsage)}
-                onCreateApiKey={() => {
-                  markGettingStartedActive();
-                  handleOpenCreateModal();
-                }}
-                onOpenSummary={() => {
-                  markGettingStartedActive();
-                  router.push("/playground?mode=summary");
-                }}
-                onOpenAskRepository={() => {
-                  markGettingStartedActive();
-                  router.push("/playground?mode=ask");
-                }}
-                onOpenUsage={() => {
-                  void persistOnboardingMetadata({ started: true, reviewedUsage: true });
-                  router.push("/usage");
-                }}
-                onDismiss={() => {
-                  void persistOnboardingMetadata({ dismissed: true });
-                }}
+                hasIndexedRepository={initialHasAskedRepository}
+                onCreateApiKey={handleOpenCreateModal}
               />
             )}
 
@@ -376,7 +319,7 @@ export default function DashboardClient({
             />
 
             {/* Keys Section */}
-            <CommandPanel padding="none" className="p-5 sm:p-8">
+            <CommandPanel id="api-keys" padding="none" className="scroll-mt-6 p-5 sm:p-8">
               <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/70">API Keys</p>
