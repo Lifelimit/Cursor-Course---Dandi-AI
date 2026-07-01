@@ -1,5 +1,4 @@
 "use client";
-/* eslint-disable */
 
 import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
@@ -110,6 +109,8 @@ export default function PlaygroundClient({
   useEffect(() => {
     const mode = searchParams.get("mode");
     if (mode === "ask") {
+      // Sync the URL mode into local tab state when users land on /playground?mode=ask.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab("rag");
       setErrorMessage("");
       return;
@@ -199,7 +200,9 @@ export default function PlaygroundClient({
     isChatLoading,
   });
 
-  indexedLogSetterRef.current = setIndexedLogState;
+  useEffect(() => {
+    indexedLogSetterRef.current = setIndexedLogState;
+  }, [setIndexedLogState]);
 
   const handleDemoMode = () => {
     setApiKey("__demo__");

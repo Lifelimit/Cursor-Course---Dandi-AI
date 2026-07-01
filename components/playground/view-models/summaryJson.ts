@@ -1,6 +1,6 @@
 import type { ApiKey } from "@/types/api";
 import type { IndexedRepositoryStats, RepositoryIngestStatus } from "@/hooks/useRepositoryIngestion";
-import type { LatencyRow, RepositoryMetadata, RepositorySummaryResult, RepositorySummaryStatus, TransparencyRow } from "./types";
+import type { LatencyRow, RepositoryMetadata, RepositorySummaryResult, RepositorySummaryStatus, SummaryJsonData, TransparencyRow } from "./types";
 import type { PipelineFlowStep } from "@/components/command";
 
 export function buildSummaryJsonData({
@@ -51,7 +51,7 @@ export function buildSummaryJsonData({
   lifecycleSteps: PipelineFlowStep[];
   latencyRows: LatencyRow[];
   getRepoPath: (url: string) => string;
-}): unknown {
+}): SummaryJsonData {
   return summaryHasData
     ? {
         success: true,

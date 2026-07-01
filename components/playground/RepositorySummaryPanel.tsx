@@ -10,6 +10,7 @@ import type { LogEntry } from "@/components/playground/NetworkLog";
 import { getErrorGuidance } from "@/lib/error-guidance";
 import { formatRequestCount } from "@/lib/format";
 import type { IndexedRepositoryStats, RepositoryIngestStatus } from "@/hooks/useRepositoryIngestion";
+import type { SummaryJsonData } from "@/components/playground/view-models/types";
 
 const JsonViewer = dynamic(() => import("@/components/playground/JsonViewer").then((mod) => mod.JsonViewer), {
   loading: () => <CardSkeleton lines={6} className="min-h-[28rem]" />,
@@ -33,7 +34,7 @@ type RepositorySummaryPanelProps = {
   viewMode: "visual" | "json";
   setViewMode: Dispatch<SetStateAction<"visual" | "json">>;
   summaryHasData: boolean;
-  summaryJsonData: unknown;
+  summaryJsonData: SummaryJsonData;
   summaryResult: RepositorySummaryResult | undefined;
   summaryFacts: string[];
   repoMetadata: RepositoryMetadata | null;

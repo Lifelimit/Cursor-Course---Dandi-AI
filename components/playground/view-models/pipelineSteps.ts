@@ -48,8 +48,6 @@ export function buildPipelineState({
     requestLogs,
     isPipelineActive,
     hasPipelineError,
-    activeLogsHavePending,
-    activeLogsHaveError,
   };
 }
 
