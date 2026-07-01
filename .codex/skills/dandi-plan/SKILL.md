@@ -25,10 +25,16 @@ Do not edit files, generate migrations, stage changes, or commit. Use shared doc
 4. Use targeted search before broad file reads. Avoid scanning unrelated product areas.
 5. Inspect `package.json` only when commands or dependencies are relevant.
 6. Identify the target outcome, constraints, dependencies, and risk areas.
-7. Inspect relevant files enough to anchor the plan in the real project.
-8. Break the work into small phases with acceptance criteria and validation.
-9. Stop and report if the requested work expands beyond scope.
-10. Generate execution prompts when the user wants handoff-ready tasks.
+7. Classify the work as Normal, Sensitive, or Critical.
+   - Normal: UI, copy, local component, or docs changes that do not affect trust boundaries.
+   - Sensitive: route handlers, auth, Supabase, RLS, billing, API keys, webhooks, GitHub App, AI/RAG, logging, rate limits, CSP, CORS, cache behavior, environment variables, secrets, or tokens.
+   - Critical: tenant isolation, service-role expansion, private repository access, webhook trust, billing trust boundaries, or secret storage.
+8. For Sensitive or Critical work, include a pre-implementation security-review phase using `docs/SECURITY_REVIEW_GUIDE.md`.
+9. For Sensitive or Critical work, include security acceptance criteria and post-implementation validation or test expectations.
+10. Inspect relevant files enough to anchor the plan in the real project.
+11. Break the work into small phases with acceptance criteria and validation.
+12. Stop and report if the requested work expands beyond scope.
+13. Generate execution prompts when the user wants handoff-ready tasks.
 
 ## Planning Rules
 
@@ -38,6 +44,7 @@ Do not edit files, generate migrations, stage changes, or commit. Use shared doc
 - Put discovery or audit phases before implementation when unknowns are high.
 - Mark tasks that require user decisions.
 - Avoid pretending uncertain work is certain; name assumptions directly.
+- Do not route Sensitive or Critical work directly from Plan to Execute without naming the Security Review phase and what it must verify.
 
 ## Output Shape
 

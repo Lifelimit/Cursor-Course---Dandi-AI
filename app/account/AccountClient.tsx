@@ -37,11 +37,19 @@ import { AccountWebhooksPanel } from "@/components/account/AccountWebhooksPanel"
 type AccountTab = "profile" | "integrations" | "webhooks" | "security";
 type AccessView = "api" | "browser";
 type DeliveryLogModalTab = "request" | "response";
+type ProfileSaveMessage = { type: "success" | "error"; text: string } | null;
+
+const ORG_SLUG_PATTERN = /^[a-z0-9-]+$/;
 
 function parseAccountTab(value: string | null): AccountTab {
   return value === "integrations" || value === "webhooks" || value === "security" || value === "profile"
     ? value
     : "profile";
+}
+
+async function readResponseError(response: Response, fallback: string) {
+  const payload = await response.json().catch(() => null) as { error?: string } | null;
+  return payload?.error || fallback;
 }
 
 export default function AccountClient({ initialSession }: { initialSession: Session | null }) {
@@ -56,6 +64,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const [fullName, setFullName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileSaveMessage, setProfileSaveMessage] = useState<ProfileSaveMessage>(null);
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -98,6 +107,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         fetch("/api/usage"),
         fetch("/api/account/environments")
       ]);
+      let nextAccountLoadError: string | null = null;
 
       if (profileRes.ok) {
         const pData: AccountProfileData = await profileRes.json();
@@ -106,11 +116,15 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         setOrgSlug(pData.orgSlug);
         setWebhookUrl(pData.webhookUrl);
         setWebhookSecret(pData.webhookSecret);
+      } else {
+        nextAccountLoadError = await readResponseError(profileRes, "Developer profile could not be loaded.");
       }
 
       if (usageRes.ok) {
         const uData: AccountDataResponse = await usageRes.json();
         setUsage(uData);
+      } else {
+        nextAccountLoadError = await readResponseError(usageRes, "Account usage summary could not be loaded.");
       }
 
       if (accessRes.ok) {
@@ -129,10 +143,9 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         })));
         setAccessLoadError(null);
       } else {
-        const errorData = await accessRes.json().catch(() => ({})) as { error?: string };
-        setAccessLoadError(errorData.error || "Failed to load API key and request telemetry.");
+        setAccessLoadError(await readResponseError(accessRes, "Failed to load API key and request telemetry."));
       }
-      setAccountLoadError(null);
+      setAccountLoadError(nextAccountLoadError);
     } catch (err) {
       console.error("Error loading account details:", err);
       const message = err instanceof Error ? err.message : "Failed to fetch developer profile data.";
@@ -187,23 +200,65 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
   const handleSaveProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const nextFullName = fullName.trim();
+    const nextOrgSlug = orgSlug.trim().toLowerCase();
+
+    setProfileSaveMessage(null);
+
+    if (nextFullName.length > 100) {
+      const message = "Full name must be 100 characters or less.";
+      setProfileSaveMessage({ type: "error", text: message });
+      showToast("error", getToastErrorMessage("account", message));
+      return;
+    }
+
+    if (nextOrgSlug.length > 50) {
+      const message = "Organization/API namespace must be 50 characters or less.";
+      setProfileSaveMessage({ type: "error", text: message });
+      showToast("error", getToastErrorMessage("account", message));
+      return;
+    }
+
+    if (nextOrgSlug && !ORG_SLUG_PATTERN.test(nextOrgSlug)) {
+      const message = "Organization/API namespace can only use lowercase letters, numbers, and hyphens.";
+      setProfileSaveMessage({ type: "error", text: message });
+      showToast("error", getToastErrorMessage("account", message));
+      return;
+    }
+
     setIsSavingProfile(true);
     try {
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, orgSlug })
+        body: JSON.stringify({ fullName: nextFullName, orgSlug: nextOrgSlug })
       });
+      const data = await res.json().catch(() => null) as Partial<AccountProfileData> & { error?: string } | null;
 
-      if (res.ok) {
-        const data = await res.json();
-        setProfile(prev => prev ? { ...prev, fullName: data.fullName, orgSlug: data.orgSlug } : null);
-        showToast("success", "Developer profile settings saved successfully.");
-      } else {
-        showToast("error", getToastErrorMessage("account", "Failed to update profile settings."));
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to update profile settings.");
       }
-    } catch {
-      showToast("error", getToastErrorMessage("account", "Connection error updating profile."));
+
+      const savedFullName = typeof data?.fullName === "string" ? data.fullName : nextFullName;
+      const savedOrgSlug = typeof data?.orgSlug === "string" ? data.orgSlug : nextOrgSlug;
+
+      setFullName(savedFullName);
+      setOrgSlug(savedOrgSlug);
+      setProfile(prev => ({
+        fullName: savedFullName,
+        orgSlug: savedOrgSlug,
+        avatarUrl: data?.avatarUrl ?? prev?.avatarUrl ?? "",
+        plan: data?.plan ?? prev?.plan ?? userPlan,
+        webhookUrl: data?.webhookUrl ?? prev?.webhookUrl ?? webhookUrl,
+        webhookSecret: data?.webhookSecret ?? prev?.webhookSecret ?? webhookSecret,
+        githubConnected: data?.githubConnected ?? prev?.githubConnected ?? false,
+      }));
+      setProfileSaveMessage({ type: "success", text: "Developer profile saved. The values shown here match what Dandi stored." });
+      showToast("success", "Developer profile saved.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Connection error updating profile.";
+      setProfileSaveMessage({ type: "error", text: message });
+      showToast("error", getToastErrorMessage("account", message));
     } finally {
       setIsSavingProfile(false);
     }
@@ -442,11 +497,20 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
             {activeTab === "profile" && (
               <AccountProfilePanel
                 email={activeSession?.user?.email || ""}
+                plan={profile?.plan || userPlan}
+                avatarUrl={profile?.avatarUrl || ""}
                 fullName={fullName}
                 orgSlug={orgSlug}
                 isSavingProfile={isSavingProfile}
-                onFullNameChange={setFullName}
-                onOrgSlugChange={setOrgSlug}
+                saveMessage={profileSaveMessage}
+                onFullNameChange={(value) => {
+                  setFullName(value);
+                  setProfileSaveMessage(null);
+                }}
+                onOrgSlugChange={(value) => {
+                  setOrgSlug(value);
+                  setProfileSaveMessage(null);
+                }}
                 onSubmit={handleSaveProfile}
               />
             )}

@@ -20,6 +20,7 @@ This document is the shared source of truth for AI agents working in Dandi. Agen
 - Use Supabase Auth with `@supabase/ssr`. Do not introduce NextAuth.
 - Keep service-role or admin Supabase access server-only. Use it only for server-to-server flows that intentionally bypass RLS, such as trusted webhook handling.
 - Enforce user and tenant boundaries in Supabase RLS, not only in UI or route code.
+- Use `docs/SECURITY_REVIEW_GUIDE.md` as the shared review doctrine for security-sensitive work.
 - Preserve unrelated user changes in the worktree. Never revert files you did not intentionally modify for the task.
 - Do not push to GitHub unless explicitly asked.
 
@@ -40,8 +41,11 @@ Use this sequence for project work:
 
 1. Brainstorm: explore options and tradeoffs without editing files.
 2. Plan: produce a staged implementation plan without editing files.
-3. Execute: make scoped code or doc changes and run relevant validation.
-4. Audit: review existing code or diffs without editing files unless fixes are explicitly requested.
+3. Security Review: review Sensitive or Critical work without editing files.
+4. Execute: make scoped code or doc changes and run relevant validation.
+5. Audit: review existing code or diffs without editing files unless fixes are explicitly requested.
+
+Security Review is mandatory for Sensitive or Critical work as defined in `docs/SECURITY_REVIEW_GUIDE.md`. Brainstorm, Plan, Security Review, and Audit are read-only by default. Execute is the only implementation workflow.
 
 ## Cross-Agent Coordination
 

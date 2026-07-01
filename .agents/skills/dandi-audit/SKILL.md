@@ -2,7 +2,9 @@
 
 ## Trigger
 
-Use this skill when the user asks for a review, audit, quality pass, security review, RLS check, technical debt review, performance review, or regression assessment.
+Use this skill when the user asks for a broad review, audit, quality pass, technical debt review, performance review, UX review, maintainability review, test review, or regression assessment.
+
+If the user primarily asks about auth, RLS, route trust, billing, secrets, API keys, webhooks, private repo access, AI/RAG data boundaries, public endpoint abuse, tenant isolation, or other security trust boundaries, prefer `dandi-security-review`.
 
 ## Contract
 

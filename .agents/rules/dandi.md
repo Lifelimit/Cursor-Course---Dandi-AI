@@ -12,9 +12,11 @@ These rules apply to Antigravity agents in this workspace.
 
 - Use `dandi-brainstorm` before `dandi-plan` when the solution shape is unclear.
 - Use `dandi-plan` before `dandi-execute` for large or risky work.
+- Use `dandi-security-review` before `dandi-execute` for Sensitive or Critical work.
 - Use `dandi-execute` only when the user asks for implementation or file changes.
-- Use `dandi-audit` for review, security, RLS, performance, and quality checks.
-- Brainstorm, plan, and audit are read-only by default.
+- Use `dandi-audit` for broad review, performance, maintainability, UX, tests, and quality checks.
+- Use `dandi-security-review` for auth, RLS, route trust, billing, secrets, API keys, webhooks, private repo access, AI/RAG data boundaries, public endpoint abuse, and tenant isolation.
+- Brainstorm, plan, security review, and audit are read-only by default.
 
 ## Constraints
 

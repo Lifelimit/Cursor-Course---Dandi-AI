@@ -44,34 +44,66 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
+    let body: Record<string, unknown>;
+    try {
+      const parsed = await req.json();
+      body = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed as Record<string, unknown>
+        : {};
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON request body" }, { status: 400 });
+    }
+
     const { fullName, orgSlug, webhookUrl, githubConnected } = body;
 
-    // Server-side Input Validation & Sanitization
-    let sanitizedOrgSlug = orgSlug;
-    if (orgSlug !== undefined && orgSlug !== "") {
-      sanitizedOrgSlug = orgSlug.toLowerCase().replace(/[^a-z0-9-]/g, "");
-      if (sanitizedOrgSlug.length > 50) {
-        return NextResponse.json({ error: "Organization Slug must be under 50 characters" }, { status: 400 });
+    let sanitizedFullName: string | undefined;
+    if (fullName !== undefined) {
+      if (typeof fullName !== "string") {
+        return NextResponse.json({ error: "Full name must be a string" }, { status: 400 });
+      }
+
+      sanitizedFullName = fullName.trim();
+      if (sanitizedFullName.length > 100) {
+        return NextResponse.json({ error: "Full name must be 100 characters or less" }, { status: 400 });
       }
     }
 
-    if (webhookUrl !== undefined && webhookUrl !== "") {
+    let sanitizedOrgSlug: string | undefined;
+    if (orgSlug !== undefined) {
+      if (typeof orgSlug !== "string") {
+        return NextResponse.json({ error: "Organization/API namespace must be a string" }, { status: 400 });
+      }
+
+      sanitizedOrgSlug = orgSlug.trim().toLowerCase();
+      if (sanitizedOrgSlug.length > 50) {
+        return NextResponse.json({ error: "Organization/API namespace must be 50 characters or less" }, { status: 400 });
+      }
+      if (sanitizedOrgSlug && !/^[a-z0-9-]+$/.test(sanitizedOrgSlug)) {
+        return NextResponse.json({ error: "Organization/API namespace can only use lowercase letters, numbers, and hyphens" }, { status: 400 });
+      }
+    }
+
+    let sanitizedWebhookUrl: string | undefined;
+    if (webhookUrl !== undefined) {
+      if (typeof webhookUrl !== "string") {
+        return NextResponse.json({ error: "Webhook URL must be a string" }, { status: 400 });
+      }
+
+      sanitizedWebhookUrl = webhookUrl.trim();
+    }
+
+    if (sanitizedWebhookUrl !== undefined && sanitizedWebhookUrl !== "") {
       try {
-        const parsed = new URL(webhookUrl);
+        const parsed = new URL(sanitizedWebhookUrl);
         if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
           return NextResponse.json({ error: "Webhook URL must be HTTP or HTTPS" }, { status: 400 });
         }
-        if (webhookUrl.length > 2000) {
+        if (sanitizedWebhookUrl.length > 2000) {
           return NextResponse.json({ error: "Webhook URL is too long" }, { status: 400 });
         }
       } catch {
         return NextResponse.json({ error: "Invalid Webhook URL format" }, { status: 400 });
       }
-    }
-
-    if (fullName !== undefined && fullName.length > 100) {
-      return NextResponse.json({ error: "Full Name must be under 100 characters" }, { status: 400 });
     }
 
     // Load existing profile first to check webhook secret
@@ -82,19 +114,21 @@ export async function PATCH(req: Request) {
       .single();
 
     let webhookSecret = existingProfile?.webhook_secret || "";
-    
-    // Automatically generate a signing secret if a new webhook URL is defined and no secret exists yet
-    if (webhookUrl && !webhookSecret) {
-      webhookSecret = `whsec_dandi_${crypto.randomBytes(8).toString("hex")}`;
-    } else if (!webhookUrl) {
-      webhookSecret = ""; // Clear webhook secret if webhook URL is removed
+
+    if (sanitizedWebhookUrl !== undefined) {
+      // Automatically generate a signing secret if a new webhook URL is defined and no secret exists yet.
+      if (sanitizedWebhookUrl && !webhookSecret) {
+        webhookSecret = `whsec_dandi_${crypto.randomBytes(8).toString("hex")}`;
+      } else if (!sanitizedWebhookUrl) {
+        webhookSecret = "";
+      }
     }
 
     const updateData: Record<string, unknown> = {};
-    if (fullName !== undefined) updateData.full_name = fullName;
+    if (fullName !== undefined) updateData.full_name = sanitizedFullName;
     if (orgSlug !== undefined) updateData.org_slug = sanitizedOrgSlug;
-    if (webhookUrl !== undefined) updateData.webhook_url = webhookUrl;
-    if (webhookSecret !== undefined) updateData.webhook_secret = webhookSecret;
+    if (sanitizedWebhookUrl !== undefined) updateData.webhook_url = sanitizedWebhookUrl;
+    if (sanitizedWebhookUrl !== undefined) updateData.webhook_secret = webhookSecret;
     if (githubConnected !== undefined) updateData.github_connected = githubConnected;
     updateData.updated_at = new Date().toISOString();
 

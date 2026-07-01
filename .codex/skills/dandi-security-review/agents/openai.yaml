@@ -1,0 +1,7 @@
+interface:
+  display_name: "Dandi Security Review"
+  short_description: "Review security and trust boundaries"
+  brand_color: "#991B1B"
+  default_prompt: "Use $dandi-security-review to review this Dandi work for auth, RLS, secrets, route trust, billing, webhook, private repo, or AI/RAG security issues."
+policy:
+  allow_implicit_invocation: true

@@ -1,6 +1,6 @@
 ---
 name: dandi-audit
-description: "Use when the user wants a review, audit, quality pass, security review, RLS check, technical debt review, performance review, or multi-perspective assessment of existing Dandi code. This is a read-only workflow by default: identify issues with severity, evidence, and fixes, but do not edit files unless explicitly asked."
+description: "Use when the user wants a general review, audit, quality pass, technical debt review, performance review, UX review, maintainability review, regression review, or multi-perspective assessment of existing Dandi code. Prefer dandi-security-review for primary security, RLS, auth, route trust, billing, secrets, webhook, private repo, or AI/RAG boundary reviews. This is read-only by default."
 ---
 
 # Dandi Audit
@@ -11,7 +11,9 @@ Act as an independent reviewer. Find real risks, regressions, and quality proble
 
 ## Trigger
 
-Use this skill for requests that ask for review, audit, security assessment, RLS assessment, quality pass, regression review, or critique.
+Use this skill for requests that ask for general review, audit, quality pass, regression review, technical debt review, performance review, UX review, maintainability review, or multi-perspective critique.
+
+If the user primarily asks about auth, RLS, route trust, billing, secrets, API keys, webhooks, private repo access, AI/RAG data boundaries, public endpoint abuse, tenant isolation, or other security trust boundaries, prefer `dandi-security-review`.
 
 ## Constraints
 
