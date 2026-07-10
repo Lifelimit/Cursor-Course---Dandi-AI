@@ -1,3 +1,5 @@
+import { normalizeGitHubRepoUrl } from "@/lib/security-core";
+
 const GITHUB_REPO_PATH_RE = /github\.com\/([^\/]+\/[^\/]+)/;
 const INVALID_GITHUB_URL_MESSAGE = "Invalid GitHub URL. Expected format: https://github.com/owner/repo";
 
@@ -21,13 +23,18 @@ export function formatGitHubRepoLabel(value: string, options: { trimTrailingSlas
 }
 
 export function getGitHubRepositoryParts(githubUrl: string): GitHubRepositoryParts {
-  const url = new URL(githubUrl);
+  const normalized = normalizeGitHubRepoUrl(githubUrl);
+  if (!normalized) throw new Error(INVALID_GITHUB_URL_MESSAGE);
+
+  const url = new URL(normalized);
   const pathParts = url.pathname.split("/").filter(Boolean);
 
-  if (pathParts.length < 2) {
+  if (url.protocol !== "https:" || url.hostname.toLowerCase() !== "github.com" || pathParts.length !== 2) {
     throw new Error(INVALID_GITHUB_URL_MESSAGE);
   }
 
-  const [owner, repo] = pathParts;
+  const [owner, rawRepo] = pathParts;
+  const repo = rawRepo.replace(/\.git$/i, "");
+  if (!repo) throw new Error(INVALID_GITHUB_URL_MESSAGE);
   return { owner, repo };
 }

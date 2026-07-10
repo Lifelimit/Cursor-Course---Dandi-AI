@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type SetStateAction } from "react";
 import dynamic from "next/dynamic";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
@@ -28,8 +28,17 @@ import { buildTransparencyRows, buildTransparencyStatus } from "@/components/pla
 import { PLAN_DETAILS } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 import { formatGitHubRepo, formatRequestCount } from "@/lib/format";
+import { getGitHubRepositoryParts } from "@/lib/github-url";
 
-const getRepoPath = (url: string) => formatGitHubRepo(url);
+const INVALID_GITHUB_URL_MESSAGE = "Enter a valid GitHub repository URL, for example https://github.com/owner/repository.";
+const getRepoPath = (url: string) => {
+  try {
+    getGitHubRepositoryParts(url);
+    return formatGitHubRepo(url);
+  } catch {
+    return "Invalid repository URL";
+  }
+};
 
 const PlaygroundTransparencyPanel = dynamic(
   () => import("@/components/playground/PlaygroundTransparencyPanel").then((mod) => mod.PlaygroundTransparencyPanel),
@@ -97,9 +106,21 @@ export default function PlaygroundClient({
   const [selectedKey, setSelectedKey] = useState<string>("");
   const [selectValue, setSelectValue] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
+  const apiKeyRef = useRef("");
+  const githubUrlRef = useRef("");
   const [viewMode, setViewMode] = useState<"visual" | "json">("visual");
   const [errorMessage, setErrorMessage] = useState("");
   const { toast, showToast } = useToast();
+
+  const setTrackedValue = (setter: (value: SetStateAction<string>) => void, ref: React.MutableRefObject<string>, next: SetStateAction<string>) => {
+    setter((current) => {
+      const value = typeof next === "function" ? next(current) : next;
+      ref.current = value;
+      return value;
+    });
+  };
+  const setTrackedApiKey = (next: SetStateAction<string>) => setTrackedValue(setApiKey, apiKeyRef, next);
+  const setTrackedGithubUrl = (next: SetStateAction<string>) => setTrackedValue(setGithubUrl, githubUrlRef, next);
 
   // Repository question tab state
   const [activeTab, setActiveTab] = useState<"summary" | "rag">(() => (
@@ -145,7 +166,7 @@ export default function PlaygroundClient({
     summaryResult,
     isLoadingSummary,
     streamError,
-    handleSummarize,
+    handleSummarize: submitSummary,
   } = useRepositorySummary({
     apiKey,
     githubUrl,
@@ -186,12 +207,18 @@ export default function PlaygroundClient({
     ingestedRepo,
     indexedRepositoryStats,
     setIndexedLogState,
-    handleIngest,
+    handleIngest: submitIngest,
     resetIngestedRepository,
   } = useRepositoryIngestion({
     apiKey,
     githubUrl,
     apiKeys,
+    getCurrentApiKey: () => apiKeyRef.current,
+    getCurrentGithubUrl: () => githubUrlRef.current,
+    setApiKey: setTrackedApiKey,
+    setSelectedKey,
+    setSelectValue,
+    setGithubUrl: setTrackedGithubUrl,
     refreshKeys,
     setErrorMessage,
     getRepoPath,
@@ -202,13 +229,37 @@ export default function PlaygroundClient({
     isChatLoading,
   });
 
+  const validateRepositoryUrl = () => {
+    try {
+      getGitHubRepositoryParts(githubUrl.trim());
+      return true;
+    } catch {
+      setErrorMessage(INVALID_GITHUB_URL_MESSAGE);
+      return false;
+    }
+  };
+  const handleSummarize = (event: React.FormEvent<HTMLFormElement>) => {
+    if (!validateRepositoryUrl()) {
+      event.preventDefault();
+      return;
+    }
+    return submitSummary(event);
+  };
+  const handleIngest = (event: React.FormEvent<HTMLFormElement>) => {
+    if (!validateRepositoryUrl()) {
+      event.preventDefault();
+      return;
+    }
+    return submitIngest(event);
+  };
+
   useEffect(() => {
     indexedLogSetterRef.current = setIndexedLogState;
   }, [setIndexedLogState]);
 
   const handleDemoMode = () => {
-    setApiKey("__demo__");
-    setGithubUrl("https://github.com/facebook/react");
+    setTrackedApiKey("__demo__");
+    setTrackedGithubUrl("https://github.com/facebook/react");
     setSelectedKey("__demo__");
     setSelectValue("__demo__");
     showToast("success", "Demo Mode loaded a sample public repository. Hit Summarize.");
@@ -442,10 +493,10 @@ export default function PlaygroundClient({
                     ingestStatus={ingestStatus}
                     currentStep={currentIndexStats?.currentStep}
                     ingestedRepo={ingestedRepo}
-                    setApiKey={setApiKey}
+                    setApiKey={setTrackedApiKey}
                     setSelectedKey={setSelectedKey}
                     setSelectValue={setSelectValue}
-                    setGithubUrl={setGithubUrl}
+                    setGithubUrl={setTrackedGithubUrl}
                     handleSummarize={handleSummarize}
                     handleIngest={handleIngest}
                     handleDemoMode={handleDemoMode}

@@ -28,6 +28,7 @@ export type IngestionJob = {
 
 export type IngestionJobSummary = {
   jobId: string;
+  apiKeyId?: string | null;
   status: IngestionJobStatus;
   currentStep?: IngestionJobStep;
   repoUrl: string;

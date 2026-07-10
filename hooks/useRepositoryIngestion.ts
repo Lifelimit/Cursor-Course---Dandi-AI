@@ -29,6 +29,12 @@ type UseRepositoryIngestionOptions = {
   apiKey: string;
   githubUrl: string;
   apiKeys: ApiKey[];
+  getCurrentApiKey: () => string;
+  getCurrentGithubUrl: () => string;
+  setApiKey: Dispatch<SetStateAction<string>>;
+  setSelectedKey: Dispatch<SetStateAction<string>>;
+  setSelectValue: Dispatch<SetStateAction<string>>;
+  setGithubUrl: Dispatch<SetStateAction<string>>;
   refreshKeys: () => void | Promise<void>;
   setErrorMessage: (message: string) => void;
   getRepoPath: (url: string) => string;
@@ -41,6 +47,7 @@ type UseRepositoryIngestionOptions = {
 
 type IngestionResponse = {
   jobId?: string;
+  apiKeyId?: string | null;
   status?: string;
   currentStep?: string;
   filesCount?: number;
@@ -86,7 +93,7 @@ const updateLogEntries = (entries: LogEntry[], id: string, updates: Partial<LogE
   return updated;
 };
 
-const toLocalIngestStatus = (job: IngestionJobSummary): RepositoryIngestStatus => {
+export const toLocalIngestStatus = (job: IngestionJobSummary): RepositoryIngestStatus => {
   if (job.status === "completed") return "completed";
   if (job.status === "failed") return "error";
   if (job.currentStep === "indexing") return "embedding";
@@ -94,8 +101,18 @@ const toLocalIngestStatus = (job: IngestionJobSummary): RepositoryIngestStatus =
   return "idle";
 };
 
+export function selectRestorableIngestionJob(
+  jobs: IngestionJobSummary[],
+  options: { githubUrl: string; apiKeyId?: string | null }
+) {
+  if (options.githubUrl) return jobs.find((job) => job.repoUrl === options.githubUrl) ?? null;
+  if (options.apiKeyId) return jobs.find((job) => job.apiKeyId === options.apiKeyId) ?? null;
+  return jobs[0] ?? null;
+}
+
 const toIngestionJobSummary = (response: IngestionResponse, repoUrl: string): IngestionJobSummary => ({
   jobId: response.jobId || "",
+  apiKeyId: response.apiKeyId,
   status: response.status === "failed" || response.status === "completed" || response.status === "running" ? response.status : "queued",
   currentStep: response.currentStep as IngestionJobSummary["currentStep"],
   repoUrl,
@@ -124,6 +141,12 @@ export function useRepositoryIngestion({
   apiKey,
   githubUrl,
   apiKeys,
+  getCurrentApiKey,
+  getCurrentGithubUrl,
+  setApiKey,
+  setSelectedKey,
+  setSelectValue,
+  setGithubUrl,
   refreshKeys,
   setErrorMessage,
   getRepoPath,
@@ -184,6 +207,8 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
     if (ingestStatus === "crawling" || ingestStatus === "embedding" || isChatLoading) return;
 
     let cancelled = false;
+    const requestedApiKey = apiKey;
+    const requestedGithubUrl = githubUrl;
     const loadJobs = async () => {
       try {
         const headers: Record<string, string> = {};
@@ -196,9 +221,32 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
         if (!res.ok) return;
         const jobs = Array.isArray(data.jobs) ? (data.jobs as IngestionJobSummary[]) : [];
         if (cancelled) return;
+        if (getCurrentApiKey() !== requestedApiKey) return;
 
-        const matchingJob = githubUrl ? jobs.find((job) => job.repoUrl === githubUrl) : null;
+        const currentGithubUrl = getCurrentGithubUrl().trim();
+        if (requestedGithubUrl && currentGithubUrl !== requestedGithubUrl) return;
+        const currentApiKey = getCurrentApiKey();
+        const currentKey = apiKeys.find((key) => key.key_value === currentApiKey);
+        const matchingJob = selectRestorableIngestionJob(jobs, {
+          githubUrl: currentGithubUrl,
+          apiKeyId: currentKey?.id,
+        });
         if (!matchingJob) return;
+
+        if (!currentGithubUrl) {
+          setGithubUrl((current) => current || matchingJob.repoUrl);
+        }
+
+        if (!currentApiKey && matchingJob.apiKeyId) {
+          const matchingKey = apiKeys.find((key) => key.id === matchingJob.apiKeyId);
+          if (matchingKey) {
+            setApiKey(matchingKey.key_value);
+            setSelectedKey(matchingKey.key_value);
+            setSelectValue(matchingKey.key_value);
+          }
+        }
+
+        if (currentApiKey && currentKey && matchingJob.apiKeyId && matchingJob.apiKeyId !== currentKey.id) return;
         applyDurableJobState(matchingJob);
       } catch {
         // Durable restoration is best-effort and must not block the Playground.
@@ -210,9 +258,9 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
     return () => {
       cancelled = true;
     };
-    // Preserve the original restoration cadence: only refetch when the selected key or repository changes.
+    // Preserve restoration cadence: only refetch when the selected key or repository changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, githubUrl]);
+  }, [apiKey, githubUrl, apiKeys]);
 
   const handleIngest = async (e: FormEvent) => {
     e.preventDefault();

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOriginAllowed } from "@/lib/cors";
 import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
-import { clampInteger } from "@/lib/security-core";
+import { clampInteger, isUuid } from "@/lib/security-core";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 import { validateApiKey } from "@/lib/services/api-key.service";
 import { formatIngestionJob, listRecentIngestionJobs } from "@/lib/services/ingestion-job.service";
@@ -20,14 +20,14 @@ function getApiKeyFromRequest(request: Request) {
   return request.headers.get("x-api-key") || "";
 }
 
-async function getRequestUserId(request: Request) {
+async function getRequestScope(request: Request) {
   const apiKey = getApiKeyFromRequest(request);
   if (apiKey) {
     const keyData = await validateApiKey(apiKey);
-    return keyData.user_id;
+    return { userId: keyData.user_id, apiKeyId: isUuid(keyData.id) ? keyData.id : null };
   }
 
-  return getAuthenticatedUserId();
+  return { userId: await getAuthenticatedUserId(), apiKeyId: null };
 }
 
 export async function GET(request: Request) {
@@ -42,8 +42,8 @@ export async function GET(request: Request) {
   const limit = clampInteger(parsedLimit, { min: 1, max: 50 }) ?? 10;
 
   try {
-    const userId = await getRequestUserId(request);
-    const jobs = await listRecentIngestionJobs({ userId, limit });
+    const scope = await getRequestScope(request);
+    const jobs = await listRecentIngestionJobs({ ...scope, limit });
 
     return NextResponse.json(
       {

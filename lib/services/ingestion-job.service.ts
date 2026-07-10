@@ -83,6 +83,7 @@ export function formatIngestionJob(job: IngestionJob): IngestionJobSummary {
 
   return {
     jobId: job.id,
+    apiKeyId: job.api_key_id,
     status: job.status,
     currentStep: deriveCurrentStep(job),
     repoUrl: job.repo_url,
@@ -253,15 +254,16 @@ export async function getIngestionJob(input: {
 
 export async function listRecentIngestionJobs(input: {
   userId: string;
+  apiKeyId?: string | null;
   limit?: number;
 }) {
   const limit = Math.min(Math.max(input.limit ?? 10, 1), 50);
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("ingestion_jobs")
     .select("*")
-    .eq("user_id", input.userId)
-    .order("updated_at", { ascending: false })
-    .limit(limit);
+    .eq("user_id", input.userId);
+  if (input.apiKeyId) query = query.eq("api_key_id", input.apiKeyId);
+  const { data, error } = await query.order("updated_at", { ascending: false }).limit(limit);
 
   if (error) {
     throw new Error(`Failed to load ingestion jobs: ${error.message}`);

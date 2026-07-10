@@ -96,16 +96,13 @@ test("normalizes only canonical GitHub repository URLs", () => {
 
   assert.equal(
     normalizeGitHubRepoUrl("https://github.com/OpenAI/codex/tree/main?tab=readme"),
-    "https://github.com/OpenAI/codex"
+    null
   );
   assert.equal(
     normalizeGitHubRepoUrl("https://github.com/OpenAI/codex/blob/main/src/index.ts"),
-    "https://github.com/OpenAI/codex"
+    null
   );
-  assert.equal(
-    normalizeGitHubRepoUrl("https://github.com/OpenAI/codex/issues/1"),
-    "https://github.com/OpenAI/codex"
-  );
+  assert.equal(normalizeGitHubRepoUrl("https://github.com/OpenAI/codex/issues/1"), null);
   assert.equal(
     normalizeGitHubRepoUrl("https://github.com/OpenAI/codex.git"),
     "https://github.com/OpenAI/codex"
@@ -124,11 +121,47 @@ test("formats GitHub repository labels without changing legacy fallbacks", () =>
   assert.equal(getGitHubRepoPath("not a repo", "repository"), "repository");
   assert.equal(formatGitHubRepoLabel("https://github.com/openai/codex/"), "openai/codex/");
   assert.equal(formatGitHubRepoLabel("https://github.com/openai/codex/", { trimTrailingSlash: true }), "openai/codex");
-  assert.deepEqual(getGitHubRepositoryParts("https://github.com/openai/codex/tree/main"), {
+  assert.deepEqual(getGitHubRepositoryParts("https://github.com/openai/codex"), {
     owner: "openai",
     repo: "codex",
   });
+  assert.throws(() => getGitHubRepositoryParts("not-a-github-url"), /Invalid GitHub URL/);
+  assert.throws(() => getGitHubRepositoryParts("https://example.com/openai/codex"), /Invalid GitHub URL/);
+  assert.throws(() => getGitHubRepositoryParts("https://github.com/openai/codex/tree/main"), /Invalid GitHub URL/);
   assert.throws(() => getGitHubRepositoryParts("https://github.com/openai"), /Invalid GitHub URL/);
+});
+
+test("restores the latest durable ingestion job without selecting another repository", () => {
+  const { selectRestorableIngestionJob, toLocalIngestStatus } = loadTsModule("hooks/useRepositoryIngestion.ts");
+  const jobs = [
+    {
+      jobId: "failed-job",
+      apiKeyId: "key-1",
+      status: "failed",
+      repoUrl: "https://github.com/openai/codex",
+      updatedAt: "2026-07-10T10:00:00.000Z",
+    },
+    {
+      jobId: "completed-job",
+      apiKeyId: "key-2",
+      status: "completed",
+      currentStep: "ready",
+      repoUrl: "https://github.com/vercel/next.js",
+      indexedFileCount: 40,
+      chunkCount: 77,
+      indexAvailable: true,
+      completedAt: "2026-07-10T09:00:00.000Z",
+      updatedAt: "2026-07-10T09:00:00.000Z",
+    },
+  ];
+
+  assert.equal(selectRestorableIngestionJob(jobs, { githubUrl: "", apiKeyId: "key-2" })?.jobId, "completed-job");
+  assert.equal(selectRestorableIngestionJob(jobs, { githubUrl: "https://github.com/openai/codex" })?.jobId, "failed-job");
+  assert.equal(selectRestorableIngestionJob(jobs, { githubUrl: "https://github.com/example/typed" }), null);
+  assert.equal(selectRestorableIngestionJob(jobs, { githubUrl: "" })?.jobId, "failed-job");
+  assert.equal(toLocalIngestStatus(jobs[1]), "completed");
+  assert.equal(toLocalIngestStatus(jobs[0]), "error");
+  assert.equal(toLocalIngestStatus({ ...jobs[0], status: "running", currentStep: "cloning" }), "crawling");
 });
 
 test("formats shared presentation values without changing legacy display strings", () => {
@@ -187,7 +220,7 @@ test("shared API request helpers preserve route parsing behavior", async () => {
     headers: { "x-api-key": "header-key" },
     body: JSON.stringify({
       apiKey: "body-key",
-      githubUrl: "https://github.com/OpenAI/codex/tree/main",
+      githubUrl: "https://github.com/OpenAI/codex",
     }),
   });
   const headerBody = await readJsonBody(headerRequest);
