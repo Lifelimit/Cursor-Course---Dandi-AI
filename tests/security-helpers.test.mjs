@@ -143,6 +143,30 @@ test("Playground repository URL validation is visible and accessible without sta
   assert.match(clientSource, /setRepositoryUrlError\(""\)/);
 });
 
+test("native disclosure controls use intentional keyboard focus styling", () => {
+  const summaryFiles = [
+    "app/usage/UsageClient.tsx",
+    "components/playground/RepositoryChatPanel.tsx",
+    "components/playground/PlaygroundSidebar.tsx",
+    "components/ui/GuidedError.tsx",
+  ];
+
+  for (const relativePath of summaryFiles) {
+    const source = readFileSync(resolve(repoRoot, relativePath), "utf8");
+    const summaries = source.match(/<summary[^>]*className="[^"]*"/g) || [];
+    assert.ok(summaries.length > 0, `${relativePath} should contain a summary control`);
+    assert.ok(summaries.every((summary) => summary.includes("focus:outline-none") && summary.includes("focus-visible:ring-")), `${relativePath} should style every summary focus state`);
+  }
+});
+
+test("keyboard-focusable scroll regions suppress browser-default mouse focus outlines", () => {
+  const source = readFileSync(resolve(repoRoot, "components/command/ScrollFrame.tsx"), "utf8");
+
+  assert.match(source, /outline-none/);
+  assert.match(source, /focus-visible:ring-2/);
+  assert.match(source, /focus-visible:ring-inset/);
+});
+
 test("restores the latest durable ingestion job without selecting another repository", () => {
   const { selectRestorableIngestionJob, toLocalIngestStatus } = loadTsModule("hooks/useRepositoryIngestion.ts");
   const jobs = [

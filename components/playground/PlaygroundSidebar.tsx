@@ -86,7 +86,7 @@ export function PlaygroundSidebar({
 
       <CommandPanel padding="none" className="overflow-hidden">
         <details>
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70 transition-colors hover:text-emerald-200 sm:p-5">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70 transition-colors hover:text-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-inset sm:p-5">
             Developer Diagnostics
             <StatusPill tone={isPipelineActive ? "warning" : hasPipelineError ? "danger" : "neutral"} compact>
               {isPipelineActive ? "Running" : hasPipelineError ? "Review" : "Collapsed"}

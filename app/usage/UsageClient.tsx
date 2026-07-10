@@ -432,7 +432,7 @@ export default function UsageClient({
                               const eventDate = getJobEventDate(latestJob);
                               return (
                                 <details key={latestJob.repoUrl || group.repo} className="group rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition-colors open:border-emerald-300/20 open:bg-slate-950/80">
-                                  <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3">
+                                  <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
                                     <div className="min-w-0 flex-1">
                                       <div className="flex min-w-0 items-center gap-2">
                                         <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" strokeWidth="2.5">

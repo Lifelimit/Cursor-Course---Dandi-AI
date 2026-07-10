@@ -535,7 +535,7 @@ export function RepositoryChatPanel({
 
                     {sourcesVisible && turn.answer?.sources && (
                       <details className="group mx-auto mt-7 max-w-3xl border-t border-emerald-300/10 pt-4 xl:max-w-[78ch]">
-                        <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.025] px-3 py-2.5 transition-colors hover:border-emerald-300/20 hover:bg-emerald-300/[0.035]">
+                        <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.025] px-3 py-2.5 transition-colors hover:border-emerald-300/20 hover:bg-emerald-300/[0.035] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
                           <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-bold text-slate-300">
                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/75">Sources</span>
                             <span className="text-slate-600">:</span>
@@ -563,7 +563,7 @@ export function RepositoryChatPanel({
                               key={`${src.filePath}-${sIdx}`}
                               className="group/source rounded-xl border border-white/10 bg-slate-950/55 px-3 py-2 transition-colors open:border-emerald-300/20 open:bg-emerald-300/[0.035]"
                             >
-                              <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
                                 <div className="min-w-0">
                                   <p className="truncate font-mono text-[11px] font-bold text-slate-200">{src.filePath}</p>
                                   <p className="mt-0.5 text-[8px] font-black uppercase tracking-[0.16em] text-slate-500">
@@ -591,7 +591,7 @@ export function RepositoryChatPanel({
 
                                 {src.chunkId && (
                                   <details className="group/meta">
-                                    <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-500 transition-colors hover:border-emerald-300/20 hover:text-slate-300">
+                                    <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-500 transition-colors hover:border-emerald-300/20 hover:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
                                       Technical details
                                       <span className="text-slate-600 transition-transform group-open/meta:rotate-180">⌄</span>
                                     </summary>

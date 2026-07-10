@@ -94,7 +94,7 @@ export function GuidedError({
 
           {details && (
             <details className="mt-4 rounded-xl border border-rose-200/15 bg-slate-950/45">
-              <summary className="cursor-pointer list-none rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-rose-100 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/70">
+              <summary className="cursor-pointer list-none rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-rose-100 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-200/70">
                 View Technical Details
               </summary>
               <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words border-t border-rose-200/10 p-3 font-mono text-[11px] leading-5 text-rose-50/80">
