@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { stripe } from "@/lib/stripe";
 import BillingClient from "@/app/billing/BillingClient";
 import { getServerUsageData } from "@/lib/services/server-data.service";
-import type { Invoice } from "@/types/billing";
+import type { BillingData, Invoice } from "@/types/billing";
 
 export default async function BillingPage() {
   const supabase = await createClient();
@@ -37,5 +37,19 @@ export default async function BillingPage() {
     }
   }
 
-  return <BillingClient initialUser={user} initialInvoices={invoices} initialData={usageData} />;
+  // Keep provider identifiers server-only. The billing UI only needs display-safe
+  // subscription, usage, and payment-method data.
+  const initialBillingData: BillingData | null = usageData
+    ? {
+        plan: usageData.plan,
+        totalUsage: usageData.totalUsage,
+        resetDate: usageData.resetDate,
+        nextInvoiceDate: usageData.nextInvoiceDate,
+        keys: usageData.keys,
+        paymentMethods: usageData.paymentMethods,
+        customerBalance: usageData.customerBalance,
+      }
+    : null;
+
+  return <BillingClient initialUser={user} initialInvoices={invoices} initialData={initialBillingData} />;
 }

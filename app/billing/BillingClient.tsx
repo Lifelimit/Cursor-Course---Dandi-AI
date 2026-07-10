@@ -7,6 +7,7 @@ import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader"
 import { useToast } from "@/hooks/useToast";
 import { useSubscriptionFlow } from "@/hooks/useSubscriptionFlow";
 import { Toast } from "@/components/ui/Toast";
+import { GuidedError } from "@/components/ui/GuidedError";
 import { PlanHero } from "@/components/billing/PlanHero";
 import { PlanComparison } from "@/components/billing/PlanComparison";
 import { PaymentMethodCard } from "@/components/billing/PaymentMethodCard";
@@ -35,6 +36,8 @@ export default function BillingClient({
   const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
   const [isLoading, setIsLoading] = useState(initialData === null);
   const [isInvoicesLoading, setIsInvoicesLoading] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const isHydrated = useRef(initialData !== null);
   const [secondaryIndex, setSecondaryIndex] = useState(0);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
@@ -59,12 +62,14 @@ export default function BillingClient({
     try {
       setIsInvoicesLoading(true);
       const res = await fetch("/api/stripe/invoices");
-      if (res.ok) {
-        const json = await res.json();
-        setInvoices(json.invoices);
+      if (!res.ok) {
+        throw new Error("Invoice history is temporarily unavailable.");
       }
-    } catch (err) {
-      console.error("Error fetching invoices:", err);
+      const json = await res.json();
+      setInvoices(json.invoices);
+      setInvoiceError(null);
+    } catch {
+      setInvoiceError("Invoice history is temporarily unavailable.");
     } finally {
       setIsInvoicesLoading(false);
     }
@@ -95,13 +100,18 @@ export default function BillingClient({
         setIsLoading(true);
       }
       const res = await fetch("/api/usage"); // Reusing this for totalUsage/plan limits
+      if (!res.ok) {
+        throw new Error("Billing information is temporarily unavailable.");
+      }
       const json = await res.json();
       setData(json);
+      setBillingError(null);
       isHydrated.current = false;
       fetchInvoices();
-    } catch (err) {
-      console.error(err);
-      showToast("error", getToastErrorMessage("billing", "Failed to load billing information."));
+    } catch {
+      const message = "Billing information is temporarily unavailable.";
+      setBillingError(message);
+      showToast("error", getToastErrorMessage("billing", message));
     } finally {
       setIsLoading(false);
     }
@@ -187,6 +197,7 @@ export default function BillingClient({
   };
 
   const showSkeleton = isLoading && !initialData;
+  const hasNoBillingProfile = currentPlan === "Hobby" && paymentMethods.length === 0 && invoices.length === 0;
 
   return (
     <>
@@ -212,13 +223,35 @@ export default function BillingClient({
               <div className="h-64 rounded-[32px] bg-slate-950/40 border border-white/5" />
               <div className="h-96 rounded-[32px] bg-slate-950/40 border border-white/5" />
             </div>
+          ) : !currentData ? (
+            <GuidedError
+              category="Internal server"
+              title="Billing information is unavailable"
+              explanation="We could not load your plan, usage, or payment information. No billing changes were made."
+              nextAction="Refresh Billing to try again."
+              possibleCauses={["Billing service temporarily unavailable", "Your session needs to be refreshed"]}
+              onAction={fetchBillingData}
+              actionLabel="Refresh Billing"
+            />
           ) : (
             <>
+              {billingError && (
+                <GuidedError
+                  category="Internal server"
+                  title="Billing could not refresh"
+                  explanation="The information below is the last successfully loaded billing state. No billing changes were made."
+                  nextAction="Refresh Billing when the service is available."
+                  onAction={fetchBillingData}
+                  actionLabel="Refresh Billing"
+                  compact
+                />
+              )}
               {/* Plan Hero */}
               <PlanHero
                 plan={currentPlan}
                 limit={currentLimit}
                 usage={currentData?.totalUsage || 0}
+                resetDate={currentData?.resetDate ?? null}
                 nextBillingDate={currentData?.nextInvoiceDate ?? null}
                 isUnlimited={isUnlimited}
                 billingInterval={billingInterval}
@@ -266,9 +299,11 @@ export default function BillingClient({
                         <CommandPanel className="flex min-h-[220px] items-center justify-center border-dashed p-6 text-center">
                           <div className="max-w-md">
                             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Payment Method</p>
-                            <h3 className="mt-2 font-serif text-xl font-bold text-white">No primary card saved.</h3>
+                            <h3 className="mt-2 font-serif text-xl font-bold text-white">{hasNoBillingProfile ? "No billing profile yet." : "No primary card saved."}</h3>
                             <p className="mt-2 text-sm font-medium leading-6 text-slate-400">
-                              Add a payment method before upgrading so plan changes and renewals can complete without interruption.
+                              {hasNoBillingProfile
+                                ? "A billing profile is created securely when you add a card or begin a paid plan."
+                                : "Add a payment method before upgrading so plan changes and renewals can complete without interruption."}
                             </p>
                             <button
                               type="button"
@@ -409,6 +444,18 @@ export default function BillingClient({
                   <h3 className="font-serif text-2xl font-bold text-white">Transaction History</h3>
                   <StatusPill tone="info" compact>Past 12 Months</StatusPill>
                 </div>
+                {invoiceError && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3">
+                    <p className="text-sm font-medium text-amber-100">Invoice history is temporarily unavailable. Your plan and payment methods are unaffected.</p>
+                    <button
+                      type="button"
+                      onClick={fetchInvoices}
+                      className="rounded-full border border-amber-200/25 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-amber-100 transition hover:border-amber-100/50 hover:bg-amber-200/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
                 <InvoiceTable invoices={invoices} isLoading={isInvoicesLoading} />
               </section>
 
@@ -439,7 +486,7 @@ export default function BillingClient({
         isOpen={subscriptionFlow.isModalOpen}
         onClose={subscriptionFlow.closeModal}
         planName={currentPlan}
-        nextBillingDate={data?.nextInvoiceDate}
+        nextBillingDate={currentData?.nextInvoiceDate}
         initialView={subscriptionFlow.modalInitialView}
         initialPendingPlan={subscriptionFlow.modalPendingPlan}
         initialBillingInterval={subscriptionFlow.modalBillingInterval}

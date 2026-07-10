@@ -6,7 +6,7 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
     id: "Hobby",
     price: "$0",
     features: ["1,000 monthly requests", "3 Active API Keys", "Standard Summaries", "Basic Analytics"],
-    nextBilling: "N/A",
+    nextBilling: "Not available",
     monthlyLimit: 1000,
     keyLimit: 3,
     maxKeyLimitCap: 1000,
@@ -15,7 +15,7 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
     id: "Premium",
     price: "$10",
     features: ["5,000 monthly requests", "10 Active API Keys", "Advanced AI Context", "Priority Support"],
-    nextBilling: "May 24, 2026",
+    nextBilling: "Not available",
     monthlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID,
     yearlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY_PRICE_ID,
     monthlyLimit: 5000,
@@ -26,7 +26,7 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
     id: "Researcher",
     price: "$50",
     features: ["Unlimited monthly requests", "Unlimited API Keys", "Custom Branding", "Priority Support"],
-    nextBilling: "May 24, 2026",
+    nextBilling: "Not available",
     monthlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID,
     yearlyPriceId: publicEnv.NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID,
     monthlyLimit: null,
@@ -94,7 +94,7 @@ export const COUNTRIES = Object.keys(LOCATION_DATA);
 export const PLANS: Plan[] = [
   {
     id: "Hobby",
-    name: "The Hobbyist",
+    name: "Hobby",
     price: "$0",
     credits: "1,000 monthly requests",
     features: [
@@ -112,7 +112,7 @@ export const PLANS: Plan[] = [
   },
   {
     id: "Premium",
-    name: "The Premium",
+    name: "Premium",
     price: "$10",
     yearlyPrice: "$8",
     credits: "5,000 monthly requests",
@@ -135,7 +135,7 @@ export const PLANS: Plan[] = [
   },
   {
     id: "Researcher",
-    name: "The Researcher",
+    name: "Researcher",
     price: "$50",
     yearlyPrice: "$40",
     credits: "Unlimited monthly requests",

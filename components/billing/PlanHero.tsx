@@ -8,6 +8,7 @@ type PlanHeroProps = {
   plan: string;
   limit: number;
   usage: number;
+  resetDate: string | null;
   nextBillingDate: string | null;
   isUnlimited?: boolean;
   billingInterval?: "month" | "year";
@@ -16,7 +17,7 @@ type PlanHeroProps = {
   scheduledPlanDate?: string | null;
 };
 
-export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, billingInterval = "month", customerBalance, scheduledPlan, scheduledPlanDate }: PlanHeroProps) {
+export function PlanHero({ plan, limit, usage, resetDate, nextBillingDate, isUnlimited, billingInterval = "month", customerBalance, scheduledPlan, scheduledPlanDate }: PlanHeroProps) {
   const pct = isUnlimited ? 0 : Math.min((usage / limit) * 100, 100);
   
   return (
@@ -55,8 +56,8 @@ export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, bil
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2">
               <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Billing Cycle</p>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-slate-100 capitalize">{billingInterval}ly</span>
-                {billingInterval === "year" && (
+                <span className="text-xs font-bold text-slate-100 capitalize">{plan === "Hobby" ? "Free plan" : `${billingInterval}ly`}</span>
+                {plan !== "Hobby" && billingInterval === "year" && (
                   <StatusPill tone="success" compact>Saved 20%</StatusPill>
                 )}
               </div>
@@ -65,7 +66,7 @@ export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, bil
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2">
               <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Next Invoice</p>
               <p className="text-xs font-bold text-slate-100">
-                {nextBillingDate ? formatLongDate(nextBillingDate) : 'N/A'}
+                {nextBillingDate ? formatLongDate(nextBillingDate) : 'No upcoming invoice'}
               </p>
             </div>
 
@@ -105,7 +106,7 @@ export function PlanHero({ plan, limit, usage, nextBillingDate, isUnlimited, bil
           </div>
           
           <p className="text-[10px] text-slate-500">
-            Your usage resets on {nextBillingDate ? formatLongDateWithoutYear(nextBillingDate) : 'the next cycle'}.
+            {resetDate ? `Usage resets ${formatLongDateWithoutYear(resetDate)}.` : "Usage reset date is unavailable."}
           </p>
         </div>
       </div>

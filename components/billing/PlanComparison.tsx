@@ -16,15 +16,21 @@ export function PlanComparison({
   return (
     <div className="space-y-8 sm:space-y-12">
       <div className="flex flex-col items-center gap-4 px-2 text-center">
-        <h3 className="font-serif text-3xl font-bold tracking-tight text-white">Choose your path</h3>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/70">Plan options</p>
+          <h3 className="mt-2 font-serif text-3xl font-bold tracking-tight text-white">Compare plans</h3>
+          <p className="mt-2 text-sm font-medium text-slate-400">Plan changes take effect as shown in the confirmation step.</p>
+        </div>
         <div className="flex w-full max-w-sm items-stretch justify-center gap-2 rounded-full border border-white/10 bg-slate-950/70 p-1 sm:w-auto">
           <button 
+            type="button"
             onClick={() => setSelectedInterval("month")}
             className={`flex-1 rounded-full px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all sm:flex-none flex items-center justify-center whitespace-nowrap ${selectedInterval === "month" ? "bg-emerald-300 text-slate-950 shadow-sm" : "text-slate-500"}`}
           >
             Monthly
           </button>
           <button 
+            type="button"
             onClick={() => setSelectedInterval("year")}
             className={`flex-1 rounded-full px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all sm:flex-none flex items-center justify-center whitespace-nowrap ${selectedInterval === "year" ? "bg-emerald-300 text-slate-950 shadow-sm" : "text-slate-500"}`}
           >
@@ -36,7 +42,8 @@ export function PlanComparison({
       <div className="grid gap-8 lg:grid-cols-3">
         {PLANS.map((plan) => {
           const isCurrent = currentPlan.toLowerCase() === plan.id.toLowerCase();
-          const isUpgrade = !isCurrent && (PLAN_RANKS[plan.id as keyof typeof PLAN_RANKS] > PLAN_RANKS[currentPlan as keyof typeof PLAN_RANKS]);
+          const currentPlanRank = PLAN_RANKS[currentPlan as keyof typeof PLAN_RANKS] ?? PLAN_RANKS.Hobby;
+          const isUpgrade = !isCurrent && PLAN_RANKS[plan.id as keyof typeof PLAN_RANKS] > currentPlanRank;
           const displayPrice = selectedInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
 
           const cardStyles = isCurrent
@@ -59,7 +66,7 @@ export function PlanComparison({
               {(isCurrent || plan.recommended) && (
                 <div className="mb-6 flex min-h-6 flex-wrap gap-2">
                   {isCurrent && (
-                    <StatusPill tone="success" pulse compact>Active Plan</StatusPill>
+                    <StatusPill tone="success" pulse compact>Current Plan</StatusPill>
                   )}
                   {plan.recommended && (
                     <div className="flex flex-col gap-1">
@@ -100,6 +107,7 @@ export function PlanComparison({
               </div>
 
               <button
+                type="button"
                 onClick={() => !isCurrent && onUpgrade(plan.id, selectedInterval)}
                 disabled={isCurrent}
                 className={`w-full rounded-full py-4 text-[10px] font-black uppercase tracking-widest transition-all ${
@@ -108,7 +116,7 @@ export function PlanComparison({
                     : "bg-emerald-300 text-slate-950 hover:bg-emerald-200 shadow-xl shadow-emerald-950/10"
                 }`}
               >
-                {isCurrent ? "Active Plan" : isUpgrade ? "Upgrade Now" : "Downgrade"}
+                {isCurrent ? "Current Plan" : isUpgrade ? "Upgrade" : "Downgrade"}
               </button>
             </CommandPanel>
           );
