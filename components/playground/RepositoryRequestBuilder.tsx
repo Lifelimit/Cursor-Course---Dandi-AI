@@ -15,6 +15,7 @@ type RepositoryRequestBuilderProps = {
   selectedKey: string;
   selectValue: string;
   githubUrl: string;
+  repositoryUrlError: string;
   isLoadingSummary: boolean;
   isOverLimit: boolean;
   summaryRepoStage: LoadingStageStatus;
@@ -25,7 +26,7 @@ type RepositoryRequestBuilderProps = {
   setApiKey: Dispatch<SetStateAction<string>>;
   setSelectedKey: Dispatch<SetStateAction<string>>;
   setSelectValue: Dispatch<SetStateAction<string>>;
-  setGithubUrl: Dispatch<SetStateAction<string>>;
+  onGithubUrlChange: (value: string) => void;
   handleSummarize: FormEventHandler<HTMLFormElement>;
   handleIngest: FormEventHandler<HTMLFormElement>;
   handleDemoMode: () => void;
@@ -38,6 +39,7 @@ export function RepositoryRequestBuilder({
   selectedKey,
   selectValue,
   githubUrl,
+  repositoryUrlError,
   isLoadingSummary,
   isOverLimit,
   summaryRepoStage,
@@ -48,7 +50,7 @@ export function RepositoryRequestBuilder({
   setApiKey,
   setSelectedKey,
   setSelectValue,
-  setGithubUrl,
+  onGithubUrlChange,
   handleSummarize,
   handleIngest,
   handleDemoMode,
@@ -177,10 +179,17 @@ export function RepositoryRequestBuilder({
               inputMode="url"
               required
               value={githubUrl}
-              onChange={(e) => setGithubUrl(e.target.value)}
+              onChange={(e) => onGithubUrlChange(e.target.value)}
               placeholder="https://github.com/..."
+              aria-invalid={repositoryUrlError ? "true" : undefined}
+              aria-describedby={repositoryUrlError ? "github-url-error" : undefined}
               className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-6 py-4 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600 focus:border-emerald-300/40 focus:ring-4 focus:ring-emerald-300/10"
             />
+            {repositoryUrlError && (
+              <p id="github-url-error" role="alert" className="px-1 text-xs font-semibold text-red-300">
+                {repositoryUrlError}
+              </p>
+            )}
           </div>
         </div>
 

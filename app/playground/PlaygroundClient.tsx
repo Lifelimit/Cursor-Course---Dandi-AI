@@ -28,9 +28,8 @@ import { buildTransparencyRows, buildTransparencyStatus } from "@/components/pla
 import { PLAN_DETAILS } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 import { formatGitHubRepo, formatRequestCount } from "@/lib/format";
-import { getGitHubRepositoryParts } from "@/lib/github-url";
+import { getGitHubRepositoryParts, GITHUB_REPOSITORY_URL_VALIDATION_MESSAGE } from "@/lib/github-url";
 
-const INVALID_GITHUB_URL_MESSAGE = "Enter a valid GitHub repository URL, for example https://github.com/owner/repository.";
 const getRepoPath = (url: string) => {
   try {
     getGitHubRepositoryParts(url);
@@ -110,6 +109,7 @@ export default function PlaygroundClient({
   const githubUrlRef = useRef("");
   const [viewMode, setViewMode] = useState<"visual" | "json">("visual");
   const [errorMessage, setErrorMessage] = useState("");
+  const [repositoryUrlError, setRepositoryUrlError] = useState("");
   const { toast, showToast } = useToast();
 
   const setTrackedValue = (setter: (value: SetStateAction<string>) => void, ref: React.MutableRefObject<string>, next: SetStateAction<string>) => {
@@ -230,9 +230,10 @@ export default function PlaygroundClient({
   const validateRepositoryUrl = () => {
     try {
       getGitHubRepositoryParts(githubUrl.trim());
+      setRepositoryUrlError("");
       return true;
     } catch {
-      setErrorMessage(INVALID_GITHUB_URL_MESSAGE);
+      setRepositoryUrlError(GITHUB_REPOSITORY_URL_VALIDATION_MESSAGE);
       return false;
     }
   };
@@ -494,7 +495,11 @@ export default function PlaygroundClient({
                     setApiKey={setTrackedApiKey}
                     setSelectedKey={setSelectedKey}
                     setSelectValue={setSelectValue}
-                    setGithubUrl={setTrackedGithubUrl}
+                    repositoryUrlError={repositoryUrlError}
+                    onGithubUrlChange={(value) => {
+                      setRepositoryUrlError("");
+                      setTrackedGithubUrl(value);
+                    }}
                     handleSummarize={handleSummarize}
                     handleIngest={handleIngest}
                     handleDemoMode={handleDemoMode}

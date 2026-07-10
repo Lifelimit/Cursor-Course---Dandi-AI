@@ -2,6 +2,7 @@ import { normalizeGitHubRepoUrl } from "@/lib/security-core";
 
 const GITHUB_REPO_PATH_RE = /github\.com\/([^\/]+\/[^\/]+)/;
 const INVALID_GITHUB_URL_MESSAGE = "Invalid GitHub URL. Expected format: https://github.com/owner/repo";
+export const GITHUB_REPOSITORY_URL_VALIDATION_MESSAGE = "Enter a valid GitHub repository URL, for example https://github.com/owner/repository.";
 
 export type GitHubRepositoryParts = {
   owner: string;

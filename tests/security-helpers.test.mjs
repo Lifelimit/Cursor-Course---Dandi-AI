@@ -114,7 +114,7 @@ test("normalizes only canonical GitHub repository URLs", () => {
 });
 
 test("formats GitHub repository labels without changing legacy fallbacks", () => {
-  const { getGitHubRepoPath, formatGitHubRepoLabel, getGitHubRepositoryParts } = loadTsModule("lib/github-url.ts");
+  const { GITHUB_REPOSITORY_URL_VALIDATION_MESSAGE, getGitHubRepoPath, formatGitHubRepoLabel, getGitHubRepositoryParts } = loadTsModule("lib/github-url.ts");
 
   assert.equal(getGitHubRepoPath("https://github.com/openai/codex/tree/main"), "openai/codex");
   assert.equal(getGitHubRepoPath("not a repo"), "unknown/repository");
@@ -129,6 +129,18 @@ test("formats GitHub repository labels without changing legacy fallbacks", () =>
   assert.throws(() => getGitHubRepositoryParts("https://example.com/openai/codex"), /Invalid GitHub URL/);
   assert.throws(() => getGitHubRepositoryParts("https://github.com/openai/codex/tree/main"), /Invalid GitHub URL/);
   assert.throws(() => getGitHubRepositoryParts("https://github.com/openai"), /Invalid GitHub URL/);
+  assert.equal(GITHUB_REPOSITORY_URL_VALIDATION_MESSAGE, "Enter a valid GitHub repository URL, for example https://github.com/owner/repository.");
+});
+
+test("Playground repository URL validation is visible and accessible without starting a request", () => {
+  const builderSource = readFileSync(resolve(repoRoot, "components/playground/RepositoryRequestBuilder.tsx"), "utf8");
+  const clientSource = readFileSync(resolve(repoRoot, "app/playground/PlaygroundClient.tsx"), "utf8");
+
+  assert.match(builderSource, /role="alert"/);
+  assert.match(builderSource, /aria-invalid=\{repositoryUrlError \? "true" : undefined\}/);
+  assert.match(builderSource, /aria-describedby=\{repositoryUrlError \? "github-url-error" : undefined\}/);
+  assert.match(clientSource, /setRepositoryUrlError\(GITHUB_REPOSITORY_URL_VALIDATION_MESSAGE\)/);
+  assert.match(clientSource, /setRepositoryUrlError\(""\)/);
 });
 
 test("restores the latest durable ingestion job without selecting another repository", () => {
