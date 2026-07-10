@@ -173,7 +173,8 @@ export function RepositoryRequestBuilder({
             </div>
             <input
               id="github-url"
-              type="url"
+              type="text"
+              inputMode="url"
               required
               value={githubUrl}
               onChange={(e) => setGithubUrl(e.target.value)}
