@@ -464,7 +464,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
             onChange={(id) => {
               const tab = id as AccountTab;
               setActiveTab(tab);
-              const params = new URLSearchParams(searchParams.toString());
+              const params = new URLSearchParams(window.location.search);
               if (params.get("tab") !== tab) {
                 params.set("tab", tab);
                 router.push(`/account?${params.toString()}`, { scroll: false });

@@ -102,7 +102,9 @@ export default function PlaygroundClient({
   const { toast, showToast } = useToast();
 
   // Repository question tab state
-  const [activeTab, setActiveTab] = useState<"summary" | "rag">("summary");
+  const [activeTab, setActiveTab] = useState<"summary" | "rag">(() => (
+    searchParams.get("mode") === "ask" ? "rag" : "summary"
+  ));
   const requestProgressRef = useRef<HTMLDivElement>(null);
   const indexedLogSetterRef = useRef<((id: string, updates: Partial<LogEntry>) => void)>(() => {});
 
@@ -387,7 +389,7 @@ export default function PlaygroundClient({
               onChange={(tab) => {
                 setActiveTab(tab);
                 setErrorMessage("");
-                const params = new URLSearchParams(searchParams.toString());
+                const params = new URLSearchParams(window.location.search);
                 const mode = tab === "summary" ? "summary" : "ask";
                 if (params.get("mode") !== mode) {
                   params.set("mode", mode);

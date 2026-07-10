@@ -9,12 +9,13 @@ type ApiKeyMapperRow = ApiKeyApiResponse | UsageKeySummary;
 
 export const formatDate = formatIsoDate;
 
-// Dashboard SSR usage summaries intentionally omit `key_value`; preserve the legacy mapper behavior for that path.
+// Dashboard SSR usage summaries intentionally omit `key_value`; normalize that
+// response shape before it reaches components that render or search key values.
 export function mapApiKey(row: ApiKeyMapperRow): ApiKey {
   return {
     id: row.id,
     name: row.name,
-    key_value: row.key_value as string,
+    key_value: row.key_value ?? "",
     type: row.key_type as ApiKeyType,
     usage_count: row.usage_count ?? 0,
     monthly_limit: row.monthly_limit ?? null,
