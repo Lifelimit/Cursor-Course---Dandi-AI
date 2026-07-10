@@ -135,13 +135,11 @@ export default function PlaygroundClient({
       // Sync the URL mode into local tab state when users land on /playground?mode=ask.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab("rag");
-      setErrorMessage("");
       return;
     }
 
     if (mode === "summary") {
       setActiveTab("summary");
-      setErrorMessage("");
     }
   }, [searchParams]);
 
