@@ -54,10 +54,11 @@ export default function DashboardClient({
 
   const { apiKeys, isLoading, errorMessage, createKey, updateKey, deleteKey, refreshKeys } = useApiKeys(initialKeys);
 
-  const { data: usageData, isSyncing } = useUsageData<UsageData>({
+  const { data: usageData, isSyncing, error: usageError, refresh: refreshUsageData } = useUsageData<UsageData>({
     pollingIntervalMs: 20000,
-    requireOkResponse: false,
+    requireOkResponse: true,
     logErrors: false,
+    setErrorOnBackground: true,
     initialSyncing: true,
     initialRefreshDelayMs: 0,
   });
@@ -122,6 +123,22 @@ export default function DashboardClient({
     totalUsage < FIRST_RUN_USAGE_THRESHOLD ||
     !successfulRepositoryAnalysis
   );
+  const hasUsableDashboardData = Boolean(
+    usageData ||
+    initialKeys.length > 0 ||
+    initialAvgLatency > 0 ||
+    initialSuccessRate !== 100 ||
+    initialResetDate !== null ||
+    initialHasSuccessfulRepositoryAnalysis ||
+    initialHasAskedRepository
+  );
+  const dashboardStatus = isSyncing
+    ? { label: "SYNCING DATA", ariaLabel: "Dashboard data syncing", title: "Refreshing dashboard data", tone: "syncing" as const }
+    : usageError
+      ? hasUsableDashboardData
+        ? { label: "DATA MAY BE STALE", ariaLabel: "Dashboard data may be stale", title: "The latest dashboard refresh failed", tone: "stale" as const }
+        : { label: "DATA UNAVAILABLE", ariaLabel: "Dashboard data unavailable", title: "Dashboard data could not be loaded", tone: "unavailable" as const }
+      : { label: "DASHBOARD READY", ariaLabel: "Dashboard ready", title: "Dashboard data is current", tone: "ready" as const };
 
   const handleOpenCreateModal = () => {
     setEditingKey(null);
@@ -240,7 +257,7 @@ export default function DashboardClient({
                   Back to Home
                 </Link>
               }
-              title="Overview"
+              title="Dashboard"
               description={
                 errorMessage ? (
                   <GuidedError
@@ -255,22 +272,40 @@ export default function DashboardClient({
               }
               rightAction={
                 <div
-                  className={`inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-950/20 px-3.5 py-1.5 text-[9px] font-bold font-mono uppercase tracking-[0.18em] text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.08)] backdrop-blur-md transition-all sm:self-center ${
-                    isSyncing ? "border-emerald-400/40 shadow-[0_0_15px_rgba(52,211,153,0.18)]" : ""
+                  className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[9px] font-bold font-mono uppercase tracking-[0.18em] shadow-[0_0_12px_rgba(16,185,129,0.08)] backdrop-blur-md transition-all sm:self-center ${
+                    dashboardStatus.tone === "syncing"
+                      ? "border-emerald-400/40 bg-emerald-950/20 text-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.18)]"
+                      : dashboardStatus.tone === "stale"
+                        ? "border-amber-400/35 bg-amber-950/20 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.12)]"
+                        : dashboardStatus.tone === "unavailable"
+                          ? "border-rose-400/35 bg-rose-950/20 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.12)]"
+                          : "border-emerald-500/20 bg-emerald-950/20 text-emerald-400"
                   }`}
-                  aria-label={isSyncing ? "Dashboard data syncing" : "Dashboard ready"}
-                  title={isSyncing ? "Refreshing dashboard data" : "Dashboard ready"}
+                  aria-label={dashboardStatus.ariaLabel}
+                  title={dashboardStatus.title}
                 >
                   <span className="relative flex h-1.5 w-1.5 shrink-0">
-                    {isSyncing && (
+                    {dashboardStatus.tone === "syncing" && (
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                     )}
-                    <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isSyncing ? "bg-emerald-300" : "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"}`} />
+                    <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${dashboardStatus.tone === "stale" ? "bg-amber-300" : dashboardStatus.tone === "unavailable" ? "bg-rose-300" : dashboardStatus.tone === "syncing" ? "bg-emerald-300" : "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"}`} />
                   </span>
-                  <span>{isSyncing ? "SYNCING DATA" : "DASHBOARD READY"}</span>
+                  <span>{dashboardStatus.label}</span>
                 </div>
               }
             />
+
+            {usageError && (
+              <GuidedError
+                {...getErrorGuidance({ workflow: "usage", message: usageError })}
+                technicalDetails={usageError}
+                explanation={hasUsableDashboardData ? "The dashboard is showing the last successfully loaded data, which may be older." : "Dashboard usage data is not available yet."}
+                nextAction="Refresh the dashboard when the usage service is available."
+                actionLabel="Refresh Dashboard"
+                onAction={() => void refreshUsageData()}
+                compact
+              />
+            )}
 
             {shouldShowGettingStarted && (
               <GettingStartedChecklist

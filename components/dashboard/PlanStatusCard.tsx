@@ -19,6 +19,7 @@ export function PlanStatusCard({
   onManagePlan,
 }: PlanStatusCardProps) {
   const fallbackResetDate = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
+  const remainingQuota = isUnlimited ? null : Math.max(currentLimit - totalUsage, 0);
 
   return (
     <CommandPanel padding="none" className="group relative overflow-hidden p-5 sm:p-8 md:p-10">
@@ -39,7 +40,7 @@ export function PlanStatusCard({
               <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                 <h2 className="font-serif text-4xl font-bold italic tracking-tight text-white sm:text-5xl">{currentPlan}</h2>
                 {isUnlimited && (
-                  <StatusPill tone="success" compact>Unlimited</StatusPill>
+                  <StatusPill tone="success" compact>Unlimited requests</StatusPill>
                 )}
               </div>
             </div>
@@ -55,7 +56,7 @@ export function PlanStatusCard({
           <div className="space-y-6">
             <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                Usage <span className="mx-2 opacity-20">/</span> <span className="text-white">{formatRequestCount(totalUsage)} Units Used</span>
+                Monthly requests <span className="mx-2 opacity-20">/</span> <span className="text-white">{formatRequestCount(totalUsage)}</span>
               </p>
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
@@ -63,7 +64,7 @@ export function PlanStatusCard({
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
                 <span className="text-[9px] font-black uppercase tracking-widest text-emerald-300">
-                  Next Reset: {resetDate ? formatShortDate(resetDate) : formatShortDate(fallbackResetDate)}
+                  Resets: {resetDate ? formatShortDate(resetDate) : formatShortDate(fallbackResetDate)}
                 </span>
               </div>
             </div>
@@ -76,8 +77,8 @@ export function PlanStatusCard({
             </div>
 
             <div className="flex items-center justify-between gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              <span>0 Units</span>
-              <span>Plan Limit: {isUnlimited ? "∞" : formatRequestCount(currentLimit)} Units</span>
+              <span>Remaining quota: {isUnlimited ? "Unlimited requests" : formatRequestCount(remainingQuota ?? 0)}</span>
+              <span>Monthly request limit: {isUnlimited ? "Unlimited requests" : formatRequestCount(currentLimit)}</span>
             </div>
           </div>
         </div>

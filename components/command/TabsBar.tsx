@@ -29,14 +29,14 @@ export function TabsBar({
   ariaLabel = "Sections",
 }: TabsBarProps) {
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
 
     event.preventDefault();
     const nextIndex = event.key === "Home"
       ? 0
       : event.key === "End"
         ? tabs.length - 1
-        : event.key === "ArrowLeft"
+        : event.key === "ArrowLeft" || event.key === "ArrowUp"
           ? (index - 1 + tabs.length) % tabs.length
           : (index + 1) % tabs.length;
     const nextTab = tabs[nextIndex];
@@ -79,8 +79,8 @@ export function TabsBar({
               type="button"
               role="tab"
               aria-selected={selected}
-              aria-controls={selected ? tab.controlsId : undefined}
-              tabIndex={0}
+              aria-controls={tab.controlsId}
+              tabIndex={selected ? 0 : -1}
               onClick={() => onChange(tab.id)}
               onKeyDown={(event) => handleKeyDown(event, index)}
               className={cx(

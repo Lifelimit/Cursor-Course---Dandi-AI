@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, type FormEvent } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { useToast } from "@/hooks/useToast";
@@ -55,6 +55,7 @@ async function readResponseError(response: Response, fallback: string) {
 export default function AccountClient({ initialSession }: { initialSession: Session | null }) {
   const { toast, showToast } = useToast();
   const supabaseClient = createClient();
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<AccountTab>(() => parseAccountTab(searchParams.get("tab")));
@@ -460,7 +461,15 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
               { id: "security", label: "Security & Sign-in", controlsId: "account-security-panel" },
             ]}
             activeId={activeTab}
-            onChange={(id) => setActiveTab(id as AccountTab)}
+            onChange={(id) => {
+              const tab = id as AccountTab;
+              setActiveTab(tab);
+              const params = new URLSearchParams(searchParams.toString());
+              if (params.get("tab") !== tab) {
+                params.set("tab", tab);
+                router.push(`/account?${params.toString()}`, { scroll: false });
+              }
+            }}
             variant="pills"
             ariaLabel="Account settings sections"
           />

@@ -11,8 +11,8 @@ import { formatRequestCount } from "@/lib/format";
 
 const NAV_ITEMS = [
   {
-    name: "Overview",
-    mobileName: "Overview",
+    name: "Dashboard",
+    mobileName: "Dashboard",
     href: "/dashboards",
     icon: (cls: string) => (
       <svg viewBox="0 0 24 24" className={cls} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -386,10 +386,10 @@ export function Sidebar({
           </div>
           <div className="min-w-0 text-right">
             <p className="font-mono text-xs font-bold tabular-nums text-slate-200">
-              {isUnlimited ? "Unlimited" : `${formatRequestCount(usageRemaining ?? 0)} left`}
+              {isUnlimited ? "Unlimited requests" : `${formatRequestCount(usageRemaining ?? 0)} remaining`}
             </p>
             <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-500">
-              {isUnlimited ? "Plan limit" : `${Math.round(usagePct)}% used`}
+              {isUnlimited ? "Monthly request limit" : "Remaining quota"}
             </p>
           </div>
         </div>
@@ -408,7 +408,7 @@ export function Sidebar({
             </p>
           ) : (
             <p className="min-w-0 text-[9px] font-medium leading-relaxed text-slate-500">
-              Limit: <span className="font-mono text-slate-300">{formatRequestCount(limit)}</span> requests this cycle.
+              Monthly request limit: <span className="font-mono text-slate-300">{formatRequestCount(limit)}</span> requests this cycle.
             </p>
           )}
           <Link

@@ -387,6 +387,12 @@ export default function PlaygroundClient({
               onChange={(tab) => {
                 setActiveTab(tab);
                 setErrorMessage("");
+                const params = new URLSearchParams(searchParams.toString());
+                const mode = tab === "summary" ? "summary" : "ask";
+                if (params.get("mode") !== mode) {
+                  params.set("mode", mode);
+                  router.push(`/playground?${params.toString()}`, { scroll: false });
+                }
               }}
             />
           </DashboardPageHeader>
