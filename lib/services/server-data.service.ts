@@ -7,6 +7,7 @@ import {
   getDisplayUsageCount,
   getDisplayUsageCounts,
   getDisplayUsageLogs,
+  getActiveRepositoryCount,
   getRecentUsageDates,
   getStripePaymentDisplay,
   getTopReposFromLogs,
@@ -141,6 +142,7 @@ export async function getServerUsageData(): Promise<ServerUsageData | null> {
     // 6. Global aggregates and performance metrics
     const { avgLatency, successRate } = getUsagePerformanceMetrics(logs || []);
     const globalTopRepos = getTopReposFromLogs(logs || [], 10);
+    const activeRepositoryCount = getActiveRepositoryCount(logs || []);
 
     const dailyAnalytics = dates.map(date => summarizeDailyLogs(date, logs || []));
 
@@ -167,6 +169,7 @@ export async function getServerUsageData(): Promise<ServerUsageData | null> {
       keys: processedKeys,
       totalUsage,
       globalTopRepos,
+      activeRepositoryCount,
       avgLatency,
       successRate,
       resetDate,

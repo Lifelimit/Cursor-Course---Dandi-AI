@@ -9,6 +9,7 @@ import {
   getDisplayUsageCount,
   getDisplayUsageCounts,
   getDisplayUsageLogs,
+  getActiveRepositoryCount,
   getRecentUsageDates,
   getStripePaymentDisplay,
   getTopReposFromLogs,
@@ -104,6 +105,7 @@ export async function GET() {
     const totalUsage = userUsage;
     
     const globalTopRepos = getTopReposFromLogs(logs || [], 10);
+    const activeRepositoryCount = getActiveRepositoryCount(logs || []);
 
     // Global Daily Trends (requests, latency, success, error) over the last 30 days
     const dailyAnalytics = dates.map(date => {
@@ -133,6 +135,7 @@ export async function GET() {
       keys: processedKeys,
       totalUsage,
       globalTopRepos,
+      activeRepositoryCount,
       avgLatency,
       successRate,
       resetDate,

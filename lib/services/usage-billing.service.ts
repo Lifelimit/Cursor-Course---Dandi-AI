@@ -154,6 +154,10 @@ export function getTopReposFromLogs(logs: UsageLog[], limit: number) {
     .slice(0, limit);
 }
 
+export function getActiveRepositoryCount(logs: UsageLog[]) {
+  return new Set(logs.map(log => log.repoUrl).filter((repoUrl): repoUrl is string => Boolean(repoUrl))).size;
+}
+
 export async function getDisplayUsageCounts(keys: { id: string }[], currentMonth: string): Promise<number[]> {
   if (keys.length === 0) return [];
 

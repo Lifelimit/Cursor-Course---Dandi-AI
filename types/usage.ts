@@ -55,6 +55,7 @@ export type UsageData = {
   totalUsage: number;
   keys: UsageKeySummary[];
   globalTopRepos: TopRepositoryUsage[];
+  activeRepositoryCount?: number;
   resetDate: string | null;
   nextInvoiceDate: string | null;
   avgLatency?: number;
