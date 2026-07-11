@@ -36,19 +36,20 @@ export function Navbar({ session }: { session: Session | null }) {
 
   return (
     <nav className="fixed left-0 right-0 top-3 z-50 px-3 sm:px-6">
-      <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-emerald-400/10 bg-slate-950/82 p-3 shadow-lg shadow-black/30 backdrop-blur-sm">
+      <div className="dandi-surface-workspace dandi-intensity-subtle relative mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-2xl border p-3 backdrop-blur-xl">
         {/* Brand / Circular Logo */}
         <Link href="/" className="group z-10 flex shrink-0 cursor-pointer items-center gap-3">
           <div className="relative flex h-8 w-8 items-center justify-center rounded-xl border border-emerald-400/35 bg-emerald-400/10 text-emerald-100 shadow-[0_0_15px_rgba(52,211,153,0.12)] transition-colors group-hover:border-emerald-300/60">
             <span className="font-serif text-sm font-bold italic drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]">D</span>
           </div>
-          <span className="hidden font-serif text-sm font-bold tracking-[0.12em] text-white min-[420px]:inline md:inline uppercase">Dandi AI</span>
+          <span className="dandi-type-display hidden text-sm font-bold tracking-[0.12em] text-white min-[390px]:inline md:inline">Dandi AI</span>
         </Link>
         
         {/* Mid Navigation Links */}
         <div className="hidden items-center gap-1 rounded-xl border border-white/8 bg-slate-900/55 p-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 md:absolute md:left-1/2 md:flex md:-translate-x-1/2">
           <Link href="/#features" className="rounded-lg px-4 py-2 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Features</Link>
           <Link href="/#pricing" className="rounded-lg px-4 py-2 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Pricing</Link>
+          <Link href="/docs" className="rounded-lg px-4 py-2 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Docs</Link>
           <Link href="/playground" className="rounded-lg px-4 py-2 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Playground</Link>
         </div>
 
@@ -218,6 +219,7 @@ export function Navbar({ session }: { session: Session | null }) {
           <div className="grid gap-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
             <Link onClick={() => setIsOpen(false)} href="/#features" className="rounded-xl px-4 py-3 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Features</Link>
             <Link onClick={() => setIsOpen(false)} href="/#pricing" className="rounded-xl px-4 py-3 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Pricing</Link>
+            <Link onClick={() => setIsOpen(false)} href="/docs" className="rounded-xl px-4 py-3 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Docs</Link>
             <Link onClick={() => setIsOpen(false)} href="/playground" className="rounded-xl px-4 py-3 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Playground</Link>
             <hr className="border-white/5" />
             {session ? (

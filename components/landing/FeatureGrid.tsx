@@ -167,14 +167,29 @@ export function FeatureGrid() {
   return (
     <section id="features" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-32">
       <div className="mb-14 space-y-4 text-center md:mb-20 md:text-left">
-        <h2 className="font-serif text-4xl font-bold md:text-6xl text-white">Built for fast <br /> repository insight.</h2>
-        <p className="mx-auto max-w-xl text-slate-400 md:mx-0">Dandi helps developers summarize repositories, inspect metadata, manage API access, and test requests quickly.</p>
+        <p className="dandi-type-metadata font-bold uppercase text-emerald-200">From first read to source-backed question</p>
+        <h2 className="dandi-type-display text-4xl font-bold text-white md:text-6xl">A repository workflow with a memory.</h2>
+        <p className="mx-auto max-w-xl text-slate-300/80 md:mx-0">Summarize a codebase, prepare it once for retrieval, then ask questions with the context and evidence still attached.</p>
+      </div>
+
+      <div className="mb-8 grid gap-3 rounded-2xl border border-[var(--dandi-border-standard)] bg-white/[0.025] p-3 sm:grid-cols-3 sm:p-4">
+        {[
+          ["Summarize", "Understand structure, purpose, and key components."],
+          ["Prepare", "Index a repository once so retrieval stays focused."],
+          ["Ask", "Inspect source-backed answers in the API Playground."],
+        ].map(([title, copy], index) => (
+          <div key={title} className="relative rounded-xl px-3 py-3 sm:px-4">
+            {index < 2 && <span aria-hidden="true" className="absolute -right-2 top-1/2 hidden h-px w-4 bg-emerald-300/30 sm:block" />}
+            <p className="dandi-type-metadata font-bold uppercase text-emerald-200">0{index + 1} / {title}</p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">{copy}</p>
+          </div>
+        ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="contents lg:block lg:space-y-6">
         {/* Bento Item 1: Interactive repository summary */}
-        <div className="group relative order-1 flex min-h-[480px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-8 md:p-10">
+        <div className="dandi-surface-workspace dandi-intensity-subtle group relative order-1 flex min-h-[480px] flex-col justify-between overflow-hidden rounded-[28px] border p-6 sm:p-8 md:p-10">
           <div className="relative z-10 space-y-5">
             <div className="flex items-center gap-4">
               <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-950/20 border border-emerald-500/20 shadow-sm">
@@ -183,13 +198,13 @@ export function FeatureGrid() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-xl font-bold tracking-tight text-white">Repository Summary</h3>
-                <p className="text-xs text-slate-500">Interactive API preview</p>
+                <h3 className="text-xl font-bold tracking-tight text-white">Summarize</h3>
+                <p className="text-xs text-slate-500">See the shape of a repository quickly.</p>
               </div>
             </div>
 
             <p className="text-xs leading-relaxed text-slate-400">
-              Generate structured repository summaries and analyze metadata directly from a public URL.
+              Generate a structured summary and inspect metadata directly from a public URL.
             </p>
 
             {/* Selector and Trigger Control */}
@@ -355,7 +370,7 @@ export function FeatureGrid() {
                       <div className="mt-4 flex flex-col justify-between gap-2 border-t border-slate-800/60 pt-4 text-[8px] font-bold uppercase tracking-widest sm:flex-row sm:items-center">
                       <span className="font-semibold italic text-slate-500">Sample preview format</span>
                       <Link 
-                        href="/playground" 
+                        href="/playground?mode=summary"
                         className="text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1"
                       >
                         Try in Playground
@@ -524,8 +539,8 @@ export function FeatureGrid() {
         {/* Bento Item 2: Usage Alerts */}
         <div className="group relative order-2 flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 text-white shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-10">
           <div className="relative z-10 space-y-4 w-full lg:max-w-[calc(100%-260px)]">
-            <h3 className="font-serif text-2xl font-bold">Usage Alerts</h3>
-            <p className="text-sm leading-relaxed text-slate-400">Set alert thresholds for API usage and get notified before a project reaches its monthly plan limit.</p>
+            <h3 className="font-serif text-2xl font-bold">Operate with visibility</h3>
+            <p className="text-sm leading-relaxed text-slate-400">Set alert thresholds for API usage and see when a project needs attention before traffic is blocked.</p>
             
             {/* Real alert channels tag list */}
             <div className="flex flex-wrap gap-2 pt-2 select-none">
@@ -583,7 +598,7 @@ export function FeatureGrid() {
         <div className="group relative order-4 flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-10">
           <div className="relative z-10 space-y-2 text-left">
             <p className="text-5xl font-black italic font-serif tracking-tighter text-white">API</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Developer First</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Ship through an API</p>
           </div>
           
           <div className="relative z-10 w-full mt-8">

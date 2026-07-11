@@ -311,6 +311,22 @@ body {
   --command-tertiary-glow: rgba(52, 211, 153, 0.035);
 }
 
+.landing-ambient {
+  background-color: var(--dandi-surface-ambient);
+  background-image:
+    radial-gradient(ellipse 65% 45% at 84% 4%, rgba(52, 211, 153, 0.11), transparent 62%),
+    radial-gradient(ellipse 52% 38% at 8% 42%, rgba(34, 211, 238, 0.055), transparent 64%),
+    linear-gradient(rgba(148, 163, 184, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.055) 1px, transparent 1px),
+    linear-gradient(180deg, #05070b 0%, #070b12 48%, #05070b 100%);
+  background-size: auto, auto, 56px 56px, 56px 56px, auto;
+  background-position: center, center, center top, center top, center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-ambient { background-attachment: initial; }
+}
+
 .command-ambient-spotlight {
   background: radial-gradient(circle, var(--command-primary-glow), transparent 65%);
   mix-blend-mode: plus-lighter;
