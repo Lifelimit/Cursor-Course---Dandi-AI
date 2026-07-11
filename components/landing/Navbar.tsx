@@ -25,6 +25,19 @@ export function Navbar({ session }: { session: Session | null }) {
     return () => document.removeEventListener("click", handleOutsideClick);
   }, [isProfileOpen]);
 
+  useEffect(() => {
+    if (!isOpen && !isProfileOpen) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setIsOpen(false);
+      setIsProfileOpen(false);
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isOpen, isProfileOpen]);
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push("/");
@@ -80,7 +93,7 @@ export function Navbar({ session }: { session: Session | null }) {
                   </button>
 
                   {/* Desktop Profile Popover */}
-                  <div id="homepage-desktop-profile-popover" className={`profile-popover absolute left-1/2 -translate-x-1/2 top-[calc(100%+24px)] z-[100] w-48 rounded-xl border border-white/10 bg-slate-950/95 p-3 shadow-xl backdrop-blur-sm transition-all duration-500 origin-top hidden md:block ${
+                  <div id="homepage-desktop-profile-popover" role="menu" aria-label="User profile" hidden={!isProfileOpen} className={`profile-popover absolute left-1/2 -translate-x-1/2 top-[calc(100%+24px)] z-[100] w-48 rounded-xl border border-white/10 bg-slate-950/95 p-3 shadow-xl backdrop-blur-sm transition-all duration-500 origin-top hidden md:block ${
                     isProfileOpen
                       ? 'translate-y-0 opacity-100 scale-100 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] pointer-events-auto'
                       : '-translate-y-2 opacity-0 scale-75 pointer-events-none ease-[cubic-bezier(0.6,-0.28,0.735,0.045)]'
@@ -171,7 +184,7 @@ export function Navbar({ session }: { session: Session | null }) {
 
           {/* Profile Popover (Mobile only) */}
           {session && (
-            <div id="homepage-mobile-profile-popover" className={`profile-popover absolute right-3 top-[calc(100%+8px)] z-[100] w-64 rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-xl backdrop-blur-sm transition-all duration-500 origin-top-right md:hidden ${
+            <div id="homepage-mobile-profile-popover" role="menu" aria-label="User profile" hidden={!isProfileOpen} className={`profile-popover absolute right-3 top-[calc(100%+8px)] z-[100] w-64 rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-xl backdrop-blur-sm transition-all duration-500 origin-top-right md:hidden ${
               isProfileOpen
                 ? 'translate-y-0 opacity-100 scale-100 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] pointer-events-auto'
                 : '-translate-y-2 opacity-0 scale-75 pointer-events-none ease-[cubic-bezier(0.6,-0.28,0.735,0.045)]'

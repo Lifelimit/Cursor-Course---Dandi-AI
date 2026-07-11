@@ -132,6 +132,7 @@ export default function DashboardClient({
     initialHasSuccessfulRepositoryAnalysis ||
     initialHasAskedRepository
   );
+  const isInitialDashboardLoading = isSyncing && !hasUsableDashboardData;
   const dashboardStatus = isSyncing
     ? { label: "SYNCING DATA", ariaLabel: "Dashboard data syncing", title: "Refreshing dashboard data", tone: "syncing" as const }
     : usageError
@@ -320,26 +321,29 @@ export default function DashboardClient({
               metrics={[
                 {
                   label: "Avg. Latency",
-                  value: avgLatency > 0 ? `${avgLatency}ms` : "--",
+                  value: isInitialDashboardLoading ? "Loading…" : avgLatency > 0 ? `${avgLatency}ms` : "No requests yet",
                   icon: "M13 10V3L4 14h7v7l9-11h-7z",
                   tone: "amber",
-                  trend: latencyTrend,
+                  trend: isInitialDashboardLoading ? undefined : latencyTrend,
                   spark: padSpark(latencySpark),
+                  loading: isInitialDashboardLoading,
                 },
                 {
                   label: "Success Rate",
-                  value: dailyAnalytics.length > 0 ? formatPercentage(successRate, 1) : "--",
+                  value: isInitialDashboardLoading ? "Loading…" : dailyAnalytics.length > 0 ? formatPercentage(successRate, 1) : "No requests yet",
                   icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
                   tone: "emerald",
-                  trend: successTrend,
+                  trend: isInitialDashboardLoading ? undefined : successTrend,
                   spark: padSpark(successSpark),
+                  loading: isInitialDashboardLoading,
                 },
                 {
                   label: "Active Keys",
-                  value: apiKeys.length.toString(),
+                  value: isLoading ? "Loading…" : apiKeys.length.toString(),
                   icon: "M15 7a2 2 0 012 2m4 0a6 6 0 11-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z",
                   tone: "blue",
                   spark: padSpark(requestsSpark),
+                  loading: isLoading,
                 },
               ]}
             />

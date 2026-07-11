@@ -147,8 +147,7 @@ body {
 .command-tabs:focus-visible,
 .command-tabs [role="tablist"],
 .command-tabs [role="tablist"]:focus,
-.command-tabs [role="tablist"]:focus-visible,
-.command-tabs-tab:focus {
+.command-tabs [role="tablist"]:focus-visible {
   outline: none;
 }
 
@@ -520,6 +519,25 @@ body {
   *, *::before, *::after {
     scroll-behavior: auto !important;
   }
+
+  /* Decorative movement stops; focus and state changes still resolve immediately. */
+  .animate-ping,
+  .animate-pulse,
+  .animate-spin,
+  .animate-in,
+  .command-ambient-radial,
+  .command-pulse,
+  .command-shimmer,
+  .command-pipeline-line::after,
+  .animate-toast-in,
+  .animate-toast-out,
+  .animate-stroke,
+  .animate-icon-scale {
+    animation: none !important;
+  }
+
+  .animate-spin { border-top-color: currentColor; }
+  .animate-ping { opacity: 0 !important; }
 }
 
 .command-pulse {
@@ -551,9 +569,8 @@ body {
   .animate-dropdown-enter,
   .animate-slide-in-left,
   .scale-up-center {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+    animation: none !important;
+    transition-duration: 0.01ms !important;
   }
 
   .command-ambient-radial {
@@ -562,6 +579,13 @@ body {
 
   .dandi-transition,
   .command-ambient-spotlight {
-    transition-duration: 0.001ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .command-ambient-spotlight { display: none; }
+
+  .dandi-surface-workspace .animate-pulse,
+  .dandi-surface-elevated .animate-pulse {
+    opacity: 0.72;
   }
 }

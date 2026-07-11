@@ -97,8 +97,9 @@ export function TabsBar({
                       : "text-[var(--command-muted)] hover:bg-white/[0.06] hover:text-[var(--command-text)]"),
               )}
             >
-              {tab.icon && <span className="shrink-0">{tab.icon}</span>}
+              {tab.icon && <span className="shrink-0" aria-hidden="true">{tab.icon}</span>}
               <span>{tab.label}</span>
+              {selected && <span className="sr-only">(selected)</span>}
             </button>
           );
         })}

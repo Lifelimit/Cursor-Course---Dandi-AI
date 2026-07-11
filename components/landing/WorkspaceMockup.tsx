@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 type WorkflowStage = "ready" | "validated" | "metadata" | "summary" | "prepared";
 
@@ -17,9 +18,10 @@ const stageIndex = (stage: WorkflowStage) => stage === "ready" ? -1 : STAGES.fin
 export function WorkspaceMockup() {
   const [stage, setStage] = useState<WorkflowStage>("ready");
   const [isRunning, setIsRunning] = useState(false);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
-    if (!isRunning) return;
+    if (!isRunning || reducedMotion) return;
 
     const nextIndex = stageIndex(stage) + 1;
     if (nextIndex >= STAGES.length) {
@@ -29,9 +31,14 @@ export function WorkspaceMockup() {
 
     const timer = window.setTimeout(() => setStage(STAGES[nextIndex].id), 620);
     return () => window.clearTimeout(timer);
-  }, [isRunning, stage]);
+  }, [isRunning, reducedMotion, stage]);
 
   const runWorkflow = () => {
+    if (reducedMotion) {
+      setStage("prepared");
+      setIsRunning(false);
+      return;
+    }
     setStage("validated");
     setIsRunning(true);
   };
@@ -41,18 +48,20 @@ export function WorkspaceMockup() {
     setIsRunning(false);
   };
 
-  const currentIndex = stageIndex(stage);
-  const completed = stage === "prepared";
+  const displayedStage = reducedMotion ? "prepared" : stage;
+  const displayedRunning = reducedMotion ? false : isRunning;
+  const currentIndex = stageIndex(displayedStage);
+  const completed = displayedStage === "prepared";
 
   return (
-    <div className="relative mx-auto mt-5 block w-full max-w-xl xl:mt-0" aria-label="Dandi repository workflow preview">
+    <section className="relative mx-auto mt-5 block w-full max-w-xl xl:mt-0" aria-label="Dandi repository workflow preview">
       <div className="dandi-surface-elevated dandi-intensity-elevated relative overflow-hidden rounded-[28px] border p-4 shadow-[var(--dandi-glow-elevated)] sm:p-5">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_0%,rgba(52,211,153,0.12),transparent_38%),linear-gradient(135deg,transparent_20%,rgba(34,211,238,0.035),transparent_70%)]" />
         <div className="relative z-10 space-y-4">
           <div className="flex items-start justify-between gap-4 border-b border-[var(--dandi-border-standard)] pb-4">
             <div className="min-w-0">
               <div className="dandi-type-metadata flex items-center gap-2 font-black uppercase text-cyan-200">
-                <span className={`h-2 w-2 rounded-full ${isRunning ? "bg-amber-300" : completed ? "bg-emerald-300" : "bg-cyan-300"}`} aria-hidden="true" />
+                <span className={`h-2 w-2 rounded-full ${displayedRunning ? "bg-amber-300" : completed ? "bg-emerald-300" : "bg-cyan-300"}`} aria-hidden="true" />
                 API Playground preview
               </div>
               <h2 className="dandi-type-display mt-2 text-2xl font-bold text-white sm:text-3xl">Repository intelligence, in motion.</h2>
@@ -70,33 +79,34 @@ export function WorkspaceMockup() {
               <p className="text-xs leading-relaxed text-[var(--dandi-text-muted)]">Summarize structure, prepare sources, then ask with evidence.</p>
               <div className="flex flex-wrap gap-2 pt-1">
                 <button type="button" onClick={completed ? resetWorkflow : runWorkflow} className="dandi-transition inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
-                  {isRunning ? "Processing…" : completed ? "Run again" : "Run workflow"}
-                  {!isRunning && <span aria-hidden="true">→</span>}
+                  {displayedRunning ? "Processing…" : completed ? "Run again" : "Run workflow"}
+                  {!displayedRunning && <span aria-hidden="true">→</span>}
                 </button>
                 <Link href="/playground?mode=summary" className="dandi-transition inline-flex items-center justify-center rounded-xl border border-[var(--dandi-border-standard)] bg-white/[0.03] px-4 py-2.5 text-xs font-semibold text-slate-300 hover:border-emerald-300/35 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Open in Playground</Link>
               </div>
             </div>
 
-            <div className="dandi-surface-solid min-w-0 rounded-2xl border p-3 sm:p-4" aria-live="polite">
+            <div className="dandi-surface-solid min-w-0 rounded-2xl border p-3 sm:p-4" aria-busy={displayedRunning}>
               <div className="mb-3 flex items-center justify-between gap-3 border-b border-[var(--dandi-border-subtle)] pb-3">
                 <span className="dandi-type-metadata font-bold uppercase text-[var(--dandi-text-meta)]">request trace</span>
-                <span className={`dandi-type-metadata font-bold uppercase ${isRunning ? "text-amber-200" : completed ? "text-emerald-200" : "text-cyan-200"}`}>{isRunning ? "processing" : completed ? "sources ready" : "ready"}</span>
+                <span className={`dandi-type-metadata font-bold uppercase ${displayedRunning ? "text-amber-200" : completed ? "text-emerald-200" : "text-cyan-200"}`}>{displayedRunning ? "processing" : completed ? "sources ready" : "ready"}</span>
               </div>
-              <div className="space-y-2">
+              <p className="sr-only" role="status">{displayedRunning ? "Workflow processing" : completed ? "Workflow complete. Sources ready." : "Workflow ready."}</p>
+              <ol className="space-y-2" aria-label="Workflow stages">
                 {STAGES.map((item, index) => {
                   const isComplete = currentIndex >= index;
-                  const isActive = currentIndex === index && isRunning;
+                  const isActive = currentIndex === index && displayedRunning;
                   return (
-                    <div key={item.id} className={`dandi-transition flex items-start gap-2.5 rounded-lg px-2 py-1.5 ${isComplete ? "bg-white/[0.04]" : "opacity-45"}`}>
+                    <li key={item.id} className={`dandi-transition flex items-start gap-2.5 rounded-lg px-2 py-1.5 ${isComplete ? "bg-white/[0.04]" : "opacity-45"}`} aria-current={isActive ? "step" : undefined}>
                       <span className={`mt-1 flex h-3 w-3 shrink-0 items-center justify-center rounded-full border ${isComplete ? "border-emerald-300/60 bg-emerald-300/15 text-emerald-200" : "border-slate-600 text-transparent"}`} aria-hidden="true">{isComplete ? "✓" : "·"}</span>
                       <span className="min-w-0">
                         <span className={`block text-xs font-semibold ${isActive ? "text-amber-100" : isComplete ? "text-slate-200" : "text-slate-500"}`}>{item.label}</span>
                         <span className="mt-0.5 block truncate font-mono text-[10px] text-[var(--dandi-text-meta)]">{item.detail}</span>
                       </span>
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
+              </ol>
               {completed && (
                 <div className="mt-3 rounded-xl border border-violet-300/20 bg-violet-300/[0.07] p-3">
                   <p className="dandi-type-metadata font-bold uppercase text-violet-200">Ask with source evidence</p>
@@ -107,6 +117,6 @@ export function WorkspaceMockup() {
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

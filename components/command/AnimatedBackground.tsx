@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from "react";
 import { cx } from "./utils";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 export type CommandShellVariant =
   | "public"
@@ -31,9 +32,10 @@ export function AnimatedBackground({
 }: AnimatedBackgroundProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useReducedMotion();
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!glowRef.current) return;
+    if (reducedMotion || !glowRef.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left - 300;
     const y = e.clientY - rect.top - 300;
@@ -42,15 +44,15 @@ export function AnimatedBackground({
   };
 
   const handlePointerLeave = () => {
-    if (!glowRef.current) return;
+    if (reducedMotion || !glowRef.current) return;
     glowRef.current.style.opacity = "0";
   };
 
   return (
     <div
       ref={containerRef}
-      onPointerMove={handlePointerMove}
-      onPointerLeave={handlePointerLeave}
+      onPointerMove={reducedMotion ? undefined : handlePointerMove}
+      onPointerLeave={reducedMotion ? undefined : handlePointerLeave}
       className={cx(
         "command-ambient dandi-surface-ambient relative overflow-hidden",
         intensityClasses[intensity],

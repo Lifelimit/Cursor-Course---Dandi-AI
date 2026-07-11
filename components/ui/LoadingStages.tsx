@@ -67,7 +67,7 @@ export function LoadingStages({
       className={cx("rounded-2xl border border-cyan-300/15 bg-slate-950/55 p-4 text-left shadow-[0_0_28px_rgba(34,211,238,0.06)]", className)}
       role="status"
       aria-live="polite"
-      aria-atomic="false"
+      aria-atomic="true"
       aria-busy={Boolean(activeStage)}
     >
       <span className="sr-only">
@@ -80,13 +80,13 @@ export function LoadingStages({
         </div>
         {activeStage && (
           <span className="rounded-full border border-amber-300/20 bg-amber-300/[0.08] px-3 py-1 text-[8px] font-black uppercase tracking-widest text-amber-100">
-            {activeStage.label}
+            Current: {activeStage.label}
           </span>
         )}
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         {stages.map((stage) => (
-          <div key={stage.id} className={cx("flex min-w-0 gap-3 rounded-xl border px-3 py-2.5 transition-colors", statusTone[stage.status])}>
+          <div key={stage.id} className={cx("flex min-w-0 gap-3 rounded-xl border px-3 py-2.5 transition-colors", statusTone[stage.status])} aria-current={stage.status === "active" ? "step" : undefined}>
             <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current/20 bg-black/20" aria-hidden="true">
               <StageIcon status={stage.status} />
             </span>

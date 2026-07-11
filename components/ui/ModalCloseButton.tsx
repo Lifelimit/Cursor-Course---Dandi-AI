@@ -14,6 +14,7 @@ export function ModalCloseButton({ className = "", "aria-label": ariaLabel = "Cl
       {...props}
     >
       <svg
+        aria-hidden="true"
         viewBox="0 0 24 24"
         className="pointer-events-none h-5 w-5"
         fill="none"

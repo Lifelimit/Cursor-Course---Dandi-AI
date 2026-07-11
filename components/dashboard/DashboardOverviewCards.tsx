@@ -7,6 +7,7 @@ type DashboardMetric = {
   tone: DashboardMetricTone;
   trend?: string;
   spark: number[];
+  loading?: boolean;
 };
 
 export function DashboardOverviewCards({ metrics }: { metrics: DashboardMetric[] }) {
@@ -71,13 +72,13 @@ function DashboardOverviewCard({ metric }: { metric: DashboardMetric }) {
             <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 font-sans">
               {metric.label}
             </p>
-            <p className="text-2xl font-bold tracking-tight text-white font-sans mt-0.5 tabular-nums">
+            <p className="text-2xl font-bold tracking-tight text-white font-sans mt-0.5 tabular-nums" aria-busy={metric.loading}>
               {metric.value}
             </p>
           </div>
         </div>
 
-        {metric.trend && (
+        {metric.trend && !metric.loading && (
           <span
             className={`inline-flex shrink-0 items-center rounded-lg border px-2 py-1 text-[10px] font-bold font-mono tracking-wide tabular-nums ${accentBorder} ${accentBg} ${accentText} shadow-[0_0_10px_rgba(0,0,0,0.2)]`}
           >

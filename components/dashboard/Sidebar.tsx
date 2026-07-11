@@ -154,6 +154,17 @@ export function Sidebar({
     return () => document.removeEventListener("click", handleOutsideClick);
   }, [isProfileOpen]);
 
+  useEffect(() => {
+    if (!isMobileNavOpen && !isProfileOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setIsMobileNavOpen(false);
+      setIsProfileOpen(false);
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isMobileNavOpen, isProfileOpen]);
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push("/");
@@ -241,6 +252,8 @@ export function Sidebar({
         <div
           id="dashboard-profile-popover"
           hidden={!isProfileOpen}
+          role="menu"
+          aria-label="User profile"
           className="dashboard-profile-popover absolute right-3 top-[calc(100%+8px)] z-[110] w-64 rounded-xl border border-white/10 bg-slate-950/95 p-4 text-slate-100 shadow-[0_24px_80px_rgba(0,0,0,0.4)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-250 md:hidden"
         >
           <div className="space-y-3">
@@ -278,6 +291,7 @@ export function Sidebar({
       {/* Main Navigation */}
       <nav
         id="dashboard-mobile-nav"
+        aria-label="Product navigation"
         className={`${isMobileNavOpen ? "block" : "hidden"} relative min-w-0 md:block md:flex-1`}
       >
         <p className="dandi-type-metadata mb-2 px-2 font-black uppercase text-[var(--dandi-text-meta)]">Product navigation</p>
