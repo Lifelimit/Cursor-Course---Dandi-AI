@@ -30,6 +30,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -182,12 +183,12 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
   }
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-7">
       <div className="space-y-2">
-        <h2 className="font-serif text-2xl font-bold transition-all duration-300 text-white">
+        <h2 className="font-serif text-3xl font-bold tracking-tight text-white transition-all duration-300">
           {isSignUp ? "Create your account" : "Welcome back"}
         </h2>
-        <p className="text-sm text-slate-400 transition-all duration-300">
+        <p className="max-w-sm text-sm leading-6 text-slate-400 transition-all duration-300">
           {!usePassword
             ? "Use a one-time link sent to your inbox."
             : isSignUp
@@ -213,56 +214,77 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
         </div>
       )}
 
-      <form onSubmit={handleAuth} className="space-y-4">
+      <form onSubmit={handleAuth} className="space-y-5">
         {usePassword && isSignUp && (
           <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-            <label htmlFor={fullNameId} className="ml-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Full Name</label>
+            <label htmlFor={fullNameId} className="dandi-label ml-1">Full Name</label>
             <input
               id={fullNameId}
-              type="text" 
+              name="name"
+              type="text"
+              autoComplete="name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required={usePassword && isSignUp}
               disabled={isLoading}
               aria-describedby={error && error.toLowerCase().includes("name") ? errorId : undefined}
               aria-invalid={Boolean(error && error.toLowerCase().includes("name")) || undefined}
-              className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-5 py-4 text-sm font-medium text-white placeholder-slate-600 outline-none transition-all focus:border-emerald-300/50 focus:ring-4 focus:ring-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+              className="dandi-field px-4 py-3.5 text-sm font-medium sm:px-5"
               placeholder="Jane Doe"
             />
           </div>
         )}
 
         <div className="space-y-2">
-          <label htmlFor={emailId} className="ml-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Email Address</label>
+          <label htmlFor={emailId} className="dandi-label ml-1">Email Address</label>
           <input
             id={emailId}
-            type="email" 
+            name="email"
+            type="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={isLoading}
             aria-describedby={error && error.toLowerCase().includes("email") ? errorId : undefined}
             aria-invalid={Boolean(error && error.toLowerCase().includes("email")) || undefined}
-            className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-5 py-4 text-sm font-medium text-white placeholder-slate-600 outline-none transition-all focus:border-emerald-300/50 focus:ring-4 focus:ring-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+            className="dandi-field px-4 py-3.5 text-sm font-medium sm:px-5"
             placeholder="name@company.com"
           />
         </div>
 
         {usePassword && (
           <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-            <label htmlFor={passwordId} className="ml-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Password</label>
-            <input
-              id={passwordId}
-              type="password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required={usePassword}
-              disabled={isLoading}
-              aria-describedby={error && error.toLowerCase().includes("password") ? errorId : undefined}
-              aria-invalid={Boolean(error && error.toLowerCase().includes("password")) || undefined}
-              className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-5 py-4 text-sm font-medium text-white placeholder-slate-600 outline-none transition-all focus:border-emerald-300/50 focus:ring-4 focus:ring-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-50"
-              placeholder="••••••••"
-            />
+            <label htmlFor={passwordId} className="dandi-label ml-1">Password</label>
+            <div className="relative">
+              <input
+                id={passwordId}
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete={isSignUp ? "new-password" : "current-password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required={usePassword}
+                disabled={isLoading}
+                aria-describedby={error && error.toLowerCase().includes("password") ? errorId : undefined}
+                aria-invalid={Boolean(error && error.toLowerCase().includes("password")) || undefined}
+                className="dandi-field px-4 py-3.5 pr-14 text-sm font-medium sm:px-5 sm:pr-14"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                disabled={isLoading}
+                className="absolute inset-y-0 right-3 flex w-10 items-center justify-center rounded-lg text-slate-500 transition-colors hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 4.3A10.7 10.7 0 0112 4c5.2 0 8.6 4 9.8 6.3a3.2 3.2 0 01-.2.4M6.2 6.2C4.4 7.4 3.2 9 2.2 10.8 3.4 13 6.8 17 12 17c1 0 1.9-.2 2.7-.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M2.2 12C3.4 9.7 6.8 6 12 6s8.6 3.7 9.8 6c-1.2 2.3-4.6 6-9.8 6s-8.6-3.7-9.8-6z" /><circle cx="12" cy="12" r="2.5" /></svg>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
@@ -270,7 +292,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
           type="submit"
           disabled={isLoading}
           aria-busy={isLoading || undefined}
-          className="group relative w-full cursor-pointer overflow-hidden rounded-2xl bg-emerald-400 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-slate-950 transition-all hover:bg-emerald-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+          className="group relative min-h-12 w-full cursor-pointer overflow-hidden rounded-xl bg-emerald-300 px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-950 shadow-[0_12px_30px_rgba(52,211,153,0.14)] transition-all hover:bg-emerald-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         >
           <span className={isLoading ? "opacity-0" : "opacity-100 transition-opacity"}>
             {!usePassword 
@@ -291,7 +313,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
               setUsePassword(!usePassword);
               setError(null);
             }}
-            className="cursor-pointer rounded-lg px-1 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+            className="cursor-pointer rounded-lg px-1 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 transition-colors hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
           >
             {usePassword ? "Use email link instead" : "Use password instead"}
           </button>
@@ -300,7 +322,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
 
       <div className="relative flex items-center py-2">
         <div className="flex-grow border-t border-white/10"></div>
-        <span className="flex-shrink-0 px-4 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Or continue with</span>
+        <span className="flex-shrink-0 px-4 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">Or continue with</span>
         <div className="flex-grow border-t border-white/10"></div>
       </div>
 
@@ -308,7 +330,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
         onClick={signInWithGoogle}
         disabled={isLoading}
         aria-busy={isLoading || undefined}
-        className="group flex w-full cursor-pointer items-center justify-center gap-4 rounded-2xl border border-white/10 bg-slate-950/70 px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-white transition-all hover:bg-white/5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+        className="group flex min-h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-white/12 bg-white/[0.045] px-6 py-3.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white transition-all hover:border-emerald-300/30 hover:bg-white/[0.08] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
       >
         <svg viewBox="0 0 24 24" className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -319,7 +341,7 @@ export function AuthForm({ defaultMode }: AuthFormProps) {
         Continue with Google
       </button>
 
-      <div className="border-t border-white/10 pt-4 text-center text-sm text-slate-500">
+      <div className="border-t border-white/10 pt-5 text-center text-sm text-slate-500">
         {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
         <button 
           onClick={() => {
