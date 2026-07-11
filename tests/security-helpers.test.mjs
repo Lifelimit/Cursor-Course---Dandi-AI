@@ -113,6 +113,30 @@ test("normalizes only canonical GitHub repository URLs", () => {
   assert.equal(normalizeGitHubRepoUrl("https://github.com/OpenAI/.codex"), null);
 });
 
+test("auth redirects stay same-origin and avoid auth loops", () => {
+  const { getSafeAuthRedirect } = loadTsModule("lib/auth-utils.ts");
+
+  assert.equal(getSafeAuthRedirect("/playground?mode=ask"), "/playground?mode=ask");
+  assert.equal(getSafeAuthRedirect("https://evil.example/steal"), "/dashboards");
+  assert.equal(getSafeAuthRedirect("//evil.example/steal"), "/dashboards");
+  assert.equal(getSafeAuthRedirect("/login"), "/dashboards");
+  assert.equal(getSafeAuthRedirect("/auth/success"), "/auth/success");
+  assert.equal(getSafeAuthRedirect("/reset-password"), "/reset-password");
+});
+
+test("auth lifecycle keeps callback errors safe and recovery flows dedicated", () => {
+  const callbackSource = readFileSync(resolve(repoRoot, "app/auth/callback/route.ts"), "utf8");
+  const loginSource = readFileSync(resolve(repoRoot, "app/login/page.tsx"), "utf8");
+  const resetSource = readFileSync(resolve(repoRoot, "components/auth/ResetPasswordForm.tsx"), "utf8");
+
+  assert.match(callbackSource, /getSafeAuthRedirect/);
+  assert.match(callbackSource, /exchangeCodeForSession/);
+  assert.doesNotMatch(callbackSource, /error_description/);
+  assert.match(loginSource, /getAuthErrorGuidance/);
+  assert.match(resetSource, /PASSWORD_RECOVERY/);
+  assert.match(resetSource, /updateUser\(\{ password \}\)/);
+});
+
 test("formats GitHub repository labels without changing legacy fallbacks", () => {
   const { GITHUB_REPOSITORY_URL_VALIDATION_MESSAGE, getGitHubRepoPath, formatGitHubRepoLabel, getGitHubRepositoryParts } = loadTsModule("lib/github-url.ts");
 

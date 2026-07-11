@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 const analysisStages = [
   { label: "Reading project structure", detail: "247 files · TypeScript · Next.js", tone: "text-cyan-200" },
@@ -6,7 +7,17 @@ const analysisStages = [
   { label: "Sources verified", detail: "Ready for grounded questions", tone: "text-emerald-200" },
 ];
 
-export function LoginVisualPanel() {
+export type LoginVisualPanelProps = {
+  eyebrow?: string;
+  headline?: ReactNode;
+  description?: string;
+};
+
+export function LoginVisualPanel({
+  eyebrow = "Understand the source",
+  headline = <>Understand any codebase <span className="text-slate-500 italic">in minutes.</span></>,
+  description = "Summarize repositories, explore indexed code, and ask grounded questions with source-backed answers.",
+}: LoginVisualPanelProps = {}) {
   return (
     <section className="command-ambient relative isolate order-2 flex min-h-[430px] flex-col overflow-hidden border-t border-white/8 px-5 py-7 sm:px-8 sm:py-9 lg:order-1 lg:min-h-screen lg:border-t-0 lg:px-[clamp(2rem,6vw,7rem)] lg:py-10">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(52,211,153,0.06),transparent_42%),radial-gradient(circle_at_20%_75%,rgba(34,211,238,0.08),transparent_32%)]" />
@@ -26,12 +37,12 @@ export function LoginVisualPanel() {
 
       <div className="relative z-10 flex flex-1 items-center py-12 lg:py-16">
         <div className="w-full max-w-2xl">
-          <p className="dandi-type-metadata mb-5 font-bold uppercase text-emerald-200/80">Understand the source</p>
+          <p className="dandi-type-metadata mb-5 font-bold uppercase text-emerald-200/80">{eyebrow}</p>
           <h1 className="dandi-type-display max-w-xl text-[clamp(2.5rem,5.2vw,5.4rem)] font-bold leading-[0.98] tracking-tight text-white">
-            Understand any codebase <span className="text-slate-500 italic">in minutes.</span>
+            {headline}
           </h1>
           <p className="mt-6 max-w-xl text-sm leading-7 text-slate-300/80 sm:text-base sm:leading-8">
-            Summarize repositories, explore indexed code, and ask grounded questions with source-backed answers.
+            {description}
           </p>
 
           <div className="dandi-surface-elevated dandi-intensity-elevated relative mt-10 overflow-hidden rounded-[26px] p-4 shadow-[var(--dandi-glow-elevated)] sm:p-5">
