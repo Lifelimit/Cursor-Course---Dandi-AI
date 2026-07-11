@@ -167,6 +167,13 @@ test("keyboard-focusable scroll regions suppress browser-default mouse focus out
   assert.match(source, /focus-visible:ring-inset/);
 });
 
+test("global keyboard focus feedback does not appear on mouse clicks", () => {
+  const source = readFileSync(resolve(repoRoot, "app/globals.css"), "utf8");
+
+  assert.match(source, /\[tabindex\]:not\(\[tabindex="-1"\]\)\)\:focus-visible/);
+  assert.doesNotMatch(source, /\[tabindex\]:not\(\[tabindex="-1"\]\)\)\:focus\s*\{/);
+});
+
 test("restores the latest durable ingestion job without selecting another repository", () => {
   const { selectRestorableIngestionJob, toLocalIngestStatus } = loadTsModule("hooks/useRepositoryIngestion.ts");
   const jobs = [
