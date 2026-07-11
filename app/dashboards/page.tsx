@@ -3,7 +3,16 @@ import DashboardClient from "./DashboardClient";
 import { redirect } from "next/navigation";
 import { getServerUsageData } from "@/lib/services/server-data.service";
 import { listRecentIngestionJobs } from "@/lib/services/ingestion-job.service";
-import { mapApiKey } from "@/types/api";
+import { getPrimaryGitHubInstallationForUser } from "@/lib/services/github-app.service";
+import type { UsageData } from "@/types/usage";
+import type { DashboardRepositoryWork } from "@/components/dashboard/dashboard-types";
+
+function getGreeting(date: Date) {
+  const hour = date.getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
 
 export default async function DashboardsPage() {
   const supabase = await createClient();
@@ -13,30 +22,63 @@ export default async function DashboardsPage() {
     redirect("/login");
   }
 
-  const usageData = await getServerUsageData();
-  const initialKeys = (usageData?.keys || []).map(mapApiKey);
-  const initialHasSuccessfulRepositoryAnalysis = Boolean(
-    (usageData?.totalUsage || 0) > 0 || (usageData?.globalTopRepos?.length || 0) > 0
-  );
+  const [usageData, profileResult, recentIngestionJobs] = await Promise.all([
+    getServerUsageData(),
+    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+    listRecentIngestionJobs({ userId: user.id, limit: 12 }).catch(() => []),
+  ]);
 
-  let initialHasAskedRepository = false;
+  let githubConnected: boolean | null = null;
   try {
-    const recentIngestionJobs = await listRecentIngestionJobs({ userId: user.id, limit: 20 });
-    initialHasAskedRepository = recentIngestionJobs.some((job) => job.status === "completed");
+    githubConnected = Boolean(await getPrimaryGitHubInstallationForUser(user.id));
   } catch {
-    initialHasAskedRepository = false;
+    // Keep this distinct from a confirmed disconnected state.
+    githubConnected = null;
   }
 
+  const recentWork: DashboardRepositoryWork[] = recentIngestionJobs.map((job) => ({
+    id: job.id,
+    repoName: job.repo_name,
+    repoUrl: job.repo_url,
+    status: job.status,
+    currentStep: job.current_step,
+    summaryAvailable: Boolean(job.summary_available),
+    indexAvailable: Boolean(job.index_available) || job.status === "completed",
+    // Keep provider/database details server-side; the dashboard only needs a recovery state.
+    errorMessage: job.status === "failed" ? "Dandi could not complete this repository workflow." : null,
+    updatedAt: job.updated_at,
+  }));
+
+  const initialUsageData: UsageData | null = usageData
+    ? {
+        plan: usageData.plan,
+        totalUsage: usageData.totalUsage,
+        keys: usageData.keys,
+        globalTopRepos: usageData.globalTopRepos,
+        activeRepositoryCount: usageData.activeRepositoryCount,
+        resetDate: usageData.resetDate,
+        nextInvoiceDate: usageData.nextInvoiceDate,
+        avgLatency: usageData.avgLatency,
+        successRate: usageData.successRate,
+        dailyAnalytics: usageData.dailyAnalytics,
+      }
+    : null;
+
+  const hasRepositoryActivity = Boolean(
+    usageData?.globalTopRepos?.length || recentWork.some((work) => work.summaryAvailable || work.status === "completed"),
+  );
+  const hasIndexedRepository = recentWork.some((work) => work.indexAvailable);
+
   return (
-    <DashboardClient 
-      initialUser={user} 
-      initialKeys={initialKeys} 
-      initialPlan={usageData?.plan || "Hobby"} 
-      initialAvgLatency={usageData?.avgLatency || 0}
-      initialSuccessRate={usageData?.successRate || 100}
-      initialResetDate={usageData?.resetDate || null}
-      initialHasSuccessfulRepositoryAnalysis={initialHasSuccessfulRepositoryAnalysis}
-      initialHasAskedRepository={initialHasAskedRepository}
+    <DashboardClient
+      initialUser={user}
+      initialDisplayName={profileResult.data?.full_name || null}
+      initialGreeting={getGreeting(new Date())}
+      initialUsageData={initialUsageData}
+      initialRecentWork={recentWork}
+      initialGithubConnected={githubConnected}
+      initialHasRepositoryActivity={hasRepositoryActivity}
+      initialHasIndexedRepository={hasIndexedRepository}
     />
   );
 }

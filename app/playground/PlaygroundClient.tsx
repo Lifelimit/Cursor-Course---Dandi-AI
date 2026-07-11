@@ -70,11 +70,13 @@ const RepositoryChatPanel = dynamic(
 export default function PlaygroundClient({ 
   initialUser,
   initialKeys = [],
-  initialPlan = "Hobby"
+  initialPlan = "Hobby",
+  initialRepositoryUrl = "",
 }: { 
   initialUser: User | null;
   initialKeys?: ApiKey[];
   initialPlan?: string;
+  initialRepositoryUrl?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -104,9 +106,9 @@ export default function PlaygroundClient({
   const [apiKey, setApiKey] = useState("");
   const [selectedKey, setSelectedKey] = useState<string>("");
   const [selectValue, setSelectValue] = useState("");
-  const [githubUrl, setGithubUrl] = useState("");
+  const [githubUrl, setGithubUrl] = useState(initialRepositoryUrl);
   const apiKeyRef = useRef("");
-  const githubUrlRef = useRef("");
+  const githubUrlRef = useRef(initialRepositoryUrl);
   const [viewMode, setViewMode] = useState<"visual" | "json">("visual");
   const [errorMessage, setErrorMessage] = useState("");
   const [repositoryUrlError, setRepositoryUrlError] = useState("");

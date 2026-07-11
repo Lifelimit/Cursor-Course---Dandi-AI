@@ -92,9 +92,9 @@ export type SidebarAlert = {
 };
 
 export type SidebarProps = {
-  totalUsage?: number;
+  totalUsage?: number | null;
   plan?: string;
-  limit?: number;
+  limit?: number | null;
   isUnlimited?: boolean;
   alerts?: SidebarAlert[];
   onUpdate?: () => void;
@@ -117,14 +117,18 @@ export function Sidebar({
   const userInitial = user?.email?.[0]?.toUpperCase() || "U";
   const activeNavItem = NAV_ITEMS.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
   const activeMobileLabel = activeNavItem?.mobileName || "Menu";
-  const usagePct = isUnlimited || limit <= 0 ? 0 : Math.min((totalUsage / limit) * 100, 100);
-  const usageRemaining = isUnlimited ? null : Math.max(limit - totalUsage, 0);
+  const hasUsage = typeof totalUsage === "number";
+  const resolvedTotalUsage = totalUsage ?? 0;
+  const hasLimit = typeof limit === "number" && limit > 0;
+  const usagePct = !hasUsage || isUnlimited || !hasLimit ? 0 : Math.min((resolvedTotalUsage / limit) * 100, 100);
+  const usageRemaining = !hasUsage || isUnlimited || !hasLimit ? null : Math.max(limit - resolvedTotalUsage, 0);
   const usageTone =
     isUnlimited ? "success" :
     usagePct >= 100 ? "critical" :
     usagePct >= 80 ? "warning" :
     "healthy";
   const usageLabel =
+    !hasUsage ? "Unavailable" :
     usageTone === "critical" ? "Limit reached" :
     usageTone === "warning" ? "Review usage" :
     isUnlimited ? "No monthly cap" :
@@ -393,16 +397,16 @@ export function Sidebar({
         <div className="mb-2.5 flex items-end justify-between gap-3">
           <div>
             <p className="font-mono text-lg font-black tabular-nums text-white">
-              {formatRequestCount(totalUsage)}
+              {hasUsage ? formatRequestCount(resolvedTotalUsage) : "Unavailable"}
             </p>
             <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-500">Requests used</p>
           </div>
           <div className="min-w-0 text-right">
             <p className="font-mono text-xs font-bold tabular-nums text-slate-200">
-              {isUnlimited ? "Unlimited requests" : `${formatRequestCount(usageRemaining ?? 0)} remaining`}
+              {isUnlimited ? "Unlimited requests" : usageRemaining === null ? "Unavailable" : `${formatRequestCount(usageRemaining)} remaining`}
             </p>
             <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-500">
-              {isUnlimited ? "Monthly request limit" : "Remaining quota"}
+              {isUnlimited ? "Monthly request limit" : usageRemaining === null ? "Capacity status" : "Remaining quota"}
             </p>
           </div>
         </div>
@@ -415,13 +419,17 @@ export function Sidebar({
         </div>
 
         <div className="mt-3 flex items-center justify-between gap-3">
-          {isUnlimited ? (
+              {!hasUsage ? (
+            <p className="min-w-0 text-[9px] font-medium leading-relaxed text-slate-500">
+              Usage status is unavailable until the snapshot reconnects.
+            </p>
+          ) : isUnlimited ? (
             <p className="min-w-0 text-[9px] font-medium leading-relaxed text-slate-500">
               Your plan does not enforce a monthly request cap.
             </p>
           ) : (
             <p className="min-w-0 text-[9px] font-medium leading-relaxed text-slate-500">
-              Monthly request limit: <span className="font-mono text-slate-300">{formatRequestCount(limit)}</span> requests this cycle.
+              Monthly request limit: <span className="font-mono text-slate-300">{hasLimit ? formatRequestCount(limit) : "Unavailable"}</span> requests this cycle.
             </p>
           )}
           <Link
