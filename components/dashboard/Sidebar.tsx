@@ -204,7 +204,7 @@ export function Sidebar({
               className="dashboard-profile-trigger block shrink-0 rounded-full outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 cursor-pointer"
               aria-controls="dashboard-profile-popover"
               aria-expanded={isProfileOpen}
-              aria-label="User Profile menu"
+              aria-label="User profile"
             >
               {user.user_metadata?.avatar_url ? (
                 <Image
@@ -252,7 +252,7 @@ export function Sidebar({
         <div
           id="dashboard-profile-popover"
           hidden={!isProfileOpen}
-          role="menu"
+          role="group"
           aria-label="User profile"
           className="dashboard-profile-popover absolute right-3 top-[calc(100%+8px)] z-[110] w-64 rounded-xl border border-white/10 bg-slate-950/95 p-4 text-slate-100 shadow-[0_24px_80px_rgba(0,0,0,0.4)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-250 md:hidden"
         >
