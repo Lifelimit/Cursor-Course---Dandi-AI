@@ -115,7 +115,7 @@ export function Sidebar({
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const userInitial = user?.email?.[0]?.toUpperCase() || "U";
-  const activeNavItem = NAV_ITEMS.find((item) => item.href === pathname);
+  const activeNavItem = NAV_ITEMS.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
   const activeMobileLabel = activeNavItem?.mobileName || "Menu";
   const usagePct = isUnlimited || limit <= 0 ? 0 : Math.min((totalUsage / limit) * 100, 100);
   const usageRemaining = isUnlimited ? null : Math.max(limit - totalUsage, 0);
@@ -161,7 +161,7 @@ export function Sidebar({
   };
 
   return (
-    <aside className="sticky top-3 z-[100] flex h-fit w-full flex-col gap-3 rounded-2xl border border-white/5 bg-slate-950/60 p-3 text-slate-100 shadow-[0_24px_90px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-2xl md:top-12 md:w-72 md:shrink-0 md:gap-6 md:rounded-[32px] md:p-6">
+    <aside className="dandi-surface-workspace dandi-intensity-standard relative sticky top-3 z-[100] flex h-fit w-full flex-col gap-3 rounded-2xl border p-3 text-slate-100 backdrop-blur-2xl md:top-12 md:w-72 md:shrink-0 md:gap-6 md:rounded-[32px] md:p-6">
       {/* Subtle background glow */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
       <div aria-hidden="true" className="pointer-events-none absolute -left-20 -top-24 h-48 w-48 rounded-full bg-emerald-500/5 blur-3xl" />
@@ -178,7 +178,7 @@ export function Sidebar({
         {/* Mobile controls */}
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2 md:hidden">
           <span
-            className="inline-flex min-w-0 max-w-[38vw] truncate rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-200 shadow-inner min-[360px]:max-w-[42vw] min-[420px]:max-w-[150px]"
+            className="dandi-type-metadata inline-flex min-w-0 max-w-[38vw] truncate rounded-full border border-[var(--dandi-border-standard)] bg-white/[0.04] px-2.5 py-1.5 font-bold uppercase text-slate-200 shadow-inner min-[360px]:max-w-[42vw] min-[420px]:max-w-[150px]"
             title={activeNavItem?.name || activeMobileLabel}
           >
             {activeMobileLabel}
@@ -280,24 +280,23 @@ export function Sidebar({
         id="dashboard-mobile-nav"
         className={`${isMobileNavOpen ? "block" : "hidden"} relative min-w-0 md:block md:flex-1`}
       >
+        <p className="dandi-type-metadata mb-2 px-2 font-black uppercase text-[var(--dandi-text-meta)]">Product navigation</p>
         <div className="grid gap-1 px-0.5 pb-1 md:block md:space-y-1 md:px-0 md:pb-0">
           {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 onClick={() => setIsMobileNavOpen(false)}
-                className={`group relative flex items-center gap-3 overflow-hidden rounded-xl px-4 py-3 text-[10px] font-bold uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/50 ${
+                aria-current={isActive ? "page" : undefined}
+                className={`dandi-nav-item group relative flex items-center gap-3 overflow-hidden rounded-xl px-4 py-3 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                   isActive
-                    ? "border border-emerald-500/25 bg-emerald-500/5 text-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.08),inset_0_0_12px_rgba(52,211,153,0.04)]"
-                    : "border border-transparent text-slate-400 hover:border-white/5 hover:bg-white/[0.03] hover:text-white"
+                    ? "dandi-nav-item-active text-emerald-200"
+                    : "text-slate-400 hover:text-white"
                 }`}
               >
-                {isActive && (
-                  <span aria-hidden="true" className="absolute left-0 top-3 bottom-3 w-[2px] rounded-r bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                )}
-                {item.icon(isActive ? "h-4 w-4 text-emerald-400 shrink-0" : "h-4 w-4 text-slate-500 group-hover:text-slate-300 transition-colors shrink-0")}
+                {item.icon(isActive ? "h-4 w-4 text-emerald-300 shrink-0" : "h-4 w-4 text-slate-500 group-hover:text-slate-300 transition-colors shrink-0")}
                 <span className="truncate">{item.name}</span>
               </Link>
             );
@@ -306,7 +305,7 @@ export function Sidebar({
       </nav>
 
       {/* System Alerts widget wrapper */}
-      <div className={`${isMobileNavOpen ? "block px-0.5 pb-2" : "hidden"} relative md:block`}>
+      <div className={`${isMobileNavOpen ? "block px-0.5 pb-2" : "hidden"} relative border-t border-[var(--dandi-border-subtle)] pt-4 md:block`}>
         <SidebarAlerts
           alerts={alerts}
           plan={plan}
@@ -316,7 +315,7 @@ export function Sidebar({
 
       {/* Console User Profile Card (Desktop Only) */}
       {user && (
-        <div className="hidden md:flex flex-col gap-3.5 rounded-2xl border border-white/5 bg-slate-900/10 p-3.5">
+        <div className="dandi-surface-solid hidden flex-col gap-3.5 rounded-2xl border p-3.5 md:flex">
           <div className="flex items-center gap-3">
             {user.user_metadata?.avatar_url ? (
               <Image
@@ -358,7 +357,7 @@ export function Sidebar({
       )}
 
       {/* Quota Widget */}
-      <div className={`${isMobileNavOpen ? "block mx-0.5 mb-2 mt-4" : "hidden"} relative rounded-2xl border border-white/5 bg-slate-900/10 p-4 md:block md:mx-0 md:mb-0 md:mt-2`}>
+      <div className={`${isMobileNavOpen ? "block mx-0.5 mb-2 mt-4" : "hidden"} dandi-surface-solid relative rounded-2xl border p-4 md:block md:mx-0 md:mb-0 md:mt-2`}>
         <div className="mb-3.5 flex flex-col gap-1">
           <div className="flex items-center justify-between gap-3">
             <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500">Current Plan</p>

@@ -20,9 +20,12 @@ export function PlanStatusCard({
 }: PlanStatusCardProps) {
   const fallbackResetDate = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
   const remainingQuota = isUnlimited ? null : Math.max(currentLimit - totalUsage, 0);
+  const usagePct = isUnlimited || currentLimit <= 0 ? 0 : Math.min((totalUsage / currentLimit) * 100, 100);
+  const usageTone = isUnlimited ? "success" : usagePct >= 100 ? "danger" : usagePct >= 80 ? "warning" : "info";
+  const usageLabel = isUnlimited ? "No monthly cap" : usagePct >= 100 ? "Limit reached" : usagePct >= 80 ? "Review usage" : "Usage healthy";
 
   return (
-    <CommandPanel padding="none" className="group relative overflow-hidden p-5 sm:p-8 md:p-10">
+    <CommandPanel tone={usageTone === "danger" ? "danger" : "elevated"} padding="none" className="group relative overflow-hidden p-5 sm:p-8 md:p-10">
       <div
         className="pointer-events-none absolute inset-0 opacity-70 transition-opacity duration-300 group-hover:opacity-100"
         style={{
@@ -36,11 +39,11 @@ export function PlanStatusCard({
         <div className="flex-1 space-y-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/80">Current Plan</p>
+              <p className="dandi-type-metadata font-black uppercase text-emerald-300/80">Current Plan</p>
               <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                 <h2 className="font-serif text-4xl font-bold italic tracking-tight text-white sm:text-5xl">{currentPlan}</h2>
                 {isUnlimited && (
-                  <StatusPill tone="success" compact>Unlimited requests</StatusPill>
+                <StatusPill tone="success" compact>Unlimited requests</StatusPill>
                 )}
               </div>
             </div>
@@ -59,20 +62,24 @@ export function PlanStatusCard({
                 Monthly requests <span className="mx-2 opacity-20">/</span> <span className="text-white">{formatRequestCount(totalUsage)}</span>
               </p>
               <div className="flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-300">
+                <StatusPill tone={usageTone} compact>{usageLabel}</StatusPill>
+                <span className="dandi-type-metadata font-black uppercase text-[var(--dandi-text-muted)]">
                   Resets: {resetDate ? formatShortDate(resetDate) : formatShortDate(fallbackResetDate)}
                 </span>
               </div>
             </div>
 
-            <div className="relative h-3 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className="relative h-3 w-full overflow-hidden rounded-full border border-[var(--dandi-border-subtle)] bg-black/25"
+              role="progressbar"
+              aria-label="Monthly request usage"
+              aria-valuemin={0}
+              aria-valuemax={isUnlimited ? undefined : currentLimit}
+              aria-valuenow={isUnlimited ? undefined : totalUsage}
+            >
               <div
-                className="h-full bg-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.35)] transition-all duration-1000 ease-out"
-                style={{ width: `${isUnlimited ? 100 : Math.min((totalUsage / currentLimit) * 100, 100)}%` }}
+                className={`h-full transition-[width] duration-500 ease-out ${usageTone === "danger" ? "bg-rose-400 shadow-[var(--dandi-glow-critical)]" : usageTone === "warning" ? "bg-amber-300 shadow-[0_0_16px_rgba(251,191,36,0.22)]" : "bg-emerald-400 shadow-[var(--dandi-glow-standard)]"}`}
+                style={{ width: `${isUnlimited ? 100 : usagePct}%` }}
               ></div>
             </div>
 

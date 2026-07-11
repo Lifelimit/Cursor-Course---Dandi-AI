@@ -52,7 +52,7 @@ export function AnimatedBackground({
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
       className={cx(
-        "command-ambient relative overflow-hidden",
+        "command-ambient dandi-surface-ambient relative overflow-hidden",
         intensityClasses[intensity],
         `command-ambient-${variant}`,
         className

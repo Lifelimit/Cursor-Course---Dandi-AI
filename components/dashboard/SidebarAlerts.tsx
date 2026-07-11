@@ -81,12 +81,12 @@ export function SidebarAlerts({
 
   return (
     <div className="mt-8 space-y-4">
-      <div className="flex items-center justify-between px-2">
+      <div className="flex items-center justify-between border-t border-[var(--dandi-border-subtle)] px-2 pt-4">
         <div>
-          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Action Needed</h4>
-          <p className="mt-0.5 text-[8px] font-medium text-zinc-500">Usage alerts with a next step.</p>
+          <h4 className="dandi-type-metadata font-black uppercase text-amber-200">Action Needed</h4>
+          <p className="mt-0.5 text-[9px] font-medium text-[var(--dandi-text-meta)]">Usage alerts with a next step.</p>
         </div>
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] px-1 text-[8px] font-bold text-white">
+        <span className="dandi-type-metadata flex h-5 min-w-5 items-center justify-center rounded-full border border-amber-300/25 bg-amber-300/10 px-1 font-bold text-amber-200">
           {alerts.length}
         </span>
       </div>
@@ -116,24 +116,21 @@ export function SidebarAlerts({
               ? "This key is already at the maximum allowed usage limit."
               : "This key is already at your plan maximum. Upgrade the account plan to raise it further.";
           
-          const dotColor = isMaxed ? 'bg-red-600 command-pulse' :
-                          isCritical ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' :
-                          isWarning ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]' : 
-                          'bg-zinc-400';
+          const dotColor = isMaxed || isCritical ? 'bg-rose-300' : isWarning ? 'bg-amber-300' : 'bg-cyan-300';
           const cardClasses = isMaxed || isCritical
-            ? "border-red-500/25 bg-red-950/10"
+            ? "border-[var(--dandi-border-critical)] bg-rose-950/20 shadow-[var(--dandi-glow-critical)]"
             : isWarning
-              ? "border-amber-400/20 bg-amber-950/10"
-              : "border-white/10 bg-slate-950/50";
+              ? "border-amber-300/25 bg-amber-950/15"
+              : "border-cyan-300/15 bg-slate-950/45";
 
           return (
             <div key={alert.id} className="relative group">
               {/* Main Card */}
               <div 
-                className={`relative z-10 block rounded-2xl border p-3 transition-all duration-500 ${cardClasses}`}
+                className={`relative z-10 block rounded-2xl border p-3 dandi-transition ${cardClasses}`}
               >
                 <div className="flex items-start gap-3">
-                  <div className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColor}`} />
+                  <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${dotColor}`} aria-hidden="true" />
                   <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                       <span className="block truncate text-[10px] font-black uppercase tracking-tight text-white">

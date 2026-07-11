@@ -14,8 +14,8 @@ const variantClasses: Record<NonNullable<CommandShellProps["variant"]>, string> 
   dashboard: "selection:bg-cyan-400/25",
   playground: "selection:bg-emerald-400/25",
   usage: "selection:bg-cyan-400/25",
-  billing: "selection:bg-indigo-400/25",
-  account: "selection:bg-slate-400/25",
+  billing: "selection:bg-amber-400/25 dandi-route-billing",
+  account: "selection:bg-slate-400/25 dandi-route-account",
   auth: "selection:bg-violet-400/25",
 };
 
@@ -36,7 +36,7 @@ export function CommandShell({
   className,
 }: CommandShellProps) {
   const shellClassName = cx(
-    "min-h-dvh min-w-0 overflow-x-hidden bg-[var(--command-bg)] text-[var(--command-text)]",
+    "dandi-type-interface min-h-dvh min-w-0 overflow-x-hidden bg-[var(--command-bg)] text-[var(--command-text)]",
     variantClasses[variant],
     className,
   );

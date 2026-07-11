@@ -53,7 +53,7 @@ export function DashboardPageHeader({
 
         return (
           <div
-            className={`inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-950/20 px-3.5 py-1.5 text-[9px] font-bold font-mono uppercase tracking-[0.18em] text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.08)] backdrop-blur-md transition-all ${
+            className={`dandi-type-metadata inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-950/20 px-3.5 py-1.5 font-bold uppercase text-emerald-400 shadow-[var(--dandi-glow-subtle)] backdrop-blur-md dandi-transition ${
               isSyncing ? "border-emerald-400/40 shadow-[0_0_15px_rgba(52,211,153,0.18)]" : ""
             }`}
             title={isSyncing ? "Refreshing dashboard data" : "Dashboard ready"}
@@ -80,7 +80,7 @@ export function DashboardPageHeader({
   return (
     <header className="min-w-0">
       <div
-        className="min-w-0 rounded-[24px] border border-emerald-300/25 bg-[var(--command-panel)] shadow-[0_24px_90px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl md:rounded-[32px] relative isolate overflow-hidden p-5 sm:p-8"
+        className="dandi-surface-elevated dandi-intensity-elevated relative isolate min-w-0 overflow-hidden rounded-[24px] border p-5 backdrop-blur-xl sm:p-8 md:rounded-[32px]"
         style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
       >
         <div
@@ -96,15 +96,15 @@ export function DashboardPageHeader({
         <div className="relative flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 space-y-2">
             {eyebrow && (
-              <p className="font-mono text-[10px] font-black uppercase tracking-[0.3em] text-emerald-300">
+              <p className="dandi-type-metadata font-black uppercase text-emerald-300">
                 {eyebrow}
               </p>
             )}
-            <h1 className="font-serif text-4xl font-bold tracking-tight text-white drop-shadow-[0_0_28px_rgba(52,211,153,0.1)] sm:text-5xl">
+            <h1 className="dandi-type-display text-4xl font-bold tracking-tight text-white drop-shadow-[0_0_28px_rgba(52,211,153,0.1)] sm:text-5xl">
               {title}
             </h1>
             {description && (
-              <p className="max-w-3xl text-sm font-medium leading-relaxed text-slate-400">
+              <p className="dandi-type-interface max-w-3xl text-sm font-medium leading-relaxed text-slate-300/85">
                 {description}
               </p>
             )}
@@ -117,7 +117,7 @@ export function DashboardPageHeader({
         </div>
 
         {children && (
-          <div className="relative mt-8 border-t border-white/10 pt-6">
+          <div className="relative mt-8 border-t border-[var(--dandi-border-standard)] pt-6">
             <ScrollFrame axis="x" className="-mx-1 px-1 pb-1" label="Dashboard page controls">
               {children}
             </ScrollFrame>
