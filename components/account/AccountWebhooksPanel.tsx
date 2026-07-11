@@ -55,10 +55,11 @@ export function AccountWebhooksPanel({
     : "";
 
   return (
-    <CommandPanel id="account-webhooks-panel" role="tabpanel" aria-labelledby="webhooks-tab" className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
+    <CommandPanel id="account-webhooks-panel" role="tabpanel" aria-labelledby="webhooks-tab" tone="elevated" className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
       <div className="space-y-1">
-        <h3 className="font-serif text-xl font-bold text-white sm:text-2xl">Alert Webhooks</h3>
-        <p className="text-sm text-slate-400">Configure the endpoint Dandi uses for alert webhook deliveries. Test deliveries are live; persisted alert delivery history is not available yet.</p>
+        <p className="dandi-type-metadata text-cyan-200/75">Event delivery plane</p>
+        <h3 className="dandi-type-display text-3xl font-bold tracking-tight text-white sm:text-4xl">Webhooks</h3>
+        <p className="max-w-2xl text-sm leading-6 text-slate-400">Configure the endpoint Dandi uses for alert deliveries, send a real test, and inspect recent delivery history.</p>
       </div>
 
       <form onSubmit={onSubmit} className="max-w-xl space-y-6">

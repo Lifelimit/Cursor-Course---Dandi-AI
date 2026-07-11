@@ -38,9 +38,10 @@ export function AccountProfilePanel({
   const orgSlugFormatError = Boolean(normalizedOrgSlug && !/^[a-z0-9-]+$/.test(normalizedOrgSlug));
 
   return (
-    <CommandPanel id="account-profile-panel" role="tabpanel" aria-labelledby="profile-tab" className="space-y-8 p-5 sm:p-8 md:p-10">
+    <CommandPanel id="account-profile-panel" role="tabpanel" aria-labelledby="profile-tab" tone="elevated" className="space-y-8 p-5 sm:p-8 md:p-10">
       <PanelHeader
-        title="Developer Profile"
+        eyebrow="Identity plane"
+        title="Profile"
         description="Manage the identity fields Dandi stores for this account. Email, plan, and provider avatar are read-only here."
       />
 
@@ -56,7 +57,7 @@ export function AccountProfilePanel({
             aria-describedby={emailHelpId}
           />
           <p id={emailHelpId} className="text-[11px] text-zinc-500 leading-relaxed ml-1">
-            Read-only on this tab. Use Security & Sign-in to start an account email change.
+            Read-only on this tab. Use Security to start an account email change.
           </p>
         </div>
 
@@ -73,6 +74,9 @@ export function AccountProfilePanel({
           <p id={planHelpId} className="text-[11px] text-zinc-500 leading-relaxed ml-1">
             Read-only here. Plan changes live in Billing.
           </p>
+          <a href="/billing" className="ml-1 inline-flex min-h-9 items-center text-[10px] font-black uppercase tracking-[0.15em] text-emerald-300 transition hover:text-emerald-200 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">
+            Manage billing <span aria-hidden="true" className="ml-1">↗</span>
+          </a>
         </div>
 
         <div className="space-y-2">
@@ -159,7 +163,7 @@ export function AccountProfilePanel({
           aria-describedby={saveMessage ? saveMessageId : undefined}
           className="rounded-full bg-emerald-500 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-95 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 cursor-pointer"
         >
-          {isSavingProfile ? "Saving profile..." : "Save developer profile"}
+          {isSavingProfile ? "Saving profile..." : "Save profile"}
         </button>
       </form>
     </CommandPanel>

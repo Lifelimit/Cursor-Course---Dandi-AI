@@ -224,10 +224,10 @@ export function AccountEnvironmentPanel() {
   };
 
   return (
-    <CommandPanel id="account-integrations-panel" role="tabpanel" aria-labelledby="integrations-tab" className="min-w-0 space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-10">
+    <CommandPanel id="account-integrations-panel" role="tabpanel" aria-labelledby="github-tab" tone="elevated" className="min-w-0 space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-10">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="space-y-1">
-          <h3 className="font-serif text-xl font-bold text-white sm:text-2xl">Git Providers</h3>
+          <h3 className="dandi-type-display text-3xl font-bold tracking-tight text-white sm:text-4xl">GitHub</h3>
           <p className="max-w-3xl text-sm text-slate-400">
             Connect the Dandi GitHub App and review the repository snapshot verified for your GitHub user.
           </p>

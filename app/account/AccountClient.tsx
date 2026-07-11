@@ -12,7 +12,7 @@ import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { getPlanLimits } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
-import { CommandPanel, TabsBar } from "@/components/command";
+import { CommandPanel } from "@/components/command";
 import { useProgressiveList } from "@/hooks/useProgressiveList";
 import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
 import { formatRelativeTime } from "@/lib/format";
@@ -30,19 +30,21 @@ import { AccountApiKeyCreateModal } from "@/components/account/AccountApiKeyCrea
 import { AccountApiKeyRevocationModal } from "@/components/account/AccountApiKeyRevocationModal";
 import { AccountDeliveryLogInspectorModal } from "@/components/account/AccountDeliveryLogInspectorModal";
 import { AccountEnvironmentPanel } from "@/components/account/AccountEnvironmentPanel";
+import { AccountApiAccessPanel } from "@/components/account/AccountApiAccessPanel";
 import { AccountProfilePanel } from "@/components/account/AccountProfilePanel";
 import { AccountSecurityPanel } from "@/components/account/AccountSecurityPanel";
+import { AccountSettingsNav, type AccountSettingsSection } from "@/components/account/AccountSettingsNav";
 import { AccountWebhooksPanel } from "@/components/account/AccountWebhooksPanel";
 
-type AccountTab = "profile" | "integrations" | "webhooks" | "security";
 type AccessView = "api" | "browser";
 type DeliveryLogModalTab = "request" | "response";
 type ProfileSaveMessage = { type: "success" | "error"; text: string } | null;
 
 const ORG_SLUG_PATTERN = /^[a-z0-9-]+$/;
 
-function parseAccountTab(value: string | null): AccountTab {
-  return value === "integrations" || value === "webhooks" || value === "security" || value === "profile"
+function parseAccountTab(value: string | null): AccountSettingsSection {
+  if (value === "integrations") return "github";
+  return value === "github" || value === "api" || value === "webhooks" || value === "security" || value === "profile"
     ? value
     : "profile";
 }
@@ -58,7 +60,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState<AccountTab>(() => parseAccountTab(searchParams.get("tab")));
+  const [activeTab, setActiveTab] = useState<AccountSettingsSection>(() => parseAccountTab(searchParams.get("tab")));
   const [accessView, setAccessView] = useState<AccessView>("api");
 
   const [fullName, setFullName] = useState("");
@@ -449,31 +451,25 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         }}
       >
         <DashboardPageHeader
-          eyebrow="Account / Settings"
-          title="Account"
-          description="Manage your profile, API namespace, webhooks, and provider integrations."
-        >
-          <TabsBar
-            tabs={[
-              { id: "profile", label: "Developer Profile", controlsId: "account-profile-panel" },
-              { id: "integrations", label: "Git Providers", controlsId: "account-integrations-panel" },
-              { id: "webhooks", label: "Alert Webhooks", controlsId: "account-webhooks-panel" },
-              { id: "security", label: "Security & Sign-in", controlsId: "account-security-panel" },
-            ]}
-            activeId={activeTab}
-            onChange={(id) => {
-              const tab = id as AccountTab;
-              setActiveTab(tab);
+          eyebrow="Workspace / Settings"
+          title="Workspace settings"
+          description="Manage identity, connected services, developer access, and account protection from one focused control plane."
+        />
+
+        <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(190px,220px)_minmax(0,1fr)] xl:gap-8">
+          <AccountSettingsNav
+            activeSection={activeTab}
+            onChange={(section) => {
+              setActiveTab(section);
               const params = new URLSearchParams(window.location.search);
-              if (params.get("tab") !== tab) {
-                params.set("tab", tab);
+              if (params.get("tab") !== section) {
+                params.set("tab", section);
                 router.push(`/account?${params.toString()}`, { scroll: false });
               }
             }}
-            variant="pills"
-            ariaLabel="Account settings sections"
           />
-        </DashboardPageHeader>
+
+          <div className="min-w-0">
 
         {accountLoadError && (
           <GuidedError
@@ -526,8 +522,23 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
               />
             )}
 
-            {activeTab === "integrations" && (
+            {activeTab === "github" && (
               <AccountEnvironmentPanel />
+            )}
+
+            {activeTab === "api" && (
+              <AccountApiAccessPanel
+                accessView={accessView}
+                accessError={accessLoadError}
+                currentBrowser={currentBrowser}
+                apiKeys={apiKeys}
+                recentRequests={recentRequests}
+                onAccessViewChange={setAccessView}
+                onCreateApiKey={() => setIsCreateApiKeyOpen(true)}
+                onInspectApiActivity={setInspectedApiActivity}
+                onRevokeApiKey={handleRevokeApiKey}
+                onRefreshSessions={loadData}
+              />
             )}
 
             {activeTab === "webhooks" && (
@@ -555,21 +566,11 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
             {activeTab === "security" && (
               <AccountSecurityPanel
-                accessView={accessView}
-                accessError={accessLoadError}
-                currentBrowser={currentBrowser}
-                apiKeys={apiKeys}
-                recentRequests={recentRequests}
                 newPassword={newPassword}
                 confirmPassword={confirmPassword}
                 newEmail={newEmail}
                 isSavingPassword={isSavingPassword}
                 isSavingEmail={isSavingEmail}
-                onAccessViewChange={setAccessView}
-                onCreateApiKey={() => setIsCreateApiKeyOpen(true)}
-                onInspectApiActivity={setInspectedApiActivity}
-                onRevokeApiKey={handleRevokeApiKey}
-                onRefreshSessions={loadData}
                 onNewPasswordChange={setNewPassword}
                 onConfirmPasswordChange={setConfirmPassword}
                 onNewEmailChange={setNewEmail}
@@ -579,6 +580,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
             )}
           </div>
         )}
+          </div>
+        </div>
       </DashboardShell>
 
       {inspectedLog && (
