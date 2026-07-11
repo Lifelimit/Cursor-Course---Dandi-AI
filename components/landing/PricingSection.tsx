@@ -170,7 +170,7 @@ export function PricingSection({
               role="switch"
               aria-checked={billingInterval === "year"}
               aria-label={`Billing interval: ${billingInterval === "year" ? "annual" : "monthly"}`}
-              className="relative h-6 w-12 cursor-pointer rounded-full border border-white/10 bg-slate-800 p-1 transition-colors hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+              className="relative flex h-6 w-12 cursor-pointer items-center rounded-full border border-white/10 bg-slate-800 p-1 transition-colors hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
             >
               <div className={`h-4 w-4 rounded-full bg-emerald-300 shadow-sm transition-transform ${billingInterval === "year" ? "translate-x-6" : "translate-x-0"}`} aria-hidden="true" />
             </button>
