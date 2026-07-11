@@ -68,18 +68,18 @@ export function RepositoryRequestBuilder({
             : "Preparing Repository...";
 
   return (
-    <CommandPanel padding="none" className="p-5 sm:p-8">
+    <CommandPanel padding="none" className="border-emerald-300/15 bg-slate-950/65 p-5 shadow-[0_22px_70px_rgba(0,0,0,0.18)] sm:p-8">
       <form onSubmit={activeTab === "summary" ? handleSummarize : handleIngest} className="space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Request Builder</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-200/70">Control plane</p>
             <h2 className="mt-1 font-serif text-2xl font-bold text-white">
-              {activeTab === "summary" ? "Repository Summary Request" : "Ask a Repository Request"}
+              {activeTab === "summary" ? "Summarize a repository" : "Prepare a repository to ask questions"}
             </h2>
             <p className="mt-2 max-w-2xl text-xs font-semibold leading-relaxed text-slate-400">
               {activeTab === "summary"
-                ? "Get an overview of a repository's structure, purpose, and key components."
-                : "Index a repository once, then ask source-backed questions."}
+                ? "Explore an unfamiliar repository with a fast overview of its purpose, structure, and key components."
+                : "Prepare a repository once, then Ask source-backed questions and inspect the evidence."}
             </p>
           </div>
           <StatusPill tone={activeTab === "summary" ? "info" : "success"} compact>
@@ -90,11 +90,11 @@ export function RepositoryRequestBuilder({
           <div className="space-y-3">
             <div className="flex min-h-16 flex-col gap-3 px-1 sm:flex-row sm:items-start sm:justify-start sm:gap-8 lg:min-h-16">
               <label htmlFor="api-key" className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 leading-none">
-                API Key
+                API key
               </label>
               {apiKeys.length > 0 && (
                 <div className="flex w-full flex-col items-start gap-2 sm:w-auto">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 leading-none">Quick Select</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 leading-none">Select saved key</span>
                   <ApiKeyDropdown
                     apiKeys={apiKeys}
                     value={selectValue}
@@ -170,7 +170,7 @@ export function RepositoryRequestBuilder({
           <div className="space-y-3">
             <div className="flex min-h-16 items-start px-1">
               <label htmlFor="github-url" className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 leading-none">
-                GitHub Repository URL
+                GitHub repository URL
               </label>
             </div>
             <input
@@ -238,7 +238,7 @@ export function RepositoryRequestBuilder({
                 </>
               ) : (
                 <>
-                  {ingestedRepo === githubUrl && ingestStatus === "completed" ? "Re-index Repository" : "Index Repository"}
+                  {ingestedRepo === githubUrl && ingestStatus === "completed" ? "Re-index repository" : "Prepare repository"}
                   <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
                     <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -255,7 +255,7 @@ export function RepositoryRequestBuilder({
           </button>
         </div>
         <p className="text-center text-[11px] font-medium leading-relaxed text-slate-500 sm:text-left">
-          Demo Mode uses a limited demo key for public repositories only. User-created API keys count successful requests toward your monthly request usage.
+          Try a sample repository is secondary. User-created API keys count successful requests toward monthly request usage.
         </p>
       </form>
     </CommandPanel>

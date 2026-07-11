@@ -78,7 +78,7 @@ export function RepositorySummaryPanel({
   indexedChunksLabel,
 }: RepositorySummaryPanelProps) {
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700" aria-label="Result plane">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <TabsBar
           tabs={[
@@ -118,8 +118,9 @@ export function RepositorySummaryPanel({
           <div className="flex flex-col gap-8 lg:flex-row">
             <div className="min-w-0 flex-1 space-y-6">
               <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/80">Repository Summary</p>
-                <h2 className="font-serif text-3xl font-bold italic text-white">What Dandi Found</h2>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/80">Result plane · repository summary</p>
+                <h2 className="font-serif text-3xl font-bold italic text-white">What Dandi found</h2>
+                {githubUrl && <p className="mt-2 truncate font-mono text-xs text-cyan-200" title={githubUrl}>{getRepoPath(githubUrl)}</p>}
               </div>
 
               <div className="flex flex-wrap gap-4">

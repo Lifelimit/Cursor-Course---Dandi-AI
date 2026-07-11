@@ -11,8 +11,8 @@ export function PlaygroundModeTabs({ activeTab, onChange }: PlaygroundModeTabsPr
   return (
     <TabsBar
       tabs={[
-        { id: "summary", label: "Repository Summary", controlsId: "playground-summary-panel" },
-        { id: "rag", label: "Ask a Repository", controlsId: "playground-rag-panel" },
+        { id: "summary", label: "Summarize", controlsId: "playground-summary-panel" },
+        { id: "rag", label: "Prepare & Ask", controlsId: "playground-rag-panel" },
       ]}
       activeId={activeTab}
       onChange={(id) => onChange(id as PlaygroundMode)}

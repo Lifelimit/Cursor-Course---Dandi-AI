@@ -401,7 +401,7 @@ export function RepositoryChatPanel({
   const hasConversationTurns = conversationTurns.length > 0;
 
   return (
-    <div ref={repositoryChatRef} className="space-y-6 scroll-mt-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div ref={repositoryChatRef} className="space-y-6 scroll-mt-24 animate-in fade-in slide-in-from-bottom-4 duration-700" aria-label="Result plane">
       <CommandPanel tone="elevated" interactive className="flex min-h-[560px] flex-col p-5 sm:p-8">
         <div className="flex flex-col gap-4 border-b border-[var(--command-border)] pb-5 select-none sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
@@ -417,7 +417,14 @@ export function RepositoryChatPanel({
               onClick={resetIngestedRepository}
               className="rounded-full border border-[var(--command-border)] bg-white/[0.03] px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-400 transition-all hover:border-emerald-300/30 hover:text-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/40 cursor-pointer"
             >
-              Change Repo
+              Choose another repository
+            </button>
+            <button
+              type="button"
+              onClick={resetIngestedRepository}
+              className="rounded-full border border-amber-300/20 bg-amber-300/[0.05] px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-amber-100 transition-all hover:border-amber-300/35 hover:text-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 cursor-pointer"
+            >
+              Re-index
             </button>
             <button
               type="button"
@@ -504,11 +511,10 @@ export function RepositoryChatPanel({
                           {sourcesVisible ? "Answer first. Sources are available for verification." : "Repository chat response"}
                         </p>
                       </div>
-                      {sourcesVisible && (
-                        <StatusPill tone="success" compact>
-                          {sourceCount} source{sourceCount === 1 ? "" : "s"}
-                        </StatusPill>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {answerContent && <button type="button" onClick={() => { navigator.clipboard.writeText(answerContent); showToast("success", "Answer copied."); }} className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400 transition-colors hover:border-emerald-300/30 hover:text-emerald-200">Copy answer</button>}
+                        {sourcesVisible && <StatusPill tone="success" compact>{sourceCount} source{sourceCount === 1 ? "" : "s"}</StatusPill>}
+                      </div>
                     </div>
 
                     <div className="prose-dandi mx-auto max-w-3xl xl:max-w-[78ch]">
@@ -587,6 +593,7 @@ export function RepositoryChatPanel({
                                       <p>This source matched the question, but no chunk preview was returned.</p>
                                     )}
                                   </div>
+                                  <button type="button" onClick={() => { navigator.clipboard.writeText(src.preview || src.filePath); showToast("success", "Source copied."); }} className="mt-2 rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-2 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-200 transition-colors hover:border-emerald-300/30">Copy source</button>
                                 </div>
 
                                 {src.chunkId && (

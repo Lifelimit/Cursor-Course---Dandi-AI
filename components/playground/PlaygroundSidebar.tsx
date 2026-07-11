@@ -48,24 +48,11 @@ export function PlaygroundSidebar({
 }: PlaygroundSidebarProps) {
   return (
     <div className="w-full space-y-6 xl:w-96 xl:shrink-0">
-      <CommandPanel className="space-y-4 p-4 sm:p-5">
-        <div className="flex justify-between items-center px-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/70">Integration Snippets</p>
-          <Link
-            href="/docs"
-            className="text-[9px] font-bold uppercase tracking-widest text-emerald-300 hover:underline transition"
-          >
-            Full API Docs →
-          </Link>
-        </div>
-        <CodeSnippet apiKey={apiKey} githubUrl={githubUrl} onCopy={(method) => showToast("success", `${method.toUpperCase()} code snippet copied!`)} mode={activeTab} />
-      </CommandPanel>
-
-      <CommandPanel className="p-6 text-white space-y-4">
+      <CommandPanel className="p-4 text-white sm:p-5">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-emerald-300">
+          <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-cyan-200">
             <LiveIndicator active={isPipelineActive} tone={hasPipelineError ? "danger" : isPipelineActive ? "warning" : "success"} />
-            Endpoint Context
+          Workflow context
           </div>
           <StatusPill tone={activeTab === "summary" ? "info" : "success"} compact>
             {activeTab === "summary" ? "REST" : "Ask"}
@@ -82,6 +69,22 @@ export function PlaygroundSidebar({
             </>
           )}
         </p>
+      </CommandPanel>
+
+      <CommandPanel padding="none" className="overflow-hidden">
+        <details>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 transition-colors hover:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-inset sm:p-5">
+            Integration snippet
+            <span className="text-slate-600">⌄</span>
+          </summary>
+          <div className="space-y-4 border-t border-white/10 p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300/70">API request example</p>
+              <Link href="/docs" className="text-[9px] font-bold uppercase tracking-widest text-emerald-300 hover:underline transition">Open docs →</Link>
+            </div>
+            <CodeSnippet apiKey={apiKey} githubUrl={githubUrl} onCopy={(method) => showToast("success", `${method.toUpperCase()} code snippet copied!`)} mode={activeTab} />
+          </div>
+        </details>
       </CommandPanel>
 
       <CommandPanel padding="none" className="overflow-hidden">

@@ -2,7 +2,7 @@
 
 import { cx } from "@/components/command/utils";
 
-export type LoadingStageStatus = "idle" | "active" | "done" | "error";
+export type LoadingStageStatus = "idle" | "active" | "done" | "error" | "skipped";
 
 export type LoadingStage = {
   id: string;
@@ -13,9 +13,10 @@ export type LoadingStage = {
 
 const statusTone: Record<LoadingStageStatus, string> = {
   idle: "border-white/10 bg-slate-950/45 text-slate-500",
-  active: "border-emerald-300/30 bg-emerald-300/[0.08] text-emerald-200",
+  active: "border-amber-300/30 bg-amber-300/[0.08] text-amber-100",
   done: "border-emerald-300/20 bg-emerald-300/[0.04] text-slate-200",
   error: "border-rose-300/30 bg-rose-400/[0.08] text-rose-200",
+  skipped: "border-white/5 bg-white/[0.015] text-slate-600",
 };
 
 function StageIcon({ status }: { status: LoadingStageStatus }) {
@@ -36,10 +37,14 @@ function StageIcon({ status }: { status: LoadingStageStatus }) {
     );
   }
 
+  if (status === "skipped") {
+    return <span className="text-[10px] font-black" aria-hidden="true">—</span>;
+  }
+
   return (
     <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
-      {status === "active" && <span className="command-pulse absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-70" />}
-      <span className={cx("relative inline-flex h-2.5 w-2.5 rounded-full", status === "active" ? "bg-emerald-300" : "bg-slate-600")} />
+      {status === "active" && <span className="command-pulse absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-70" />}
+      <span className={cx("relative inline-flex h-2.5 w-2.5 rounded-full", status === "active" ? "bg-amber-300" : "bg-slate-600")} />
     </span>
   );
 }
@@ -59,7 +64,7 @@ export function LoadingStages({
 
   return (
     <section
-      className={cx("rounded-2xl border border-emerald-300/15 bg-slate-950/55 p-4 text-left shadow-[0_0_28px_rgba(52,211,153,0.08)]", className)}
+      className={cx("rounded-2xl border border-cyan-300/15 bg-slate-950/55 p-4 text-left shadow-[0_0_28px_rgba(34,211,238,0.06)]", className)}
       role="status"
       aria-live="polite"
       aria-atomic="false"
@@ -70,11 +75,11 @@ export function LoadingStages({
       </span>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/80">{title}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-200/80">{title}</p>
           {description && <p className="mt-1 text-xs font-medium leading-relaxed text-slate-400">{description}</p>}
         </div>
         {activeStage && (
-          <span className="rounded-full border border-emerald-300/20 bg-emerald-300/[0.08] px-3 py-1 text-[8px] font-black uppercase tracking-widest text-emerald-200">
+          <span className="rounded-full border border-amber-300/20 bg-amber-300/[0.08] px-3 py-1 text-[8px] font-black uppercase tracking-widest text-amber-100">
             {activeStage.label}
           </span>
         )}

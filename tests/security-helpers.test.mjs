@@ -159,6 +159,17 @@ test("native disclosure controls use intentional keyboard focus styling", () => 
   }
 });
 
+test("Playground keeps lifecycle primary and diagnostics secondary", () => {
+  const progressSource = readFileSync(resolve(repoRoot, "components/playground/PlaygroundRequestProgress.tsx"), "utf8");
+  const modeTabsSource = readFileSync(resolve(repoRoot, "components/playground/PlaygroundModeTabs.tsx"), "utf8");
+
+  assert.match(progressSource, /Execution plane/);
+  assert.match(progressSource, /Developer diagnostics/);
+  assert.match(progressSource, /<details className="group rounded-2xl/);
+  assert.match(modeTabsSource, /label: "Summarize"/);
+  assert.match(modeTabsSource, /label: "Prepare & Ask"/);
+});
+
 test("keyboard-focusable scroll regions suppress browser-default mouse focus outlines", () => {
   const source = readFileSync(resolve(repoRoot, "components/command/ScrollFrame.tsx"), "utf8");
 

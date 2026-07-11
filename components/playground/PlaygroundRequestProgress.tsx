@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { LoadingStages, type LoadingStage } from "@/components/ui/LoadingStages";
 import { GuidedError } from "@/components/ui/GuidedError";
 import { CardSkeleton } from "@/components/ui/SkeletonBlocks";
-import { MockTerminal } from "@/components/command";
+import { CommandPanel, StatusPill } from "@/components/command";
 import type { LogEntry } from "@/components/playground/NetworkLog";
 import { getErrorGuidance } from "@/lib/error-guidance";
 
@@ -60,7 +60,18 @@ export function PlaygroundRequestProgress({
         />
       )}
 
-      <div ref={requestProgressRef} className="scroll-mt-24">
+      <div ref={requestProgressRef} className="scroll-mt-24 space-y-4" aria-label="Execution plane">
+        {(isLoadingSummary || isIndexingActive || requestLogs.length > 0) && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-200/80">Execution plane</p>
+              <p className="mt-1 text-sm font-semibold text-slate-300">Live request lifecycle</p>
+            </div>
+            <StatusPill tone={shouldShowTopLevelError ? "danger" : isLoadingSummary || isIndexingActive ? "warning" : "success"} compact>
+              {shouldShowTopLevelError ? "Needs attention" : isLoadingSummary || isIndexingActive ? "Running" : "Complete"}
+            </StatusPill>
+          </div>
+        )}
         {activeTab === "summary" && (isLoadingSummary || summaryRequestLogs.length > 0) && (
           <LoadingStages
             title={isLoadingSummary ? "Summarizing repository" : "Summary workflow"}
@@ -77,11 +88,18 @@ export function PlaygroundRequestProgress({
             className="mb-4"
           />
         )}
-        {requestLogs.length > 0 ? (
-          <NetworkLog logs={requestLogs} onShowToast={showToast} />
-        ) : (
-          <RequestLogIdleShell />
-        )}
+        <details className="group rounded-2xl border border-white/10 bg-slate-950/35">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-semibold text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-inset">
+            <span className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Developer diagnostics</span>
+              <span className="text-slate-500">{requestLogs.length ? `${requestLogs.length} request step${requestLogs.length === 1 ? "" : "s"}` : "Idle until a request starts"}</span>
+            </span>
+            <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-180">⌄</span>
+          </summary>
+          <div className="border-t border-white/10 p-3 sm:p-4">
+            {requestLogs.length > 0 ? <NetworkLog logs={requestLogs} onShowToast={showToast} /> : <RequestLogIdleShell />}
+          </div>
+        </details>
       </div>
     </>
   );
@@ -89,28 +107,9 @@ export function PlaygroundRequestProgress({
 
 function RequestLogIdleShell() {
   return (
-    <MockTerminal title="dandi-request-log v1.0.4" status="idle" maxHeight="48rem">
-      <div className="space-y-3">
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--command-border)] bg-[var(--command-bg)]/40 px-4 py-3">
-          <span className="rounded-full border border-cyan-300/15 bg-cyan-300/[0.08] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-cyan-200">
-            Request Log
-          </span>
-        </div>
-        <div className="min-h-[120px] rounded-2xl border border-[var(--command-border)] bg-[var(--command-bg)] p-3 font-mono text-xs text-slate-300 sm:p-4">
-          <div className="flex flex-col items-center justify-center space-y-2 py-10 text-center">
-            <div className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-600" />
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-                Request Log Ready
-              </span>
-            </div>
-            <p className="text-[11px] font-mono leading-relaxed text-slate-600">
-              dandi@api:~$ run a repository summary or Ask request to see validation, request, and response steps here.
-            </p>
-            <div className="mt-2 h-4 w-1.5 animate-pulse bg-slate-600" />
-          </div>
-        </div>
-      </div>
-    </MockTerminal>
+    <CommandPanel className="border-white/10 bg-slate-950/45 p-4">
+      <p className="text-sm font-semibold text-slate-300">No request diagnostics yet.</p>
+      <p className="mt-1 text-xs leading-relaxed text-slate-500">Client-side URL validation stays beside the repository field; no request is logged until a valid workflow begins.</p>
+    </CommandPanel>
   );
 }
