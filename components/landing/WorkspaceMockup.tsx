@@ -78,11 +78,11 @@ export function WorkspaceMockup() {
               <input id="landing-repository-url" type="text" value="https://github.com/facebook/react" readOnly className="sr-only" aria-label="Repository URL preview" />
               <p className="text-xs leading-relaxed text-[var(--dandi-text-muted)]">Summarize structure, prepare sources, then ask with evidence.</p>
               <div className="flex flex-wrap gap-2 pt-1">
-                <button type="button" onClick={completed ? resetWorkflow : runWorkflow} className="dandi-transition inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
+                <button type="button" onClick={completed ? resetWorkflow : runWorkflow} className="dandi-transition inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
                   {displayedRunning ? "Processing…" : completed ? "Run again" : "Run workflow"}
                   {!displayedRunning && <span aria-hidden="true">→</span>}
                 </button>
-                <Link href="/playground?mode=summary" className="dandi-transition inline-flex items-center justify-center rounded-xl border border-[var(--dandi-border-standard)] bg-white/[0.03] px-4 py-2.5 text-xs font-semibold text-slate-300 hover:border-emerald-300/35 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Open in Playground</Link>
+                <Link href="/playground?mode=summary" className="dandi-transition inline-flex h-10 items-center justify-center rounded-xl border border-[var(--dandi-border-standard)] bg-white/[0.03] px-4 py-2.5 text-xs font-semibold text-slate-300 hover:border-emerald-300/35 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Open in Playground</Link>
               </div>
             </div>
 

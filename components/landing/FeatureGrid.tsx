@@ -166,10 +166,10 @@ export function FeatureGrid() {
 
   return (
     <section id="features" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-32">
-      <div className="mb-14 space-y-4 text-center md:mb-20 md:text-left">
+      <div className="mb-14 space-y-4 text-center md:mb-20 xl:text-left">
         <p className="dandi-type-metadata font-bold uppercase text-emerald-200">From first read to source-backed question</p>
         <h2 className="dandi-type-display text-4xl font-bold text-white md:text-6xl">A repository workflow with a memory.</h2>
-        <p className="mx-auto max-w-xl text-slate-300/80 md:mx-0">Summarize a codebase, prepare it once for retrieval, then ask questions with the context and evidence still attached.</p>
+        <p className="mx-auto max-w-xl text-slate-300/80 xl:mx-0">Summarize a codebase, prepare it once for retrieval, then ask questions with the context and evidence still attached.</p>
       </div>
 
       <div className="mb-8 grid gap-3 rounded-2xl border border-[var(--dandi-border-standard)] bg-white/[0.025] p-3 sm:grid-cols-3 sm:p-4">

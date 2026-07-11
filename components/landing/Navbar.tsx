@@ -59,7 +59,7 @@ export function Navbar({ session }: { session: Session | null }) {
         </Link>
         
         {/* Mid Navigation Links */}
-        <div className="hidden items-center gap-1 rounded-xl border border-white/8 bg-slate-900/55 p-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 md:absolute md:left-1/2 md:flex md:-translate-x-1/2">
+        <div className="hidden items-center gap-1 rounded-xl border border-white/8 bg-slate-900/55 p-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:absolute lg:left-1/2 lg:flex lg:-translate-x-1/2">
           <Link href="/#features" className="rounded-lg px-4 py-2 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Features</Link>
           <Link href="/#pricing" className="rounded-lg px-4 py-2 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Pricing</Link>
           <Link href="/docs" className="rounded-lg px-4 py-2 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Docs</Link>
@@ -68,7 +68,7 @@ export function Navbar({ session }: { session: Session | null }) {
 
         {/* User Profile / Action Buttons */}
         <div className="z-10 flex items-center gap-2">
-          <div className="hidden items-center gap-4 md:flex">
+          <div className="hidden items-center gap-4 lg:flex">
             {session ? (
               <div className="flex items-center gap-3">
                 <Link href="/dashboards" className="rounded-xl bg-emerald-400 px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-950 transition-all hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
@@ -93,7 +93,7 @@ export function Navbar({ session }: { session: Session | null }) {
                   </button>
 
                   {/* Desktop Profile Popover */}
-                  <div id="homepage-desktop-profile-popover" role="group" aria-label="User profile" hidden={!isProfileOpen} className={`profile-popover absolute left-1/2 -translate-x-1/2 top-[calc(100%+24px)] z-[100] w-48 rounded-xl border border-white/10 bg-slate-950/95 p-3 shadow-xl backdrop-blur-sm transition-all duration-500 origin-top hidden md:block ${
+                  <div id="homepage-desktop-profile-popover" role="group" aria-label="User profile" hidden={!isProfileOpen} className={`profile-popover absolute left-1/2 -translate-x-1/2 top-[calc(100%+24px)] z-[100] w-48 rounded-xl border border-white/10 bg-slate-950/95 p-3 shadow-xl backdrop-blur-sm transition-all duration-500 origin-top hidden lg:block ${
                     isProfileOpen
                       ? 'translate-y-0 opacity-100 scale-100 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] pointer-events-auto'
                       : '-translate-y-2 opacity-0 scale-75 pointer-events-none ease-[cubic-bezier(0.6,-0.28,0.735,0.045)]'
@@ -144,7 +144,7 @@ export function Navbar({ session }: { session: Session | null }) {
             <button
               type="button"
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="profile-trigger flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 md:hidden cursor-pointer"
+              className="profile-trigger flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 lg:hidden cursor-pointer"
               aria-controls="homepage-mobile-profile-popover"
               aria-expanded={isProfileOpen}
               aria-label="User profile"
@@ -165,7 +165,7 @@ export function Navbar({ session }: { session: Session | null }) {
               setIsOpen(!isOpen);
               setIsProfileOpen(false);
             }}
-            className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 text-slate-400 transition-all hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 md:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 text-slate-400 transition-all hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 lg:hidden"
             aria-controls="homepage-mobile-nav"
             aria-expanded={isOpen}
             aria-label={isOpen ? "Hide navigation" : "Show navigation"}
@@ -184,7 +184,7 @@ export function Navbar({ session }: { session: Session | null }) {
 
           {/* Profile Popover (Mobile only) */}
           {session && (
-            <div id="homepage-mobile-profile-popover" role="group" aria-label="User profile" hidden={!isProfileOpen} className={`profile-popover absolute right-3 top-[calc(100%+8px)] z-[100] w-64 rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-xl backdrop-blur-sm transition-all duration-500 origin-top-right md:hidden ${
+            <div id="homepage-mobile-profile-popover" role="group" aria-label="User profile" hidden={!isProfileOpen} className={`profile-popover absolute right-3 top-[calc(100%+8px)] z-[100] w-64 rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-xl backdrop-blur-sm transition-all duration-500 origin-top-right lg:hidden ${
               isProfileOpen
                 ? 'translate-y-0 opacity-100 scale-100 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] pointer-events-auto'
                 : '-translate-y-2 opacity-0 scale-75 pointer-events-none ease-[cubic-bezier(0.6,-0.28,0.735,0.045)]'
@@ -227,7 +227,7 @@ export function Navbar({ session }: { session: Session | null }) {
       {isOpen && (
         <div
           id="homepage-mobile-nav" 
-          className="mx-auto mt-3 max-w-7xl overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-xl shadow-black/30 backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-200 md:hidden"
+          className="mx-auto mt-3 max-w-7xl overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-xl shadow-black/30 backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-200 lg:hidden"
         >
           <div className="grid gap-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
             <Link onClick={() => setIsOpen(false)} href="/#features" className="rounded-xl px-4 py-3 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Features</Link>
