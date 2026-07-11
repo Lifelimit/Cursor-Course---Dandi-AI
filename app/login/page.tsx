@@ -14,7 +14,7 @@ export default async function LoginPage({
 
   return (
     <div className="command-ambient min-h-screen overflow-x-hidden selection:bg-emerald-500/20 selection:text-emerald-200">
-      <main className="mx-auto grid min-h-screen max-w-[1600px] grid-cols-1 lg:grid-cols-[minmax(0,1.12fr)_minmax(440px,0.88fr)]">
+      <main className="grid min-h-screen w-full grid-cols-1 lg:grid-cols-[minmax(0,1.12fr)_minmax(440px,0.88fr)]">
         <LoginVisualPanel />
 
         <section className="order-1 flex min-h-[100svh] flex-col border-b border-white/8 bg-[#070b12]/92 px-5 py-6 sm:px-8 lg:order-2 lg:border-b-0 lg:border-l lg:px-[clamp(2rem,5vw,6rem)]">
