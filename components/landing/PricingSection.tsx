@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PLAN_DETAILS, PLANS } from "@/lib/constants";
+import { ANNUAL_SAVINGS_PERCENT, getPlanAnnualTotal, PLAN_DETAILS, PLANS } from "@/lib/constants";
 import Link from "next/link";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 import { ModalFrame } from "@/components/command/ModalFrame";
@@ -52,12 +52,6 @@ function getNextPlanThreshold(planId: string) {
   return { plan: nextPlan.name, min: currentDetails.monthlyLimit + 1 };
 }
 
-function getAnnualTotal(yearlyPrice?: string) {
-  if (!yearlyPrice) return null;
-  const monthlyAmount = Number.parseFloat(yearlyPrice.replace(/[^0-9.]/g, ""));
-  return Number.isFinite(monthlyAmount) ? `$${monthlyAmount * 12}` : null;
-}
-
 export function PricingSection({ 
   session, 
   onSuccess, 
@@ -84,7 +78,7 @@ export function PricingSection({
   const recommendedDisplayPrice = billingInterval === "year" && recommendedPlan.yearlyPrice
     ? recommendedPlan.yearlyPrice
     : recommendedPlan.price;
-  const recommendedAnnualTotal = getAnnualTotal(recommendedPlan.yearlyPrice);
+  const recommendedAnnualTotal = getPlanAnnualTotal(recommendedPlan);
   const nextRecommendation = getNextPlanThreshold(recommendedPlanId);
   const estimatorMarkers = getEstimatorMarkers();
   const recommendedSupport = recommendedPlan.features.find((feature) => feature.toLowerCase().includes("support")) ?? "Included support";
@@ -175,7 +169,7 @@ export function PricingSection({
               <div className={`h-4 w-4 rounded-full bg-emerald-300 shadow-sm transition-transform ${billingInterval === "year" ? "translate-x-6" : "translate-x-0"}`} aria-hidden="true" />
             </button>
             <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "year" ? "text-zinc-100" : "text-zinc-500"}`}>Annual</span>
-            <span className="rounded-full border border-emerald-500/10 bg-emerald-950/40 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-emerald-400">20% off</span>
+            <span className="rounded-full border border-emerald-500/10 bg-emerald-950/40 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-emerald-400">{ANNUAL_SAVINGS_PERCENT}% off</span>
           </div>
           {isRefreshingPlan && (
             <p className="mx-auto -mt-4 min-h-4 w-fit rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-1 text-[8px] font-black uppercase tracking-widest text-emerald-300" role="status" aria-live="polite">
@@ -190,7 +184,7 @@ export function PricingSection({
             const isUpgrade = currentPlan && plan.level > currentPlan.level;
             const isLoading = subscriptionFlow.loadingPlanId === plan.id;
             const displayPrice = billingInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
-            const annualTotal = getAnnualTotal(plan.yearlyPrice);
+            const annualTotal = getPlanAnnualTotal(plan);
 
             const isRecommendedByVolume = recommendedPlanId === plan.id;
             const containerClass = isCurrent

@@ -1,13 +1,18 @@
 import type { CountOnlyDailyUsageTrend } from "@/types/usage";
 
-export type InvoiceStatus = "paid" | "pending" | "failed" | "unpaid";
+export type InvoiceStatus = "paid" | "pending" | "failed" | "unpaid" | "draft" | "open" | "void" | "uncollectible";
 
 export type Invoice = {
   id: string;
   date: string;
   amount: number;
   status: InvoiceStatus;
+  currency?: string;
+  description?: string;
+  periodStart?: string | null;
+  periodEnd?: string | null;
   receiptUrl?: string;
+  pdfUrl?: string;
 };
 
 export type PaymentMethodDisplay = {
@@ -39,4 +44,7 @@ export type BillingData = {
   customerBalance?: number | null;
   scheduledPlan?: string | null;
   scheduledPlanDate?: string | null;
+  billingInterval?: "month" | "year" | null;
+  subscriptionStatus?: "active" | "trialing" | "past_due" | "unpaid" | "incomplete" | "incomplete_expired" | "canceled" | "paused" | null;
+  cancelAtPeriodEnd?: boolean;
 };

@@ -10,6 +10,7 @@ import {
   getActiveRepositoryCount,
   getRecentUsageDates,
   getStripePaymentDisplay,
+  getStripeSubscriptionDisplay,
   getTopReposFromLogs,
   getUsagePerformanceMetrics,
   summarizeDailyLogs,
@@ -90,7 +91,7 @@ export async function getServerUsageData(): Promise<ServerUsageData | null> {
     // 1. Fetch user profile to get plan, Stripe details, and calculate limits
     const { data: profile } = await supabase
       .from("profiles")
-      .select("plan, billing_next_date, billing_interval, stripe_customer_id, stripe_subscription_id")
+      .select("plan, billing_next_date, billing_interval, stripe_customer_id, stripe_subscription_id, stripe_scheduled_plan, stripe_scheduled_plan_date")
       .eq("id", userId)
       .single();
 
@@ -162,7 +163,10 @@ export async function getServerUsageData(): Promise<ServerUsageData | null> {
     });
 
     // 8. Fetch payment methods
-    const { paymentMethods, customerBalance } = await getStripePaymentDisplay(stripeCustomerId);
+    const [{ paymentMethods, customerBalance }, subscriptionDisplay] = await Promise.all([
+      getStripePaymentDisplay(stripeCustomerId),
+      getStripeSubscriptionDisplay(profile?.stripe_subscription_id),
+    ]);
 
     return {
       plan,
@@ -177,7 +181,12 @@ export async function getServerUsageData(): Promise<ServerUsageData | null> {
       paymentMethods,
       stripeCustomerId,
       customerBalance,
-      dailyAnalytics
+      dailyAnalytics,
+      scheduledPlan: profile?.stripe_scheduled_plan || null,
+      scheduledPlanDate: profile?.stripe_scheduled_plan_date || null,
+      billingInterval: subscriptionDisplay?.interval || (profile?.billing_interval === "year" ? "year" : "month"),
+      subscriptionStatus: subscriptionDisplay?.status || null,
+      cancelAtPeriodEnd: subscriptionDisplay?.cancelAtPeriodEnd || false,
     };
   } catch (err) {
     console.error("getServerUsageData error:", err);

@@ -6,8 +6,8 @@ export type StatusTone = NonNullable<StatusPillProps["tone"]>;
 
 export function getInvoiceStatusTone(status: string | null | undefined): StatusTone {
   if (status === "paid") return "success";
-  if (status === "failed") return "danger";
-  if (status === "pending" || status === "unpaid") return "warning";
+  if (status === "failed" || status === "uncollectible") return "danger";
+  if (status === "pending" || status === "unpaid" || status === "open") return "warning";
   return "neutral";
 }
 

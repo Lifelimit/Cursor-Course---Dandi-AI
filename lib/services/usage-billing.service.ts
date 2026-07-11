@@ -9,6 +9,14 @@ import type { DailyUsageSummary, UsageLog } from "@/types/usage";
 export type { PaymentMethodDisplay } from "@/types/billing";
 export type { DailyUsageSummary, UsageLog } from "@/types/usage";
 
+export type BillingSubscriptionStatus = NonNullable<import("@/types/billing").BillingData["subscriptionStatus"]>;
+
+export type StripeSubscriptionDisplay = {
+  status: BillingSubscriptionStatus;
+  interval: "month" | "year" | null;
+  cancelAtPeriodEnd: boolean;
+};
+
 type BillingProfile = {
   billing_next_date?: string | null;
   billing_interval?: string | null;
@@ -385,5 +393,24 @@ export async function getStripePaymentDisplay(
     };
   } catch {
     return { paymentMethods: [], customerBalance: 0 };
+  }
+}
+
+export async function getStripeSubscriptionDisplay(
+  stripeSubscriptionId: string | null | undefined,
+): Promise<StripeSubscriptionDisplay | null> {
+  if (!stripeSubscriptionId) return null;
+
+  try {
+    const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    const interval = subscription.items?.data?.[0]?.price?.recurring?.interval;
+
+    return {
+      status: subscription.status as BillingSubscriptionStatus,
+      interval: interval === "year" ? "year" : interval === "month" ? "month" : null,
+      cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
+    };
+  } catch {
+    return null;
   }
 }

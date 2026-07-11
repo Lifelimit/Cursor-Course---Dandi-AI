@@ -1,122 +1,80 @@
-import React, { useState } from "react";
-import { PLANS, PLAN_RANKS } from "@/lib/constants";
+"use client";
+
+import { useState } from "react";
+import { ANNUAL_SAVINGS_PERCENT, getPlanAnnualTotal, PLAN_DETAILS, PLANS, PLAN_RANKS } from "@/lib/constants";
 import { CommandPanel, StatusPill } from "@/components/command";
 
-export function PlanComparison({ 
-  currentPlan, 
+export function PlanComparison({
+  currentPlan,
+  scheduledPlan,
   onUpgrade,
-  billingInterval: initialInterval = "month"
-}: { 
-  currentPlan: string, 
-  onUpgrade: (plan: string, interval: "month" | "year") => void,
-  billingInterval?: "month" | "year"
+  billingInterval: initialInterval = "month",
+}: {
+  currentPlan: string;
+  scheduledPlan?: string | null;
+  onUpgrade: (plan: string, interval: "month" | "year") => void;
+  billingInterval?: "month" | "year";
 }) {
   const [selectedInterval, setSelectedInterval] = useState<"month" | "year">(initialInterval);
+  const normalizedCurrentPlan = currentPlan.toLowerCase();
 
   return (
-    <div className="space-y-8 sm:space-y-12">
-      <div className="flex flex-col items-center gap-4 px-2 text-center">
+    <div className="space-y-7 sm:space-y-9">
+      <div className="flex flex-col gap-5 px-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/70">Plan options</p>
-          <h3 className="mt-2 font-serif text-3xl font-bold tracking-tight text-white">Compare plans</h3>
-          <p className="mt-2 text-sm font-medium text-slate-400">Plan changes take effect as shown in the confirmation step.</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300/70">Plan architecture</p>
+          <h3 className="mt-2 font-serif text-3xl font-bold tracking-tight text-white">Choose your operating range</h3>
+          <p className="mt-2 max-w-xl text-sm font-medium leading-6 text-slate-400">Compare the three Dandi plans. Final timing and billing details are confirmed securely in the subscription flow.</p>
         </div>
-        <div className="flex w-full max-w-sm items-stretch justify-center gap-2 rounded-full border border-white/10 bg-slate-950/70 p-1 sm:w-auto">
-          <button 
-            type="button"
-            onClick={() => setSelectedInterval("month")}
-            className={`flex-1 rounded-full px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all sm:flex-none flex items-center justify-center whitespace-nowrap ${selectedInterval === "month" ? "bg-emerald-300 text-slate-950 shadow-sm" : "text-slate-500"}`}
-          >
-            Monthly
-          </button>
-          <button 
-            type="button"
-            onClick={() => setSelectedInterval("year")}
-            className={`flex-1 rounded-full px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all sm:flex-none flex items-center justify-center whitespace-nowrap ${selectedInterval === "year" ? "bg-emerald-300 text-slate-950 shadow-sm" : "text-slate-500"}`}
-          >
-            Annual (-20%)
-          </button>
+        <div className="inline-flex self-start rounded-full border border-white/10 bg-slate-950/75 p-1" role="group" aria-label="Billing interval">
+          <button type="button" aria-pressed={selectedInterval === "month"} onClick={() => setSelectedInterval("month")} className={`rounded-full px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] transition ${selectedInterval === "month" ? "bg-white text-slate-950" : "text-slate-500 hover:text-white"}`}>Monthly</button>
+          <button type="button" aria-pressed={selectedInterval === "year"} onClick={() => setSelectedInterval("year")} className={`rounded-full px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] transition ${selectedInterval === "year" ? "bg-emerald-300 text-slate-950" : "text-slate-500 hover:text-white"}`}>Annual <span className="ml-1 text-[9px]">save {ANNUAL_SAVINGS_PERCENT}%</span></button>
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-3">
+      <div className="grid items-stretch gap-4 xl:grid-cols-3">
         {PLANS.map((plan) => {
-          const isCurrent = currentPlan.toLowerCase() === plan.id.toLowerCase();
-          const currentPlanRank = PLAN_RANKS[currentPlan as keyof typeof PLAN_RANKS] ?? PLAN_RANKS.Hobby;
-          const isUpgrade = !isCurrent && PLAN_RANKS[plan.id as keyof typeof PLAN_RANKS] > currentPlanRank;
+          const details = PLAN_DETAILS[plan.id];
+          const isCurrent = normalizedCurrentPlan === plan.id.toLowerCase();
+          const isScheduled = Boolean(scheduledPlan && scheduledPlan.toLowerCase() === plan.id.toLowerCase() && !isCurrent);
+          const currentRank = PLAN_RANKS[Object.keys(PLAN_RANKS).find((key) => key.toLowerCase() === normalizedCurrentPlan) || "Hobby"] ?? PLAN_RANKS.Hobby;
+          const isUpgrade = PLAN_RANKS[plan.id] > currentRank;
           const displayPrice = selectedInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
-
-          const cardStyles = isCurrent
-            ? "border-emerald-300/45 shadow-[0_24px_90px_rgba(52,211,153,0.12)] ring-1 ring-emerald-300/30"
-            : plan.recommended
-              ? "border-cyan-300/25"
-              : "border-white/10";
-          const priceColor = isCurrent ? "text-emerald-200" : "text-white";
-          const labelColor = "text-slate-500";
-          const textColor = "text-slate-400";
-          const featureTextColor = "text-slate-300";
-          const checkStyles = isCurrent ? "bg-emerald-300/10 text-emerald-300" : "bg-white/10 text-slate-200";
+          const annualTotal = selectedInterval === "year" ? getPlanAnnualTotal(plan) : null;
+          const capacity = details.monthlyLimit === null ? "Unlimited requests" : `${details.monthlyLimit.toLocaleString()} requests / month`;
+          const keys = details.keyLimit === null ? "Unlimited API keys" : `${details.keyLimit} active API keys`;
 
           return (
-            <CommandPanel
-              key={plan.id}
-              padding="none"
-              className={`group relative flex min-w-0 flex-col p-6 transition-all hover:-translate-y-1 sm:p-10 ${cardStyles}`}
-            >
-              {(isCurrent || plan.recommended) && (
-                <div className="mb-6 flex min-h-6 flex-wrap gap-2">
-                  {isCurrent && (
-                    <StatusPill tone="success" pulse compact>Current Plan</StatusPill>
-                  )}
-                  {plan.recommended && (
-                    <div className="flex flex-col gap-1">
-                      <StatusPill tone="info" compact>Most Popular</StatusPill>
-                      <span className="px-0.5 text-[10px] font-medium leading-tight text-slate-500">
-                        Best fit for most users
-                      </span>
-                    </div>
-                  )}
+            <CommandPanel key={plan.id} padding="none" className={`relative flex min-w-0 flex-col p-5 transition-[border-color,box-shadow,transform] motion-reduce:transition-none sm:p-6 ${isCurrent ? "border-emerald-300/45 bg-emerald-300/[0.055] shadow-[0_24px_80px_rgba(52,211,153,0.1)]" : plan.recommended ? "border-cyan-300/25" : "border-white/10"}`}>
+              {plan.recommended && <div className="absolute right-5 top-5"><StatusPill tone="info" compact>Best fit</StatusPill></div>}
+              <div className="min-h-[104px] pr-20">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">{plan.name}</p>
+                  {isCurrent && <StatusPill tone="success" compact>Current</StatusPill>}
+                  {isScheduled && <StatusPill tone="info" compact>Scheduled</StatusPill>}
                 </div>
-              )}
-              
-              <div className="mb-8 space-y-2">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">{plan.name}</h3>
-                <div className="flex items-baseline gap-1">
-                  <span className={`text-4xl font-bold tracking-tighter sm:text-5xl ${priceColor}`}>{displayPrice}</span>
-                  <span className={`text-xs font-medium uppercase tracking-widest ${labelColor}`}>/ mo</span>
-                </div>
-                {selectedInterval === "year" && plan.id !== "Hobby" && (
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-500 italic">Billed annually</p>
-                )}
-                <p className={`text-sm font-medium ${textColor}`}>{plan.credits}</p>
+                <p className="mt-3 text-sm font-medium leading-6 text-slate-400">{plan.credits}</p>
               </div>
 
-              <div className="mb-10 flex-1 border-t border-white/10 pt-8 space-y-4">
-                <ul className="space-y-4">
-                  {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-center gap-3 text-sm font-medium">
-                      <div className={`flex h-5 w-5 items-center justify-center rounded-full ${checkStyles}`}>
-                        <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor">
-                          <path d="M5 13l4 4L19 7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </div>
-                      <span className={featureTextColor}>{feature}</span>
-                    </li>
-                  ))}
+              <div className="border-y border-white/10 py-5">
+                <div className="flex items-baseline gap-1">
+                  <span className={`text-4xl font-bold tracking-[-0.06em] ${isCurrent ? "text-emerald-200" : "text-white"}`}>{displayPrice}</span>
+                  <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">/ month</span>
+                </div>
+                <p className="mt-2 min-h-5 text-[10px] font-bold uppercase tracking-[0.13em] text-emerald-200/75">{annualTotal ? `Billed annually at ${annualTotal}` : plan.id === "Hobby" ? "No card required" : "Billed monthly"}</p>
+              </div>
+
+              <div className="flex-1 py-5">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Included</p>
+                <ul className="mt-4 space-y-3">
+                  <Feature>{capacity}</Feature>
+                  <Feature>{keys}</Feature>
+                  {plan.features.slice(0, 3).map((feature) => <Feature key={feature}>{feature}</Feature>)}
                 </ul>
               </div>
 
-              <button
-                type="button"
-                onClick={() => !isCurrent && onUpgrade(plan.id, selectedInterval)}
-                disabled={isCurrent}
-                className={`w-full rounded-full py-4 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  isCurrent 
-                    ? "bg-white/10 text-slate-500 cursor-not-allowed"
-                    : "bg-emerald-300 text-slate-950 hover:bg-emerald-200 shadow-xl shadow-emerald-950/10"
-                }`}
-              >
-                {isCurrent ? "Current Plan" : isUpgrade ? "Upgrade" : "Downgrade"}
+              <button type="button" disabled={isCurrent || isScheduled} onClick={() => onUpgrade(plan.id, selectedInterval)} className={`min-h-12 w-full rounded-2xl px-4 text-[10px] font-black uppercase tracking-[0.15em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${isCurrent ? "cursor-not-allowed bg-white/10 text-slate-500" : isScheduled ? "cursor-not-allowed border border-cyan-300/20 bg-cyan-300/10 text-cyan-100" : isUpgrade ? "bg-emerald-300 text-slate-950 shadow-[0_12px_30px_rgba(52,211,153,0.16)] hover:bg-emerald-200" : "border border-white/15 bg-white/[0.05] text-slate-200 hover:border-emerald-300/35 hover:text-emerald-100"}`}>
+                {isCurrent ? "Current plan" : isScheduled ? "Scheduled" : isUpgrade ? `Upgrade to ${plan.name}` : `Switch to ${plan.name}`}
               </button>
             </CommandPanel>
           );
@@ -124,4 +82,8 @@ export function PlanComparison({
       </div>
     </div>
   );
+}
+
+function Feature({ children }: { children: string }) {
+  return <li className="flex items-start gap-3 text-sm font-medium text-slate-300"><span className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-300/10 text-emerald-200" aria-hidden="true">✓</span><span>{children}</span></li>;
 }

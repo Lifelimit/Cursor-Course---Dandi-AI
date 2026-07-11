@@ -1,134 +1,65 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import { StatusPill } from "@/components/command";
 import { DataTableShell, TableEmptyState, TableSkeletonRows } from "@/components/ui/DataTable";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlocks";
-import { formatCurrencyFromCents, formatShortDateWithYear } from "@/lib/format";
+import { formatShortDateWithYear } from "@/lib/format";
 import { getInvoiceStatusTone } from "@/lib/status-tones";
-import type { Invoice } from "@/types/billing";
+import type { Invoice, InvoiceStatus } from "@/types/billing";
 
-const InvoiceTableSkeleton = () => (
-  <TableSkeletonRows
-    rows={3}
-    columns={[
-      {
-        cellClassName: "px-8 py-6",
-        content: () => (
-          <>
-          <SkeletonBlock className="mb-1.5 h-4 w-28 rounded-lg" />
-          <SkeletonBlock className="h-3 w-16 rounded" />
-          </>
-        ),
-      },
-      { cellClassName: "px-8 py-6", skeletonClassName: "h-5 w-16 rounded-lg" },
-      { cellClassName: "px-8 py-6", skeletonClassName: "h-6 w-14 rounded-full" },
-      { cellClassName: "px-8 py-6 text-right", skeletonClassName: "inline-block h-8 w-8 rounded-full" },
-    ]}
-  />
-);
+const STATUS_LABELS: Record<InvoiceStatus, string> = {
+  paid: "Paid",
+  pending: "Pending",
+  failed: "Failed",
+  unpaid: "Unpaid",
+  draft: "Draft",
+  open: "Open",
+  void: "Void",
+  uncollectible: "Uncollectible",
+};
+
+function formatAmount(amount: number, currency = "usd") {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase() }).format(amount / 100);
+}
+
+function formatPeriod(invoice: Invoice) {
+  if (invoice.periodStart && invoice.periodEnd) return `${formatShortDateWithYear(invoice.periodStart)} – ${formatShortDateWithYear(invoice.periodEnd)}`;
+  return "Billing event";
+}
+
+function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
+  return <StatusPill tone={getInvoiceStatusTone(status)} pulse={status === "pending"} compact>{STATUS_LABELS[status] || status}</StatusPill>;
+}
+
+const InvoiceTableSkeleton = () => <TableSkeletonRows rows={3} columns={[{ cellClassName: "px-6 py-6", content: () => <><SkeletonBlock className="mb-1.5 h-4 w-32 rounded-lg" /><SkeletonBlock className="h-3 w-28 rounded" /></> }, { cellClassName: "px-6 py-6", skeletonClassName: "h-5 w-20 rounded-lg" }, { cellClassName: "px-6 py-6", skeletonClassName: "h-6 w-14 rounded-full" }, { cellClassName: "px-6 py-6 text-right", skeletonClassName: "inline-block h-8 w-24 rounded-full" }]} />;
 
 export function InvoiceTable({ invoices, isLoading = false }: { invoices: Invoice[]; isLoading?: boolean }) {
-  if (!isLoading && (!invoices || invoices.length === 0)) {
-    return (
-      <TableEmptyState
-        eyebrow="Billing History"
-        title="No invoices yet."
-        description="Invoices appear after a paid plan starts or Stripe creates a billing event. Choose a plan when you are ready to add billing history."
-        cta={
-          <Link href="/billing" className="mt-5 inline-flex min-h-10 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/15">
-            View Plans
-          </Link>
-        }
-      />
-    );
+  if (!isLoading && invoices.length === 0) {
+    return <TableEmptyState eyebrow="Billing history" title="No invoices yet" description="Invoices appear after a paid plan starts or Stripe creates a billing event. Your free plan does not require a payment method." cta={<Link href="#plans" className="mt-5 inline-flex min-h-10 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:bg-emerald-300/15">View plans</Link>} />;
   }
 
   return (
-    <DataTableShell
-      minWidth="520px"
-      scrollLabel="Invoice ledger table"
-      beforeContent={
-        <>
-          <style dangerouslySetInnerHTML={{ __html: `
-            @keyframes progress-slide {
-              0% { left: -33%; }
-              100% { left: 100%; }
-            }
-            .animate-progress-slide {
-              animation: progress-slide 1.5s infinite linear;
-            }
-          `}} />
-
-          {/* Sleek top indicator bar for zero-refresh background syncs */}
-          {isLoading && invoices.length > 0 && (
-            <div className="absolute top-0 left-0 right-0 h-[2px] w-full overflow-hidden bg-white/10 z-10">
-              <div className="h-full bg-emerald-300/60 w-1/3 absolute animate-progress-slide shadow-[0_0_14px_rgba(52,211,153,0.55)]" />
-            </div>
-          )}
-        </>
-      }
-    >
-        <table className="w-full min-w-[520px] text-left border-collapse table-fixed">
-          <thead>
-            <tr className="border-b border-white/10 bg-white/[0.03]">
-              <th className="px-4 py-5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 w-[35%] sm:px-8 sm:tracking-[0.22em]">Cycle</th>
-              <th className="px-4 py-5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 w-[25%] sm:px-8 sm:tracking-[0.22em]">Amount</th>
-              <th className="px-4 py-5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 w-[25%] sm:px-8 sm:tracking-[0.22em]">Ledger State</th>
-              <th className="px-4 py-5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 text-right w-[15%] sm:px-8 sm:tracking-[0.22em]">Receipt</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {isLoading && invoices.length === 0 ? (
-              <InvoiceTableSkeleton />
-            ) : (
-              invoices.map((invoice) => (
-                <tr key={invoice.id} className="group transition-colors hover:bg-emerald-300/[0.035]">
-                  <td className="px-4 py-6 sm:px-8">
-                    <p className="text-xs font-bold text-slate-100">
-                      {formatShortDateWithYear(invoice.date)}
-                    </p>
-                    <p className="text-[10px] text-slate-500 font-mono">#{invoice.id.slice(-8).toUpperCase()}</p>
-                  </td>
-                  <td className="px-4 py-6 sm:px-8">
-                    <span className="font-mono text-sm font-black text-slate-100 tabular-nums">
-                      {formatCurrencyFromCents(invoice.amount)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-6 sm:px-8">
-                    {invoice.amount < 0 && invoice.status === "paid" ? (
-                      <StatusPill tone="info" pulse compact>
-                        Credit
-                      </StatusPill>
-                    ) : (
-                      <StatusPill
-                        tone={getInvoiceStatusTone(invoice.status)}
-                        pulse={invoice.status === 'pending'}
-                        compact
-                      >
-                        {invoice.status}
-                      </StatusPill>
-                    )}
-                  </td>
-                  <td className="px-4 py-6 text-right sm:px-8">
-                    <a
-                      href={invoice.receiptUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="View Stripe Invoice"
-                      className={`inline-flex items-center justify-center rounded-full border border-white/10 bg-slate-950/70 p-2 text-slate-500 shadow-sm transition-all hover:border-emerald-300/30 hover:text-emerald-200 ${!invoice.receiptUrl || invoice.receiptUrl === '#' ? 'pointer-events-none opacity-30' : ''}`}
-                    >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                        <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </a>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+    <DataTableShell minWidth="640px" scrollLabel="Billing history table" beforeContent={isLoading && invoices.length > 0 ? <div className="absolute left-0 right-0 top-0 z-10 h-0.5 overflow-hidden bg-white/10"><div className="h-full w-1/3 animate-pulse bg-emerald-300/70" /></div> : null}>
+      <table className="hidden w-full min-w-[640px] border-collapse text-left sm:table">
+        <caption className="sr-only">Dandi billing history</caption>
+        <thead><tr className="border-b border-white/10 bg-white/[0.03]"><th scope="col" className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Invoice</th><th scope="col" className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Amount</th><th scope="col" className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Status</th><th scope="col" className="px-6 py-5 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Actions</th></tr></thead>
+        <tbody className="divide-y divide-white/5">{isLoading && invoices.length === 0 ? <InvoiceTableSkeleton /> : invoices.map((invoice) => <InvoiceRow key={invoice.id} invoice={invoice} />)}</tbody>
+      </table>
+      <div className="divide-y divide-white/10 sm:hidden">{isLoading && invoices.length === 0 ? <div className="space-y-3 p-5"><SkeletonBlock className="h-5 w-32 rounded" /><SkeletonBlock className="h-4 w-24 rounded" /><SkeletonBlock className="h-10 w-full rounded-xl" /></div> : invoices.map((invoice) => <InvoiceCard key={invoice.id} invoice={invoice} />)}</div>
     </DataTableShell>
   );
+}
+
+function InvoiceRow({ invoice }: { invoice: Invoice }) {
+  return <tr className="transition-colors hover:bg-emerald-300/[0.035]"><td className="px-6 py-5"><p className="text-sm font-bold text-slate-100">{invoice.description || "Dandi subscription"}</p><p className="mt-1 text-[10px] font-medium text-slate-500">{formatPeriod(invoice)} · {formatShortDateWithYear(invoice.date)}</p></td><td className="px-6 py-5 font-mono text-sm font-bold tabular-nums text-slate-100">{formatAmount(invoice.amount, invoice.currency)}</td><td className="px-6 py-5"><InvoiceStatusBadge status={invoice.status} /></td><td className="px-6 py-5"><InvoiceActions invoice={invoice} /></td></tr>;
+}
+
+function InvoiceCard({ invoice }: { invoice: Invoice }) {
+  return <article className="space-y-4 p-5"><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-bold text-slate-100">{invoice.description || "Dandi subscription"}</p><p className="mt-1 text-[10px] font-medium text-slate-500">{formatPeriod(invoice)}</p></div><InvoiceStatusBadge status={invoice.status} /></div><div className="flex items-end justify-between gap-4"><div><p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">Amount</p><p className="mt-1 font-mono text-lg font-bold tabular-nums text-white">{formatAmount(invoice.amount, invoice.currency)}</p></div><p className="text-right text-[10px] font-medium text-slate-500">{formatShortDateWithYear(invoice.date)}</p></div><InvoiceActions invoice={invoice} /></article>;
+}
+
+function InvoiceActions({ invoice }: { invoice: Invoice }) {
+  if (!invoice.receiptUrl && !invoice.pdfUrl) return <span className="text-xs text-slate-600">No document available</span>;
+  return <div className="flex flex-wrap justify-end gap-2"><a href={invoice.receiptUrl} target="_blank" rel="noopener noreferrer" className={`rounded-full border border-white/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.12em] text-slate-300 transition hover:border-emerald-300/35 hover:text-emerald-100 ${invoice.receiptUrl ? "" : "hidden"}`}>View invoice</a><a href={invoice.pdfUrl} target="_blank" rel="noopener noreferrer" className={`rounded-full border border-white/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.12em] text-slate-300 transition hover:border-emerald-300/35 hover:text-emerald-100 ${invoice.pdfUrl ? "" : "hidden"}`}>Download PDF</a></div>;
 }

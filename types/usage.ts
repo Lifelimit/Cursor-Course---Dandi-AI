@@ -67,6 +67,9 @@ export type UsageData = {
   stripeCustomerId?: string | null;
   scheduledPlan?: string | null;
   scheduledPlanDate?: string | null;
+  billingInterval?: "month" | "year" | null;
+  subscriptionStatus?: "active" | "trialing" | "past_due" | "unpaid" | "incomplete" | "incomplete_expired" | "canceled" | "paused" | null;
+  cancelAtPeriodEnd?: boolean;
 };
 
 export type ServerUsageData = UsageData & {

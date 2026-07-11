@@ -28,9 +28,14 @@ export default async function BillingPage() {
       invoices = stripeInvoices.data.map((inv) => ({
         id: inv.id,
         date: new Date(inv.created * 1000).toISOString(),
-        amount: inv.total,
-        status: inv.status === "paid" ? "paid" : "unpaid",
-        receiptUrl: inv.hosted_invoice_url || "#",
+        amount: inv.total ?? 0,
+        currency: inv.currency || "usd",
+        description: inv.description || "Dandi subscription",
+        periodStart: inv.period_start ? new Date(inv.period_start * 1000).toISOString() : null,
+        periodEnd: inv.period_end ? new Date(inv.period_end * 1000).toISOString() : null,
+        status: inv.status || "unpaid",
+        receiptUrl: inv.hosted_invoice_url || undefined,
+        pdfUrl: inv.invoice_pdf || undefined,
       }));
     } catch (error) {
       console.error("Error fetching Stripe invoices:", error);
@@ -48,6 +53,11 @@ export default async function BillingPage() {
         keys: usageData.keys,
         paymentMethods: usageData.paymentMethods,
         customerBalance: usageData.customerBalance,
+        scheduledPlan: usageData.scheduledPlan,
+        scheduledPlanDate: usageData.scheduledPlanDate,
+        billingInterval: usageData.billingInterval,
+        subscriptionStatus: usageData.subscriptionStatus,
+        cancelAtPeriodEnd: usageData.cancelAtPeriodEnd,
       }
     : null;
 

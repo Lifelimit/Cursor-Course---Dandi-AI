@@ -37,6 +37,14 @@ export const PLAN_DETAILS: Record<string, PlanDetail> = {
 
 export const PLAN_RANKS: Record<string, number> = { Hobby: 0, Premium: 1, Researcher: 2 };
 
+export const ANNUAL_SAVINGS_PERCENT = 20;
+
+export function getPlanAnnualTotal(plan: Pick<Plan, "yearlyPrice">) {
+  if (!plan.yearlyPrice) return null;
+  const monthlyAmount = Number.parseFloat(plan.yearlyPrice.replace(/[^0-9.]/g, ""));
+  return Number.isFinite(monthlyAmount) ? `$${monthlyAmount * 12}` : null;
+}
+
 export const LOCATION_DATA: Record<string, CountryData> = {
   "United States": {
     states: {

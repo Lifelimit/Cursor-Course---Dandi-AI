@@ -12,6 +12,7 @@ import {
   getActiveRepositoryCount,
   getRecentUsageDates,
   getStripePaymentDisplay,
+  getStripeSubscriptionDisplay,
   getTopReposFromLogs,
   getUsagePerformanceMetrics,
   summarizeDailyLogs,
@@ -126,9 +127,10 @@ export async function GET() {
       },
     });
 
-    const { paymentMethods, customerBalance } = await getStripePaymentDisplay(stripeCustomerId, {
-      requireActiveCustomer: false,
-    });
+    const [{ paymentMethods, customerBalance }, subscriptionDisplay] = await Promise.all([
+      getStripePaymentDisplay(stripeCustomerId, { requireActiveCustomer: false }),
+      getStripeSubscriptionDisplay(profileData?.stripe_subscription_id),
+    ]);
 
     const responseBody: UsageData = {
       plan: profileData?.plan || "Hobby",
@@ -144,7 +146,10 @@ export async function GET() {
       customerBalance,
       dailyAnalytics,
       scheduledPlan: profileData?.stripe_scheduled_plan || null,
-      scheduledPlanDate: profileData?.stripe_scheduled_plan_date || null
+      scheduledPlanDate: profileData?.stripe_scheduled_plan_date || null,
+      billingInterval: subscriptionDisplay?.interval || (profileData?.billing_interval === "year" ? "year" : "month"),
+      subscriptionStatus: subscriptionDisplay?.status || null,
+      cancelAtPeriodEnd: subscriptionDisplay?.cancelAtPeriodEnd || false,
     };
 
     return NextResponse.json(responseBody);
