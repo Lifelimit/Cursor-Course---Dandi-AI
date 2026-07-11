@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PLANS } from "@/lib/constants";
+import { PLAN_DETAILS, PLANS } from "@/lib/constants";
 import Link from "next/link";
 import { SubscriptionModal } from "@/components/dashboard/SubscriptionModal";
 import { ModalFrame } from "@/components/command/ModalFrame";
@@ -9,47 +9,53 @@ import { useSubscriptionFlow } from "@/hooks/useSubscriptionFlow";
 
 import { Session } from "@supabase/supabase-js";
 
-const SLIDER_STEPS = [
-  { label: "1,000", tier: "Personal", value: 1000 },
-  { label: "2,500", tier: "Team", value: 2500 },
-  { label: "5,000", tier: "Startup", value: 5000 },
-  { label: "7,500", tier: "Agency", value: 7500 },
-  { label: "10,000+", tier: "Enterprise", value: 10000 },
-];
-
-const PLAN_RECOMMENDATIONS = {
-  Hobby: {
-    activeKeys: "3 active API keys",
-    monthlyCapacity: "1,000 repository summaries",
-    supportTier: "Community support",
-    guidance: "Personal projects, experimentation, and learning workflows.",
-  },
-  Premium: {
-    activeKeys: "10 active API keys",
-    monthlyCapacity: "5,000 repository summaries",
-    supportTier: "Priority email support",
-    guidance: "Production apps, teams, and continuous development workflows.",
-  },
-  Researcher: {
-    activeKeys: "Unlimited active keys",
-    monthlyCapacity: "Unlimited repository summaries",
-    supportTier: "24/7 phone support",
-    guidance: "Large-scale analysis and heavy repository intelligence workloads.",
-  },
-} as const;
-
-const RECOMMENDATION_THRESHOLDS = [
-  { plan: "Hobby", min: 0, max: 2499 },
-  { plan: "Premium", min: 2500, max: 7499 },
-  { plan: "Researcher", min: 7500, max: Infinity },
-] as const;
+const ESTIMATOR_PLANS = PLANS.map((plan) => ({ plan, details: PLAN_DETAILS[plan.id] }));
+const FINITE_PLAN_CAPACITIES = ESTIMATOR_PLANS
+  .map(({ details }) => details.monthlyLimit)
+  .filter((limit): limit is number => limit !== null);
+const ESTIMATOR_MAX_USAGE = Math.max(...FINITE_PLAN_CAPACITIES) * 2;
 
 function getRecommendedPlanId(monthlyUsage: number) {
-  return RECOMMENDATION_THRESHOLDS.find((threshold) => monthlyUsage >= threshold.min && monthlyUsage <= threshold.max)?.plan ?? "Researcher";
+  const matchingPlan = ESTIMATOR_PLANS.find(({ details }) => details.monthlyLimit === null || monthlyUsage <= details.monthlyLimit);
+  return matchingPlan?.plan.id ?? ESTIMATOR_PLANS[ESTIMATOR_PLANS.length - 1].plan.id;
 }
 
 function formatUsage(value: number) {
-  return value >= 10000 ? "10,000+" : value.toLocaleString();
+  return value.toLocaleString();
+}
+
+function formatCompactUsage(value: number) {
+  if (value >= 1000 && value % 1000 === 0) return `${value / 1000}K`;
+  if (value >= 1000) return `${Math.round(value / 100) / 10}K`;
+  return value.toLocaleString();
+}
+
+function getEstimatorMarkers() {
+  return ESTIMATOR_PLANS.map(({ plan, details }, index) => {
+    const previousCapacity = ESTIMATOR_PLANS[index - 1]?.details.monthlyLimit;
+    const value = details.monthlyLimit ?? (previousCapacity === null || previousCapacity === undefined ? 0 : previousCapacity + 1);
+    const isUnlimited = details.monthlyLimit === null;
+    return {
+      planId: plan.id,
+      label: isUnlimited ? `${formatUsage(value)}+` : formatUsage(value),
+      compactLabel: isUnlimited ? `${formatCompactUsage(value)}+` : formatCompactUsage(value),
+      value,
+    };
+  });
+}
+
+function getNextPlanThreshold(planId: string) {
+  const currentIndex = ESTIMATOR_PLANS.findIndex(({ plan }) => plan.id === planId);
+  const currentDetails = ESTIMATOR_PLANS[currentIndex]?.details;
+  const nextPlan = ESTIMATOR_PLANS[currentIndex + 1]?.plan;
+  if (!currentDetails || currentDetails.monthlyLimit === null || !nextPlan) return null;
+  return { plan: nextPlan.name, min: currentDetails.monthlyLimit + 1 };
+}
+
+function getAnnualTotal(yearlyPrice?: string) {
+  if (!yearlyPrice) return null;
+  const monthlyAmount = Number.parseFloat(yearlyPrice.replace(/[^0-9.]/g, ""));
+  return Number.isFinite(monthlyAmount) ? `$${monthlyAmount * 12}` : null;
 }
 
 export function PricingSection({ 
@@ -70,13 +76,24 @@ export function PricingSection({
 
   const subscriptionFlow = useSubscriptionFlow({ initialBillingInterval: "month" });
   const billingInterval = subscriptionFlow.modalBillingInterval;
-  const [sliderIndex, setSliderIndex] = useState<number>(0);
-  const activeSliderStep = SLIDER_STEPS[sliderIndex];
-  const estimatedMonthlyUsage = activeSliderStep.value;
+  const [estimatedMonthlyUsage, setEstimatedMonthlyUsage] = useState<number>(0);
   const estimatedDailyUsage = Math.round(estimatedMonthlyUsage / 30);
   const recommendedPlanId = getRecommendedPlanId(estimatedMonthlyUsage);
-  const recommendedPlanDetails = PLAN_RECOMMENDATIONS[recommendedPlanId];
-  const nextRecommendation = RECOMMENDATION_THRESHOLDS.find((threshold) => threshold.min > estimatedMonthlyUsage);
+  const recommendedPlanDetails = PLAN_DETAILS[recommendedPlanId];
+  const recommendedPlan = PLANS.find((plan) => plan.id === recommendedPlanId) ?? PLANS[0];
+  const recommendedDisplayPrice = billingInterval === "year" && recommendedPlan.yearlyPrice
+    ? recommendedPlan.yearlyPrice
+    : recommendedPlan.price;
+  const recommendedAnnualTotal = getAnnualTotal(recommendedPlan.yearlyPrice);
+  const nextRecommendation = getNextPlanThreshold(recommendedPlanId);
+  const estimatorMarkers = getEstimatorMarkers();
+  const recommendedSupport = recommendedPlan.features.find((feature) => feature.toLowerCase().includes("support")) ?? "Included support";
+  const recommendedKeyAllowance = recommendedPlanDetails.keyLimit === null
+    ? "Unlimited active API keys"
+    : `${recommendedPlanDetails.keyLimit.toLocaleString()} active API keys`;
+  const recommendedCapacity = recommendedPlanDetails.monthlyLimit === null
+    ? "Unlimited repository summaries"
+    : `${recommendedPlanDetails.monthlyLimit.toLocaleString()} repository summaries`;
 
   const [isRefreshingPlan, setIsRefreshingPlan] = useState(false);
   const currentPlan = PLANS.find(p => p.id === currentPlanId);
@@ -140,14 +157,13 @@ export function PricingSection({
   return (
     <section id="pricing" className="border-y border-white/8 bg-slate-950/48 py-16 md:py-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="mb-16 space-y-8 text-center md:mb-20">
+        <div className="mb-12 space-y-8 text-center md:mb-16">
           <div className="space-y-4">
-            <h2 className="font-serif text-4xl font-bold md:text-5xl text-white">Simple, transparent <br /> pricing for builders.</h2>
+            <h2 className="font-serif text-4xl font-bold text-white md:text-5xl">Simple, transparent <br /> pricing for builders.</h2>
             <p className="text-slate-400">Start for free, then scale when repository usage grows.</p>
           </div>
 
-          {/* Billing Toggle */}
-          <div className="mx-auto inline-grid grid-cols-[auto_auto_auto] grid-rows-[auto_auto] items-center justify-center gap-x-4 gap-y-1">
+          <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-slate-950/45 px-4 py-2">
             <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "month" ? "text-zinc-100" : "text-zinc-500"}`}>Monthly</span>
             <button
               onClick={subscriptionFlow.toggleBillingInterval}
@@ -159,124 +175,29 @@ export function PricingSection({
               <div className={`h-4 w-4 rounded-full bg-emerald-300 shadow-sm transition-transform ${billingInterval === "year" ? "translate-x-6" : "translate-x-0"}`} aria-hidden="true" />
             </button>
             <span className={`text-xs font-bold uppercase tracking-widest ${billingInterval === "year" ? "text-zinc-100" : "text-zinc-500"}`}>Annual</span>
-            <span className="col-start-3 justify-self-center rounded-full border border-emerald-500/10 bg-emerald-950/40 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-emerald-400">20% OFF</span>
+            <span className="rounded-full border border-emerald-500/10 bg-emerald-950/40 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-emerald-400">20% off</span>
           </div>
           {isRefreshingPlan && (
-            <p className="mx-auto -mt-4 w-fit rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-1 text-[8px] font-black uppercase tracking-widest text-emerald-300" role="status" aria-live="polite">
+            <p className="mx-auto -mt-4 min-h-4 w-fit rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-1 text-[8px] font-black uppercase tracking-widest text-emerald-300" role="status" aria-live="polite">
               Syncing active plan...
             </p>
           )}
-
-          {/* Volume Calculator Slider */}
-          <div className="mx-auto mt-12 max-w-xl space-y-6 rounded-[28px] border border-white/10 bg-slate-950/55 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.18)] sm:p-6 md:p-8">
-            <div className="grid gap-4 text-left sm:grid-cols-[1fr_auto] sm:items-start">
-              <div className="space-y-4">
-                <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">Usage Estimator</p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <p className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Estimated Usage</p>
-                    <h4 className="mt-1 text-base font-bold text-white">
-                      {formatUsage(estimatedMonthlyUsage)} monthly requests
-                    </h4>
-                    <p className="mt-1 text-[11px] font-semibold text-slate-400">≈ {estimatedDailyUsage.toLocaleString()} requests / day</p>
-                  </div>
-                  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-950/20 px-4 py-3">
-                    <p className="text-[8px] font-bold uppercase tracking-widest text-emerald-300/80">Recommended Plan</p>
-                    <p className="mt-1 text-lg font-black text-emerald-200">{recommendedPlanId}</p>
-                    <p className="mt-1 text-[11px] font-semibold text-emerald-100/70">
-                      {recommendedPlanId} comfortably supports this usage.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-slate-900/45 px-4 py-3 font-sans sm:min-w-52">
-                <p className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Included</p>
-                <dl className="mt-3 space-y-2">
-                  <div>
-                    <dt className="text-[8px] font-bold uppercase tracking-widest text-slate-500">API Keys</dt>
-                    <dd className="text-xs font-bold text-slate-200">{recommendedPlanDetails.activeKeys}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Capacity</dt>
-                    <dd className="text-xs font-bold text-slate-200">{recommendedPlanDetails.monthlyCapacity}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Support</dt>
-                    <dd className="text-xs font-bold text-slate-200">{recommendedPlanDetails.supportTier}</dd>
-                  </div>
-                </dl>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-left">
-              <p className="text-xs font-semibold text-emerald-300">✓ {recommendedPlanId} comfortably supports this usage</p>
-              <p className="mt-1 text-[11px] font-medium text-slate-400">
-                {nextRecommendation
-                  ? <>Next recommendation: <span className="font-bold text-slate-200">{nextRecommendation.plan}</span> at {nextRecommendation.min.toLocaleString()}+ summaries/month</>
-                  : "You are already at the highest recommendation tier for heavy repository workloads."}
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <input
-                id="pricing-usage-estimator"
-                type="range" 
-                min="0" 
-                max="4" 
-                value={sliderIndex}
-                aria-label="Estimated monthly repository requests"
-                aria-valuetext={`${formatUsage(estimatedMonthlyUsage)} monthly requests, ${recommendedPlanId} recommended`}
-                onChange={(e) => setSliderIndex(parseInt(e.target.value))}
-                className="h-1.5 w-full cursor-pointer rounded-lg bg-slate-800 accent-emerald-400"
-              />
-              <div className="grid grid-cols-5 gap-1 px-1 text-center">
-                {SLIDER_STEPS.map((step, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setSliderIndex(idx)}
-                    aria-pressed={sliderIndex === idx}
-                    aria-label={`Set estimated usage to ${step.label} monthly requests, ${step.tier}`}
-                    className={`rounded px-1 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 ${sliderIndex === idx ? "text-white" : "text-slate-500 hover:text-slate-300"}`}
-                  >
-                    <span className="block text-[8px] font-black uppercase tracking-wider sm:text-[9px] sm:tracking-widest">{step.tier}</span>
-                    <span className="mt-0.5 block text-[8px] font-bold tracking-wider">{step.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950 p-4 text-left">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-400 text-slate-950">
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" aria-hidden="true">
-                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Capacity Guidance</p>
-                <p className="mt-0.5 text-xs font-semibold text-slate-300">{recommendedPlanDetails.guidance}</p>
-              </div>
-            </div>
-          </div>
         </div>
 
-        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-3">
+        <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3">
           {PLANS.map((plan) => {
-            const isCurrent = currentPlanId === plan.id;
+            const isCurrent = Boolean(activeSession) && currentPlanId === plan.id;
             const isUpgrade = currentPlan && plan.level > currentPlan.level;
             const isLoading = subscriptionFlow.loadingPlanId === plan.id;
             const displayPrice = billingInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price;
+            const annualTotal = getAnnualTotal(plan.yearlyPrice);
 
-            // Generate clean classes for dark mode
             const isRecommendedByVolume = recommendedPlanId === plan.id;
-            const usageRecommendationClass = isRecommendedByVolume && !isCurrent
-              ? "border-emerald-400/30 bg-emerald-950/10"
-              : "";
-            
-            const baseContainerClass = `border-white/10 bg-slate-950/55 text-white ${usageRecommendationClass}`;
             const containerClass = isCurrent
               ? "border-2 border-emerald-400/80 bg-[#0b1020]/95 text-white shadow-2xl shadow-emerald-500/10 ring-1 ring-emerald-400/60"
-              : baseContainerClass;
+              : isRecommendedByVolume
+                ? "border-emerald-400/40 bg-emerald-950/10 text-white ring-1 ring-emerald-400/15"
+                : "border-white/10 bg-slate-950/55 text-white";
 
             const priceColor = "text-white";
             const labelColor = "text-zinc-500";
@@ -287,40 +208,35 @@ export function PricingSection({
             return (
               <div
                 key={plan.id}
-                className={`group relative flex flex-col rounded-[28px] border p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-colors hover:border-emerald-400/25 sm:p-10 ${containerClass}`}
+                className={`group relative flex h-full flex-col rounded-[28px] border p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-colors hover:border-emerald-400/25 sm:p-8 ${containerClass}`}
               >
-                {(isCurrent || isRecommendedByVolume || plan.recommended) && (
-                  <div className="mb-6 flex min-h-6 flex-wrap gap-2">
-                    {isCurrent && (
-                      <span className="inline-flex items-center justify-center rounded-full bg-emerald-950/40 px-3 py-1 text-center text-[8px] font-black uppercase tracking-widest text-emerald-400 border border-emerald-500/10">
-                        {isRecommendedByVolume ? "Active · Recommended" : "Active Plan"}
-                      </span>
-                    )}
-                    {isRecommendedByVolume && !isCurrent && (
-                      <span className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-3 py-1 text-center text-[8px] font-black uppercase tracking-widest text-zinc-950">
-                        Recommended for Usage
-                      </span>
-                    )}
-                    {plan.recommended && (
-                      <div className="flex flex-col gap-1">
-                        <span className="inline-flex items-center justify-center rounded-full bg-zinc-800 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.2em] text-zinc-300 border border-white/5">
-                          Most Popular
-                        </span>
-                        <span className="px-0.5 text-[10px] font-medium leading-tight text-zinc-400">
-                          Best fit for most users
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <div className="mb-6 flex min-h-7 flex-wrap items-start gap-2">
+                  {isCurrent && (
+                    <span className="inline-flex items-center justify-center rounded-full border border-emerald-500/10 bg-emerald-950/40 px-3 py-1 text-center text-[8px] font-black uppercase tracking-widest text-emerald-400">
+                      {isRecommendedByVolume ? "Active · Recommended" : "Active plan"}
+                    </span>
+                  )}
+                  {isRecommendedByVolume && !isCurrent && (
+                    <span className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-3 py-1 text-center text-[8px] font-black uppercase tracking-widest text-zinc-950">
+                      Best fit for usage
+                    </span>
+                  )}
+                  {plan.recommended && (
+                    <span className="inline-flex items-center justify-center rounded-full border border-white/5 bg-zinc-800 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.2em] text-zinc-300">
+                      Most popular
+                    </span>
+                  )}
+                </div>
                 <div className="mb-8 space-y-2">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.18em] opacity-50">{plan.name}</h3>
                   <div className="flex items-baseline gap-1">
                     <span className={`text-5xl font-bold tracking-tighter ${priceColor}`}>{displayPrice}</span>
-                    <span className={`text-xs font-medium uppercase tracking-widest ${labelColor}`}>/ mo</span>
+                    <span className={`text-xs font-medium uppercase tracking-widest ${labelColor}`}>/ month</span>
                   </div>
-                  {billingInterval === "year" && plan.id !== "Hobby" && (
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-400 italic">Billed annually</p>
+                  {billingInterval === "year" && annualTotal ? (
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-400 italic">Billed annually at {annualTotal}</p>
+                  ) : (
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{plan.id === "Hobby" ? "Free plan" : "Billed monthly"}</p>
                   )}
                   <p className={`text-sm font-medium ${textColor}`}>{plan.credits}</p>
                 </div>
@@ -369,6 +285,78 @@ export function PricingSection({
               </div>
             );
           })}
+        </div>
+
+        <div className="mx-auto mt-12 max-w-5xl rounded-[28px] border border-white/10 bg-slate-950/55 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.18)] sm:p-6 md:p-8">
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">Usage estimator</p>
+            <h3 className="mt-2 text-base font-semibold text-white">How many repository summaries do you expect per month?</h3>
+            <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <p className="text-2xl font-bold text-white">{formatUsage(estimatedMonthlyUsage)} summaries / month</p>
+              <p className="text-[11px] font-semibold text-slate-400">Approximately {estimatedDailyUsage.toLocaleString()} per day</p>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-4">
+            <label htmlFor="pricing-usage-estimator" className="sr-only">How many repository summaries do you expect per month?</label>
+            <input
+              id="pricing-usage-estimator"
+              type="range"
+              min={0}
+              max={ESTIMATOR_MAX_USAGE}
+              step={1}
+              value={estimatedMonthlyUsage}
+              aria-label="How many repository summaries do you expect per month?"
+              aria-valuemin={0}
+              aria-valuemax={ESTIMATOR_MAX_USAGE}
+              aria-valuenow={estimatedMonthlyUsage}
+              aria-valuetext={`${formatUsage(estimatedMonthlyUsage)} summaries per month, ${recommendedPlanId} recommended`}
+              onChange={(event) => setEstimatedMonthlyUsage(Number(event.target.value))}
+              className="h-1.5 w-full cursor-pointer rounded-lg bg-slate-800 accent-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+            />
+            <div className="grid grid-cols-3 gap-2 px-1 text-center">
+              {estimatorMarkers.map((marker) => (
+                <button
+                  key={marker.planId}
+                  type="button"
+                  onClick={() => setEstimatedMonthlyUsage(marker.value)}
+                  aria-pressed={recommendedPlanId === marker.planId}
+                  aria-label={`Set usage reference to ${marker.planId} at ${marker.label} summaries per month`}
+                  className={`rounded px-1 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 ${recommendedPlanId === marker.planId ? "text-white" : "text-slate-500 hover:text-slate-300"}`}
+                >
+                  <span className="block text-[8px] font-black uppercase tracking-wider sm:text-[9px] sm:tracking-widest">{marker.planId}</span>
+                  <span className="mt-0.5 block text-[8px] font-bold tracking-wider"><span className="sm:hidden">{marker.compactLabel}</span><span className="hidden sm:inline">{marker.label}</span></span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-950/20 p-4 text-left">
+              <p className="text-[8px] font-bold uppercase tracking-widest text-emerald-300/80">Recommended plan</p>
+              <p className="mt-2 text-lg font-black text-emerald-200">{recommendedPlanId} — {recommendedDisplayPrice}/month</p>
+              {billingInterval === "year" && recommendedAnnualTotal && (
+                <p className="mt-1 text-[10px] font-semibold text-emerald-100/70">Billed annually at {recommendedAnnualTotal}</p>
+              )}
+              <p className="mt-2 text-[11px] font-semibold leading-5 text-emerald-100/70">Best fit for your expected usage.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-slate-900/45 p-4 text-left font-sans">
+              <p className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Included</p>
+              <dl className="mt-3 grid gap-2">
+                <div className="flex items-baseline justify-between gap-3"><dt className="text-[8px] font-bold uppercase tracking-widest text-slate-500">API keys</dt><dd className="text-right text-xs font-bold text-slate-200">{recommendedKeyAllowance}</dd></div>
+                <div className="flex items-baseline justify-between gap-3"><dt className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Capacity</dt><dd className="text-right text-xs font-bold text-slate-200">{recommendedCapacity}</dd></div>
+                <div className="flex items-baseline justify-between gap-3"><dt className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Support</dt><dd className="text-right text-xs font-bold text-slate-200">{recommendedSupport}</dd></div>
+              </dl>
+            </div>
+          </div>
+
+          <div className="mt-4 border-t border-white/5 pt-4 text-left">
+            <p className="text-[11px] font-medium text-slate-400">
+              {nextRecommendation
+                ? <>Next plan: <span className="font-bold text-slate-200">{nextRecommendation.plan}</span> at {formatUsage(nextRecommendation.min)}+ summaries per month</>
+                : "Researcher is the highest plan for unlimited repository summaries."}
+            </p>
+          </div>
         </div>
       </div>
       
