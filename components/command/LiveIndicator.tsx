@@ -29,7 +29,7 @@ export function LiveIndicator({
   className,
 }: LiveIndicatorProps) {
   return (
-    <span className={cx("inline-flex min-w-0 items-center gap-2 text-[9px] font-black uppercase tracking-[0.18em]", toneClasses[tone], className)}>
+    <span className={cx("dandi-type-metadata inline-flex min-w-0 items-center gap-2 font-black uppercase", toneClasses[tone], className)}>
       <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
         {active && <span className={cx("command-pulse absolute inline-flex h-full w-full rounded-full opacity-70", dotClasses[tone])} />}
         <span className={cx("relative inline-flex h-2 w-2 rounded-full shadow-[0_0_14px_currentColor]", dotClasses[tone])} />

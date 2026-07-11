@@ -52,7 +52,7 @@ export function GuidedError({
   return (
     <div
       role="alert"
-      className={`rounded-2xl border border-rose-400/25 bg-rose-950/20 text-left shadow-[0_0_28px_rgba(244,63,94,0.08)] ${compact ? "p-4" : "p-5 sm:p-6"} ${className}`}
+      className={`dandi-intensity-critical rounded-2xl border border-[var(--dandi-border-critical)] bg-rose-950/20 text-left shadow-[var(--dandi-glow-critical)] ${compact ? "p-4" : "p-5 sm:p-6"} ${className}`}
     >
       <div className="flex min-w-0 items-start gap-3">
         <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rose-300/25 bg-rose-300/10 text-rose-200" aria-hidden="true">

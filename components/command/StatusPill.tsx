@@ -35,7 +35,7 @@ export function StatusPill({
   return (
     <span
       className={cx(
-        "inline-flex max-w-full items-center gap-2 rounded-full border font-black uppercase tracking-[0.18em]",
+        "dandi-type-metadata inline-flex max-w-full items-center gap-2 rounded-full border font-black uppercase",
         compact ? "px-2 py-0.5 text-[8px]" : "px-3 py-1 text-[9px]",
         toneClasses[tone],
         className,

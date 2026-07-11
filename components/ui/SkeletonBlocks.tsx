@@ -3,12 +3,12 @@
 import { cx } from "@/components/command/utils";
 
 export function SkeletonBlock({ className }: { className?: string }) {
-  return <div className={cx("animate-pulse rounded-xl bg-white/[0.06]", className)} aria-hidden="true" />;
+  return <div className={cx("dandi-type-interface animate-pulse rounded-xl bg-white/[0.06]", className)} aria-hidden="true" />;
 }
 
 export function CardSkeleton({ lines = 3, className }: { lines?: number; className?: string }) {
   return (
-    <div className={cx("rounded-[28px] border border-white/10 bg-slate-950/45 p-5", className)} aria-hidden="true">
+    <div className={cx("dandi-surface-workspace dandi-intensity-subtle rounded-[28px] p-5", className)} aria-hidden="true">
       <SkeletonBlock className="h-4 w-28" />
       <SkeletonBlock className="mt-4 h-8 w-2/3" />
       <div className="mt-5 space-y-2">

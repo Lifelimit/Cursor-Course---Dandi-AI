@@ -17,7 +17,7 @@ const buttonBase =
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-emerald-400 text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.18)] hover:bg-emerald-300",
+    "dandi-intensity-standard bg-emerald-400 text-slate-950 shadow-[var(--dandi-glow-standard)] hover:bg-emerald-300",
   secondary:
     "border border-white/10 bg-white/[0.04] text-slate-200 shadow-sm hover:border-emerald-300/25 hover:bg-white/[0.07] hover:text-emerald-100",
   ghost:

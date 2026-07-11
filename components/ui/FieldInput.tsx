@@ -10,7 +10,7 @@ type SharedFieldProps = {
 };
 
 const baseClasses =
-  "w-full border border-white/10 bg-slate-950/70 text-white outline-none focus:border-emerald-500/40";
+  "dandi-type-interface w-full border border-[var(--dandi-border-standard)] bg-slate-950/70 text-white outline-none focus:border-emerald-500/40";
 
 const inputSizeClasses: Record<FieldSize, string> = {
   md: "rounded-xl px-4 py-3 text-sm font-medium placeholder-zinc-650 transition focus:ring-4 focus:ring-emerald-500/10",

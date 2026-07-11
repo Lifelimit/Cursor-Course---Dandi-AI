@@ -22,7 +22,7 @@ export function CodeWindow({
   className,
 }: CodeWindowProps) {
   return (
-    <div className={cx("min-w-0 overflow-hidden rounded-[20px] border border-[var(--command-border)] bg-[var(--command-panel)] font-mono text-slate-300 shadow-[var(--command-shadow)] md:rounded-[24px]", className)} style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}>
+    <div className={cx("dandi-surface-workspace dandi-intensity-subtle min-w-0 overflow-hidden rounded-[20px] font-mono text-slate-300 md:rounded-[24px]", className)} style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}>
       <div className="flex min-w-0 items-center justify-between gap-3 border-b border-[var(--command-border)] bg-[var(--command-bg)]/30 px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <div aria-hidden="true" className="flex shrink-0 items-center gap-1.5">

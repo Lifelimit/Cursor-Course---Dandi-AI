@@ -138,7 +138,7 @@ export function ModalFrame({
         aria-labelledby={titleId || undefined}
         tabIndex={-1}
         className={cx(
-          "my-3 w-full overflow-y-auto rounded-[24px] border border-[var(--command-border-strong)] bg-[var(--command-panel-solid)] p-5 text-[var(--command-text)] shadow-[var(--command-shadow-elevated)] outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:p-8 md:rounded-[28px]",
+          "dandi-surface-elevated dandi-intensity-elevated my-3 w-full overflow-y-auto rounded-[24px] border p-5 text-[var(--command-text)] outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:p-8 md:rounded-[28px]",
           "max-h-[calc(100dvh-1.5rem)]",
           sizeClasses[size],
           className,

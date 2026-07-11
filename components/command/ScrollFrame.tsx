@@ -32,7 +32,7 @@ export function ScrollFrame({
 
   return (
     <div
-      className={cx("command-scroll min-w-0 max-w-full overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-inset", axisClasses[axis], className)}
+      className={cx("command-scroll dandi-type-interface min-w-0 max-w-full overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-inset", axisClasses[axis], className)}
       style={frameStyle}
       role={label ? "region" : undefined}
       aria-label={label}

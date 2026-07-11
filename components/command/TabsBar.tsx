@@ -84,7 +84,7 @@ export function TabsBar({
               onClick={() => onChange(tab.id)}
               onKeyDown={(event) => handleKeyDown(event, index)}
               className={cx(
-                "command-tabs-tab inline-flex shrink-0 snap-start items-center justify-center gap-1.5 whitespace-nowrap text-[9px] font-black uppercase tracking-[0.12em] outline-none transition focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:gap-2 sm:text-[10px] sm:tracking-[0.18em]",
+                "dandi-type-interface command-tabs-tab inline-flex shrink-0 snap-start items-center justify-center gap-1.5 whitespace-nowrap text-xs font-semibold outline-none transition focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:gap-2 sm:text-sm",
                 variant === "underline" &&
                   "border-b-2 px-2.5 pb-3 pt-1 sm:px-3 " +
                     (selected

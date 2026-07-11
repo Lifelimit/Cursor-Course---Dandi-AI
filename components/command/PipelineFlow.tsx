@@ -37,7 +37,7 @@ export function PipelineFlow({ steps, orientation = "auto", className }: Pipelin
 
         return (
           <div key={step.id} className="flex min-w-0 flex-1 items-stretch gap-3">
-            <div className="min-w-0 flex-1 rounded-2xl border border-[var(--command-border)] bg-[var(--command-panel)] p-4 backdrop-blur-xl">
+            <div className="dandi-surface-workspace dandi-intensity-subtle min-w-0 flex-1 rounded-2xl p-4 backdrop-blur-xl">
               <div className="flex min-w-0 items-start gap-3">
                 <LiveIndicator active={isActive} tone={statusTone[status]} className="mt-1 shrink-0" />
                 <div className="min-w-0">
