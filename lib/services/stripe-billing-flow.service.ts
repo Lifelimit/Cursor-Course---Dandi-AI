@@ -1,6 +1,115 @@
 import Stripe from "stripe";
-import type { PaidPlanRequest } from "@/lib/billing-catalog";
+import { getPlanForPriceId, type PaidPlanRequest } from "@/lib/billing-catalog";
 import { isUuid } from "@/lib/security-core";
+
+export type BillingProfileSnapshot = {
+  plan?: string | null;
+  billing_next_date?: string | null;
+  billing_interval?: string | null;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  stripe_scheduled_plan?: string | null;
+  stripe_scheduled_plan_date?: string | null;
+};
+
+function getSchedulePhasePriceId(phase: Stripe.SubscriptionSchedule.Phase) {
+  const price = phase.items[0]?.price;
+  return typeof price === "string" ? price : price?.id ?? null;
+}
+
+export function resolveScheduledPlanFromSchedule(
+  schedule: Stripe.SubscriptionSchedule,
+  now: Date,
+): { scheduledPlan: string | null; scheduledPlanDate: string | null } {
+  const phases = schedule.phases;
+  if (!phases?.length) {
+    return { scheduledPlan: null, scheduledPlanDate: null };
+  }
+
+  const nowUnix = Math.floor(now.getTime() / 1000);
+  let currentPhaseIndex = -1;
+
+  for (let index = 0; index < phases.length; index += 1) {
+    const phase = phases[index];
+    const start = phase.start_date;
+    const end = phase.end_date ?? null;
+    if (start <= nowUnix && (end === null || nowUnix < end)) {
+      currentPhaseIndex = index;
+      break;
+    }
+  }
+
+  if (currentPhaseIndex === -1) {
+    return { scheduledPlan: null, scheduledPlanDate: null };
+  }
+
+  const currentPhase = phases[currentPhaseIndex];
+  const nextPhase = phases[currentPhaseIndex + 1];
+  if (!nextPhase) {
+    return { scheduledPlan: null, scheduledPlanDate: null };
+  }
+
+  const currentPlan = getPlanForPriceId(getSchedulePhasePriceId(currentPhase));
+  const nextPlan = getPlanForPriceId(getSchedulePhasePriceId(nextPhase));
+  if (!nextPlan || currentPlan?.planId === nextPlan.planId) {
+    return { scheduledPlan: null, scheduledPlanDate: null };
+  }
+
+  const phaseEnd = currentPhase.end_date;
+  if (!phaseEnd || phaseEnd <= nowUnix) {
+    return { scheduledPlan: null, scheduledPlanDate: null };
+  }
+
+  return {
+    scheduledPlan: nextPlan.planId,
+    scheduledPlanDate: new Date(phaseEnd * 1000).toISOString(),
+  };
+}
+
+export function buildProfileBillingReconciliationPayload(input: {
+  profile: BillingProfileSnapshot;
+  subscription: Stripe.Subscription;
+  schedule: Stripe.SubscriptionSchedule | null;
+  verifiedPlan: PaidPlanRequest;
+  now?: Date;
+}): Record<string, unknown> | null {
+  const now = input.now ?? new Date();
+  const periodEnd =
+    input.subscription.items?.data?.[0]?.current_period_end ||
+    (input.subscription as unknown as { current_period_end?: number }).current_period_end;
+  const renewalDate = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
+  const interval =
+    input.subscription.items?.data?.[0]?.price?.recurring?.interval === "year" ? "year" : "month";
+
+  const scheduleIsActive = input.schedule
+    && (input.schedule.status === "active" || input.schedule.status === "not_started");
+  const { scheduledPlan, scheduledPlanDate } = scheduleIsActive && input.schedule
+    ? resolveScheduledPlanFromSchedule(input.schedule, now)
+    : { scheduledPlan: null, scheduledPlanDate: null };
+
+  const targetPlan = input.verifiedPlan.planId;
+  const planChanged = (input.profile.plan || "Hobby") !== targetPlan;
+  const scheduledChanged =
+    (input.profile.stripe_scheduled_plan || null) !== scheduledPlan
+    || (input.profile.stripe_scheduled_plan_date || null) !== scheduledPlanDate;
+  const billingDateChanged = (input.profile.billing_next_date || null) !== renewalDate;
+  const intervalChanged = (input.profile.billing_interval || null) !== interval;
+  const subscriptionIdChanged = input.profile.stripe_subscription_id !== input.subscription.id;
+
+  if (!planChanged && !scheduledChanged && !billingDateChanged && !intervalChanged && !subscriptionIdChanged) {
+    return null;
+  }
+
+  return {
+    plan: targetPlan,
+    stripe_subscription_id: input.subscription.id,
+    billing_interval: interval,
+    billing_next_date: renewalDate,
+    stripe_scheduled_plan: scheduledPlan,
+    stripe_scheduled_plan_date: scheduledPlanDate,
+    updated_at: now.toISOString(),
+  };
+}
 
 export type PaymentMethodDetails = {
   brand?: string | null;
@@ -97,6 +206,8 @@ export function buildWebhookSubscriptionUpdatePayload(input: {
   subscription: Stripe.Subscription;
   verifiedPlan: PaidPlanRequest | null;
   paymentMethodDetails?: PaymentMethodDetails | null;
+  scheduledPlan?: string | null;
+  scheduledPlanDate?: string | null;
   now?: Date;
 }) {
   const periodEnd =
@@ -125,7 +236,10 @@ export function buildWebhookSubscriptionUpdatePayload(input: {
     updatePayload.billing_interval = interval;
   }
 
-  if (!input.subscription.schedule) {
+  if (input.scheduledPlan !== undefined) {
+    updatePayload.stripe_scheduled_plan = input.scheduledPlan;
+    updatePayload.stripe_scheduled_plan_date = input.scheduledPlanDate ?? null;
+  } else if (!input.subscription.schedule) {
     updatePayload.stripe_scheduled_plan = null;
     updatePayload.stripe_scheduled_plan_date = null;
   }

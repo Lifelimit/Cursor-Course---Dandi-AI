@@ -12,6 +12,7 @@ import {
   getStripeSubscriptionDisplay,
   getTopReposFromLogs,
   getUsagePerformanceMetrics,
+  reconcileProfileBillingFromStripe,
   summarizeDailyLogs,
 } from "@/lib/services/usage-billing.service";
 import { getUsagePeriod } from "@/lib/utils/usage-period";
@@ -90,11 +91,18 @@ export async function getServerUsageData(
     const userId = user.id;
 
     // 1. Fetch user profile to get plan, Stripe details, and calculate limits
-    const { data: profile } = await supabase
+    let { data: profile } = await supabase
       .from("profiles")
       .select("plan, billing_next_date, billing_interval, stripe_customer_id, stripe_subscription_id, stripe_scheduled_plan, stripe_scheduled_plan_date")
       .eq("id", userId)
       .single();
+
+    if (options.includeBilling && profile?.stripe_customer_id) {
+      const reconciledProfile = await reconcileProfileBillingFromStripe(userId, profile);
+      if (reconciledProfile) {
+        profile = { ...profile, ...reconciledProfile };
+      }
+    }
 
     const plan = profile?.plan || "Hobby";
     const resolved = resolvePlan(plan);

@@ -13,6 +13,7 @@ import {
   getStripeSubscriptionDisplay,
   getTopReposFromLogs,
   getUsagePerformanceMetrics,
+  reconcileProfileBillingFromStripe,
   summarizeDailyLogs,
   BillingDataUnavailableError,
   UsageDataUnavailableError,
@@ -58,9 +59,17 @@ export async function GET(request: Request) {
 
     if (keysError) throw new Error(keysError.message);
 
+    let billingProfile = profileData;
+    if (includeBilling && billingProfile?.stripe_customer_id) {
+      const reconciledProfile = await reconcileProfileBillingFromStripe(userId, billingProfile);
+      if (reconciledProfile) {
+        billingProfile = { ...billingProfile, ...reconciledProfile };
+      }
+    }
+
     let plan = "Hobby";
-    if (profileData?.plan) {
-      plan = profileData.plan;
+    if (billingProfile?.plan) {
+      plan = billingProfile.plan;
     }
 
     const resolved = resolvePlan(plan);
@@ -114,9 +123,9 @@ export async function GET(request: Request) {
     });
 
     // 7. Calculate billing / quota reset dates
-    const stripeCustomerId = profileData?.stripe_customer_id;
+    const stripeCustomerId = billingProfile?.stripe_customer_id;
     const { resetDate, nextInvoiceDate } = await getBillingPeriodDisplay({
-      profile: profileData,
+      profile: billingProfile,
       now,
       selfHeal: includeBilling
         ? {
@@ -131,14 +140,14 @@ export async function GET(request: Request) {
     const billingProjection = includeBilling
       ? await Promise.all([
           getStripePaymentDisplay(stripeCustomerId),
-          getStripeSubscriptionDisplay(profileData?.stripe_subscription_id),
+          getStripeSubscriptionDisplay(billingProfile?.stripe_subscription_id),
         ])
       : null;
     const paymentDisplay = billingProjection?.[0];
     const subscriptionDisplay = billingProjection?.[1] || null;
 
     const responseBody: UsageData = {
-      plan: profileData?.plan || "Hobby",
+      plan: billingProfile?.plan || "Hobby",
       keys: processedKeys,
       totalUsage,
       globalTopRepos,
@@ -150,9 +159,9 @@ export async function GET(request: Request) {
       paymentMethods: paymentDisplay?.paymentMethods,
       customerBalance: paymentDisplay?.customerBalance,
       dailyAnalytics,
-      scheduledPlan: profileData?.stripe_scheduled_plan || null,
-      scheduledPlanDate: profileData?.stripe_scheduled_plan_date || null,
-      billingInterval: subscriptionDisplay?.interval || (profileData?.billing_interval === "year" ? "year" : "month"),
+      scheduledPlan: billingProfile?.stripe_scheduled_plan || null,
+      scheduledPlanDate: billingProfile?.stripe_scheduled_plan_date || null,
+      billingInterval: subscriptionDisplay?.interval || (billingProfile?.billing_interval === "year" ? "year" : "month"),
       subscriptionStatus: subscriptionDisplay?.status || null,
       cancelAtPeriodEnd: subscriptionDisplay?.cancelAtPeriodEnd || false,
     };

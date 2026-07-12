@@ -8,6 +8,7 @@ import { getEntitledPlanForSubscription, getPlanForSubscription } from "@/lib/bi
 import {
   buildWebhookSubscriptionUpdatePayload,
   parseKeysToKeep,
+  resolveScheduledPlanFromSchedule,
 } from "@/lib/services/stripe-billing-flow.service";
 
 const WEBHOOK_PROCESSING_LEASE_MS = 10 * 60 * 1000;
@@ -91,6 +92,41 @@ async function resolveBoundProfileId(customerId: string, metadataUserId?: string
   }
 
   return data.id;
+}
+
+async function resolveSubscriptionScheduleFields(subscription: Stripe.Subscription) {
+  const scheduleId = typeof subscription.schedule === "string"
+    ? subscription.schedule
+    : subscription.schedule?.id;
+  if (!scheduleId) {
+    return { scheduledPlan: null, scheduledPlanDate: null };
+  }
+
+  const schedule = await stripe.subscriptionSchedules.retrieve(scheduleId);
+  if (schedule.status !== "active" && schedule.status !== "not_started") {
+    return { scheduledPlan: null, scheduledPlanDate: null };
+  }
+
+  return resolveScheduledPlanFromSchedule(schedule, new Date());
+}
+
+async function buildVerifiedSubscriptionUpdatePayload(input: {
+  customerId: string;
+  subscriptionId: string;
+  subscription: Stripe.Subscription;
+  verifiedPlan: NonNullable<ReturnType<typeof getEntitledPlanForSubscription>>;
+  paymentMethodDetails?: Record<string, string> | null;
+}) {
+  const scheduled = await resolveSubscriptionScheduleFields(input.subscription);
+  return buildWebhookSubscriptionUpdatePayload({
+    customerId: input.customerId,
+    subscriptionId: input.subscriptionId,
+    subscription: input.subscription,
+    verifiedPlan: input.verifiedPlan,
+    paymentMethodDetails: input.paymentMethodDetails,
+    scheduledPlan: scheduled.scheduledPlan,
+    scheduledPlanDate: scheduled.scheduledPlanDate,
+  });
 }
 
 export async function POST(req: Request) {
@@ -255,7 +291,7 @@ export async function POST(req: Request) {
         }
 
         if (verifiedPlan) {
-          updatePayload = buildWebhookSubscriptionUpdatePayload({
+          updatePayload = await buildVerifiedSubscriptionUpdatePayload({
             customerId,
             subscriptionId,
             subscription,
@@ -279,7 +315,7 @@ export async function POST(req: Request) {
             .find((candidate) => candidate.plan);
 
           updatePayload = replacement?.plan
-            ? buildWebhookSubscriptionUpdatePayload({
+            ? await buildVerifiedSubscriptionUpdatePayload({
                 customerId,
                 subscriptionId: replacement.subscription.id,
                 subscription: replacement.subscription,
@@ -348,7 +384,7 @@ export async function POST(req: Request) {
         .find((candidate) => candidate.plan);
 
       if (replacementSubscription?.plan) {
-        const replacementPayload = buildWebhookSubscriptionUpdatePayload({
+        const replacementPayload = await buildVerifiedSubscriptionUpdatePayload({
           customerId,
           subscriptionId: replacementSubscription.subscription.id,
           subscription: replacementSubscription.subscription,

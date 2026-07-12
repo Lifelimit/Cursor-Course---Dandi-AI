@@ -1153,6 +1153,88 @@ test("resolves subscription SCA and billing payload helpers", () => {
   assert.match(finalizeRoute, /status: "processing", subscriptionId/);
 });
 
+test("reconciles scheduled plan state from Stripe subscription schedules", () => {
+  const {
+    buildProfileBillingReconciliationPayload,
+    resolveScheduledPlanFromSchedule,
+    buildWebhookSubscriptionUpdatePayload,
+  } = loadTsModule("lib/services/stripe-billing-flow.service.ts");
+
+  const researcherYear = "price_researcher_year";
+  const premiumYear = "price_premium_year";
+  const phaseOneEnd = Math.floor(new Date("2026-06-29T00:00:00.000Z").getTime() / 1000);
+  const beforeEffectiveDate = new Date("2026-06-15T00:00:00.000Z");
+  const afterEffectiveDate = new Date("2026-07-13T00:00:00.000Z");
+
+  const futureSchedule = {
+    status: "active",
+    phases: [
+      {
+        start_date: phaseOneEnd - 86400 * 30,
+        end_date: phaseOneEnd,
+        items: [{ price: researcherYear }],
+      },
+      {
+        start_date: phaseOneEnd,
+        items: [{ price: premiumYear }],
+      },
+    ],
+  };
+
+  assert.deepEqual(resolveScheduledPlanFromSchedule(futureSchedule, beforeEffectiveDate), {
+    scheduledPlan: "Premium",
+    scheduledPlanDate: new Date(phaseOneEnd * 1000).toISOString(),
+  });
+  assert.deepEqual(resolveScheduledPlanFromSchedule(futureSchedule, afterEffectiveDate), {
+    scheduledPlan: null,
+    scheduledPlanDate: null,
+  });
+
+  const transitionedSubscription = {
+    id: "sub_123",
+    status: "active",
+    items: {
+      data: [{
+        price: { id: premiumYear, recurring: { interval: "year" } },
+        current_period_end: phaseOneEnd + 86400 * 365,
+      }],
+    },
+  };
+
+  const staleProfile = {
+    plan: "Researcher",
+    billing_interval: "year",
+    stripe_subscription_id: "sub_123",
+    stripe_scheduled_plan: "Premium",
+    stripe_scheduled_plan_date: new Date(phaseOneEnd * 1000).toISOString(),
+  };
+
+  const reconciliationPayload = buildProfileBillingReconciliationPayload({
+    profile: staleProfile,
+    subscription: transitionedSubscription,
+    schedule: null,
+    verifiedPlan: { planId: "Premium", interval: "year", priceId: premiumYear },
+    now: afterEffectiveDate,
+  });
+
+  assert.equal(reconciliationPayload?.plan, "Premium");
+  assert.equal(reconciliationPayload?.stripe_scheduled_plan, null);
+  assert.equal(reconciliationPayload?.stripe_scheduled_plan_date, null);
+
+  const webhookPayload = buildWebhookSubscriptionUpdatePayload({
+    customerId: "cus_123",
+    subscriptionId: "sub_123",
+    subscription: { ...transitionedSubscription, schedule: "sub_sched_123" },
+    verifiedPlan: { planId: "Premium", interval: "year", priceId: premiumYear },
+    scheduledPlan: null,
+    scheduledPlanDate: null,
+    now: afterEffectiveDate,
+  });
+  assert.equal(webhookPayload.plan, "Premium");
+  assert.equal(webhookPayload.stripe_scheduled_plan, null);
+  assert.equal(webhookPayload.stripe_scheduled_plan_date, null);
+});
+
 test("builds structured account access from browser, active and inactive keys, and request telemetry", () => {
   const { buildAccountAccess } = loadTsModule("lib/account-environments.ts");
 

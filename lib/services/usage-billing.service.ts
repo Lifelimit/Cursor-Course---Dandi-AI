@@ -2,6 +2,11 @@ import Stripe from "stripe";
 import { redis } from "@/lib/redis";
 import { stripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getEntitledPlanForSubscription } from "@/lib/billing-catalog";
+import {
+  buildProfileBillingReconciliationPayload,
+  type BillingProfileSnapshot,
+} from "@/lib/services/stripe-billing-flow.service";
 import { formatIsoDatePart } from "@/lib/format";
 import { getRecentUsageDatesUtc, getUsagePeriod } from "@/lib/utils/usage-period";
 import type { PaymentMethodDisplay } from "@/types/billing";
@@ -32,12 +37,7 @@ export type StripeSubscriptionDisplay = {
   cancelAtPeriodEnd: boolean;
 };
 
-type BillingProfile = {
-  billing_next_date?: string | null;
-  billing_interval?: string | null;
-  stripe_customer_id?: string | null;
-  stripe_subscription_id?: string | null;
-};
+type BillingProfile = BillingProfileSnapshot;
 
 type SelfHealOptions = {
   mode: "background" | "await";
@@ -324,6 +324,74 @@ async function selfHealBillingDate(
   }
 
   return null;
+}
+
+export async function reconcileProfileBillingFromStripe(
+  userId: string,
+  profile: BillingProfileSnapshot,
+): Promise<BillingProfileSnapshot | null> {
+  const customerId = profile.stripe_customer_id;
+  if (!customerId) return null;
+
+  try {
+    let subscription: Stripe.Subscription | null = null;
+
+    if (profile.stripe_subscription_id) {
+      const candidate = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
+      if (candidate.status === "active" || candidate.status === "trialing") {
+        subscription = candidate;
+      }
+    }
+
+    if (!subscription) {
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "all",
+        limit: 100,
+      });
+      subscription = subscriptions.data.find(
+        (candidate) => candidate.status === "active" || candidate.status === "trialing",
+      ) ?? null;
+    }
+
+    if (!subscription) return null;
+
+    const verifiedPlan = getEntitledPlanForSubscription(subscription);
+    if (!verifiedPlan) return null;
+
+    const scheduleId = typeof subscription.schedule === "string"
+      ? subscription.schedule
+      : subscription.schedule?.id;
+    const schedule = scheduleId
+      ? await stripe.subscriptionSchedules.retrieve(scheduleId)
+      : null;
+
+    const payload = buildProfileBillingReconciliationPayload({
+      profile,
+      subscription,
+      schedule,
+      verifiedPlan,
+    });
+    if (!payload) return null;
+
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .update(payload)
+      .eq("id", userId)
+      .eq("stripe_customer_id", customerId)
+      .select("plan, billing_next_date, billing_interval, stripe_customer_id, stripe_subscription_id, stripe_scheduled_plan, stripe_scheduled_plan_date")
+      .single();
+
+    if (error || !data) {
+      console.warn("Billing reconciliation profile update failed.");
+      return null;
+    }
+
+    return data;
+  } catch {
+    console.warn("Stripe billing reconciliation failed.");
+    return null;
+  }
 }
 
 export async function getBillingPeriodDisplay(input: {
