@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { EventEmitter } from "node:events";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -399,12 +400,15 @@ test("maps domain statuses to stable UI tones", () => {
   assert.equal(getNetworkLogStatusTone("error"), "danger");
 });
 
-test("webhook test helpers sign payloads and sanitize delivery details", () => {
+test("webhook test helpers pin public destinations and sanitize delivery details", async () => {
   const {
+    assertSafeWebhookEndpoint,
     buildWebhookTestPayload,
+    createPinnedLookup,
     isPrivateOrReservedIp,
     parseSafeResponseBody,
     sanitizeResponseHeaders,
+    sendWebhookTestDelivery,
     signWebhookPayload,
   } = loadTsModule("lib/services/webhook-test.service.ts");
 
@@ -421,6 +425,37 @@ test("webhook test helpers sign payloads and sanitize delivery details", () => {
   assert.equal(isPrivateOrReservedIp("10.0.0.5"), true);
   assert.equal(isPrivateOrReservedIp("8.8.8.8"), false);
   assert.equal(isPrivateOrReservedIp("::1"), true);
+  assert.equal(isPrivateOrReservedIp("::ffff:7f00:1"), true);
+  assert.equal(isPrivateOrReservedIp("64:ff9b::7f00:1"), true);
+  assert.equal(isPrivateOrReservedIp("100:0:0:1::1"), true);
+  assert.equal(isPrivateOrReservedIp("2002:7f00:1::"), true);
+  assert.equal(isPrivateOrReservedIp("3fff::1"), true);
+  assert.equal(isPrivateOrReservedIp("5f00::1"), true);
+
+  await assert.rejects(
+    () => assertSafeWebhookEndpoint("http://127.0.0.1/webhook"),
+    /private or reserved network address/i,
+  );
+  await assert.rejects(
+    () => assertSafeWebhookEndpoint("http://[::ffff:7f00:1]/webhook"),
+    /private or reserved network address/i,
+  );
+  await assert.rejects(
+    () => assertSafeWebhookEndpoint("https://user:password@8.8.8.8/webhook"),
+    /embedded credentials/i,
+  );
+  const publicTarget = await assertSafeWebhookEndpoint("https://8.8.8.8/webhook");
+  assert.equal(publicTarget.address, "8.8.8.8");
+  assert.equal(publicTarget.family, 4);
+
+  const pinnedLookup = createPinnedLookup("8.8.8.8", 4);
+  const pinnedResult = await new Promise((resolve, reject) => {
+    pinnedLookup("rebind.example", { all: false }, (error, address, family) => {
+      if (error) reject(error);
+      else resolve({ address, family });
+    });
+  });
+  assert.deepEqual(pinnedResult, { address: "8.8.8.8", family: 4 });
 
   const headers = new Headers({
     "content-type": "application/json",
@@ -433,6 +468,51 @@ test("webhook test helpers sign payloads and sanitize delivery details", () => {
     "x-request-id": "req_123",
   });
   assert.deepEqual(parseSafeResponseBody("{\"ok\":true}", "application/json"), { ok: true });
+
+  const webhookSource = readFileSync(resolve(repoRoot, "lib/services/webhook-test.service.ts"), "utf8");
+  const profileSource = readFileSync(resolve(repoRoot, "app/api/profile/route.ts"), "utf8");
+  assert.match(webhookSource, /lookup: createPinnedLookup\(endpoint\.address, endpoint\.family\)/);
+  assert.match(webhookSource, /transport\.request\(endpoint\.url/);
+  assert.doesNotMatch(webhookSource, /fetch\(input\.webhookUrl/);
+  assert.match(profileSource, /await assertSafeWebhookEndpoint\(sanitizedWebhookUrl\)/);
+
+  const httpModule = require("node:http");
+  const originalRequest = httpModule.request;
+  const requestOptions = [];
+  try {
+    httpModule.request = (url, options, onResponse) => {
+      requestOptions.push({ url: String(url), options });
+      const request = new EventEmitter();
+      request.end = () => {
+        const response = new EventEmitter();
+        response.statusCode = 302;
+        response.headers = { location: "http://127.0.0.1/internal" };
+        response.destroy = () => {};
+        onResponse(response);
+        queueMicrotask(() => response.emit("end"));
+      };
+      return request;
+    };
+
+    const redirectResult = await sendWebhookTestDelivery({
+      webhookUrl: "http://8.8.8.8/webhook",
+      signingSecret: "whsec_test",
+      now: new Date("2026-06-01T12:00:00Z"),
+    });
+    assert.equal(redirectResult.success, false);
+    assert.equal(redirectResult.delivery.status, 302);
+    assert.equal(requestOptions.length, 1, "redirect destinations must never be followed");
+
+    const connectedAddress = await new Promise((resolve, reject) => {
+      requestOptions[0].options.lookup("rebind.example", { all: false }, (error, address, family) => {
+        if (error) reject(error);
+        else resolve({ address, family });
+      });
+    });
+    assert.deepEqual(connectedAddress, { address: "8.8.8.8", family: 4 });
+  } finally {
+    httpModule.request = originalRequest;
+  }
 });
 
 test("computes configurable CORS headers", () => {

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { assertSafeWebhookEndpoint, getSafeWebhookErrorMessage } from "@/lib/services/webhook-test.service";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -29,8 +30,8 @@ export async function GET() {
       webhookSecret: profile?.webhook_secret || "",
       githubConnected: !!profile?.github_connected
     });
-  } catch (err) {
-    console.error("Failed to fetch profile settings:", err);
+  } catch {
+    console.error("Failed to fetch profile settings.");
     return NextResponse.json({ plan: "Hobby", error: "Internal Server Error" }, { status: 500 });
   }
 }
@@ -94,15 +95,9 @@ export async function PATCH(req: Request) {
 
     if (sanitizedWebhookUrl !== undefined && sanitizedWebhookUrl !== "") {
       try {
-        const parsed = new URL(sanitizedWebhookUrl);
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-          return NextResponse.json({ error: "Webhook URL must be HTTP or HTTPS" }, { status: 400 });
-        }
-        if (sanitizedWebhookUrl.length > 2000) {
-          return NextResponse.json({ error: "Webhook URL is too long" }, { status: 400 });
-        }
-      } catch {
-        return NextResponse.json({ error: "Invalid Webhook URL format" }, { status: 400 });
+        await assertSafeWebhookEndpoint(sanitizedWebhookUrl);
+      } catch (error) {
+        return NextResponse.json({ error: getSafeWebhookErrorMessage(error) }, { status: 400 });
       }
     }
 
@@ -140,8 +135,8 @@ export async function PATCH(req: Request) {
       .single();
 
     if (error) {
-      console.error("Failed to update profile database:", error);
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      console.error("Failed to update profile settings.");
+      return NextResponse.json({ error: "Failed to update profile settings." }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -154,8 +149,8 @@ export async function PATCH(req: Request) {
       webhookSecret: updatedProfile?.webhook_secret || "",
       githubConnected: !!updatedProfile?.github_connected
     });
-  } catch (err) {
-    console.error("Failed to patch profile settings:", err);
+  } catch {
+    console.error("Failed to patch profile settings.");
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
