@@ -79,7 +79,7 @@ test("shared controls expose table, tab, listbox, quota, and contrast semantics"
     read("app/globals.css"),
   ]);
 
-  assert.match(apiTables, /<caption className="sr-only">API keys and credential activity<\/caption>/);
+  assert.match(apiTables, /role="list" aria-label="Active API keys"/);
   assert.match(apiTables, /<th scope="col"/);
   assert.match(deliveryTable, /<caption className="sr-only">Webhook test delivery details<\/caption>/);
   assert.match(deliveryInspector, /aria-controls="delivery-log-request-panel"/);

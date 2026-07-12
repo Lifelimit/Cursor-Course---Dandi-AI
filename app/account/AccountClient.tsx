@@ -594,22 +594,21 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           description="Manage identity, connected services, developer access, and account protection from one focused control plane."
         />
 
-        <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(240px,280px)_minmax(0,1fr)] xl:gap-8">
-          <AccountSettingsNav
-            activeSection={activeTab}
-            onChange={(section) => {
-              setActiveTab(section);
-              const params = new URLSearchParams(window.location.search);
-              const isCanonicalSection = section === "profile"
-                ? !params.has("tab")
-                : params.get("tab") === section;
-              if (!isCanonicalSection) {
-                router.push(accountRoute(section, params), { scroll: false });
-              }
-            }}
-          />
+        <AccountSettingsNav
+          activeSection={activeTab}
+          onChange={(section) => {
+            setActiveTab(section);
+            const params = new URLSearchParams(window.location.search);
+            const isCanonicalSection = section === "profile"
+              ? !params.has("tab")
+              : params.get("tab") === section;
+            if (!isCanonicalSection) {
+              router.push(accountRoute(section, params), { scroll: false });
+            }
+          }}
+        />
 
-          <div className="min-w-0">
+        <div className="min-w-0">
 
         {accountLoadError && (
           <GuidedError
@@ -740,7 +739,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
             )}
           </div>
         )}
-          </div>
         </div>
       </DashboardShell>
 

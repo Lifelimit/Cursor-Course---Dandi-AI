@@ -1,4 +1,3 @@
-import { ScrollFrame } from "@/components/command";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatRelativeTime, formatRequestCount } from "@/lib/format";
 import type { AccountApiKeyAccess, AccountApiRequestActivity } from "@/types/account";
@@ -90,7 +89,7 @@ export function AccountApiKeysPanel({
           <button
             type="button"
             onClick={onCreateApiKey}
-            className="inline-flex w-full items-center justify-center rounded-full bg-emerald-500 px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:w-auto"
+            className="inline-flex w-full shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-emerald-500 px-5 py-2.5 text-[9px] font-black uppercase tracking-widest text-zinc-950 transition-colors hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:w-auto sm:min-w-[10rem]"
           >
             Create API key
           </button>
@@ -184,117 +183,97 @@ export function AccountApiKeysPanel({
           )}
         </div>
 
-        <div className="hidden md:block">
-          <ScrollFrame axis="x" minWidth="900px" label="API keys table">
-            <table className="w-full table-fixed border-collapse text-left font-sans text-xs">
-              <caption className="sr-only">API keys and credential activity</caption>
-              <colgroup>
-                <col className="w-[25%]" />
-                <col className="w-[11%]" />
-                <col className="w-[11%]" />
-                <col className="w-[22%]" />
-                <col className="w-[13%]" />
-                <col className="w-[18%]" />
-              </colgroup>
-              <thead>
-                <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
-                  <th scope="col" className="px-4 py-3">Key</th>
-                  <th scope="col" className="px-4 py-3">Type</th>
-                  <th scope="col" className="px-4 py-3">Created</th>
-                  <th scope="col" className="px-4 py-3">Last used</th>
-                  <th scope="col" className="px-4 py-3">Monthly requests</th>
-                  <th scope="col" className="px-4 py-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5 font-medium">
-                {activeApiKeys.map((apiKey) => {
-                  const canRevokeApiKey = apiKey.revocable;
+        <div className="hidden space-y-3 md:block" role="list" aria-label="Active API keys">
+          {activeApiKeys.map((apiKey) => {
+            const canRevokeApiKey = apiKey.revocable;
+            const usageDetail = getApiKeyUsageDetail(apiKey);
+            const isBusy = busyApiKeyId === apiKey.apiKeyId;
 
-                  return (
-                    <tr key={apiKey.id} className="text-zinc-300 transition-colors hover:bg-white/5">
-                      <td className="px-4 py-3">
-                        <div className="flex min-w-0 flex-col gap-1">
-                          <span className="truncate font-bold text-white" title={apiKey.label}>{apiKey.label}</span>
-                          <span className="truncate text-[10px] font-medium text-zinc-500" title={apiKey.detail || "API key credential"}>
-                            {apiKey.detail || "API key credential"}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest text-indigo-300">
-                          {getApiKeyTypeLabel(apiKey)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-bold text-zinc-400">{apiKey.telemetryAge || "Unknown"}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex min-w-0 flex-col gap-1">
-                          <span className="font-bold text-zinc-400">{getApiKeyLastUsedLabel(apiKey)}</span>
-                          {getApiKeyUsageDetail(apiKey) && (
-                            <span className="truncate text-[10px] font-medium text-zinc-500" title={getApiKeyUsageDetail(apiKey) || undefined}>
-                              {getApiKeyUsageDetail(apiKey)}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col gap-1">
-                          <span className="font-bold text-zinc-400">{getApiKeyRequestCount(apiKey)}</span>
-                          <span className="text-[10px] font-medium text-zinc-500">Limit: {getApiKeyLimitLabel(apiKey)}</span>
-                          {apiKey.latestStatus && (
-                            <span className="text-[10px] font-medium capitalize text-zinc-500">{apiKey.latestStatus}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex flex-wrap justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => onEditApiKey(apiKey)}
-                            disabled={busyApiKeyId === apiKey.apiKeyId}
-                            className="rounded-full border border-white/10 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-slate-300 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white disabled:opacity-50"
-                          >
-                            Edit
-                          </button>
-                          {canRevokeApiKey && (
-                          <button
-                            type="button"
-                            onClick={() => onRevokeApiKey(apiKey)}
-                            disabled={busyApiKeyId === apiKey.apiKeyId}
-                            className="rounded-full border border-rose-500/20 bg-rose-950/20 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-rose-400 shadow-sm transition-all hover:bg-rose-500 hover:text-white active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-                            title="Disable this API key"
-                            aria-label={`Revoke API key ${apiKey.label}`}
-                          >
-                            Revoke
-                          </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => onDeleteApiKey(apiKey)}
-                            disabled={busyApiKeyId === apiKey.apiKeyId}
-                            className="rounded-full border border-white/5 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-zinc-500 transition-all hover:border-rose-500/20 hover:bg-rose-950/20 hover:text-rose-300 disabled:opacity-50"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {activeApiKeys.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center">
-                      <EmptyState
-                        className="mx-auto max-w-md"
-                        title={inactiveApiKeys.length > 0 ? "No active API keys." : "No API keys yet."}
-                        description={inactiveApiKeys.length > 0 ? "All existing credentials are inactive. Reactivate one below or create a new key." : "Create an API key when an external client, script, or deployed service needs credentialed access."}
-                        action={<CreateApiKeyButton onClick={onCreateApiKey} />}
-                      />
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </ScrollFrame>
+            return (
+              <article key={apiKey.id} role="listitem" className="rounded-2xl border border-white/8 bg-slate-950/30 p-5 transition-colors hover:border-white/15 hover:bg-slate-950/40">
+                <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(220px,1.1fr)_minmax(0,2fr)_270px] xl:items-center">
+                  <div className="min-w-0 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-2.5 py-1 text-[8px] font-black uppercase tracking-widest text-emerald-200">
+                        Active
+                      </span>
+                      <span className="rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-widest text-indigo-300">
+                        {getApiKeyTypeLabel(apiKey)}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <h6 className="truncate text-base font-bold text-white" title={apiKey.label}>{apiKey.label}</h6>
+                      <p className="mt-1 truncate text-[10px] font-medium text-zinc-500" title={apiKey.detail || "API key credential"}>
+                        {apiKey.detail || "API key credential"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <dl className="grid grid-cols-2 gap-x-5 gap-y-4 lg:grid-cols-4">
+                    <div className="min-w-0">
+                      <dt className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Created</dt>
+                      <dd className="mt-1 text-xs font-bold text-zinc-300">{apiKey.telemetryAge || "Unknown"}</dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Last used</dt>
+                      <dd className="mt-1 text-xs font-bold text-zinc-300">{getApiKeyLastUsedLabel(apiKey)}</dd>
+                      {usageDetail && <dd className="mt-1 truncate text-[10px] text-zinc-500" title={usageDetail}>{usageDetail}</dd>}
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Requests</dt>
+                      <dd className="mt-1 text-xs font-bold text-zinc-300">{getApiKeyRequestCount(apiKey)}</dd>
+                      {apiKey.latestStatus && <dd className="mt-1 text-[10px] capitalize text-zinc-500">{apiKey.latestStatus}</dd>}
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Hard limit</dt>
+                      <dd className="mt-1 text-xs font-bold text-zinc-300">{getApiKeyLimitLabel(apiKey)}</dd>
+                    </div>
+                  </dl>
+
+                  <div className="grid grid-cols-3 gap-2" role="group" aria-label={`Actions for ${apiKey.label}`}>
+                    <button
+                      type="button"
+                      onClick={() => onEditApiKey(apiKey)}
+                      disabled={isBusy}
+                      className="min-h-10 rounded-xl border border-white/10 px-3 text-[8px] font-black uppercase tracking-widest text-slate-300 transition-colors hover:border-white/20 hover:bg-white/5 hover:text-white disabled:opacity-50"
+                    >
+                      Edit
+                    </button>
+                    {canRevokeApiKey && (
+                      <button
+                        type="button"
+                        onClick={() => onRevokeApiKey(apiKey)}
+                        disabled={isBusy}
+                        className="min-h-10 rounded-xl border border-rose-500/20 bg-rose-950/20 px-3 text-[8px] font-black uppercase tracking-widest text-rose-300 transition-colors hover:border-rose-400/35 hover:bg-rose-500/15 hover:text-rose-100 disabled:opacity-50"
+                        title="Disable this API key"
+                      >
+                        Revoke
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => onDeleteApiKey(apiKey)}
+                      disabled={isBusy}
+                      className="min-h-10 rounded-xl border border-white/8 px-3 text-[8px] font-black uppercase tracking-widest text-zinc-500 transition-colors hover:border-rose-500/20 hover:bg-rose-950/20 hover:text-rose-300 disabled:opacity-50"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+
+          {activeApiKeys.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/20 px-6 py-10">
+              <EmptyState
+                className="mx-auto max-w-md"
+                title={inactiveApiKeys.length > 0 ? "No active API keys." : "No API keys yet."}
+                description={inactiveApiKeys.length > 0 ? "All existing credentials are inactive. Reactivate one below or create a new key." : "Create an API key when an external client, script, or deployed service needs credentialed access."}
+                action={<CreateApiKeyButton onClick={onCreateApiKey} />}
+              />
+            </div>
+          )}
         </div>
       </section>
 
@@ -380,7 +359,7 @@ export function AccountApiKeysPanel({
           </p>
         </div>
 
-        <div className="space-y-3 md:hidden">
+        <div className="space-y-3 xl:hidden">
           {recentRequests.map((request) => (
             <div key={request.id} className="space-y-4 rounded-2xl border border-white/5 bg-slate-950/40 p-4 shadow-xl backdrop-blur-xl">
               <div className="space-y-1">
@@ -424,50 +403,50 @@ export function AccountApiKeysPanel({
           )}
         </div>
 
-        <div className="hidden overflow-hidden rounded-2xl border border-white/5 md:block" role="region" aria-label="Recent API activity table">
+        <div className="hidden overflow-hidden rounded-2xl border border-white/5 xl:block" role="region" aria-label="Recent API activity table">
             <table className="w-full table-fixed border-collapse text-left font-sans text-xs">
               <caption className="sr-only">Recent API request activity</caption>
               <colgroup>
-                <col className="w-[22%]" />
+                <col className="w-[21%]" />
                 <col className="w-[28%]" />
-                <col className="w-[15%]" />
-                <col className="w-[15%]" />
+                <col className="w-[13%]" />
+                <col className="w-[14%]" />
                 <col className="w-[12%]" />
-                <col className="w-[8%]" />
+                <col className="w-[12%]" />
               </colgroup>
               <thead>
                 <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
-                  <th scope="col" className="px-4 py-3">Client</th>
-                  <th scope="col" className="px-4 py-3">Request</th>
-                  <th scope="col" className="px-4 py-3">IP</th>
-                  <th scope="col" className="px-4 py-3">Location</th>
-                  <th scope="col" className="px-4 py-3">Last seen</th>
-                  <th scope="col" className="px-4 py-3 text-right">Details</th>
+                  <th scope="col" className="px-3 py-3 sm:px-4">Client</th>
+                  <th scope="col" className="px-3 py-3 sm:px-4">Request</th>
+                  <th scope="col" className="px-3 py-3 sm:px-4">IP</th>
+                  <th scope="col" className="px-3 py-3 sm:px-4">Location</th>
+                  <th scope="col" className="px-3 py-3 sm:px-4">Last seen</th>
+                  <th scope="col" className="whitespace-nowrap px-3 py-3 text-right sm:px-4">Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 font-medium">
                 {recentRequests.map((request) => (
                   <tr key={request.id} className="text-zinc-300 transition-colors hover:bg-white/5">
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3 sm:px-4">
                       <span className="block truncate font-bold text-white" title={request.label}>{request.label}</span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3 sm:px-4">
                       <span className="block truncate text-zinc-400" title={request.detail || "Recent API request"}>
                         {request.detail || "Recent API request"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-mono text-zinc-400 select-all">
+                    <td className="px-3 py-3 font-mono text-zinc-400 select-all sm:px-4">
                       <span className="block truncate" title={request.ip || "Unknown"}>{request.ip || "Unknown"}</span>
                     </td>
-                    <td className="px-4 py-3 text-zinc-400">
+                    <td className="px-3 py-3 text-zinc-400 sm:px-4">
                       <span className="block truncate" title={request.location || "Unknown"}>{request.location || "Unknown"}</span>
                     </td>
-                    <td className="px-4 py-3 font-bold text-zinc-400">{request.telemetryAge || "No activity"}</td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 py-3 font-bold text-zinc-400 sm:px-4">{request.telemetryAge || "No activity"}</td>
+                    <td className="px-3 py-3 text-right sm:px-4">
                       <button
                         type="button"
                         onClick={() => onInspectApiActivity(request)}
-                        className="rounded-full border border-sky-500/20 bg-sky-950/20 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-sky-300 shadow-sm transition-all hover:bg-sky-500 hover:text-white active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                        className="min-w-[4.25rem] rounded-full border border-sky-500/20 bg-sky-950/20 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-sky-300 shadow-sm transition-colors hover:bg-sky-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                         aria-label={`View API activity details for ${request.label}`}
                       >
                         View

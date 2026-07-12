@@ -53,12 +53,12 @@ export function AccountApiKeyRevocationModal({
           )}
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-white/5 pt-5 sm:flex-row sm:justify-end">
+        <div className="grid gap-3 border-t border-white/5 pt-5 sm:grid-cols-[9rem_13rem] sm:justify-end" aria-busy={isRevoking}>
           <button
             type="button"
             onClick={onCancel}
             disabled={isRevoking}
-            className="rounded-full border border-white/10 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-300 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50"
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-full border border-white/10 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-300 transition-colors hover:border-white/20 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50"
           >
             Cancel
           </button>
@@ -66,8 +66,9 @@ export function AccountApiKeyRevocationModal({
             type="button"
             onClick={onConfirm}
             disabled={isRevoking}
-            className="rounded-full border border-rose-500/30 bg-rose-600 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-rose-950/20 transition-all hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-60"
+            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-rose-500/30 bg-rose-600 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-rose-950/20 transition-colors hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-60"
           >
+            {isRevoking && <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-current/25 border-t-current" aria-hidden="true" />}
             {isRevoking ? `${isDelete ? "Deleting" : "Revoking"}...` : actionLabel}
           </button>
         </div>
