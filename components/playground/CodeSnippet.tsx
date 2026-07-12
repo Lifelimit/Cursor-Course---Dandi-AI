@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { CopyIconButton } from "@/components/ui/CopyIconButton";
 import { CodeWindow } from "@/components/command";
+import { publicEnv } from "@/lib/env";
 
 type CodeSnippetProps = {
   apiKey: string;
@@ -12,20 +13,14 @@ type CodeSnippetProps = {
 };
 
 const maskSnippetApiKey = (apiKey: string) => {
-  if (!apiKey) return "sk_live_YOUR_API_KEY";
-  if (apiKey === "__demo__") return "__demo__";
-  return `${apiKey.substring(0, 8)}••••••••`;
+  void apiKey;
+  return "$DANDI_API_KEY";
 };
 
 export function CodeSnippet({ apiKey, githubUrl, onCopy, mode = "summary" }: CodeSnippetProps) {
   const [activeTab, setActiveTab] = useState<"curl" | "fetch" | "python">("curl");
 
-  const [apiBaseUrl, setApiBaseUrl] = useState("https://dandi.ai");
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setApiBaseUrl(window.location.origin);
-  }, []);
+  const apiBaseUrl = publicEnv.NEXT_PUBLIC_APP_URL;
 
   const displayKey = maskSnippetApiKey(apiKey);
   const displayUrl = githubUrl || "https://github.com/facebook/react";

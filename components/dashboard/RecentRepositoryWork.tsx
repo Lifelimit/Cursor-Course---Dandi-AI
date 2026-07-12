@@ -43,7 +43,7 @@ export function RecentRepositoryWork({ works }: { works: DashboardRepositoryWork
         <div className="mt-5 rounded-2xl border border-dashed border-white/10 bg-slate-950/25 p-6 text-center">
           <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] text-cyan-200" aria-hidden="true">⌁</div>
           <h3 className="mt-4 text-sm font-bold text-white">No repository work yet</h3>
-          <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-slate-500">Analyze a public repository or connect GitHub to start with a private one.</p>
+          <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-slate-500">Analyze a public repository to start building recent repository context.</p>
           <Link href={ROUTES.playgroundSummary} className="mt-5 inline-flex min-h-10 items-center justify-center rounded-full bg-emerald-300 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-slate-950 transition hover:bg-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">Analyze a repository</Link>
         </div>
       ) : (

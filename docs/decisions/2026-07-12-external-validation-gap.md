@@ -41,12 +41,12 @@ deployment unless the current deployment explicitly requires email delivery
 during startup or normal operation.
 
 The following remain unverified because the environment has no safe test user,
-GitHub token, live local SMTP credentials, or approved webhook receiver target;
+live local SMTP credentials, or approved webhook receiver target;
 Vercel SMTP credentials and Supabase Auth SMTP have not been inspected:
 
 - authenticated login/signup/recovery and the complete authenticated product
   journeys;
-- private GitHub Summary and GitHub App authorization;
+- GitHub App installation, authorization, and display-only repository snapshot;
 - live Dandi AI generation, repository preparation, and grounded Ask;
 - one isolated Dandi application email;
 - Supabase Auth email confirmation or password-recovery delivery;

@@ -257,7 +257,7 @@ export function PaymentForm({
           </svg>
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Stripe Checkout</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Stripe Elements</p>
           <p className="text-[9px] text-emerald-500/70">Card details are handled by Stripe. Dandi does not store full card numbers.</p>
         </div>
       </div>

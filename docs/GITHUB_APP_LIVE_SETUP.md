@@ -16,7 +16,7 @@ Create or edit the GitHub App in GitHub developer settings.
 Required repository permissions:
 
 - Metadata: read-only. GitHub Apps receive this permission by default and Dandi uses repository metadata for Account Settings display.
-- Contents: read-only. This is required for private Repository Summary to read granted repository files through a server-side installation token. Private RAG, indexing, and chat remain out of scope.
+- Contents: read-only. The current application stores a verified, display-only repository snapshot; it does not mint installation tokens for Summary, Prepare, or Ask.
 
 Repository access expectation:
 
@@ -75,13 +75,13 @@ After applying, verify:
 8. Reload Account Settings and confirm connected state persists.
 9. Use Reconnect to Refresh after changing repository grants on GitHub.
 10. Click Disconnect from Dandi and confirm only the local Dandi record is removed.
-11. Click Uninstall GitHub App from GitHub, type UNINSTALL, and confirm both GitHub-side revoke and local cleanup succeed.
+11. Use Manage on GitHub to change repository grants or uninstall the app. Then disconnect the stale local Dandi record if needed.
 
-After the connection is verified, Repository Summary can summarize private repositories that are present in the verified repository snapshot. Ask a Repository, RAG indexing, and private chat remain out of scope and should continue to fail closed for private repositories.
+After the connection is verified, Dandi can display the installation and its verified repository snapshot in Account. Summary, Prepare, and Ask remain public-only; the stored snapshot is never an authorization source for repository content.
 
 ## Connection Cleanup Operations
 
-Dandi provides three different paths for managing and removing a GitHub connection, depending on the desired outcome:
+Dandi provides two paths for managing and removing a GitHub connection, depending on the desired outcome:
 
 1. **Disconnect from Dandi (Local-only)**
    - **Path**: Click "Disconnect from Dandi" in Dandi settings.
@@ -89,13 +89,7 @@ Dandi provides three different paths for managing and removing a GitHub connecti
    - **GitHub State**: The GitHub App remains installed on the user's GitHub account and repository permissions are unchanged.
    - **Use Case**: To clean up local integration state in Dandi or prepare to reconnect under different settings, without altering GitHub-side access.
 
-2. **Uninstall GitHub App from GitHub (GitHub-side Revoke + Local Cleanup)**
-   - **Path**: Click "Uninstall GitHub App from GitHub" under Advanced / Destructive Actions, confirm by typing `UNINSTALL`.
-   - **Effect**: Server-side DELETE request is sent directly to the GitHub API using Dandi's App JWT to uninstall the app. On success (or if the app was already removed), Dandi deletes the local database connection record.
-   - **GitHub State**: The GitHub App is completely uninstalled, and all repository access token permissions are revoked immediately.
-   - **Use Case**: To completely offboard from Dandi and revoke all repository access from both GitHub and Dandi's side.
-
-3. **Manage on GitHub (Manual settings path)**
+2. **Manage on GitHub (GitHub settings path)**
    - **Path**: Click "Manage on GitHub" in Dandi settings.
    - **Effect**: Redirects the user directly to their GitHub App installation settings page on GitHub.
-   - **Use Case**: To manually adjust repository access grants (add/remove repositories) or manually uninstall the app directly through GitHub's user interface.
+   - **Use Case**: To adjust repository access grants or uninstall the app through GitHub's own confirmation flow. Dandi never performs installation-wide deletion on the user's behalf.

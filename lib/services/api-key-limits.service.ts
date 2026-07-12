@@ -1,6 +1,23 @@
 import { resolvePlan } from "@/lib/constants";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
+export function getApiKeyLimitDatabaseMessage(error: { message?: string } | null | undefined) {
+  const message = error?.message || "";
+  if (message.includes("Stored API key safety cap reached")) {
+    return "This account has reached the stored API key safety cap. Delete unused keys before creating another.";
+  }
+  if (message.includes("Active API key limit exceeds")) {
+    return "Your plan's active API key limit was reached. Disable another key or upgrade before enabling this one.";
+  }
+  if (message.includes("Monthly limit exceeds")) {
+    return "The requested key limit exceeds the current plan allowance.";
+  }
+  if (message.includes("Account deletion is pending")) {
+    return "Account deletion is pending. API keys cannot be created or enabled.";
+  }
+  return null;
+}
+
 export async function getUserPlan(userId: string) {
   const { data: profile } = await supabaseAdmin
     .from("profiles")

@@ -3,13 +3,18 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import type { Invoice } from "@/types/billing";
 
+const privateNoStoreHeaders = { "Cache-Control": "private, no-store" };
+
 export async function GET() {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: privateNoStoreHeaders },
+      );
     }
 
     // 1. Get Stripe Customer ID from user profile
@@ -21,7 +26,10 @@ export async function GET() {
 
     const customerId = profile?.stripe_customer_id;
     if (!customerId) {
-      return NextResponse.json({ invoices: [] });
+      return NextResponse.json(
+        { invoices: [] },
+        { headers: privateNoStoreHeaders },
+      );
     }
 
     // 2. Query the Stripe API for recent invoices
@@ -44,9 +52,15 @@ export async function GET() {
       pdfUrl: inv.invoice_pdf || undefined,
     }));
 
-    return NextResponse.json({ invoices });
-  } catch (err) {
-    console.error("GET Stripe Invoices Error:", err);
-    return NextResponse.json({ error: "Failed to retrieve invoice history" }, { status: 500 });
+    return NextResponse.json(
+      { invoices },
+      { headers: privateNoStoreHeaders },
+    );
+  } catch {
+    console.error("Stripe invoice history request failed.");
+    return NextResponse.json(
+      { error: "Failed to retrieve invoice history" },
+      { status: 500, headers: privateNoStoreHeaders },
+    );
   }
 }

@@ -20,7 +20,12 @@ export async function POST(req: Request) {
     const { supabase, user, response } = await getAuthenticatedBillingUser();
     if (response) return response;
 
-    const body = getJsonObject(await req.json());
+    let body: Record<string, unknown>;
+    try {
+      body = getJsonObject(await req.json());
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON request body" }, { status: 400 });
+    }
     const paymentMethodId = validatePaymentMethodId(body.paymentMethodId);
 
     // 1. Get Customer ID from Supabase
@@ -44,7 +49,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("Set Default Payment Error:", err);
+    console.error("Set default payment method failed.");
     return mapStripeErrorResponse(err, "Failed to set default payment method");
   }
 }

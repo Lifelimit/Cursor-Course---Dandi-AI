@@ -39,7 +39,7 @@ export function DashboardOnboarding({ hasRepositoryWork, hasIndexedRepository, h
       </div>
 
       <div className="mt-5 grid gap-2.5 md:grid-cols-2">
-        <OnboardingItem complete={hasRepositoryWork} title="Analyze a repository" description="Generate a source-backed overview from a public or connected GitHub repository." href="/playground?mode=summary" action={hasRepositoryWork ? "Run another analysis" : "Analyze now"} />
+        <OnboardingItem complete={hasRepositoryWork} title="Analyze a repository" description="Generate a README-grounded overview from a public GitHub repository." href="/playground?mode=summary" action={hasRepositoryWork ? "Run another analysis" : "Analyze now"} />
         <OnboardingItem complete={hasIndexedRepository} title="Index for Ask" description="Prepare a repository for grounded questions and source-backed answers." href="/playground?mode=ask" action={hasIndexedRepository ? "Open Ask mode" : "Index a repository"} />
       </div>
 
@@ -48,7 +48,7 @@ export function DashboardOnboarding({ hasRepositoryWork, hasIndexedRepository, h
         <div className="flex flex-wrap gap-2"><Link href="/account?tab=api" className="inline-flex min-h-9 items-center justify-center rounded-full border border-violet-300/20 bg-violet-300/[0.06] px-3.5 text-[9px] font-black uppercase tracking-[0.15em] text-violet-100 transition hover:border-violet-200/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300">{hasApiKey ? "Manage API access" : hasApiKey === null ? "Open API access" : "Set up API access"}</Link><Link href="/docs" className="inline-flex min-h-9 items-center justify-center rounded-full border border-white/10 px-3.5 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 transition hover:border-white/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">Read docs</Link></div>
       </div>
 
-      {hasGithubConnection !== true && <p className="mt-3 text-[10px] leading-5 text-slate-600">Private repositories require a GitHub connection. Public repository analysis does not.</p>}
+      {hasGithubConnection !== true && <p className="mt-3 text-[10px] leading-5 text-slate-600">GitHub connection is optional. Summary, Prepare, and Ask currently read public repositories only.</p>}
     </CommandPanel>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { publicEnv } from "@/lib/env";
 
 interface RepoInfo {
   stars: string;
@@ -276,12 +277,12 @@ export function FeatureGrid() {
       <div className="mb-14 space-y-4 text-center md:mb-20 xl:text-left">
         <p className="dandi-type-metadata font-bold uppercase text-emerald-200">From first read to source-backed question</p>
         <h2 className="dandi-type-display text-4xl font-bold text-white md:text-6xl">A repository workflow with a memory.</h2>
-        <p className="mx-auto max-w-xl text-slate-300/80 xl:mx-0">Summarize a codebase, prepare it once for retrieval, then ask questions with the context and evidence still attached.</p>
+        <p className="mx-auto max-w-xl text-slate-300/80 xl:mx-0">Summarize a public repository&apos;s README, prepare its selected source files for retrieval, then ask questions with evidence attached.</p>
       </div>
 
       <div className="mb-8 grid gap-3 rounded-2xl border border-[var(--dandi-border-standard)] bg-white/[0.025] p-3 sm:grid-cols-3 sm:p-4">
         {[
-          ["Summarize", "Understand structure, purpose, and key components."],
+          ["Summarize", "Get a README-grounded overview and repository metadata."],
           ["Prepare", "Index a repository once so retrieval stays focused."],
           ["Ask", "Inspect source-backed answers in the API Playground."],
         ].map(([title, copy], index) => (
@@ -688,7 +689,7 @@ export function FeatureGrid() {
             </div>
             
             <div className="space-y-2">
-              <p className="truncate font-mono text-[7.5px] text-slate-500">KEY: dandi_sk_live_8f0a21...</p>
+              <p className="truncate font-mono text-[7.5px] text-slate-500">KEY: dandi_••••8f0a</p>
               <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
                 <div className="h-full bg-amber-500 rounded-full w-4/5 animate-pulse" />
               </div>
@@ -704,7 +705,7 @@ export function FeatureGrid() {
                 <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true">
                   <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                Email Sent
+                In-page alert
               </span>
             </div>
           </div>
@@ -727,8 +728,8 @@ export function FeatureGrid() {
                 <div className="h-2 w-2 rounded-full bg-zinc-700" />
               </div>
               <p className="break-all font-mono text-[9px] leading-relaxed text-slate-300">
-                <span className="text-emerald-400">~</span> <span className="text-zinc-300">curl -X POST</span> https://dandi.ai/api/github-summarizer \<br/>
-                &nbsp;&nbsp;-H <span className="text-zinc-400">&quot;x-api-key: dandi_sk_...&quot;</span> \<br/>
+                <span className="text-emerald-400">~</span> <span className="text-zinc-300">curl -X POST</span> {publicEnv.NEXT_PUBLIC_APP_URL}/api/github-summarizer \<br/>
+                &nbsp;&nbsp;-H <span className="text-zinc-400">&quot;x-api-key: $DANDI_API_KEY&quot;</span> \<br/>
                 &nbsp;&nbsp;-d <span className="text-zinc-400">&#39;&#123;&quot;githubUrl&quot;:&quot;...&quot;&#125;&#39;</span><span className="animate-pulse">_</span>
               </p>
             </div>

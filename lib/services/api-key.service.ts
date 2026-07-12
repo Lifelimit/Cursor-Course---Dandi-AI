@@ -3,7 +3,7 @@ import { redis } from "@/lib/redis";
 import { resolvePlan } from "@/lib/constants";
 import crypto from "crypto";
 import { normalizeGitHubRepoUrl } from "@/lib/security-core";
-import { getRequestTelemetry } from "@/lib/account-environments";
+import { getUsageCounterTtlSeconds, getUsagePeriod } from "@/lib/utils/usage-period";
 import type { ValidatedApiKeyData } from "@/types/api-keys";
 
 const USAGE_RESERVATION_SCRIPT = `
@@ -36,9 +36,9 @@ export class ApiKeyQuotaError extends Error {
   constructor(public readonly code: ApiKeyQuotaErrorCode) {
     super(
       code === "key_limit"
-        ? "Rate limit exceeded for this API key. Upgrade at dandi.ai"
+        ? "Rate limit exceeded for this API key. Review limits in the Dandi dashboard."
         : code === "plan_limit"
-          ? "Monthly usage limit exceeded for your plan. Upgrade at dandi.ai"
+          ? "Monthly usage limit exceeded for your plan. Review plans in the Dandi dashboard."
           : "Usage quota is temporarily unavailable. Please retry shortly.",
     );
     this.name = "ApiKeyQuotaError";
@@ -192,14 +192,15 @@ export async function validateApiKey(keyValue: string) {
 export async function reserveApiKeyUsage(
   keyData: ValidatedApiKeyData,
 ): Promise<ApiKeyQuotaReservation> {
-  const currentMonth = new Date().toISOString().slice(0, 7);
+  const now = new Date();
+  const currentMonth = getUsagePeriod(now).key;
   const isDemoKey = keyData.id === "demo-id";
   const userId = isDemoKey ? "demo" : keyData.user_id;
   const userLimit = isDemoKey ? null : resolvePlan(keyData.plan).monthlyRequests;
   const keyLimit = isDemoKey ? 1000 : keyData.monthly_limit ?? userLimit;
   const usageKey = `usage:user:${userId}:${currentMonth}`;
   const keyUsageKey = `usage:key:${keyData.id}:${currentMonth}`;
-  const ttlSeconds = 60 * 24 * 60 * 60;
+  const ttlSeconds = getUsageCounterTtlSeconds(now);
 
   try {
     const result = await redis.eval(USAGE_RESERVATION_SCRIPT, [usageKey, keyUsageKey], [
@@ -248,38 +249,42 @@ export async function incrementKeyUsage(
     return;
   }
 
-  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const currentMonth = getUsagePeriod().key;
 
   const newKeyUsage = keyData.usage_count || 0;
 
   // Quota counters are reserved atomically before provider work. This function
   // records telemetry and sends threshold alerts after that reservation; it must
   // not increment the counters again.
-  if (status === "success" && keyData.monthly_limit && keyData.alert_threshold) {
+  if (keyData.monthly_limit && keyData.alert_threshold) {
     const pct = (newKeyUsage / keyData.monthly_limit) * 100;
     if (pct >= keyData.alert_threshold) {
       const emailAlertsEnabled = keyData.alert_channels?.includes("email") && keyData.email;
       if (emailAlertsEnabled) {
         const alertSentKey = `alert:sent:${keyId}:${currentMonth}`;
-        let alreadySent = false;
+        const alertRetryKey = `alert:retry:${keyId}:${currentMonth}`;
+        let shouldAttemptDelivery = false;
         try {
-          alreadySent = Boolean(await redis.get(alertSentKey));
+          const pipeline = redis.pipeline();
+          pipeline.get(alertSentKey);
+          pipeline.get(alertRetryKey);
+          const [alreadySent, retryCoolingDown] = (await pipeline.exec<Array<string | null>>()) || [];
+          shouldAttemptDelivery = !alreadySent && !retryCoolingDown;
         } catch {
           console.error("Redis was unavailable during usage-alert deduplication.");
         }
 
-        if (!alreadySent) {
+        if (shouldAttemptDelivery) {
           try {
             const { sendAlertEmail } = await import("./email.service");
-            await sendAlertEmail(keyData.email, keyData.name, pct, keyData.alert_threshold);
+            const delivery = await sendAlertEmail(keyData.email, keyData.name, pct, keyData.alert_threshold);
+            if (delivery.status === "sent") {
+              await redis.set(alertSentKey, "true", { ex: 60 * 24 * 60 * 60 });
+            } else {
+              await redis.set(alertRetryKey, delivery.status, { ex: 15 * 60 });
+            }
           } catch {
-            console.error("Failed to send a usage alert email.");
-          }
-
-          try {
-            await redis.set(alertSentKey, "true", { ex: 60 * 24 * 60 * 60 });
-          } catch {
-            console.error("Redis was unavailable while recording a usage alert.");
+            console.error("Usage alert delivery could not be recorded.");
           }
         }
       }
@@ -293,18 +298,18 @@ export async function incrementKeyUsage(
   // 3. Log metadata to Redis for analytics
   try {
     const logKey = `logs:user:${userId}:${currentMonth}`;
-    const requestTelemetry = request ? getRequestTelemetry(request) : null;
+    void request;
     await redis.lpush(logKey, JSON.stringify({
       keyId,
       repoUrl: safeRepoUrl,
       usedAt: new Date().toISOString(),
       latencyMs,
       status,
-      ...(requestTelemetry || {}),
     }));
 
     // Keep only last 100 logs in Redis per user for "hot" analytics
     await redis.ltrim(logKey, 0, 99);
+    await redis.expire(logKey, 90 * 24 * 60 * 60);
   } catch {
     console.error("Redis was unavailable while recording usage telemetry.");
   }
@@ -321,4 +326,27 @@ export async function incrementKeyUsage(
     .then(({ error }) => {
       if (error) console.warn("Failed to persist API usage telemetry.");
     });
+}
+
+export function createUsageTelemetryFinalizer(input: {
+  keyData: ValidatedApiKeyData;
+  repoUrl?: string;
+  startedAt: number;
+  request?: Request;
+}) {
+  let finalization: Promise<void> | null = null;
+
+  return (status: "success" | "error") => {
+    if (finalization) return finalization;
+    finalization = incrementKeyUsage(
+      input.keyData,
+      input.repoUrl,
+      Date.now() - input.startedAt,
+      status,
+      input.request,
+    ).catch(() => {
+      console.error("Usage telemetry finalization failed.");
+    });
+    return finalization;
+  };
 }

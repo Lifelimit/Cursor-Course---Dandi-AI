@@ -12,7 +12,7 @@ Compact routing map for finding the right area before reading files broadly. Som
 | `lib/usage/` | Quotas, rate limits, usage counters, alerts, Redis-backed hot paths | `lib/rate-limit.ts`, `lib/redis.ts`, `lib/alerts.ts`, `lib/services/api-key-limits.service.ts` |
 | `lib/rag/` | AI/RAG orchestration, ingestion jobs, file selection, model provider calls | `lib/services/ai.service.ts`, `lib/services/google-gemini.service.ts`, `lib/services/ingestion-job.service.ts`, `lib/services/rag-file-selection.service.ts` |
 | `lib/github/` | GitHub metadata and repository access helpers | `lib/services/github.service.ts` |
-| `lib/security/` | Validation, CORS, env checks, security helpers, retries | `lib/security-core.ts`, `lib/request-validation.ts`, `lib/cors.ts`, `lib/env.ts`, `lib/http-retry.ts` |
+| `lib/security/` | Validation, CORS, environment checks, and security helpers | `lib/security-core.ts`, `lib/request-validation.ts`, `lib/cors.ts`, `lib/env.ts` |
 | `lib/services/` | Server-side product services and integration boundaries | `lib/services/*.service.ts` |
 | `supabase/` | Config, migrations, seed data, SQL snippets | `supabase/migrations/`, `supabase/snippets/`, `supabase/config.toml` |
 | `tests/` | Node regression tests | `tests/*.test.mjs` |

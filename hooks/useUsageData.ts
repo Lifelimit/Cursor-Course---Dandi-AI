@@ -8,6 +8,7 @@ type UsageRefreshContext = {
 };
 
 type UseUsageDataOptions<TUsageData extends UsageData = UsageData> = {
+  endpoint?: string;
   initialData?: TUsageData | null;
   fetchOnMount?: boolean;
   initialRefreshDelayMs?: number;
@@ -25,6 +26,7 @@ type UseUsageDataOptions<TUsageData extends UsageData = UsageData> = {
 };
 
 export function useUsageData<TUsageData extends UsageData = UsageData>({
+  endpoint = "/api/usage",
   initialData = null,
   fetchOnMount = true,
   initialRefreshDelayMs,
@@ -68,7 +70,7 @@ export function useUsageData<TUsageData extends UsageData = UsageData>({
         const init: RequestInit = { signal: controller.signal };
         if (requestCache) init.cache = requestCache;
 
-        const response = await fetch("/api/usage", init);
+        const response = await fetch(endpoint, init);
         let json: unknown = null;
         try {
           json = await response.json();
@@ -132,6 +134,7 @@ export function useUsageData<TUsageData extends UsageData = UsageData>({
     return request;
   }, [
     backgroundSyncResetDelayMs,
+    endpoint,
     fallbackErrorMessage,
     logErrorLabel,
     logErrors,

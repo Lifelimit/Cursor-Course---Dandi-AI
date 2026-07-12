@@ -15,7 +15,6 @@ export type ApiKeySettings = {
   monthlyLimit?: number | null;
   alertThreshold?: number | null;
   alertChannels?: AlertChannel[];
-  alertPhone?: string | null;
   isActive?: boolean;
 };
 
@@ -23,6 +22,13 @@ export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
 };
+
+export class BillingRequestValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BillingRequestValidationError";
+  }
+}
 
 export function getJsonObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -35,7 +41,6 @@ const safeApiKeyValidationPatterns = [
   /^Name must be 100 characters or less\.$/i,
   /^Monthly limit must /i,
   /^Alert threshold must /i,
-  /^Alert phone must /i,
   /^isActive must be a boolean\.$/i,
   /^Your [\w -]+ plan allows up to \d+ active API keys\.$/i,
   /^One or more API keys were not found\.$/i,
@@ -99,8 +104,8 @@ export function parseApiKeySettings(
     if (threshold === null) {
       settings.alertThreshold = null;
     } else {
-      const parsed = clampInteger(threshold, { min: 0, max: 100 });
-      if (parsed === null) throw new Error("Alert threshold must be an integer between 0 and 100.");
+      const parsed = clampInteger(threshold, { min: 1, max: 100 });
+      if (parsed === null) throw new Error("Alert threshold must be an integer between 1 and 100.");
       settings.alertThreshold = parsed;
     }
   }
@@ -108,17 +113,6 @@ export function parseApiKeySettings(
   const channels = body.alert_channels ?? body.alertChannels;
   if (channels !== undefined) {
     settings.alertChannels = normalizeAlertChannels(channels);
-  }
-
-  const phone = body.alert_phone ?? body.phone;
-  if (phone !== undefined) {
-    if (phone === null || phone === "") {
-      settings.alertPhone = null;
-    } else if (typeof phone === "string" && phone.trim().length <= 32) {
-      settings.alertPhone = phone.trim();
-    } else {
-      throw new Error("Alert phone must be 32 characters or less.");
-    }
   }
 
   const active = body.is_active ?? body.isActive;
@@ -144,9 +138,65 @@ export function validateUuidList(value: unknown, options: { min?: number; max: n
 
 export function validatePaymentMethodId(value: unknown) {
   if (!isStripePaymentMethodId(value)) {
-    throw new Error("Invalid payment method ID.");
+    throw new BillingRequestValidationError("Invalid payment method ID.");
   }
   return value;
+}
+
+export function validateOperationId(value: unknown) {
+  if (!isUuid(value)) {
+    throw new BillingRequestValidationError("A valid operation ID is required.");
+  }
+  return value;
+}
+
+export function validateStripeSubscriptionId(value: unknown) {
+  if (typeof value !== "string" || !/^sub_[A-Za-z0-9]+$/.test(value)) {
+    throw new BillingRequestValidationError("Invalid subscription ID.");
+  }
+  return value;
+}
+
+const billingDetailLimits = {
+  street: 200,
+  city: 100,
+  state: 100,
+  zip: 32,
+  country: 100,
+} as const;
+
+export function validateBillingDetails(value: unknown) {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new BillingRequestValidationError("Billing details must be an object.");
+  }
+
+  const object = value as Record<string, unknown>;
+  const unexpected = Object.keys(object).filter(
+    (key) => !Object.prototype.hasOwnProperty.call(billingDetailLimits, key),
+  );
+  if (unexpected.length > 0) {
+    throw new BillingRequestValidationError("Billing details contain unsupported fields.");
+  }
+
+  const result: Record<keyof typeof billingDetailLimits, string | null> = {
+    street: null,
+    city: null,
+    state: null,
+    zip: null,
+    country: null,
+  };
+  for (const [field, maximum] of Object.entries(billingDetailLimits) as Array<
+    [keyof typeof billingDetailLimits, number]
+  >) {
+    const raw = object[field];
+    if (raw === undefined || raw === null || raw === "") continue;
+    if (typeof raw !== "string" || raw.trim().length > maximum) {
+      throw new BillingRequestValidationError(`Billing ${field} must be ${maximum} characters or less.`);
+    }
+    result[field] = raw.trim();
+  }
+  return result;
 }
 
 export function validateGitHubRepoUrl(value: unknown) {

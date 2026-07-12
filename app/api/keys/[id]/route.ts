@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
-import { assertCanActivateKeys, getUserPlan } from "@/lib/services/api-key-limits.service";
+import { assertCanActivateKeys, getApiKeyLimitDatabaseMessage, getUserPlan } from "@/lib/services/api-key-limits.service";
 import { getJsonObject, getSafeApiKeyValidationError, parseApiKeySettings } from "@/lib/request-validation";
 import { isUuid } from "@/lib/security-core";
+import { getDisplayUsageCount, UsageDataUnavailableError } from "@/lib/services/usage-billing.service";
+import { getUsagePeriod } from "@/lib/utils/usage-period";
+import { deleteApiKeyRedisData } from "@/lib/services/account-deletion.service";
 
 const TABLE_NAME = "api_keys";
+const noStoreHeaders = { "Cache-Control": "private, no-store" };
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -20,7 +24,12 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     const plan = await getUserPlan(userId);
-    const body = getJsonObject(await request.json());
+    let body: Record<string, unknown>;
+    try {
+      body = getJsonObject(await request.json());
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON request body" }, { status: 400 });
+    }
     const settings = parseApiKeySettings(body, { plan, partial: true });
 
     if (settings.isActive === true) {
@@ -41,17 +50,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     // Enforce guardrail: monthlyLimit must be strictly greater than current usage count
     if (settings.monthlyLimit !== undefined && settings.monthlyLimit !== null) {
-      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-      let usageCount = keyData.usage_count || 0;
-      try {
-        const { redis } = await import("@/lib/redis");
-        const redisUsage = await redis.get<number>(`usage:key:${id}:${currentMonth}`);
-        if (redisUsage !== null) {
-          usageCount = redisUsage;
-        }
-      } catch (err) {
-        console.warn("⚠️ Redis read failed in key PATCH:", err);
-      }
+      const currentMonth = getUsagePeriod().key;
+      const usageCount = await getDisplayUsageCount(`usage:key:${id}:${currentMonth}`);
 
       if (settings.monthlyLimit <= usageCount) {
         return NextResponse.json(
@@ -87,10 +87,6 @@ export async function PATCH(request: Request, context: RouteContext) {
       updates.alert_channels = settings.alertChannels;
     }
 
-    if (settings.alertPhone !== undefined) {
-      updates.alert_phone = settings.alertPhone;
-    }
-
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "No valid updates provided." }, { status: 400 });
     }
@@ -100,18 +96,23 @@ export async function PATCH(request: Request, context: RouteContext) {
       .update(updates)
       .eq("id", id)
       .eq("user_id", userId) // Security: Ensure owner
-      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active,alert_threshold,alert_channels,alert_phone")
+      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active,alert_threshold,alert_channels")
       .single();
 
     if (error) {
-      return NextResponse.json({ error: "Failed to update API key." }, { status: 500 });
+      const limitMessage = getApiKeyLimitDatabaseMessage(error);
+      return NextResponse.json(
+        { error: limitMessage || "Failed to update API key." },
+        { status: limitMessage ? 409 : 500 },
+      );
     }
 
     return NextResponse.json(data);
   } catch (err) {
     const safeMessage = getSafeApiKeyValidationError(err, "Failed to update API key.");
     const unauthorized = err instanceof Error && /unauthorized/i.test(err.message);
-    return NextResponse.json({ error: unauthorized ? "Unauthorized" : safeMessage }, { status: unauthorized ? 401 : safeMessage === "Failed to update API key." ? 500 : 400 });
+    const unavailable = err instanceof UsageDataUnavailableError;
+    return NextResponse.json({ error: unauthorized ? "Unauthorized" : unavailable ? "API key usage is temporarily unavailable." : safeMessage }, { status: unauthorized ? 401 : unavailable ? 503 : safeMessage === "Failed to update API key." ? 500 : 400 });
   }
 }
 
@@ -123,17 +124,63 @@ export async function DELETE(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Invalid API key ID." }, { status: 400 });
     }
 
-    const { error } = await supabaseAdmin
-      .from(TABLE_NAME)
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId); // Security: Ensure owner
+    const { data: deletionState, error: deletionError } = await supabaseAdmin.rpc(
+      "begin_owned_api_key_deletion",
+      { p_profile_id: userId, p_key_id: id },
+    );
 
-    if (error) {
-      return NextResponse.json({ error: "Failed to delete API key." }, { status: 500 });
+    if (deletionError) {
+      console.error("API key deletion transaction failed.");
+      return NextResponse.json(
+        { error: "API key deletion is temporarily unavailable." },
+        { status: 503, headers: noStoreHeaders },
+      );
     }
 
-    return new NextResponse(null, { status: 204 });
+    if (deletionState === "deletion_pending") {
+      return NextResponse.json(
+        { error: "Account deletion is pending. API keys cannot be changed." },
+        { status: 409, headers: noStoreHeaders },
+      );
+    }
+
+    if (deletionState === "not_found" || deletionState === "profile_missing") {
+      return NextResponse.json(
+        { error: "API key not found." },
+        { status: 404, headers: noStoreHeaders },
+      );
+    }
+
+    if (deletionState !== "deleted" && deletionState !== "cleanup_pending") {
+      console.error("API key deletion returned an invalid state.");
+      return NextResponse.json(
+        { error: "API key deletion is temporarily unavailable." },
+        { status: 503, headers: noStoreHeaders },
+      );
+    }
+
+    try {
+      await deleteApiKeyRedisData(id);
+    } catch {
+      return NextResponse.json(
+        { error: "The API key was deleted, but cleanup is incomplete. Retry deletion." },
+        { status: 503, headers: noStoreHeaders },
+      );
+    }
+
+    const { error: cleanupError } = await supabaseAdmin.rpc(
+      "acknowledge_api_key_redis_cleanup",
+      { p_profile_id: userId, p_key_id: id },
+    );
+    if (cleanupError) {
+      console.error("API key Redis cleanup acknowledgement failed.");
+      return NextResponse.json(
+        { error: "The API key was deleted, but cleanup confirmation is pending. Retry deletion." },
+        { status: 503, headers: noStoreHeaders },
+      );
+    }
+
+    return new NextResponse(null, { status: 204, headers: noStoreHeaders });
   } catch (err) {
     const unauthorized = err instanceof Error && /unauthorized/i.test(err.message);
     return NextResponse.json({ error: unauthorized ? "Unauthorized" : "Failed to delete API key." }, { status: unauthorized ? 401 : 500 });

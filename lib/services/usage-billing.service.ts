@@ -2,7 +2,8 @@ import Stripe from "stripe";
 import { redis } from "@/lib/redis";
 import { stripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { formatIsoDate, formatIsoDatePart } from "@/lib/format";
+import { formatIsoDatePart } from "@/lib/format";
+import { getRecentUsageDatesUtc, getUsagePeriod } from "@/lib/utils/usage-period";
 import type { PaymentMethodDisplay } from "@/types/billing";
 import type { DailyUsageSummary, UsageLog } from "@/types/usage";
 
@@ -10,6 +11,20 @@ export type { PaymentMethodDisplay } from "@/types/billing";
 export type { DailyUsageSummary, UsageLog } from "@/types/usage";
 
 export type BillingSubscriptionStatus = NonNullable<import("@/types/billing").BillingData["subscriptionStatus"]>;
+
+export class UsageDataUnavailableError extends Error {
+  constructor(message = "Usage data is temporarily unavailable.") {
+    super(message);
+    this.name = "UsageDataUnavailableError";
+  }
+}
+
+export class BillingDataUnavailableError extends Error {
+  constructor(message = "Billing data is temporarily unavailable.") {
+    super(message);
+    this.name = "BillingDataUnavailableError";
+  }
+}
 
 export type StripeSubscriptionDisplay = {
   status: BillingSubscriptionStatus;
@@ -26,9 +41,7 @@ type BillingProfile = {
 
 type SelfHealOptions = {
   mode: "background" | "await";
-  updateBy: "id" | "email";
-  userId?: string;
-  userEmail?: string | null;
+  userId: string;
   periodEndSource: "server-data" | "usage-api";
   logContext: string;
 };
@@ -78,50 +91,15 @@ export function summarizeDailyLogs(date: string, logs: UsageLog[]): DailyUsageSu
 
   return {
     date,
-    count: successCount,
+    count: dayLogs.length,
     success: successCount,
     error: errorCount,
     avgLatency
   };
 }
 
-export function reconcileDailyTrendToUsage(dailyTrend: DailyUsageSummary[], usageCount: number) {
-  const totalSuccess = dailyTrend.reduce((acc, day) => acc + day.success, 0);
-  if (totalSuccess === usageCount) return dailyTrend;
-
-  if (totalSuccess === 0) {
-    if (usageCount === 0 || dailyTrend.length === 0) return dailyTrend;
-    return dailyTrend.map((day, index) => {
-      if (index !== dailyTrend.length - 1) return day;
-      return { ...day, count: usageCount, success: usageCount };
-    });
-  }
-
-  let remainingSuccess = usageCount;
-  return dailyTrend
-    .slice()
-    .reverse()
-    .map(day => {
-      const success = Math.min(day.success, remainingSuccess);
-      remainingSuccess -= success;
-      return { ...day, count: success, success };
-    })
-    .reverse();
-}
-
 export function getRecentUsageDates(now = new Date(), days = 30) {
-  return Array.from({ length: days }, (_, i) => {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    return formatIsoDate(d);
-  }).reverse();
-}
-
-export function buildDailyUsageTrend(dates: string[], logs: UsageLog[], usageCount: number) {
-  return reconcileDailyTrendToUsage(
-    dates.map(date => summarizeDailyLogs(date, logs)),
-    usageCount
-  );
+  return getRecentUsageDatesUtc(now, days);
 }
 
 export function buildCountOnlyDailyTrend(dates: string[], logs: UsageLog[]) {
@@ -174,20 +152,72 @@ export async function getDisplayUsageCounts(keys: { id: string }[], currentMonth
     keys.forEach(k => {
       pipeline.get(`usage:key:${k.id}:${currentMonth}`);
     });
-    return (await pipeline.exec<number[]>()) || [];
-  } catch (err) {
-    console.warn("⚠️ Display Redis key usage read failed; using zero key usage:", err);
-    return [];
+    const values = await pipeline.exec<number[]>();
+    if (!values || values.length !== keys.length) {
+      throw new UsageDataUnavailableError();
+    }
+    return values.map((value) => Number(value) || 0);
+  } catch {
+    throw new UsageDataUnavailableError();
   }
 }
 
-export async function getDisplayUsageCount(key: string, warning = "⚠️ Display Redis usage read failed; using zero usage:"): Promise<number> {
+export async function getDisplayUsageCount(key: string): Promise<number> {
   try {
     return (await redis.get<number>(key)) || 0;
-  } catch (err) {
-    console.warn(warning, err);
-    return 0;
+  } catch {
+    throw new UsageDataUnavailableError();
   }
+}
+
+export async function getDurableUsageLogs(
+  userId: string,
+  now = new Date(),
+  days = 30,
+): Promise<UsageLog[]> {
+  const pageSize = 1_000;
+  const maximumRows = 100_000;
+  const firstDate = getRecentUsageDatesUtc(now, days)[0];
+  const since = `${firstDate}T00:00:00.000Z`;
+  const until = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + 1,
+  )).toISOString();
+  const rows: Array<{
+    api_key_id: string | null;
+    repo_url: string | null;
+    status: string;
+    latency_ms: number;
+    used_at: string;
+  }> = [];
+
+  for (let from = 0; from < maximumRows; from += pageSize) {
+    const { data, error } = await supabaseAdmin
+      .from("api_usage_log")
+      .select("api_key_id, repo_url, status, latency_ms, used_at")
+      .eq("user_id", userId)
+      .gte("used_at", since)
+      .lt("used_at", until)
+      .order("used_at", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw new UsageDataUnavailableError("Usage analytics are temporarily unavailable.");
+    const page = (data || []) as typeof rows;
+    rows.push(...page);
+    if (page.length < pageSize) break;
+    if (from + pageSize >= maximumRows) {
+      throw new UsageDataUnavailableError("Usage analytics exceed the safe display limit.");
+    }
+  }
+
+  return rows.map((row) => ({
+    keyId: row.api_key_id || undefined,
+    repoUrl: row.repo_url || undefined,
+    status: row.status,
+    latencyMs: row.latency_ms,
+    usedAt: row.used_at,
+  }));
 }
 
 export async function getDisplayUsageLogs(
@@ -199,41 +229,14 @@ export async function getDisplayUsageLogs(
   try {
     const rawLogs = await redis.lrange(key, start, stop);
     return parseUsageLogs(rawLogs, options);
-  } catch (err) {
-    console.warn(options.warning ?? "⚠️ Display Redis log read failed; using empty usage logs:", err);
-    return [];
+  } catch {
+    throw new UsageDataUnavailableError("Recent request activity is temporarily unavailable.");
   }
 }
 
 export function calculateResetDate(nextInvoiceDate: string | null, now: Date): string {
-  if (nextInvoiceDate) {
-    try {
-      const nextBilling = new Date(nextInvoiceDate);
-      
-      if (nextBilling <= now) {
-        const resetDay = nextBilling.getDate();
-        let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
-        if (nextReset <= now) {
-          nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
-        }
-        return nextReset.toISOString();
-      } else if (nextBilling.getTime() - now.getTime() > 32 * 24 * 60 * 60 * 1000) {
-        const resetDay = nextBilling.getDate();
-        let nextReset = new Date(now.getFullYear(), now.getMonth(), resetDay);
-        if (nextReset <= now) {
-          nextReset = new Date(now.getFullYear(), now.getMonth() + 1, resetDay);
-        }
-        return nextReset.toISOString();
-      } else {
-        return nextInvoiceDate;
-      }
-    } catch {
-      return nextInvoiceDate;
-    }
-  } else {
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    return nextMonth.toISOString();
-  }
+  void nextInvoiceDate;
+  return getUsagePeriod(now).resetsAt;
 }
 
 export function calculateNextInvoiceDate(nextInvoiceDate: string | null, billingInterval: string | null, now: Date): string | null {
@@ -304,27 +307,20 @@ async function selfHealBillingDate(
           stripe_subscription_id: resolvedSubscriptionId || undefined
         };
 
-        if (options.updateBy === "email" && options.userEmail) {
-          await supabaseAdmin
-            .from("profiles")
-            .update(updateData)
-            .eq("email", options.userEmail);
-        } else if (options.updateBy === "id" && options.userId) {
-          const { error } = await supabaseAdmin
-            .from("profiles")
-            .update(updateData)
-            .eq("id", options.userId);
-          
-          if (error) {
-            console.error("❌ Failed to update profile billing_next_date during self-healing:", error.message);
-          }
+        const { error } = await supabaseAdmin
+          .from("profiles")
+          .update(updateData)
+          .eq("id", options.userId);
+
+        if (error) {
+          console.error("Failed to update profile billing date during self-healing.");
         }
       }
 
       return renewalDate;
     }
-  } catch (err) {
-    console.warn(`⚠️ Failed to self-heal next billing date via Stripe in ${options.logContext}:`, err);
+  } catch {
+    console.warn("Stripe billing-date self-healing failed.");
   }
 
   return null;
@@ -341,8 +337,8 @@ export async function getBillingPeriodDisplay(input: {
 
   if (!input.profile?.billing_next_date && (stripeSubscriptionId || stripeCustomerId) && input.selfHeal) {
     if (input.selfHeal.mode === "background") {
-      selfHealBillingDate(stripeCustomerId, stripeSubscriptionId, input.selfHeal).catch(err => {
-        console.error("❌ Unhandled rejection in billing self-healing:", err);
+      selfHealBillingDate(stripeCustomerId, stripeSubscriptionId, input.selfHeal).catch(() => {
+        console.error("Background billing-date self-healing failed.");
       });
     } else {
       nextInvoiceDate = await selfHealBillingDate(stripeCustomerId, stripeSubscriptionId, input.selfHeal);
@@ -354,14 +350,13 @@ export async function getBillingPeriodDisplay(input: {
   nextInvoiceDate = calculateNextInvoiceDate(nextInvoiceDate, input.profile?.billing_interval || null, input.now);
 
   return {
-    resetDate: calculateResetDate(nextInvoiceDate, input.now),
+    resetDate: getUsagePeriod(input.now).resetsAt,
     nextInvoiceDate,
   };
 }
 
 export async function getStripePaymentDisplay(
   stripeCustomerId: string | null | undefined,
-  options: { requireActiveCustomer?: boolean } = {}
 ): Promise<{ paymentMethods: PaymentMethodDisplay[]; customerBalance: number }> {
   if (!stripeCustomerId) {
     return { paymentMethods: [], customerBalance: 0 };
@@ -374,12 +369,12 @@ export async function getStripePaymentDisplay(
     });
     
     const customer = await stripe.customers.retrieve(stripeCustomerId);
-    if (customer.deleted && options.requireActiveCustomer !== false) {
+    if (customer.deleted) {
       return { paymentMethods: [], customerBalance: 0 };
     }
 
-    const defaultMethodId = customer.deleted ? undefined : customer.invoice_settings?.default_payment_method;
-    const customerBalance = customer.deleted ? 0 : customer.balance || 0;
+    const defaultMethodId = customer.invoice_settings?.default_payment_method;
+    const customerBalance = customer.balance || 0;
 
     return {
       customerBalance,
@@ -391,8 +386,11 @@ export async function getStripePaymentDisplay(
         isDefault: defaultMethodId ? pm.id === defaultMethodId : idx === 0
       })),
     };
-  } catch {
-    return { paymentMethods: [], customerBalance: 0 };
+  } catch (error) {
+    if (error instanceof Stripe.errors.StripeInvalidRequestError && error.statusCode === 404) {
+      return { paymentMethods: [], customerBalance: 0 };
+    }
+    throw new BillingDataUnavailableError();
   }
 }
 
@@ -410,7 +408,10 @@ export async function getStripeSubscriptionDisplay(
       interval: interval === "year" ? "year" : interval === "month" ? "month" : null,
       cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
     };
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof Stripe.errors.StripeInvalidRequestError && error.statusCode === 404) {
+      return null;
+    }
+    throw new BillingDataUnavailableError();
   }
 }

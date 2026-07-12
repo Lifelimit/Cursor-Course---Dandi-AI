@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, type FormEvent } from "react";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
@@ -26,18 +27,20 @@ import type {
   CurrentBrowserTelemetry,
   WebhookLogEntry,
 } from "@/types/account";
-import { AccountApiActivityInspectorModal } from "@/components/account/AccountApiActivityInspectorModal";
-import { AccountApiKeyCreateModal } from "@/components/account/AccountApiKeyCreateModal";
-import { AccountApiKeyEditModal } from "@/components/account/AccountApiKeyEditModal";
-import { AccountApiKeyRevocationModal } from "@/components/account/AccountApiKeyRevocationModal";
-import { AccountDeliveryLogInspectorModal } from "@/components/account/AccountDeliveryLogInspectorModal";
-import { AccountEnvironmentPanel } from "@/components/account/AccountEnvironmentPanel";
-import { AccountApiAccessPanel } from "@/components/account/AccountApiAccessPanel";
 import { AccountProfilePanel } from "@/components/account/AccountProfilePanel";
-import { AccountSecurityPanel } from "@/components/account/AccountSecurityPanel";
 import { AccountSettingsNav, type AccountSettingsSection } from "@/components/account/AccountSettingsNav";
-import { AccountWebhooksPanel } from "@/components/account/AccountWebhooksPanel";
 import { accountRoute } from "@/lib/routes";
+
+const panelLoading = () => <CardSkeleton lines={5} />;
+const AccountEnvironmentPanel = dynamic(() => import("@/components/account/AccountEnvironmentPanel").then((module) => module.AccountEnvironmentPanel), { loading: panelLoading });
+const AccountApiAccessPanel = dynamic(() => import("@/components/account/AccountApiAccessPanel").then((module) => module.AccountApiAccessPanel), { loading: panelLoading });
+const AccountSecurityPanel = dynamic(() => import("@/components/account/AccountSecurityPanel").then((module) => module.AccountSecurityPanel), { loading: panelLoading });
+const AccountWebhooksPanel = dynamic(() => import("@/components/account/AccountWebhooksPanel").then((module) => module.AccountWebhooksPanel), { loading: panelLoading });
+const AccountApiActivityInspectorModal = dynamic(() => import("@/components/account/AccountApiActivityInspectorModal").then((module) => module.AccountApiActivityInspectorModal));
+const AccountApiKeyCreateModal = dynamic(() => import("@/components/account/AccountApiKeyCreateModal").then((module) => module.AccountApiKeyCreateModal));
+const AccountApiKeyEditModal = dynamic(() => import("@/components/account/AccountApiKeyEditModal").then((module) => module.AccountApiKeyEditModal));
+const AccountApiKeyRevocationModal = dynamic(() => import("@/components/account/AccountApiKeyRevocationModal").then((module) => module.AccountApiKeyRevocationModal));
+const AccountDeliveryLogInspectorModal = dynamic(() => import("@/components/account/AccountDeliveryLogInspectorModal").then((module) => module.AccountDeliveryLogInspectorModal));
 
 type AccessView = "api" | "browser";
 type DeliveryLogModalTab = "request" | "response";
@@ -95,6 +98,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const [accessLoadError, setAccessLoadError] = useState<string | null>(null);
   const [currentBrowser, setCurrentBrowser] = useState<CurrentBrowserTelemetry | null>(null);
   const [apiKeys, setApiKeys] = useState<AccountApiKeyAccess[]>([]);
+  const [emailAlertsAvailable, setEmailAlertsAvailable] = useState(false);
   const [recentRequests, setRecentRequests] = useState<AccountApiRequestActivity[]>([]);
   const [webhookLogs, setWebhookLogs] = useState<WebhookLogEntry[]>([]);
 
@@ -109,13 +113,40 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const [isDeletingApiKey, setIsDeletingApiKey] = useState(false);
   const [busyApiKeyId, setBusyApiKeyId] = useState<string | null>(null);
 
+  const loadAccessData = useCallback(async () => {
+    try {
+      const accessRes = await fetch("/api/account/environments");
+      if (!accessRes.ok) {
+        setAccessLoadError(await readResponseError(accessRes, "Failed to load API key and request telemetry."));
+        return;
+      }
+
+      const accessData: AccountAccessResponse = await accessRes.json();
+      setCurrentBrowser({
+        ...accessData.currentBrowser,
+        telemetryAge: formatRelativeTime(accessData.currentBrowser.lastSeenAt, { current: true }),
+      });
+      setApiKeys((accessData.apiKeys || []).map((apiKey) => ({
+        ...apiKey,
+        telemetryAge: formatRelativeTime(apiKey.lastSeenAt),
+      })));
+      setEmailAlertsAvailable(Boolean(accessData.emailAlertsAvailable));
+      setRecentRequests((accessData.recentRequests || []).map((request) => ({
+        ...request,
+        telemetryAge: formatRelativeTime(request.lastSeenAt),
+      })));
+      setAccessLoadError(null);
+    } catch {
+      setAccessLoadError("API key and request telemetry are temporarily unavailable.");
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [profileRes, usageRes, accessRes] = await Promise.all([
+      const [profileRes, usageRes] = await Promise.all([
         fetch("/api/profile"),
-        fetch("/api/usage"),
-        fetch("/api/account/environments"),
+        fetch("/api/usage?scope=usage"),
       ]);
       let nextAccountLoadError: string | null = null;
 
@@ -137,36 +168,26 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         nextAccountLoadError = await readResponseError(usageRes, "Account usage summary could not be loaded.");
       }
 
-      if (accessRes.ok) {
-        const accessData: AccountAccessResponse = await accessRes.json();
-        setCurrentBrowser({
-          ...accessData.currentBrowser,
-          telemetryAge: formatRelativeTime(accessData.currentBrowser.lastSeenAt, { current: true }),
-        });
-        setApiKeys((accessData.apiKeys || []).map((apiKey) => ({
-          ...apiKey,
-          telemetryAge: formatRelativeTime(apiKey.lastSeenAt),
-        })));
-        setRecentRequests((accessData.recentRequests || []).map((request) => ({
-          ...request,
-          telemetryAge: formatRelativeTime(request.lastSeenAt),
-        })));
-        setAccessLoadError(null);
-      } else {
-        setAccessLoadError(await readResponseError(accessRes, "Failed to load API key and request telemetry."));
-      }
-
       setAccountLoadError(nextAccountLoadError);
     } catch {
       console.error("Account details request failed.");
       const message = "Account data is temporarily unavailable.";
       setAccountLoadError(message);
-      setAccessLoadError(message);
       showToast("error", getToastErrorMessage("account", message));
     } finally {
       setIsLoading(false);
     }
   }, [showToast]);
+
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (active && activeTab === "api") void loadAccessData();
+    });
+    return () => {
+      active = false;
+    };
+  }, [activeTab, loadAccessData]);
 
   useEffect(() => {
     let active = true;
@@ -459,8 +480,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       showToast("error", getToastErrorMessage("account", message));
       return;
     }
-    if (newPassword.length < 6) {
-      const message = "Password must be at least 6 characters.";
+    if (newPassword.length < 12) {
+      const message = "Password must be at least 12 characters.";
       setPasswordSaveError(message);
       showToast("error", getToastErrorMessage("account", message));
       return;
@@ -680,7 +701,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                 onEnableApiKey={handleEnableApiKey}
                 onDeleteApiKey={handleDeleteApiKey}
                 busyApiKeyId={busyApiKeyId}
-                onRefreshSessions={loadData}
+                onRefreshSessions={loadAccessData}
               />
             )}
 
@@ -721,6 +742,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                 isSavingEmail={isSavingEmail}
                 passwordError={passwordSaveError}
                 emailError={emailSaveError}
+                currentEmail={initialSession?.user.email || ""}
                 onNewPasswordChange={(value) => {
                   setPasswordSaveError(null);
                   setNewPassword(value);
@@ -752,35 +774,36 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         />
       )}
 
-      <AccountApiKeyCreateModal
+      {isCreateApiKeyOpen && <AccountApiKeyCreateModal
         isOpen={isCreateApiKeyOpen}
         onClose={() => setIsCreateApiKeyOpen(false)}
         onCreated={() => {
-          void loadData();
+          void Promise.all([loadData(), loadAccessData()]);
         }}
         showToast={showToast}
         planName={userPlan}
-      />
+      />}
 
-      <AccountApiKeyEditModal
+      {apiKeyPendingEdit && <AccountApiKeyEditModal
         key={apiKeyPendingEdit?.apiKeyId ?? "no-api-key-edit"}
         isOpen={Boolean(apiKeyPendingEdit)}
         apiKey={apiKeyPendingEdit}
         onClose={() => setApiKeyPendingEdit(null)}
         onUpdated={() => {
-          void loadData();
+          void Promise.all([loadData(), loadAccessData()]);
         }}
         showToast={showToast}
         planName={userPlan}
-      />
+        emailAlertsAvailable={emailAlertsAvailable}
+      />}
 
-      <AccountApiActivityInspectorModal
+      {inspectedApiActivity && <AccountApiActivityInspectorModal
         activity={inspectedApiActivity}
         onClose={() => setInspectedApiActivity(null)}
         showToast={showToast}
-      />
+      />}
 
-      <AccountApiKeyRevocationModal
+      {apiKeyPendingRevocation && <AccountApiKeyRevocationModal
         apiKey={apiKeyPendingRevocation}
         isRevoking={isRevokingApiKey}
         onCancel={() => {
@@ -789,9 +812,9 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           }
         }}
         onConfirm={handleConfirmRevokeApiKey}
-      />
+      />}
 
-      <AccountApiKeyRevocationModal
+      {apiKeyPendingDeletion && <AccountApiKeyRevocationModal
         apiKey={apiKeyPendingDeletion}
         isRevoking={isDeletingApiKey}
         mode="delete"
@@ -801,7 +824,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           }
         }}
         onConfirm={handleConfirmDeleteApiKey}
-      />
+      />}
 
       <Toast toast={toast} />
     </>

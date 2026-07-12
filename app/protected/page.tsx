@@ -15,6 +15,7 @@
 import { createClient } from "@/lib/supabase/server";
 import ProtectedClient from "./ProtectedClient";
 import { redirect } from "next/navigation";
+import { getVerifiedSession } from "@/lib/services/auth.service";
 
 export default async function ProtectedPage() {
   const supabase = await createClient();
@@ -24,7 +25,7 @@ export default async function ProtectedPage() {
     redirect("/login");
   }
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await getVerifiedSession(supabase, user);
 
   return <ProtectedClient initialSession={session} />;
 }

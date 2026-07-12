@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { removePaymentMethodAction } from "@/lib/auth-actions";
 import { publicEnv } from "@/lib/env";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
-import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, useStripe, useElements, CardNumberElement } from "@stripe/react-stripe-js";
 import { ModalFrame } from "@/components/command/ModalFrame";
 
-import type { Session } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
+import type { PaymentMethodDisplay, SubscriptionActionResult } from "@/types/billing";
+
+type TerminalSubscriptionActionResult = Extract<
+  SubscriptionActionResult,
+  { status: "active" | "scheduled" | "processing" }
+>;
 
 const stripePromise = loadStripe(publicEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
@@ -22,7 +26,8 @@ type SubscriptionModalProps = {
   onSuccess?: (message: string) => void;
   onError?: (message: string) => void;
   onDowngrade?: () => void;
-  session?: Session | null;
+  user?: User | null;
+  paymentMethods?: PaymentMethodDisplay[] | null;
 };
 
 import { PLAN_DETAILS, PLAN_RANKS, PLANS } from "@/lib/constants";
@@ -44,11 +49,10 @@ export function SubscriptionModal(props: SubscriptionModalProps) {
   );
 }
 
-function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, onSuccess, onError, initialView, initialPendingPlan, initialBillingInterval, session }: SubscriptionModalProps) {
+function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, onSuccess, onError, initialView, initialPendingPlan, initialBillingInterval, user, paymentMethods }: SubscriptionModalProps) {
   const stripe = useStripe();
   const elements = useElements();
-  const router = useRouter();
-  const [transactionId] = useState(() => Math.random().toString(36).substring(2, 9).toUpperCase());
+  const [subscriptionResult, setSubscriptionResult] = useState<TerminalSubscriptionActionResult | null>(null);
   const [view, setView] = useState<"overview" | "change-plan" | "cancel-confirm" | "update-payment" | "success" | "plan-change-review" | "remove-card-confirm" | "key-downgrade-selector">(initialView || "overview");
   const [isLoading, setIsLoading] = useState(false);
   const [showCvc, setShowCvc] = useState(false);
@@ -57,6 +61,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
   const [isInitializing, setIsInitializing] = useState(initialPendingPlan === "Hobby");
   const [billingInterval, setBillingInterval] = useState<"month" | "year">(initialBillingInterval || "month");
   const hasInitializedRef = React.useRef(false);
+  const subscriptionOperationRef = React.useRef<{ key: string; id: string } | null>(null);
 
   // State for card details
   const [cardData, setCardData] = useState({
@@ -96,6 +101,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
       if (isOpen) {
         let targetView = initialView || "overview";
         const finalPendingPlan = initialPendingPlan || null;
+        const defaultPaymentMethod = paymentMethods?.find((method) => method.isDefault) || paymentMethods?.[0] || null;
 
         // Unified Downgrade Audit
         if (finalPendingPlan === "Hobby") {
@@ -113,19 +119,23 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
           }
         }
 
+        if (planName === "Hobby" && finalPendingPlan && finalPendingPlan !== "Hobby" && !defaultPaymentMethod) {
+          targetView = "update-payment";
+        }
+
         setView(targetView);
         setPendingPlan(finalPendingPlan);
         setBillingInterval(initialBillingInterval || "month");
 
-        const s = session?.user;
+        const s = user;
         if (s) {
           const meta = s.user_metadata || {};
           setCardData(prev => ({
             ...prev,
             name: meta.full_name || prev.name,
-            number: meta.payment_method_last4 ? `•••• •••• •••• ${meta.payment_method_last4}` : "",
-            brand: meta.payment_method_brand || "",
-            expiry: meta.payment_method_expiry || "",
+            number: defaultPaymentMethod ? `•••• •••• •••• ${defaultPaymentMethod.last4}` : "",
+            brand: defaultPaymentMethod?.brand || "",
+            expiry: defaultPaymentMethod?.expiry || "",
             street: meta.billing_street || prev.street,
             city: meta.billing_city || prev.city,
             state: meta.billing_state || prev.state,
@@ -156,20 +166,9 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
       }
     };
     initializeState();
-  }, [isOpen, session, initialView, initialPendingPlan, initialBillingInterval]);
+  }, [isOpen, user, paymentMethods, planName, initialView, initialPendingPlan, initialBillingInterval]);
 
   // Remove the old state scrub to allow key-based mounting to handle it
-
-  useEffect(() => {
-    if (view === "success" && isOpen) {
-      const timer = setTimeout(() => {
-        setPendingPlan(null);
-        setView("overview");
-        onClose();
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [view, isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -188,6 +187,75 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
     }
   };
 
+  const completeSubscription = async (options: {
+    paymentMethodId?: string;
+    billingDetails?: Record<string, string | null>;
+  } = {}) => {
+    if (!pendingPlan || pendingPlan === "Hobby") {
+      throw new Error("Choose a paid plan before continuing.");
+    }
+
+    const plan = PLANS.find((candidate) => candidate.id === pendingPlan);
+    const priceId = billingInterval === "year" ? plan?.yearlyPriceId : plan?.monthlyPriceId;
+    if (!priceId) throw new Error("Missing Price ID for this plan.");
+
+    const operationKey = `${pendingPlan}:${billingInterval}`;
+    if (subscriptionOperationRef.current?.key !== operationKey) {
+      subscriptionOperationRef.current = { key: operationKey, id: crypto.randomUUID() };
+    }
+    const operationId = subscriptionOperationRef.current.id;
+    const response = await fetch("/api/stripe/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        priceId,
+        planId: pendingPlan,
+        interval: billingInterval,
+        operationId,
+        paymentMethodId: options.paymentMethodId,
+        billingDetails: options.billingDetails,
+      }),
+    });
+
+    let result = await response.json().catch(() => null) as (SubscriptionActionResult & { error?: string }) | null;
+    if (!result) throw new Error("Stripe returned an unreadable subscription response.");
+    if ("error" in result && result.error) throw new Error(result.error);
+    if (result.status === "requires_payment_method") throw new Error(result.message);
+
+    if (result.status === "requires_action") {
+      if (!stripe) throw new Error("Stripe.js is required for 3D Secure verification.");
+      const { error: confirmationError, paymentIntent } = await stripe.confirmCardPayment(result.clientSecret);
+      if (confirmationError) throw new Error(confirmationError.message || "3D Secure authentication failed.");
+      if (!paymentIntent || (paymentIntent.status !== "succeeded" && paymentIntent.status !== "processing")) {
+        throw new Error("3D Secure authentication did not complete.");
+      }
+
+      const finalizeResponse = await fetch("/api/stripe/subscribe/finalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscriptionId: result.subscriptionId, operationId }),
+      });
+      result = await finalizeResponse.json().catch(() => null) as (SubscriptionActionResult & { error?: string }) | null;
+      if (!result) throw new Error("Stripe returned an unreadable finalization response.");
+      if ("error" in result && result.error) throw new Error(result.error);
+      if (result.status === "requires_payment_method") throw new Error(result.message);
+      if (result.status === "requires_action") throw new Error("Stripe requires another authentication step. Please retry.");
+    }
+
+    setSubscriptionResult(result);
+    if (result.status === "active" || result.status === "scheduled") {
+      subscriptionOperationRef.current = null;
+    }
+    if (result.status === "active") {
+      onSuccess?.(`${result.plan} access is active. Review disabled API keys before enabling any of them.`);
+    } else if (result.status === "scheduled") {
+      onSuccess?.(`${result.targetPlan} is scheduled for the end of the current billing period.`);
+    } else {
+      onSuccess?.("Stripe is still processing the subscription. Refresh Billing before relying on paid access.");
+    }
+    setView("success");
+  };
+
   const handleCancelAction = async () => {
     setIsLoading(true);
     try {
@@ -202,8 +270,6 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
       }
 
       await scheduleCancellation([]);
-      await router.refresh();
-      router.refresh();
       onSuccess?.("Cancellation scheduled. Your paid access remains active until the end of the current billing period.");
       onClose();
     } catch {
@@ -223,23 +289,6 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
       }
     } catch { /* Fallback to cancel-confirm */ }
     setView("cancel-confirm");
-  };
-
-  const reEnableDisabledKeys = async () => {
-    try {
-      const keysRes = await fetch("/api/keys");
-      const allKeys = await keysRes.json();
-      const disabledIds = Array.isArray(allKeys)
-        ? allKeys.filter((k: { is_active: boolean }) => !k.is_active).map((k: { id: string }) => k.id)
-        : [];
-      if (disabledIds.length > 0) {
-        await fetch("/api/keys/bulk-delete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: disabledIds, action: "enable" }),
-        });
-      }
-    } catch { /* Best-effort — do not block the upgrade */ }
   };
 
   /**
@@ -276,40 +325,36 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
         country: formValues.country || null,
       };
 
-      if (!pendingPlan) {
-        // SCENARIO 1: Just saving a payment method / adding card without changing plan
-        // 1. Create a SetupIntent on server
-        const res = await fetch("/api/stripe/create-setup-intent", { method: "POST" });
-        const { clientSecret, error: serverError } = await res.json();
-
-        if (serverError || !clientSecret) {
-          throw new Error(serverError || "Failed to create setup intent.");
+      const authorizePaymentMethod = async () => {
+        const response = await fetch("/api/stripe/create-setup-intent", { method: "POST" });
+        const setup = await response.json() as { clientSecret?: string; error?: string };
+        if (!response.ok || !setup.clientSecret) {
+          throw new Error(setup.error || "Failed to create setup intent.");
         }
 
-        // 2. Confirm the SetupIntent on the client using the CardNumberElement frame
-        const { setupIntent, error: stripeError } = await stripe.confirmCardSetup(clientSecret, {
+        const { setupIntent, error: stripeError } = await stripe.confirmCardSetup(setup.clientSecret, {
           payment_method: {
             card: cardElement,
-            billing_details: {
-              name: formValues.name,
-            },
+            billing_details: { name: formValues.name },
           },
         });
-
-        if (stripeError) {
-          throw new Error(stripeError.message || "Failed to authorize credit card.");
-        }
-
-        if (!setupIntent || setupIntent.status !== "succeeded") {
+        if (stripeError) throw new Error(stripeError.message || "Failed to authorize credit card.");
+        if (!setupIntent || setupIntent.status !== "succeeded" || typeof setupIntent.payment_method !== "string") {
           throw new Error("Setup authorization failed.");
         }
+        return setupIntent.payment_method;
+      };
 
-        // 3. Attach the payment method default, update DB and auth metadata
+      if (!pendingPlan) {
+        // SCENARIO 1: Save a customer-bound SetupIntent payment method.
+        const paymentMethodId = await authorizePaymentMethod();
+
+        // 2. Make the verified customer-owned method the default.
         const saveRes = await fetch("/api/stripe/save-payment-method", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            paymentMethodId: setupIntent.payment_method,
+            paymentMethodId,
             billingDetails,
           }),
         });
@@ -333,104 +378,27 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
           country: formValues.country,
         });
 
-        await router.refresh();
-        router.refresh();
         onSuccess?.("Payment method updated and saved.");
         setView("overview");
       } else {
-        // SCENARIO 2: Upgrading to a paid plan and entering a new credit card
-        // 1. First, create a PaymentMethod client-side securely
-        const { paymentMethod, error: pmError } = await stripe.createPaymentMethod({
-          type: "card",
-          card: cardElement,
-          billing_details: {
-            name: formValues.name,
-          },
+        // SCENARIO 2: Upgrades use the same customer-bound SetupIntent proof.
+        const paymentMethodId = await authorizePaymentMethod();
+
+        await completeSubscription({
+          paymentMethodId,
+          billingDetails,
         });
 
-        if (pmError) {
-          throw new Error(pmError.message || "Failed to process card details.");
-        }
-
-        if (!paymentMethod) {
-          throw new Error("Failed to generate secure payment token.");
-        }
-
-        // 2. Call re-enable on keys before plan change
-        if (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS]) {
-          await reEnableDisabledKeys();
-        }
-
-        // 3. Initiate the subscription with the new payment method
-        const plan = PLANS.find(p => p.id === pendingPlan);
-        const priceId = billingInterval === "year" ? plan?.yearlyPriceId : plan?.monthlyPriceId;
-
-        if (!priceId) {
-          throw new Error("Missing Price ID for this plan.");
-        }
-
-        const subRes = await fetch("/api/stripe/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            priceId,
-            planId: pendingPlan,
-            paymentMethodId: paymentMethod.id,
-            billingDetails,
-          }),
-        });
-
-        const subResult = await subRes.json();
-        if (subResult.error) {
-          throw new Error(subResult.error);
-        }
-
-        // 4. Natively handle SCA / 3D Secure verification if requested by card bank
-        if (subResult.requires_action && subResult.client_secret) {
-          const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(subResult.client_secret);
-          if (confirmError) {
-            throw new Error(confirmError.message || "3D Secure authentication failed.");
-          }
-
-          if (paymentIntent && paymentIntent.status === "succeeded") {
-            // Re-sync with server to finalize state update in profile/auth metadata
-            const finalSync = await fetch("/api/stripe/subscribe", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                priceId,
-                planId: pendingPlan,
-                billingDetails,
-              }),
-            });
-            const syncRes = await finalSync.json();
-            if (syncRes.error) {
-              throw new Error(syncRes.error);
-            }
-          } else {
-            throw new Error("SCA payment authorization failed.");
-          }
-        }
-
-        // 5. Success! Populate details and trigger success view
-        setCardData({
+        setCardData((current) => ({
+          ...current,
           name: formValues.name,
-          number: `•••• •••• •••• ${paymentMethod.card?.last4 || "••••"}`,
-          brand: paymentMethod.card?.brand || "Card",
-          expiry: `${paymentMethod.card?.exp_month}/${paymentMethod.card?.exp_year}`,
-          cvc: "•••",
           street: formValues.street,
           city: formValues.city,
           state: formValues.state,
           zip: formValues.zip,
           country: formValues.country,
-        });
+        }));
 
-        await router.refresh();
-        router.refresh();
-        const actionText = PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "upgraded" : "downgraded";
-        onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
-        setView("success");
       }
     } catch (err) {
       console.error("Save payment process failed:", err);
@@ -474,8 +442,6 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
     setIsLoading(true);
     try {
       await scheduleCancellation(keysToKeep);
-      await router.refresh();
-      router.refresh();
       onSuccess?.("Cancellation scheduled. Your paid access and selected key state remain active until the current billing period ends.");
       onClose();
     } catch {
@@ -490,78 +456,16 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
 
     setIsLoading(true);
     try {
-      // 1. If upgrading, re-enable any keys that were disabled during a previous downgrade
-      if (planName === "Hobby" || (pendingPlan !== "Hobby" && PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS])) {
-        await reEnableDisabledKeys();
-      }
-
-      // 2. Get the correct price ID for Stripe
-      const plan = PLANS.find(p => p.id === pendingPlan);
-      const priceId = billingInterval === "year" ? plan?.yearlyPriceId : plan?.monthlyPriceId;
-
-      if (!priceId && pendingPlan !== "Hobby") {
-        throw new Error("Missing Price ID for this plan");
-      }
-
-      // 3. If it's a downgrade to Hobby, schedule Stripe cancellation and keep local paid access until webhook finalization
+      // Hobby changes use the cancellation route; paid changes use the
+      // server-authoritative subscription operation below.
       if (pendingPlan === "Hobby") {
         await scheduleCancellation([]);
-        await router.refresh();
         onSuccess?.("Cancellation scheduled. Your paid access remains active until the end of the current billing period.");
         onClose();
-        router.refresh();
         return;
       }
 
-      // 4. For paid plans, trigger local native subscription process using /api/stripe/subscribe
-      const response = await fetch("/api/stripe/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          priceId,
-          planId: pendingPlan
-        }),
-      });
-
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      // Natively handle SCA challenge in-app
-      if (data.requires_action && data.client_secret) {
-        if (!stripe) {
-          throw new Error("Stripe.js is required for 3D Secure verification.");
-        }
-        const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(data.client_secret);
-        if (confirmError) {
-          throw new Error(confirmError.message || "3D Secure authentication failed.");
-        }
-
-        if (paymentIntent && paymentIntent.status === "succeeded") {
-          // Re-sync final status with server
-          const finalSync = await fetch("/api/stripe/subscribe", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              priceId,
-              planId: pendingPlan
-            }),
-          });
-          const syncRes = await finalSync.json();
-          if (syncRes.error) {
-            throw new Error(syncRes.error);
-          }
-        } else {
-          throw new Error("SCA payment authorization failed.");
-        }
-      }
-
-      await router.refresh();
-      router.refresh();
-      const actionText = PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "upgraded" : "downgraded";
-      onSuccess?.(`Successfully ${actionText} to ${pendingPlan} plan.`);
-      setView("success");
+      await completeSubscription();
     } catch (error) {
       console.error("Plan change error:", error);
       const message = error instanceof Error ? error.message : "An error occurred. Please try again.";
@@ -578,9 +482,17 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
   const executeRemoveCard = async () => {
     setIsLoading(true);
     try {
-      await removePaymentMethodAction();
-      await router.refresh();
-      router.refresh();
+      const defaultPaymentMethod = paymentMethods?.find((method) => method.isDefault) || paymentMethods?.[0];
+      if (!defaultPaymentMethod) throw new Error("No payment method is available to remove.");
+      const response = await fetch("/api/stripe/delete-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentMethodId: defaultPaymentMethod.id }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(payload?.error || "Failed to remove payment method.");
+      }
       setCardData(prev => ({ ...prev, number: "", brand: "", expiry: "" }));
       onSuccess?.("Payment method removed successfully.");
       setView("overview");
@@ -625,10 +537,10 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
 
             <div className="relative z-10 space-y-2 pr-12 sm:pr-14">
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white/45">
-                {view === "overview" ? "Active Subscription" : view === "change-plan" ? "Select New Plan" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Billing Details") : view === "success" ? "Purchase Confirmed" : view === "plan-change-review" ? "Review Plan Change" : view === "remove-card-confirm" ? "Confirm Removal" : view === "key-downgrade-selector" ? "Hobby Plan Limit" : "Confirm Cancellation"}
+                {view === "overview" ? "Subscription" : view === "change-plan" ? "Select New Plan" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Billing Details") : view === "success" ? "Billing Result" : view === "plan-change-review" ? "Review Plan Change" : view === "remove-card-confirm" ? "Confirm Removal" : view === "key-downgrade-selector" ? "Hobby Plan Limit" : "Confirm Cancellation"}
               </p>
               <h3 id="subscription-modal-title" className="font-serif text-3xl font-bold italic tracking-tight text-white sm:text-5xl">
-                {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Thank You!" : view === "plan-change-review" ? "Confirm Switch" : view === "remove-card-confirm" ? "Remove Card?" : view === "key-downgrade-selector" ? "Select Keys" : "Cancel Plan?"}
+                {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Stripe Update" : view === "plan-change-review" ? "Confirm Switch" : view === "remove-card-confirm" ? "Remove Card?" : view === "key-downgrade-selector" ? "Select Keys" : "Cancel Plan?"}
               </h3>
             </div>
 
@@ -671,15 +583,16 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
                   initialView={initialView}
                   cardData={cardData}
                 />
-                <OrderSummary pendingPlan={pendingPlan} />
+                <OrderSummary pendingPlan={pendingPlan} billingInterval={billingInterval} />
               </div>
             ) : view === "success" ? (
-              <SuccessView
-                pendingPlan={pendingPlan}
-                transactionId={transactionId}
-                session={session || null}
-                onClose={onClose}
-              />
+              subscriptionResult ? (
+                <SuccessView result={subscriptionResult} user={user || null} onClose={onClose} />
+              ) : (
+                <p role="status" className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5 text-sm leading-6 text-amber-100">
+                  No verified Stripe result is available. Close this dialog and refresh Billing before relying on a plan change.
+                </p>
+              )
             ) : view === "plan-change-review" ? (
               <PlanReview
                 pendingPlan={pendingPlan}

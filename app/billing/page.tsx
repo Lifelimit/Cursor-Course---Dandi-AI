@@ -13,7 +13,7 @@ export default async function BillingPage() {
     redirect("/login");
   }
 
-  const usageData = await getServerUsageData();
+  const usageData = await getServerUsageData({ includeBilling: true });
 
   let invoices: Invoice[] = [];
   const customerId = usageData?.stripeCustomerId;
@@ -37,8 +37,8 @@ export default async function BillingPage() {
         receiptUrl: inv.hosted_invoice_url || undefined,
         pdfUrl: inv.invoice_pdf || undefined,
       }));
-    } catch (error) {
-      console.error("Error fetching Stripe invoices:", error);
+    } catch {
+      console.error("Billing page invoice history fetch failed.");
     }
   }
 

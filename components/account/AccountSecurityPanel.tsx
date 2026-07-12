@@ -1,5 +1,6 @@
 import type { FormEvent } from "react";
 import { CommandPanel } from "@/components/command";
+import { AccountDeletionSection } from "@/components/account/AccountDeletionSection";
 
 type AccountSecurityPanelProps = {
   newPassword: string;
@@ -9,6 +10,7 @@ type AccountSecurityPanelProps = {
   isSavingEmail: boolean;
   passwordError: string | null;
   emailError: string | null;
+  currentEmail: string;
   onNewPasswordChange: (value: string) => void;
   onConfirmPasswordChange: (value: string) => void;
   onNewEmailChange: (value: string) => void;
@@ -24,6 +26,7 @@ export function AccountSecurityPanel({
   isSavingEmail,
   passwordError,
   emailError,
+  currentEmail,
   onNewPasswordChange,
   onConfirmPasswordChange,
   onNewEmailChange,
@@ -42,7 +45,7 @@ export function AccountSecurityPanel({
         <div className="flex flex-col justify-between space-y-6 rounded-3xl border border-white/8 bg-slate-950/35 p-4 sm:p-6">
           <div className="space-y-2">
             <h4 className="text-base font-bold">Update Password</h4>
-            <p className="text-xs text-zinc-400">Set a new account password. Minimum 6 characters.</p>
+            <p className="text-xs text-zinc-400">Set a new account password. Use at least 12 characters.</p>
           </div>
 
           <form onSubmit={onUpdatePassword} className="space-y-4" aria-busy={isSavingPassword || undefined}>
@@ -53,7 +56,7 @@ export function AccountSecurityPanel({
                 name="new-password"
                 type="password"
                 required
-                minLength={6}
+                minLength={12}
                 autoComplete="new-password"
                 placeholder="••••••••"
                 value={newPassword}
@@ -72,7 +75,7 @@ export function AccountSecurityPanel({
                 name="confirm-password"
                 type="password"
                 required
-                minLength={6}
+                minLength={12}
                 autoComplete="new-password"
                 placeholder="••••••••"
                 value={confirmPassword}
@@ -160,6 +163,7 @@ export function AccountSecurityPanel({
           </form>
         </div>
       </div>
+      <AccountDeletionSection currentEmail={currentEmail} />
     </CommandPanel>
   );
 }

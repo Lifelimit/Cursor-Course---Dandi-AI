@@ -2,6 +2,13 @@
   "name": "dandi",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "yarn@1.22.22",
+  "engines": {
+    "node": "24.x"
+  },
+  "resolutions": {
+    "postcss": "8.5.17"
+  },
   "scripts": {
     "dev": "next dev --webpack",
     "dev:turbopack": "next dev",
@@ -10,8 +17,9 @@
     "build:turbopack": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "rm -rf .next && tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
+    "migrations:check": "node scripts/check-migrations.mjs",
     "external:readiness": "node scripts/external-validation.mjs",
     "ci:check": "bash scripts/validate.sh"
   },
@@ -20,27 +28,26 @@
     "@ai-sdk/react": "^3.0.195",
     "@stripe/react-stripe-js": "^6.4.0",
     "@stripe/stripe-js": "^9.6.0",
-    "@supabase/ssr": "^0.10.2",
-    "@supabase/supabase-js": "^2.105.3",
+    "@supabase/ssr": "0.10.3",
+    "@supabase/supabase-js": "2.110.2",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
     "ai": "^6.0.193",
-    "next": "16.2.4",
-    "nodemailer": "^8.0.9",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "next": "16.2.10",
+    "nodemailer": "9.0.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "stripe": "^22.1.0",
-    "swr": "^2.4.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/nodemailer": "^8.0.0",
-    "@types/react": "^19",
+    "@types/nodemailer": "8.0.1",
+    "@types/react": "19.2.17",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.4",
+    "eslint-config-next": "16.2.10",
     "supabase": "^2.104.0",
     "tailwindcss": "^4",
     "typescript": "^5"

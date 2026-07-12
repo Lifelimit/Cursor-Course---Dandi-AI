@@ -4,9 +4,8 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { serverEnv } from "@/lib/env";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getEntitledPlanForSubscription } from "@/lib/billing-catalog";
+import { getEntitledPlanForSubscription, getPlanForSubscription } from "@/lib/billing-catalog";
 import {
-  buildSubscriptionDeletedProfilePayload,
   buildWebhookSubscriptionUpdatePayload,
   parseKeysToKeep,
 } from "@/lib/services/stripe-billing-flow.service";
@@ -68,6 +67,32 @@ async function markWebhookEventFailed(eventId: string, lockToken: string) {
     .eq("lock_token", lockToken);
 }
 
+function getStripeObjectId(value: unknown) {
+  if (typeof value === "string" && value) return value;
+  if (value && typeof value === "object" && "id" in value) {
+    const id = (value as { id?: unknown }).id;
+    return typeof id === "string" && id ? id : null;
+  }
+  return null;
+}
+
+async function resolveBoundProfileId(customerId: string, metadataUserId?: string) {
+  let query = supabaseAdmin
+    .from("profiles")
+    .select("id")
+    .eq("stripe_customer_id", customerId);
+
+  if (metadataUserId) query = query.eq("id", metadataUserId);
+
+  const { data, error } = await query.single();
+  if (error || !data?.id) {
+    console.error("Stripe webhook profile binding failed.");
+    throw new Error("Webhook profile binding failed.");
+  }
+
+  return data.id;
+}
+
 export async function POST(req: Request) {
   const body = await req.text();
   const signature = (await headers()).get("Stripe-Signature") as string;
@@ -106,10 +131,11 @@ export async function POST(req: Request) {
       
       // Type casting for shared access to metadata/customer
       const obj = sessionOrSub as unknown as Record<string, unknown>;
-      const customerId = obj.customer as string;
+      const customerId = getStripeObjectId(obj.customer);
+      if (!customerId) throw new Error("Stripe webhook customer is missing.");
       const metadata = (obj.metadata || {}) as Record<string, string>;
       const userId = metadata.userId;
-      const userEmail = metadata.userEmail;
+      const profileId = await resolveBoundProfileId(customerId, userId);
 
       const isSetupSession = !isSubscriptionEvent && (sessionOrSub as Stripe.Checkout.Session).mode === "setup";
 
@@ -173,14 +199,17 @@ export async function POST(req: Request) {
           }
         } catch {
           console.error("Stripe webhook setup handling failed.");
+          throw new Error("Stripe setup synchronization failed.");
         }
       } else {
         // Handle subscription events (checkout or update)
         const subscriptionId = (isSubscriptionEvent ? (sessionOrSub as Stripe.Subscription).id : (sessionOrSub as Stripe.Checkout.Session).subscription) as string;
         const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription;
+        const configuredPlan = getPlanForSubscription(subscription);
         const verifiedPlan = getEntitledPlanForSubscription(subscription);
-        if (!verifiedPlan) {
-          console.warn("Stripe subscription has an unknown price; the profile plan was not changed.");
+        if ((subscription.status === "active" || subscription.status === "trialing") && !configuredPlan) {
+          console.error("Stripe subscription uses an unrecognized active price; refusing profile mutation.");
+          throw new Error("Unknown active Stripe price.");
         }
         
         try {
@@ -225,24 +254,62 @@ export async function POST(req: Request) {
           console.warn("Stripe payment method details could not be retrieved.");
         }
 
-        updatePayload = buildWebhookSubscriptionUpdatePayload({
-          customerId,
-          subscriptionId,
-          subscription,
-          verifiedPlan,
-          paymentMethodDetails,
-        });
+        if (verifiedPlan) {
+          updatePayload = buildWebhookSubscriptionUpdatePayload({
+            customerId,
+            subscriptionId,
+            subscription,
+            verifiedPlan,
+            paymentMethodDetails,
+          });
+        } else {
+          // Entitlements come only from active/trialing subscriptions. Before
+          // downgrading, preserve any other subscription that still grants one.
+          const customerSubscriptions = await stripe.subscriptions.list({
+            customer: customerId,
+            status: "all",
+            limit: 100,
+          });
+          const replacement = customerSubscriptions.data
+            .filter((candidate) => candidate.id !== subscription.id)
+            .map((candidate) => ({
+              subscription: candidate,
+              plan: getEntitledPlanForSubscription(candidate),
+            }))
+            .find((candidate) => candidate.plan);
+
+          updatePayload = replacement?.plan
+            ? buildWebhookSubscriptionUpdatePayload({
+                customerId,
+                subscriptionId: replacement.subscription.id,
+                subscription: replacement.subscription,
+                verifiedPlan: replacement.plan,
+                paymentMethodDetails,
+              })
+            : {
+                ...buildWebhookSubscriptionUpdatePayload({
+                  customerId,
+                  subscriptionId,
+                  subscription,
+                  verifiedPlan: null,
+                  paymentMethodDetails,
+                }),
+                plan: "Hobby",
+                stripe_scheduled_plan: null,
+                stripe_scheduled_plan_date: null,
+              };
+        }
       }
 
-      // Build query — must re-assign after each .eq() so the condition is retained
-      let query = supabaseAdmin.from("profiles").update(updatePayload);
-      if (userId) query = query.eq("id", userId);
-      else if (userEmail) query = query.eq("email", userEmail);
-      else query = query.eq("stripe_customer_id", customerId);
+      const { data: updatedProfile, error } = await supabaseAdmin
+        .from("profiles")
+        .update(updatePayload)
+        .eq("id", profileId)
+        .eq("stripe_customer_id", customerId)
+        .select("id")
+        .single();
 
-      const { error } = await query.select();
-
-      if (error) {
+      if (error || !updatedProfile) {
         console.error("Stripe webhook profile update failed.");
         throw new Error("Webhook profile update failed.");
       }
@@ -253,9 +320,16 @@ export async function POST(req: Request) {
 
     if (event.type === "customer.subscription.deleted") {
       const subscription = event.data.object as Stripe.Subscription;
-      const customerId = subscription.customer as string;
+      const customerId = getStripeObjectId(subscription.customer);
+      if (!customerId) throw new Error("Stripe webhook customer is missing.");
       const metadata = subscription.metadata || {};
+      const profileId = await resolveBoundProfileId(customerId, metadata.userId);
       const keysToKeep = parseKeysToKeep(metadata.keys_to_keep);
+      // Cancellation always stores `keys_to_keep`, including `[]` when no
+      // downgrade selection was needed. Preserve the normal oldest-three
+      // fallback for that empty case; only a non-empty validated list is an
+      // explicit selection.
+      const hasExplicitKeySelection = keysToKeep.length > 0;
 
       // A customer can have more than one subscription. Do not downgrade the
       // profile or deactivate paid-plan keys while another active/trialing
@@ -273,72 +347,39 @@ export async function POST(req: Request) {
         }))
         .find((candidate) => candidate.plan);
 
-      const replacementPayload = replacementSubscription?.plan
-        ? buildWebhookSubscriptionUpdatePayload({
-            customerId,
-            subscriptionId: replacementSubscription.subscription.id,
-            subscription: replacementSubscription.subscription,
-            verifiedPlan: replacementSubscription.plan,
-          })
-        : buildSubscriptionDeletedProfilePayload();
-
-      // 1. Apply the remaining paid entitlement, or downgrade to Hobby.
-      let query = supabaseAdmin
-        .from("profiles")
-        .update(replacementPayload);
-
-      if (metadata.userId) {
-        query = query.eq("id", metadata.userId);
-      } else {
-        query = query.eq("stripe_customer_id", customerId);
-      }
-
-      const { data: profile, error: profileError } = await query
-        .select("id")
-        .single();
-
-      if (profileError || !profile) {
-        console.error("Stripe webhook profile downgrade failed.");
-        throw new Error("Webhook profile update failed.");
-      }
-
-      // 2. Deactivate excess keys only after the customer has lost all paid
-      // entitlements. A replacement paid subscription keeps its key policy.
-      const userId = profile.id;
-
-      if (!replacementSubscription && keysToKeep.length > 0) {
-        const { error: keysError } = await supabaseAdmin
-          .from("api_keys")
-          .update({ is_active: false })
-          .eq("user_id", userId)
-          .not("id", "in", `(${keysToKeep.join(",")})`);
-        if (keysError) {
-          console.error("Stripe webhook API-key deactivation failed.");
-          throw new Error("Webhook API-key update failed.");
-        }
-      } else if (!replacementSubscription) {
-        const { data: allKeys, error: fetchKeysError } = await supabaseAdmin
-          .from("api_keys")
+      if (replacementSubscription?.plan) {
+        const replacementPayload = buildWebhookSubscriptionUpdatePayload({
+          customerId,
+          subscriptionId: replacementSubscription.subscription.id,
+          subscription: replacementSubscription.subscription,
+          verifiedPlan: replacementSubscription.plan,
+        });
+        const { data: profile, error: profileError } = await supabaseAdmin
+          .from("profiles")
+          .update(replacementPayload)
+          .eq("id", profileId)
+          .eq("stripe_customer_id", customerId)
           .select("id")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: true });
+          .single();
 
-        if (fetchKeysError) {
-          console.error("Stripe webhook API-key lookup failed.");
-          throw new Error("Webhook API-key lookup failed.");
+        if (profileError || profile?.id !== profileId) {
+          console.error("Stripe webhook profile entitlement update failed.");
+          throw new Error("Webhook profile update failed.");
         }
+      } else {
+        const { data: downgradedProfileId, error: downgradeError } = await supabaseAdmin.rpc(
+          "apply_stripe_hobby_downgrade",
+          {
+            p_profile_id: profileId,
+            p_customer_id: customerId,
+            p_keys_to_keep: keysToKeep,
+            p_has_explicit_key_selection: hasExplicitKeySelection,
+          },
+        );
 
-        if (allKeys && allKeys.length > 3) {
-          const keysToDeactivate = allKeys.slice(3).map(k => k.id);
-          const { error: deactivateError } = await supabaseAdmin
-            .from("api_keys")
-            .update({ is_active: false })
-            .eq("user_id", userId)
-            .in("id", keysToDeactivate);
-          if (deactivateError) {
-            console.error("Stripe webhook API-key deactivation failed.");
-            throw new Error("Webhook API-key update failed.");
-          }
+        if (downgradeError || downgradedProfileId !== profileId) {
+          console.error("Stripe webhook atomic profile downgrade failed.");
+          throw new Error("Webhook profile downgrade failed.");
         }
       }
 

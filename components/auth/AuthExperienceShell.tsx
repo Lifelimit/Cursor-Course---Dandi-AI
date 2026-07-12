@@ -35,7 +35,7 @@ export function AuthExperienceShell({ eyebrow, description, children, visual }: 
             </div>
 
             <p className="mt-6 text-center text-[11px] leading-5 text-slate-600">
-              By continuing, you acknowledge Dandi&apos;s terms and privacy policy.
+              Dandi is a personal portfolio project. Only submit repositories and data you are comfortable processing here.
             </p>
           </div>
         </section>

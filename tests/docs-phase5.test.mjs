@@ -8,13 +8,18 @@ test("docs retain the canonical repository intelligence flow", () => {
   assert.match(source, /Summarize gives an immediate overview/);
   assert.match(source, /Prepare indexes public repository content/);
   assert.match(source, /Preparation enables Ask; it is not required for Summary/);
+  assert.match(source, /README-grounded overview of a public repository/);
+  assert.match(source, /streamed structured summary based on README evidence/);
 });
 
-test("docs preserve the accepted private repository boundary", () => {
-  assert.match(source, /Repository Summary also supports a private repository/);
-  assert.match(source, /Prepare and Ask currently support public repositories only/);
+test("docs keep every repository intelligence workflow public-only", () => {
+  assert.match(source, /Summary, Prepare, and Ask currently support public GitHub repositories only/);
+  assert.match(source, /display-only integration metadata and does not authorize private repository reads/);
   assert.match(source, /Private repository preparation is not supported/);
   assert.match(source, /Private repository chat is not supported/);
+  assert.doesNotMatch(source, /Repository Summary also supports a private repository/);
+  assert.doesNotMatch(source, /authorized private repositories/);
+  assert.doesNotMatch(source, /For private Summary requests/);
 });
 
 test("docs navigation supports filtering and programmatic current location", () => {

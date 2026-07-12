@@ -3,7 +3,7 @@ import DashboardClient from "./DashboardClient";
 import { redirect } from "next/navigation";
 import { getServerUsageData } from "@/lib/services/server-data.service";
 import { listRecentIngestionJobs } from "@/lib/services/ingestion-job.service";
-import { getPrimaryGitHubInstallationForUser } from "@/lib/services/github-app.service";
+import { getPrimaryGitHubInstallationForUserWithClient } from "@/lib/services/github-app.service";
 import type { UsageData } from "@/types/usage";
 import type { DashboardRepositoryWork } from "@/components/dashboard/dashboard-types";
 
@@ -23,14 +23,17 @@ export default async function DashboardsPage() {
   }
 
   const [usageData, profileResult, recentIngestionJobs] = await Promise.all([
-    getServerUsageData(),
+    getServerUsageData({ includeBilling: false }),
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
     listRecentIngestionJobs({ userId: user.id, limit: 12 }).catch(() => []),
   ]);
 
   let githubConnected: boolean | null = null;
   try {
-    githubConnected = Boolean(await getPrimaryGitHubInstallationForUser(user.id));
+    githubConnected = Boolean(await getPrimaryGitHubInstallationForUserWithClient({
+      db: supabase,
+      userId: user.id,
+    }));
   } catch {
     // Keep this distinct from a confirmed disconnected state.
     githubConnected = null;

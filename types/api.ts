@@ -23,7 +23,6 @@ export function mapApiKey(row: ApiKeyMapperRow): ApiKey {
     is_active: row.is_active ?? true,
     alert_threshold: row.alert_threshold ?? null,
     alert_channels: row.alert_channels ?? null,
-    alert_phone: row.alert_phone ?? null,
     dailyTrend: row.dailyTrend,
   };
 }

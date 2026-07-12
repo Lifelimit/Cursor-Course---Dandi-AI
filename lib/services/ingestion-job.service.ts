@@ -13,7 +13,6 @@ import { googleBatchEmbedWithModel, isGeminiEmbeddingRateLimitError } from "@/li
 import { selectRagFiles } from "@/lib/services/rag-file-selection.service";
 import { redis } from "@/lib/redis";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getServerEnv } from "@/lib/env";
 import type { IngestionJob, IngestionJobStep, IngestionKeyData, IngestionJobSummary } from "@/types/rag";
 
 const LOCK_TTL_SEC = 900;
@@ -224,7 +223,7 @@ function requestFromTelemetry(telemetry?: RequestTelemetry) {
   if (telemetry.region) headers.set("x-vercel-ip-country-region", telemetry.region);
   if (telemetry.country) headers.set("x-vercel-ip-country", telemetry.country);
 
-  return new Request("https://dandi.ai/internal/ingestion-job", { headers });
+  return new Request("https://dandi.invalid/internal/ingestion-job", { headers });
 }
 
 export async function createIngestionJob(input: {
@@ -343,7 +342,6 @@ export async function runIngestionJob(
 
     await assertPublicRepositoryForRag(job.repo_url);
     await reserveApiKeyUsage(usageKeyData);
-    const publicFetchToken = getServerEnv().GITHUB_TOKEN;
 
     job = await updateJob(job.id, {
       status: "running",
@@ -355,8 +353,8 @@ export async function runIngestionJob(
       started_at: job.started_at ?? new Date().toISOString(),
     });
 
-    const branch = await fetchGitHubBranch(job.repo_url, publicFetchToken);
-    const tree = await fetchGitHubRepoTree(job.repo_url, branch, publicFetchToken);
+    const branch = await fetchGitHubBranch(job.repo_url);
+    const tree = await fetchGitHubRepoTree(job.repo_url, branch);
     job = await updateJob(job.id, {
       current_step: "analyzing",
       repo_name: job.repo_name ?? getRepoName(job.repo_url),
@@ -380,7 +378,7 @@ export async function runIngestionJob(
     const crawlResults = await Promise.all(
       filesToIngest.map(async (file) => {
         try {
-          const text = await fetchRawFileContent(job.repo_url, branch, file.path, publicFetchToken);
+          const text = await fetchRawFileContent(job.repo_url, branch, file.path);
           return { path: file.path, chunks: splitIntoChunks(text, file.path) };
         } catch {
           console.warn("A repository file was skipped during ingestion.");

@@ -26,7 +26,7 @@ async function main() {
   const { POST } = await import("../app/api/rag/chat/route");
 
   const mockBody = {
-    apiKey: "sk_live_demo_key_dandi_2026",
+    apiKey: "dandi_demo_ci_not_a_secret",
     githubUrl: "https://github.com/facebook/react",
     messages: [
       { role: "user", content: "Are there any rate limiting or quota guardrails implemented?" }

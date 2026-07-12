@@ -17,6 +17,7 @@ type AccountApiKeyEditModalProps = {
   onUpdated: () => void;
   showToast: (type: ToastType, message: string) => void;
   planName: string;
+  emailAlertsAvailable: boolean;
 };
 
 export function AccountApiKeyEditModal({
@@ -26,6 +27,7 @@ export function AccountApiKeyEditModal({
   onUpdated,
   showToast,
   planName,
+  emailAlertsAvailable,
 }: AccountApiKeyEditModalProps) {
   const [keyName, setKeyName] = useState(apiKey?.label ?? "");
   const [keyType, setKeyType] = useState<ApiKeyType>(apiKey?.keyType === "production" ? "production" : "development");
@@ -34,6 +36,9 @@ export function AccountApiKeyEditModal({
     : { mode: "custom", customLimit: String(apiKey.monthlyLimit) });
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [alertsEnabled, setAlertsEnabled] = useState(apiKey?.alertThreshold !== null);
+  const [alertThreshold, setAlertThreshold] = useState(String(apiKey?.alertThreshold ?? 80));
+  const [emailAlertsEnabled, setEmailAlertsEnabled] = useState(apiKey?.alertChannels.includes("email") ?? false);
 
   if (!isOpen || !apiKey) return null;
 
@@ -58,6 +63,12 @@ export function AccountApiKeyEditModal({
       monthlyLimit = parsedLimit;
     }
 
+    const parsedThreshold = Number.parseInt(alertThreshold, 10);
+    if (alertsEnabled && (!Number.isInteger(parsedThreshold) || parsedThreshold < 1 || parsedThreshold > 100)) {
+      setErrorMessage("Alert threshold must be between 1 and 100.");
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage("");
 
@@ -65,7 +76,15 @@ export function AccountApiKeyEditModal({
       const response = await fetch(`/api/keys/${apiKey.apiKeyId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: trimmedName, keyType, monthlyLimit }),
+        body: JSON.stringify({
+          name: trimmedName,
+          keyType,
+          monthlyLimit,
+          alertThreshold: alertsEnabled ? parsedThreshold : null,
+          alertChannels: alertsEnabled
+            ? ["in-page", ...(emailAlertsEnabled ? ["email"] : [])]
+            : [],
+        }),
       });
       const result = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(result.error || "Failed to update API key.");
@@ -152,6 +171,48 @@ export function AccountApiKeyEditModal({
         </fieldset>
 
         <AccountApiKeyLimitField planName={planName} value={limit} onChange={setLimit} disabled={isSubmitting} />
+
+        <fieldset className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/30 p-5" disabled={isSubmitting}>
+          <legend className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Usage alerts</legend>
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={alertsEnabled}
+              onChange={(event) => setAlertsEnabled(event.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-white/20 bg-slate-950 text-emerald-400 focus:ring-emerald-300"
+            />
+            <span><span className="block text-sm font-bold text-white">Alert when usage crosses a threshold</span><span className="mt-1 block text-xs leading-5 text-slate-500">In-page alerts are calculated from the current calendar-month quota.</span></span>
+          </label>
+
+          {alertsEnabled && (
+            <div className="space-y-4 border-t border-white/5 pt-4">
+              <label htmlFor="account-edit-api-key-alert-threshold" className="block space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Threshold percentage</span>
+                <input
+                  id="account-edit-api-key-alert-threshold"
+                  type="number"
+                  min={1}
+                  max={100}
+                  inputMode="numeric"
+                  value={alertThreshold}
+                  onChange={(event) => setAlertThreshold(event.target.value)}
+                  className="h-12 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 text-sm font-medium text-white outline-none focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10"
+                />
+              </label>
+              <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.05] px-4 py-3 text-xs leading-5 text-emerald-100">In-page alert enabled</div>
+              <label className={`flex items-start gap-3 ${emailAlertsAvailable ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}>
+                <input
+                  type="checkbox"
+                  checked={emailAlertsEnabled}
+                  onChange={(event) => setEmailAlertsEnabled(event.target.checked)}
+                  disabled={!emailAlertsAvailable}
+                  className="mt-1 h-4 w-4 rounded border-white/20 bg-slate-950 text-emerald-400 focus:ring-emerald-300"
+                />
+                <span><span className="block text-sm font-bold text-white">Email alert</span><span className="mt-1 block text-xs leading-5 text-slate-500">{emailAlertsAvailable ? "Send one email after this key crosses the threshold." : emailAlertsEnabled ? "Email delivery is currently unavailable; this saved setting is preserved." : "Email alerts become available after SMTP is fully configured."}</span></span>
+              </label>
+            </div>
+          )}
+        </fieldset>
 
         <div className="flex flex-col gap-3 border-t border-white/5 pt-5 sm:flex-row sm:justify-end">
           <button

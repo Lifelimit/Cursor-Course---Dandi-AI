@@ -1,4 +1,4 @@
-import { ApiKeyQuotaError, reserveApiKeyUsage, validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
+import { ApiKeyQuotaError, createUsageTelemetryFinalizer, reserveApiKeyUsage, validateApiKey } from "@/lib/services/api-key.service";
 import { fetchRepositoryDataWithAuth, GitHubAuthError } from "@/lib/services/github.service";
 import { streamGithubSummary } from "@/lib/services/ai.service";
 import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOriginAllowed } from "@/lib/cors";
@@ -8,6 +8,7 @@ import { getApiKeyFromRequest, invalidJsonResponse, jsonError, missingApiKeyResp
 const summarizerRateLimit = createIpRateLimit("@upstash/ratelimit", 5, "60 s");
 const corsOptions = {
   methods: "POST, OPTIONS",
+  exposedHeaders: "x-github-metadata",
 };
 
 export async function OPTIONS(request: Request) {
@@ -15,7 +16,8 @@ export async function OPTIONS(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const corsHeaders = getCorsHeaders(request, corsOptions);
+  const corsHeaders = { ...getCorsHeaders(request, corsOptions), "Cache-Control": "private, no-store" };
+  let finalizeUsage: ((status: "success" | "error") => Promise<void>) | null = null;
   try {
     if (!isCorsOriginAllowed(request)) return forbiddenCorsResponse(request);
 
@@ -87,14 +89,12 @@ export async function POST(request: Request) {
     }
 
     const startTime = Date.now();
-
-    // Resolve user ID for GitHub App authorization
-    let userId: string | null = null;
-    if (keyData.browserUserId) {
-      userId = keyData.browserUserId;
-    } else if (keyData.user_id && keyData.user_id !== "demo-user-id") {
-      userId = keyData.user_id;
-    }
+    finalizeUsage = createUsageTelemetryFinalizer({
+      keyData,
+      repoUrl: githubUrl,
+      startedAt: startTime,
+      request,
+    });
 
     // 4. Fetch README and Metadata with auth
     let readmeContent = "";
@@ -102,28 +102,20 @@ export async function POST(request: Request) {
     try {
       const repoData = await fetchRepositoryDataWithAuth({
         githubUrl,
-        userId,
         includeVersionMetadata: false,
       });
       readmeContent = repoData.readmeContent;
       metadata = repoData.metadata;
     } catch (fetchErr) {
-      const latencyMs = Date.now() - startTime;
-      await incrementKeyUsage(keyData, githubUrl, latencyMs, "error", request);
+      await finalizeUsage("error");
 
       if (fetchErr instanceof GitHubAuthError) {
         let status = 403;
         let message = "";
 
         switch (fetchErr.code) {
-          case "GITHUB_PRIVATE_REPO_NOT_CONNECTED":
-            message = "Connect GitHub and grant Dandi access to this repository to summarize it.";
-            break;
-          case "GITHUB_PRIVATE_REPO_NOT_GRANTED":
-            message = "This repository is not included in your GitHub App installation. Reconnect GitHub and grant access.";
-            break;
-          case "GITHUB_PRIVATE_REPO_TOKEN_FAILED":
-            message = "Dandi could not verify GitHub App access. Reconnect GitHub or review the repository grant, then retry.";
+          case "GITHUB_PRIVATE_REPO_UNSUPPORTED":
+            message = "Repository Summary currently supports public GitHub repositories only.";
             break;
           case "GITHUB_REPO_NOT_FOUND":
             status = 404;
@@ -143,26 +135,27 @@ export async function POST(request: Request) {
 
     // 5. Generate AI Summary Stream
     try {
-      const result = await streamGithubSummary(readmeContent);
-      const latencyMs = Date.now() - startTime;
-      await incrementKeyUsage(keyData, githubUrl, latencyMs, "success", request);
+      const result = await streamGithubSummary(readmeContent, {
+        abortSignal: request.signal,
+        onError: async () => finalizeUsage?.("error"),
+        onFinish: async ({ object, error }) => finalizeUsage?.(object && !error ? "success" : "error"),
+      });
 
       const response = result.toTextStreamResponse({
         headers: {
           ...corsHeaders,
           "x-github-metadata": Buffer.from(JSON.stringify({
-            owner: keyData.name,
             repo: githubUrl,
             metadata: metadata,
-          })).toString("base64")
+          })).toString("base64"),
+          "Cache-Control": "private, no-store",
         }
       });
 
       return response;
     } catch {
       console.error("Repository summary generation failed.");
-      const latencyMs = Date.now() - startTime;
-      await incrementKeyUsage(keyData, githubUrl, latencyMs, "error", request);
+      await finalizeUsage?.("error");
 
       return jsonError(
         { error: "Failed to generate AI summary." },
@@ -172,6 +165,7 @@ export async function POST(request: Request) {
     }
   } catch {
     console.error("Repository summary request failed.");
+    await finalizeUsage?.("error");
     return jsonError({ error: "Internal server error" }, 500, corsHeaders);
   }
 }

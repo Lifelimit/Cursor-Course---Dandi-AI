@@ -14,7 +14,6 @@ export type ApiKey = {
   is_active: boolean;
   alert_threshold: number | null;
   alert_channels: string[] | null;
-  alert_phone: string | null;
   dailyTrend?: ApiKeyDailyTrend;
 };
 
@@ -29,7 +28,6 @@ export type ApiKeyApiResponse = {
   is_active: boolean;
   alert_threshold: number | null;
   alert_channels: string[] | null;
-  alert_phone: string | null;
   dailyTrend?: ApiKeyDailyTrend;
 };
 
@@ -43,7 +41,6 @@ export type ApiKeyMutationData = {
   monthlyLimit?: number | null;
   alertThreshold?: number | null;
   alertChannels?: string[];
-  alertPhone?: string | null;
   isActive?: boolean;
 };
 

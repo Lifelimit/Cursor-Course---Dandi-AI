@@ -2,7 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { assertSafeWebhookEndpoint, getSafeWebhookErrorMessage } from "@/lib/services/webhook-test.service";
-import { generateWebhookSigningSecret, getWebhookSecretMetadata } from "@/lib/services/webhook-secret.service";
+import {
+  generateWebhookSigningSecret,
+  getWebhookSecretMetadata,
+  getWebhookSigningSecret,
+  updateWebhookConfiguration,
+} from "@/lib/services/webhook-secret.service";
 
 export const dynamic = "force-dynamic";
 
@@ -20,11 +25,14 @@ export async function GET() {
       return NextResponse.json({ plan: "Hobby" });
     }
 
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("plan, full_name, avatar_url, org_slug, webhook_url, webhook_secret, github_connected")
-      .eq("id", user.id)
-      .single();
+    const [{ data: profile }, webhookSecret] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("plan, full_name, avatar_url, org_slug, webhook_url, github_connected")
+        .eq("id", user.id)
+        .single(),
+      getWebhookSigningSecret(user.id),
+    ]);
 
     return NextResponse.json({
       plan: profile?.plan || "Hobby",
@@ -32,7 +40,7 @@ export async function GET() {
       avatarUrl: profile?.avatar_url || "",
       orgSlug: profile?.org_slug || "",
       webhookUrl: profile?.webhook_url || "",
-      ...getWebhookSecretMetadata(profile?.webhook_secret),
+      ...getWebhookSecretMetadata(webhookSecret),
       githubConnected: !!profile?.github_connected
     }, { headers: secretResponseHeaders });
   } catch {
@@ -107,18 +115,21 @@ export async function PATCH(req: Request) {
     }
 
     // Load existing profile first to check webhook secret
-    const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
-      .from("profiles")
-      .select("webhook_secret, webhook_url")
-      .eq("id", user.id)
-      .single();
+    const [{ data: existingProfile, error: existingProfileError }, existingWebhookSecret] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("webhook_url")
+        .eq("id", user.id)
+        .single(),
+      getWebhookSigningSecret(user.id),
+    ]);
 
     if (existingProfileError) {
       console.error("Failed to load existing webhook settings.");
       return NextResponse.json({ error: "Failed to update profile settings." }, { status: 500 });
     }
 
-    let webhookSecret = existingProfile?.webhook_secret || "";
+    let webhookSecret = existingWebhookSecret;
     let newWebhookSecret: string | undefined;
     let endpointChanged = false;
 
@@ -137,22 +148,40 @@ export async function PATCH(req: Request) {
     const updateData: Record<string, unknown> = {};
     if (fullName !== undefined) updateData.full_name = sanitizedFullName;
     if (orgSlug !== undefined) updateData.org_slug = sanitizedOrgSlug;
-    if (sanitizedWebhookUrl !== undefined) {
-      updateData.webhook_url = sanitizedWebhookUrl;
-      updateData.webhook_secret = webhookSecret;
+    if (Object.keys(updateData).length > 0) {
+      updateData.updated_at = new Date().toISOString();
+      const { error } = await supabaseAdmin
+        .from("profiles")
+        .update(updateData)
+        .eq("id", user.id);
+
+      if (error) {
+        console.error("Failed to update profile settings.");
+        return NextResponse.json({ error: "Failed to update profile settings." }, { status: 500 });
+      }
     }
-    updateData.updated_at = new Date().toISOString();
 
-    const { data: updatedProfile, error } = await supabaseAdmin
+    if (sanitizedWebhookUrl !== undefined) {
+      await updateWebhookConfiguration(user.id, sanitizedWebhookUrl, webhookSecret);
+    }
+
+    if (sanitizedFullName !== undefined && sanitizedFullName !== (user.user_metadata?.full_name || "")) {
+      const { error: authMetadataError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+        user_metadata: { ...user.user_metadata, full_name: sanitizedFullName },
+      });
+      if (authMetadataError) {
+        console.warn("Profile display metadata could not be synchronized.");
+      }
+    }
+
+    const { data: updatedProfile, error: reloadError } = await supabaseAdmin
       .from("profiles")
-      .update(updateData)
+      .select("plan, full_name, avatar_url, org_slug, webhook_url, github_connected")
       .eq("id", user.id)
-      .select("plan, full_name, avatar_url, org_slug, webhook_url, webhook_secret, github_connected")
       .single();
-
-    if (error) {
-      console.error("Failed to update profile settings.");
-      return NextResponse.json({ error: "Failed to update profile settings." }, { status: 500 });
+    if (reloadError) {
+      console.error("Failed to reload profile settings.");
+      return NextResponse.json({ error: "Profile settings were saved but could not be reloaded." }, { status: 503 });
     }
 
     return NextResponse.json({
@@ -162,7 +191,7 @@ export async function PATCH(req: Request) {
       avatarUrl: updatedProfile?.avatar_url || "",
       orgSlug: updatedProfile?.org_slug || "",
       webhookUrl: updatedProfile?.webhook_url || "",
-      ...getWebhookSecretMetadata(updatedProfile?.webhook_secret),
+      ...getWebhookSecretMetadata(webhookSecret),
       ...(newWebhookSecret ? { newWebhookSecret } : {}),
       githubConnected: !!updatedProfile?.github_connected
     }, { headers: secretResponseHeaders });

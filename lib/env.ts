@@ -14,18 +14,11 @@ const optionalString = z.preprocess(
   z.string().trim().optional()
 );
 
-const demoKeyString = z.preprocess(
-  (value) => (value === "" || value === undefined ? "sk_live_demo_key_dandi_2026" : value),
-  z.string().trim().default("sk_live_demo_key_dandi_2026")
-);
-
 const publicEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: requiredString("NEXT_PUBLIC_SUPABASE_URL").url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: requiredString("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: requiredString("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"),
   NEXT_PUBLIC_APP_URL: requiredString("NEXT_PUBLIC_APP_URL").url(),
-  NEXT_PUBLIC_SITE_URL: optionalString,
-  NEXT_PUBLIC_VERCEL_URL: optionalString,
   NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID: requiredString(
     "NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID"
   ),
@@ -49,9 +42,7 @@ const serverEnvSchema = publicEnvSchema.extend({
   GOOGLE_API_KEYS: optionalString,
   GOOGLE_API_KEY: optionalString,
   GOOGLE_GENERATIVE_AI_API_KEY: optionalString,
-  GOOGLE_EMBEDDING_PRIMARY: optionalString,
-  GOOGLE_EMBEDDING_FALLBACK: optionalString,
-  DEMO_API_KEY: demoKeyString,
+  GOOGLE_EMBEDDING_MODEL: optionalString,
   GITHUB_TOKEN: optionalString,
   GITHUB_APP_ID: optionalString,
   GITHUB_APP_PRIVATE_KEY: optionalString,
@@ -60,6 +51,11 @@ const serverEnvSchema = publicEnvSchema.extend({
   GITHUB_APP_SLUG: optionalString,
   GITHUB_APP_INSTALLATION_URL: optionalString,
   ALLOWED_API_ORIGINS: optionalString,
+  SMTP_HOST: optionalString,
+  SMTP_PORT: optionalString,
+  SMTP_USER: optionalString,
+  SMTP_PASS: optionalString,
+  SMTP_FROM: optionalString,
   /** Used for HMAC-SHA256 hashing of API keys. Must be a long random secret. */
   API_KEY_HMAC_SECRET: requiredString("API_KEY_HMAC_SECRET"),
 }).superRefine((value, ctx) => {
@@ -76,6 +72,26 @@ const serverEnvSchema = publicEnvSchema.extend({
       message: "GOOGLE_API_KEYS or a legacy Google API key is required.",
     });
   }
+
+  const smtpFields = [value.SMTP_HOST, value.SMTP_PORT, value.SMTP_USER, value.SMTP_PASS, value.SMTP_FROM];
+  const configuredSmtpFields = smtpFields.filter(Boolean).length;
+  if (configuredSmtpFields > 0 && configuredSmtpFields !== smtpFields.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["SMTP_HOST"],
+      message: "SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and SMTP_FROM must be configured together.",
+    });
+  }
+  if (value.SMTP_PORT) {
+    const port = Number(value.SMTP_PORT);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["SMTP_PORT"],
+        message: "SMTP_PORT must be an integer between 1 and 65535.",
+      });
+    }
+  }
 });
 
 const rawPublicEnv = {
@@ -83,8 +99,6 @@ const rawPublicEnv = {
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
-  NEXT_PUBLIC_VERCEL_URL: process.env.NEXT_PUBLIC_VERCEL_URL,
   NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID:
     process.env.NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID,
   NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY_PRICE_ID:
@@ -112,9 +126,7 @@ export function getServerEnv() {
     GOOGLE_API_KEYS: process.env.GOOGLE_API_KEYS,
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
     GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-    GOOGLE_EMBEDDING_PRIMARY: process.env.GOOGLE_EMBEDDING_PRIMARY,
-    GOOGLE_EMBEDDING_FALLBACK: process.env.GOOGLE_EMBEDDING_FALLBACK,
-    DEMO_API_KEY: process.env.DEMO_API_KEY,
+    GOOGLE_EMBEDDING_MODEL: process.env.GOOGLE_EMBEDDING_MODEL,
     GITHUB_TOKEN: process.env.GITHUB_TOKEN,
     GITHUB_APP_ID: process.env.GITHUB_APP_ID,
     GITHUB_APP_PRIVATE_KEY: process.env.GITHUB_APP_PRIVATE_KEY,
@@ -123,6 +135,11 @@ export function getServerEnv() {
     GITHUB_APP_SLUG: process.env.GITHUB_APP_SLUG,
     GITHUB_APP_INSTALLATION_URL: process.env.GITHUB_APP_INSTALLATION_URL,
     ALLOWED_API_ORIGINS: process.env.ALLOWED_API_ORIGINS,
+    SMTP_HOST: process.env.SMTP_HOST,
+    SMTP_PORT: process.env.SMTP_PORT,
+    SMTP_USER: process.env.SMTP_USER,
+    SMTP_PASS: process.env.SMTP_PASS,
+    SMTP_FROM: process.env.SMTP_FROM,
     API_KEY_HMAC_SECRET: process.env.API_KEY_HMAC_SECRET,
   });
 

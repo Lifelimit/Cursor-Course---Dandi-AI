@@ -13,7 +13,10 @@ const nextConfig: NextConfig = {
   },
   logging: {
     fetches: {
-      fullUrl: true,
+      fullUrl: false,
+    },
+    incomingRequests: {
+      ignore: [/\/auth\/callback/, /\/api\/integrations\/github\/callback/],
     },
   },
   async headers() {

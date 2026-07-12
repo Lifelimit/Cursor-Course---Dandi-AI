@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 import { sendWebhookTestDelivery } from "@/lib/services/webhook-test.service";
 import { checkRateLimit, createIpRateLimit } from "@/lib/rate-limit";
+import { getWebhookSigningSecret } from "@/lib/services/webhook-secret.service";
 
 export const dynamic = "force-dynamic";
 
@@ -42,18 +43,20 @@ export async function POST(request: Request) {
     });
     if (rateLimited) return rateLimited;
 
-    const { data: profile, error } = await supabaseAdmin
-      .from("profiles")
-      .select("webhook_url, webhook_secret")
-      .eq("id", userId)
-      .single();
+    const [{ data: profile, error }, signingSecret] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("webhook_url")
+        .eq("id", userId)
+        .single(),
+      getWebhookSigningSecret(userId),
+    ]);
 
     if (error) {
       return NextResponse.json({ error: "Failed to load webhook configuration." }, { status: 500 });
     }
 
     const webhookUrl = profile?.webhook_url || "";
-    const signingSecret = profile?.webhook_secret || "";
     if (!webhookUrl || !signingSecret) {
       return NextResponse.json({ error: "Save a webhook endpoint before sending a test delivery." }, { status: 400 });
     }

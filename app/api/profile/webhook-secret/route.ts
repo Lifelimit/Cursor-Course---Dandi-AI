@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { generateWebhookSigningSecret, getWebhookSecretMetadata } from "@/lib/services/webhook-secret.service";
+import { generateWebhookSigningSecret, getWebhookSecretMetadata, saveWebhookSigningSecret } from "@/lib/services/webhook-secret.service";
 
 export const dynamic = "force-dynamic";
 
@@ -56,15 +56,9 @@ export async function POST(request: Request) {
     }
 
     const newWebhookSecret = generateWebhookSigningSecret();
-    const { error: updateError } = await supabaseAdmin
-      .from("profiles")
-      .update({
-        webhook_secret: newWebhookSecret,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", user.id);
-
-    if (updateError) {
+    try {
+      await saveWebhookSigningSecret(user.id, newWebhookSecret);
+    } catch {
       console.error("Failed to rotate webhook signing secret.");
       return NextResponse.json({ error: "Failed to rotate webhook signing secret." }, { status: 500 });
     }

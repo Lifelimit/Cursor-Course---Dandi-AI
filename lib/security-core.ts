@@ -8,7 +8,7 @@ const GITHUB_REPO_RE = /^[A-Za-z0-9._-]{1,100}$/;
 export const PLAN_IDS = ["Hobby", "Premium", "Researcher"] as const;
 export const PAID_PLAN_IDS = ["Premium", "Researcher"] as const;
 export const BILLING_INTERVALS = ["month", "year"] as const;
-export const ALERT_CHANNELS = ["email", "in-page", "phone"] as const;
+export const ALERT_CHANNELS = ["email", "in-page"] as const;
 
 export type PlanId = (typeof PLAN_IDS)[number];
 export type PaidPlanId = (typeof PAID_PLAN_IDS)[number];

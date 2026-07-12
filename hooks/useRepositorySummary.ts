@@ -83,9 +83,10 @@ const updateLogEntries = (entries: LogEntry[], id: string, updates: Partial<LogE
       {
         id,
         label: updates.label || "",
-        duration: updates.duration || 0,
+        duration: updates.duration,
         status: updates.status || "pending",
         timestamp: Date.now(),
+        source: updates.source || "response-derived",
         ...updates,
       } as LogEntry,
     ];
@@ -145,34 +146,18 @@ const getResponseHeadersForLog = (response: Response): Record<string, string> =>
   return headers;
 };
 
-const isRepositoryRequestError = (response: Response, responseBody: Record<string, unknown>) => {
-  const errorText = typeof responseBody.error === "string" ? responseBody.error.toLowerCase() : "";
-  const githubErrorCode = typeof responseBody.code === "string" ? responseBody.code : "";
-
-  return (
-    githubErrorCode.startsWith("GITHUB_") ||
-    response.status === 404 ||
-    response.status === 422 ||
-    (response.status === 400 && errorText.includes("github repository url"))
-  );
-};
-
 export function useRepositorySummary({
   apiKey,
   githubUrl,
-  apiKeys,
   refreshKeys,
   setErrorMessage,
-  getRepoPath,
   scrollToRequestProgress,
 }: UseRepositorySummaryOptions) {
   const [summaryRequestLogs, setSummaryRequestLogs] = useState<LogEntry[]>([]);
   const [summaryStatus, setSummaryStatus] = useState<RepositorySummaryStatus>("idle");
   const [summaryIssue, setSummaryIssue] = useState("");
   const [repoMetadata, setRepoMetadata] = useState<RepositoryMetadata | null>(null);
-  const repoPath = getRepoPath(githubUrl);
-  const selectedKeyName = apiKeys.find((key) => key.key_value === apiKey)?.name || "Custom Key";
-  const maskedKey = apiKey ? (apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`) : "sk_live_••••••••";
+  const maskedKey = "$DANDI_API_KEY";
 
   const setSummaryLogState = (id: string, updates: Partial<LogEntry>) => {
     setSummaryRequestLogs((prev) => updateLogEntries(prev, id, updates));
@@ -192,109 +177,54 @@ export function useRepositorySummary({
       const response = await fetch(input, init);
       const elapsed = getSummaryStreamDuration();
       const responseHeaders = getResponseHeadersForLog(response);
+      const requestUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 
       if (response.ok) {
         const metadata = readMetadataHeader(response);
         setRepoMetadata(metadata);
         setSummaryLogState("auth", {
+          label: "Summary API request",
+          source: "client-observed",
           status: "success",
           duration: elapsed,
-          statusCode: 200,
-          statusText: "OK",
-          responseHeaders: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-            "X-Dandi-Engine": "v1.0.4",
-          },
-          responseBody: {
-            valid: true,
-            key_name: selectedKeyName,
-            permissions: ["summarize:write"],
-          },
+          method: init?.method || "POST",
+          url: requestUrl,
+          requestHeaders: { "Content-Type": "application/json", "x-api-key": maskedKey },
+          requestBody: { githubUrl },
+          statusCode: response.status,
+          statusText: response.statusText,
+          responseHeaders,
         });
         setSummaryLogState("repo_fetch", {
-          label: "Repository Fetch",
+          label: "Repository metadata",
+          source: "response-derived",
           status: "success",
-          duration: elapsed,
-          method: "GET",
-          url: `https://api.github.com/repos/${repoPath}`,
-          requestHeaders: {
-            Accept: "application/vnd.github.v3+json",
-            "User-Agent": "Dandi-AI-Engine/1.0",
-          },
-          requestBody: null,
-          statusCode: 200,
-          statusText: "OK",
-          responseHeaders,
-          responseBody: {
-            name: repoPath.split("/")[1] || "repository",
-            full_name: repoPath,
-            metadata: metadata || null,
-          },
+          responseBody: metadata ? { metadata } : { metadata: "Not exposed" },
         });
         setSummaryLogState("ai_processing", {
-          label: "AI Processing",
+          label: "Summary stream",
+          source: "response-derived",
           status: "pending",
-          method: "POST",
-          url: "/api/github-summarizer",
-          requestHeaders: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer dandi_ai_internal_••••••••",
-          },
-          requestBody: {
-            files: ["package.json", "src/index.js", "README.md"],
-            analysis_depth: "deep",
-            temperature: 0.2,
-          },
         });
       } else {
         const responseText = await response.clone().text();
         const responseBody = parseJsonObject(responseText) || { error: responseText || response.statusText };
-        const isRepositoryError = isRepositoryRequestError(response, responseBody);
-
-        if (isRepositoryError) {
-          setSummaryLogState("auth", {
-            status: "success",
-            duration: elapsed,
-            statusCode: 200,
-            statusText: "OK",
-            responseHeaders: {
-              "Content-Type": "application/json",
-              "Cache-Control": "no-store",
-              "X-Dandi-Engine": "v1.0.4",
-            },
-            responseBody: {
-              valid: true,
-              key_name: selectedKeyName,
-              permissions: ["summarize:write"],
-            },
-          });
-          setSummaryLogState("repo_fetch", {
-            label: "Repository Fetch",
-            status: "error",
-            duration: elapsed,
-            method: "GET",
-            url: `https://api.github.com/repos/${repoPath}`,
-            requestHeaders: {
-              Accept: "application/vnd.github.v3+json",
-              "User-Agent": "Dandi-AI-Engine/1.0",
-            },
-            requestBody: null,
-            statusCode: response.status,
-            statusText: response.statusText || "Repository Error",
-            responseHeaders,
-            responseBody,
-          });
-        } else {
-          setSummaryLogState("auth", {
-            status: "error",
-            duration: elapsed,
-            statusCode: response.status,
-            statusText: response.statusText || "Authentication Error",
-            responseHeaders,
-            responseBody,
-          });
-        }
+        setSummaryLogState("auth", {
+          label: "Summary API request",
+          source: "client-observed",
+          status: "error",
+          duration: elapsed,
+          method: init?.method || "POST",
+          url: requestUrl,
+          requestHeaders: { "Content-Type": "application/json", "x-api-key": maskedKey },
+          requestBody: { githubUrl },
+          statusCode: response.status,
+          statusText: response.statusText,
+          responseHeaders,
+          responseBody,
+        });
+        setSummaryLogState("repo_fetch", { label: "Repository response", source: "response-derived", status: "error", responseBody });
+        setSummaryLogState("ai_processing", { label: "Summary stream", source: "response-derived", status: "error", responseBody: { error: "Stream did not start." } });
       }
 
       return response;
@@ -309,8 +239,8 @@ export function useRepositorySummary({
         setSummaryIssue(message);
         setErrorMessage(message);
         setSummaryLogState("ai_processing", {
+          source: "response-derived",
           status: "error",
-          duration: getSummaryStreamDuration(),
           statusCode: 422,
           statusText: "Invalid Stream",
           responseHeaders: { "Content-Type": "text/plain; charset=utf-8" },
@@ -328,13 +258,14 @@ export function useRepositorySummary({
       setSummaryStatus(hasData ? "success" : "empty");
       setSummaryIssue(hasData ? "" : "No summary was returned.");
       setSummaryLogState("ai_processing", {
+        source: "response-derived",
         status: hasData ? "success" : "error",
-        duration: getSummaryStreamDuration(),
         statusCode: hasData ? 200 : 204,
         statusText: hasData ? "OK" : "No Content",
         responseHeaders: { "Content-Type": "application/json" },
         responseBody: hasData ? object : { warning: "No summary was returned." },
       });
+      setSummaryLogState("auth", { duration: getSummaryStreamDuration() });
     },
     onError: (err) => {
       const message = getFriendlySummaryStreamError(err);
@@ -342,13 +273,14 @@ export function useRepositorySummary({
       setSummaryIssue(message);
       setErrorMessage(message);
       setSummaryLogState("ai_processing", {
+        source: "response-derived",
         status: "error",
-        duration: getSummaryStreamDuration(),
         statusCode: 500,
         statusText: "Stream Error",
         responseHeaders: { "Content-Type": "application/json" },
         responseBody: { error: message },
       });
+      setSummaryLogState("auth", { status: "error", duration: getSummaryStreamDuration() });
     },
   });
 
@@ -365,16 +297,19 @@ export function useRepositorySummary({
     window.__dandi_stream_start = startTime;
 
     setSummaryLogState("auth", {
-      label: "Authentication",
+      label: "Summary API request",
+      source: "client-observed",
       status: "pending",
       method: "POST",
-      url: "/api/keys/validate",
+      url: "/api/github-summarizer",
       requestHeaders: {
         "Content-Type": "application/json",
         "x-api-key": maskedKey,
       },
-      requestBody: { apiKey: maskedKey },
+      requestBody: { githubUrl },
     });
+    setSummaryLogState("repo_fetch", { label: "Repository response", source: "response-derived", status: "pending" });
+    setSummaryLogState("ai_processing", { label: "Summary stream", source: "response-derived", status: "pending" });
 
     try {
       void submit({ githubUrl });

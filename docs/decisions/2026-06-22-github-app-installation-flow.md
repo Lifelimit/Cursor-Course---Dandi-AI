@@ -17,7 +17,7 @@ Persist GitHub App installation metadata in `public.github_app_installations` wi
 
 Account Settings displays only repositories returned by GitHub's user-token installation repositories endpoint during the verified connection flow. Dandi does not display installation-wide repository access unless a later owner/admin verification model is designed.
 
-Private Repository Summary may use the verified repository snapshot to authorize a server-side installation token fetch for repositories granted to the connected GitHub App installation. Private RAG, indexing, and chat remain a separate follow-up and must not gain private repository access without a new authorization and data-retention review.
+Superseded on 2026-07-12: the verified repository snapshot is display-only and must not authorize repository reads. Summary, Prepare, indexing, and chat are public-only unless a future Critical security decision introduces refreshable user authorization and private-data retention controls.
 
 ## Consequences
 

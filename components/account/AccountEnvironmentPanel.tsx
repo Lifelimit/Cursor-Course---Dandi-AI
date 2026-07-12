@@ -82,10 +82,6 @@ export function AccountEnvironmentPanel() {
   const [isRemoving, setIsRemoving] = useState(false);
   const [isDisconnectModalOpen, setIsDisconnectModalOpen] = useState(false);
   const [disconnectError, setDisconnectError] = useState("");
-  const [isUninstallModalOpen, setIsUninstallModalOpen] = useState(false);
-  const [uninstallConfirmText, setUninstallConfirmText] = useState("");
-  const [isUninstalling, setIsUninstalling] = useState(false);
-  const [uninstallError, setUninstallError] = useState("");
   const [postDisconnectManageUrl, setPostDisconnectManageUrl] = useState<string | null>(null);
   const notice = searchParams.get("github_notice");
   const connectedNotice = searchParams.get("github") === "connected";
@@ -178,48 +174,6 @@ export function AccountEnvironmentPanel() {
       setDisconnectError(err instanceof Error ? err.message : "GitHub installation could not be removed from Dandi.");
     } finally {
       setIsRemoving(false);
-    }
-  };
-
-  const handleUninstall = async () => {
-    if (uninstallConfirmText !== "UNINSTALL") return;
-
-    setIsUninstalling(true);
-    setUninstallError("");
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    try {
-      const response = await fetch("/api/integrations/github/installation/uninstall", {
-        method: "DELETE",
-      });
-
-      const data = await response.json().catch(() => null) as {
-        success?: boolean;
-        alreadyRemoved?: boolean;
-        partialFailure?: boolean;
-        error?: string;
-        message?: string;
-      } | null;
-
-      if (!response.ok) {
-        throw new Error(data?.error || "Failed to uninstall GitHub App.");
-      }
-
-      setStatus({
-        connected: false,
-        configured: status?.configured ?? true,
-        repositories: [],
-        githubAppManagementUrl: status?.githubAppManagementUrl || null,
-      });
-      setPostDisconnectManageUrl(null);
-      setSuccessMessage(data?.message || "Dandi's GitHub App was successfully uninstalled from GitHub and disconnected from Dandi.");
-      setIsUninstallModalOpen(false);
-      setUninstallConfirmText("");
-    } catch (err) {
-      setUninstallError(err instanceof Error ? err.message : "GitHub App could not be uninstalled.");
-    } finally {
-      setIsUninstalling(false);
     }
   };
 
@@ -376,7 +330,7 @@ export function AccountEnvironmentPanel() {
                 </button>
               </div>
               <p className="text-[11px] font-medium leading-5 text-slate-500">
-                Reconnect to refresh the verified repository list. Disconnect from Dandi deletes only the local connection record. Manage on GitHub changes repository access; the uninstall action below revokes the app from GitHub and removes the local record.
+                Reconnect to refresh the display-only repository snapshot. Disconnect from Dandi deletes only your local connection record. Use Manage on GitHub for repository access changes or uninstalling the app.
               </p>
             </div>
           ) : (
@@ -466,31 +420,6 @@ export function AccountEnvironmentPanel() {
         </section>
       </div>
 
-      {isConnected && (
-        <section className="mt-8 rounded-lg border border-red-500/20 bg-slate-950/40 p-6 shadow-xl backdrop-blur-xl">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <h4 className="text-sm font-bold text-red-200">Destructive actions</h4>
-              <p className="text-xs font-semibold leading-5 text-slate-400">
-                Uninstall Dandi&apos;s GitHub App from your GitHub account and remove the connection.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setIsUninstallModalOpen(true);
-                setUninstallConfirmText("");
-                setUninstallError("");
-              }}
-              disabled={isLoading}
-              className="flex min-h-10 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-            >
-              Uninstall GitHub App from GitHub
-            </button>
-          </div>
-        </section>
-      )}
-
       {/* Disconnect Confirmation Modal */}
       <ModalFrame
         open={isDisconnectModalOpen}
@@ -512,7 +441,7 @@ export function AccountEnvironmentPanel() {
               This will disconnect GitHub inside Dandi, but it will not uninstall the GitHub App from your GitHub account.
             </p>
             <p className="text-xs font-semibold leading-5 text-slate-400">
-              To revoke repository access, use Manage on GitHub. To uninstall the app from GitHub and remove the local record, use the uninstall action below.
+              To revoke repository access or uninstall the app, use Manage on GitHub. Dandi never performs installation-wide removal on your behalf.
             </p>
           </div>
 
@@ -547,77 +476,6 @@ export function AccountEnvironmentPanel() {
         </div>
       </ModalFrame>
 
-      {/* Uninstall Confirmation Modal */}
-      <ModalFrame
-        open={isUninstallModalOpen}
-        onClose={() => {
-          if (!isUninstalling) {
-            setIsUninstallModalOpen(false);
-            setUninstallConfirmText("");
-            setUninstallError("");
-          }
-        }}
-        size="md"
-        titleId="uninstall-modal-title"
-      >
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <h3 id="uninstall-modal-title" className="font-serif text-2xl font-bold tracking-tight text-red-200">
-              Uninstall GitHub App from GitHub?
-            </h3>
-            <p className="text-xs font-semibold leading-5 text-slate-400">
-              This will uninstall the Dandi GitHub App from your GitHub account and revoke Dandi&apos;s repository access. Dandi will also remove the local connection record. Private repository summaries will stop working until you reconnect.
-            </p>
-          </div>
-
-          {uninstallError && (
-            <div role="alert" className="rounded-lg border border-red-300/20 bg-red-400/10 p-4 text-red-100">
-              <p className="text-xs font-semibold leading-5">{uninstallError}</p>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            <label htmlFor="uninstall-confirm-input" className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              To confirm, type <span className="text-red-300 font-mono font-bold">UNINSTALL</span> below:
-            </label>
-            <input
-              id="uninstall-confirm-input"
-              type="text"
-              value={uninstallConfirmText}
-              onChange={(e) => setUninstallConfirmText(e.target.value)}
-              placeholder="UNINSTALL"
-              disabled={isUninstalling}
-              className="h-12 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 text-sm font-medium text-white placeholder-zinc-700 outline-none transition focus:border-red-500/40 focus:ring-4 focus:ring-red-500/10 disabled:opacity-50"
-            />
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              disabled={isUninstalling}
-              onClick={() => {
-                setIsUninstallModalOpen(false);
-                setUninstallConfirmText("");
-                setUninstallError("");
-              }}
-              className="flex min-h-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] px-5 text-[10px] font-black uppercase tracking-[0.16em] text-slate-300 transition hover:bg-white/[0.06] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={uninstallConfirmText !== "UNINSTALL" || isUninstalling}
-              onClick={handleUninstall}
-              aria-busy={isUninstalling}
-              className={`flex min-h-10 min-w-[12.75rem] items-center justify-center rounded-lg border border-red-500 bg-red-600 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
-                uninstallConfirmText !== "UNINSTALL" ? "opacity-50" : ""
-              }`}
-            >
-              Uninstall from GitHub
-            </button>
-          </div>
-        </div>
-      </ModalFrame>
     </CommandPanel>
   );
 }

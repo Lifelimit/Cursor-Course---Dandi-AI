@@ -38,6 +38,15 @@ const GENERATED_MARKERS = [
   "generated/",
   "__generated__/",
 ];
+const SENSITIVE_PATH_SEGMENTS = new Set([".aws", ".gnupg", ".ssh", "credentials", "secrets"]);
+const SENSITIVE_FILE_PATTERNS = [
+  /^\.env(?:\..+)?$/i,
+  /^\.npmrc$/i,
+  /^\.pypirc$/i,
+  /^\.netrc$/i,
+  /^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.pub)?$/i,
+  /^(?:auth|credentials?|secrets?|service[-_]?account|firebase[-_]?adminsdk)\.(?:json|ya?ml|toml|txt)$/i,
+];
 
 function extensionOf(path: string) {
   const fileName = path.split("/").pop() ?? path;
@@ -53,12 +62,19 @@ function hasBuildSegment(path: string) {
   return path.split("/").some((segment) => BUILD_SEGMENTS.has(segment.toLowerCase()));
 }
 
+function looksSensitive(path: string, fileName: string) {
+  const segments = path.split("/");
+  return segments.some((segment) => SENSITIVE_PATH_SEGMENTS.has(segment))
+    || SENSITIVE_FILE_PATTERNS.some((pattern) => pattern.test(fileName));
+}
+
 export function isEmbeddableRagFile(file: RagTreeFile) {
   const lower = file.path.toLowerCase();
   const fileName = lower.split("/").pop() ?? lower;
 
   if (file.size <= 0 || file.size > RAG_MAX_FILE_SIZE_BYTES) return false;
   if (hasBuildSegment(lower)) return false;
+  if (looksSensitive(lower, fileName)) return false;
   if (LOCKFILES.has(fileName)) return false;
   if (GENERATED_MARKERS.some((marker) => lower.includes(marker))) return false;
   if (ASSET_EXTENSIONS.some((extension) => lower.endsWith(extension))) return false;

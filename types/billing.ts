@@ -1,4 +1,5 @@
 import type { CountOnlyDailyUsageTrend } from "@/types/usage";
+import type { BillingInterval, PaidPlanId } from "@/lib/security-core";
 
 export type InvoiceStatus = "paid" | "pending" | "failed" | "unpaid" | "draft" | "open" | "void" | "uncollectible";
 
@@ -48,3 +49,23 @@ export type BillingData = {
   subscriptionStatus?: "active" | "trialing" | "past_due" | "unpaid" | "incomplete" | "incomplete_expired" | "canceled" | "paused" | null;
   cancelAtPeriodEnd?: boolean;
 };
+
+export type SubscriptionActionResult =
+  | { status: "requires_action"; subscriptionId: string; clientSecret: string }
+  | { status: "requires_payment_method"; message: string }
+  | { status: "processing"; subscriptionId: string }
+  | {
+      status: "active";
+      plan: PaidPlanId;
+      interval: BillingInterval;
+      reference: string;
+      effectiveAt: string;
+    }
+  | {
+      status: "scheduled";
+      currentPlan: PaidPlanId;
+      targetPlan: PaidPlanId;
+      interval: BillingInterval;
+      reference: string;
+      effectiveAt: string;
+    };

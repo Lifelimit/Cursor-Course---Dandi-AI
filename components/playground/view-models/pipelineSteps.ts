@@ -143,7 +143,7 @@ export function buildSummaryProcessingSteps({
     {
       id: "summary-fetch",
       label: "Repository Data",
-      sublabel: "Fetch public metadata and selected files",
+      sublabel: "Fetch public metadata and README evidence",
       status: getPipelineStatus(requestLogs, "repo_fetch"),
     },
     {
@@ -323,8 +323,10 @@ export function buildLatencyRows({
   isPipelineActive: boolean;
   hasPipelineError: boolean;
 }): { rows: LatencyRow[]; completedLogs: LogEntry[] } {
-  const completedLogs = requestLogs.filter((log) => log.status !== "pending" && log.duration > 0);
-  const observedLatency = completedLogs.reduce((total, log) => total + log.duration, 0);
+  const completedLogs = requestLogs.filter(
+    (log) => log.status !== "pending" && log.source === "client-observed" && (log.duration ?? 0) > 0,
+  );
+  const observedLatency = Math.max(0, ...completedLogs.map((log) => log.duration ?? 0));
   const lastCompletedLog = completedLogs[completedLogs.length - 1];
 
   return {
@@ -333,11 +335,11 @@ export function buildLatencyRows({
       {
         label: "Request total",
         value: completedLogs.length ? formatDuration(observedLatency) : "Not measured",
-        detail: completedLogs.length ? `${completedLogs.length} completed step${completedLogs.length === 1 ? "" : "s"}` : "Run a request to measure latency.",
+        detail: completedLogs.length ? "Maximum client-observed request duration" : "Run a request to measure latency.",
       },
       {
         label: "Last step",
-        value: lastCompletedLog ? formatDuration(lastCompletedLog.duration) : "Pending",
+        value: lastCompletedLog ? formatDuration(lastCompletedLog.duration ?? 0) : "Pending",
         detail: lastCompletedLog ? lastCompletedLog.label : "No completed request step yet.",
       },
       {

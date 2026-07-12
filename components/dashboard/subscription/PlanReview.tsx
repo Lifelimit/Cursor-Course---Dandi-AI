@@ -114,7 +114,7 @@ export function PlanReview({
           disabled={isLoading}
           className="w-full rounded-full bg-slate-100 py-5 text-[10px] font-black uppercase tracking-widest text-slate-950 transition hover:bg-slate-200 shadow-xl disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         >
-          {isLoading ? "Processing..." : "Proceed to Inline Payment"}
+          {isLoading ? "Processing..." : "Confirm plan change"}
         </button>
         <button 
           type="button"

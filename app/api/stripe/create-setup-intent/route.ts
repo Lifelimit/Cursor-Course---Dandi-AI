@@ -1,49 +1,41 @@
-import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getAuthenticatedBillingUser, getOrCreateOwnedStripeCustomer } from "@/lib/services/stripe-route.service";
+import { checkRateLimit, createIpRateLimit } from "@/lib/rate-limit";
 
-export async function POST() {
+const setupIntentRateLimit = createIpRateLimit("@upstash/ratelimit:stripe-setup-intent", 5, "60 s");
+const noStoreHeaders = { "Cache-Control": "private, no-store" };
+
+export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { supabase, user, response } = await getAuthenticatedBillingUser({ requireEmail: true });
+    if (response) return response;
 
-    if (!user || !user.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // 1. Get or Create Customer
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("stripe_customer_id")
-      .eq("id", user.id)
-      .single();
-
-    let customerId = profile?.stripe_customer_id;
-
-    if (!customerId) {
-      const customer = await stripe.customers.create({ email: user.email });
-      customerId = customer.id;
-      
-      const { error: profileError } = await supabaseAdmin
-        .from("profiles")
-        .update({ stripe_customer_id: customerId })
-        .eq("id", user.id);
-      if (profileError) {
-        console.error("❌ Create Setup Intent: Failed to update stripe customer ID in database:", profileError.message);
-        throw new Error(`Database update failed: ${profileError.message}`);
-      }
-    }
-
-    // 2. Create SetupIntent
-    const setupIntent = await stripe.setupIntents.create({
-      customer: customerId,
-      payment_method_types: ["card"],
+    const rateLimited = await checkRateLimit(request, setupIntentRateLimit, noStoreHeaders, {
+      key: `user:${user.id}`,
+      failClosed: true,
+      errorBody: { error: "Too many payment setup attempts. Please wait before retrying." },
+      outageMessage: "Redis was unavailable during payment setup rate limiting; blocking the request.",
     });
+    if (rateLimited) return rateLimited;
 
-    return NextResponse.json({ clientSecret: setupIntent.client_secret });
-  } catch (err) {
-    console.error("Create Setup Intent Error:", err);
-    return NextResponse.json({ error: "Failed to create setup intent" }, { status: 500 });
+    const customerId = await getOrCreateOwnedStripeCustomer({ supabase, user });
+
+    // Retries within the same minute resolve to the same provider object,
+    // preventing double-clicks and lost responses from creating intent floods.
+    const setupIntent = await stripe.setupIntents.create(
+      {
+        customer: customerId,
+        payment_method_types: ["card"],
+        usage: "off_session",
+        metadata: { userId: user.id },
+      },
+      { idempotencyKey: `dandi-setup-${user.id}-${Math.floor(Date.now() / 60_000)}` },
+    );
+
+    return NextResponse.json({ clientSecret: setupIntent.client_secret }, { headers: noStoreHeaders });
+  } catch {
+    console.error("Stripe setup intent creation failed.");
+    return NextResponse.json({ error: "Failed to create setup intent" }, { status: 500, headers: noStoreHeaders });
   }
 }

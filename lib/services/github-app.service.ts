@@ -73,11 +73,6 @@ type GitHubRepository = {
   updated_at?: string | null;
 };
 
-type InstallationTokenResponse = {
-  token?: string;
-  expires_at?: string;
-};
-
 type GitHubUserTokenResponse = {
   access_token?: string;
   error?: string;
@@ -108,16 +103,6 @@ export class GitHubAppApiError extends Error {
     super(message);
     this.name = "GitHubAppApiError";
     this.status = status;
-  }
-}
-
-export class GitHubAppPartialFailureError extends Error {
-  status: number;
-
-  constructor(message: string) {
-    super(message);
-    this.name = "GitHubAppPartialFailureError";
-    this.status = 500;
   }
 }
 
@@ -299,26 +284,6 @@ async function githubJson<T>(url: string, input: RequestInit & { token: string }
   return await response.json() as T;
 }
 
-export async function createGitHubInstallationAccessToken(installationId: number) {
-  const appJwt = createGitHubAppJwt();
-  const data = await githubJson<InstallationTokenResponse>(
-    `https://api.github.com/app/installations/${installationId}/access_tokens`,
-    {
-      method: "POST",
-      token: appJwt,
-    }
-  );
-
-  if (!data.token) {
-    throw new GitHubAppApiError("GitHub did not return an installation access token.", 502);
-  }
-
-  return {
-    token: data.token,
-    expiresAt: data.expires_at || null,
-  };
-}
-
 export async function getGitHubAppInstallation(installationId: number) {
   return githubJson<GitHubInstallation>(
     `https://api.github.com/app/installations/${installationId}`,
@@ -444,36 +409,6 @@ function toRepositorySummary(repo: GitHubRepository): GitHubRepositorySummary {
   };
 }
 
-export async function listGitHubInstallationRepositories(installationId: number, options: { maxPages?: number } = {}) {
-  const { token } = await createGitHubInstallationAccessToken(installationId);
-  const maxPages = Math.min(Math.max(options.maxPages ?? 3, 1), 10);
-  const repositories: GitHubRepositorySummary[] = [];
-  let totalCount = 0;
-
-  for (let page = 1; page <= maxPages; page += 1) {
-    const data = await githubJson<{ total_count?: number; repositories?: GitHubRepository[] }>(
-      `https://api.github.com/installation/repositories?per_page=100&page=${page}`,
-      {
-        method: "GET",
-        token,
-      }
-    );
-
-    totalCount = typeof data.total_count === "number" ? data.total_count : repositories.length;
-    const pageRepos = data.repositories || [];
-    repositories.push(...pageRepos.map(toRepositorySummary));
-
-    if (pageRepos.length < 100 || repositories.length >= totalCount) {
-      break;
-    }
-  }
-
-  return {
-    repositories,
-    totalCount,
-  };
-}
-
 export async function persistGitHubAppInstallation(input: {
   userId: string;
   installationId: number;
@@ -595,120 +530,5 @@ export async function removeGitHubInstallationFromDandi(input: {
 
   if (error) {
     throw new Error("Dandi could not remove the GitHub installation.");
-  }
-}
-
-export async function uninstallGitHubAppInstallationForUser(userId: string): Promise<{
-  success: boolean;
-  partialFailure: boolean;
-  alreadyRemoved: boolean;
-}> {
-  const installation = await getPrimaryGitHubInstallationForUser(userId);
-  if (!installation) {
-    throw new GitHubAppApiError("No installation found for user.", 404);
-  }
-
-  const installationId = installation.installation_id;
-  const appJwt = createGitHubAppJwt();
-
-  const response = await fetch(`https://api.github.com/app/installations/${installationId}`, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${appJwt}`,
-      Accept: "application/vnd.github+json",
-      "User-Agent": GITHUB_USER_AGENT,
-      "X-GitHub-Api-Version": GITHUB_API_VERSION,
-    },
-  });
-
-  if (response.status === 204 || response.status === 404) {
-    try {
-      await removeGitHubInstallationFromDandi({ userId, installationId });
-    } catch {
-      if (response.status === 204) {
-        throw new GitHubAppPartialFailureError(
-          "GitHub App was uninstalled from GitHub, but Dandi could not remove the local connection record from the database."
-        );
-      }
-      throw new GitHubAppPartialFailureError(
-        "GitHub App was already removed from GitHub, but Dandi could not remove the local connection record from the database."
-      );
-    }
-
-    return {
-      success: true,
-      partialFailure: false,
-      alreadyRemoved: response.status === 404,
-    };
-  }
-
-  // GitHub returned something other than 204 / 404 (e.g. 401/403/429/5xx). Do NOT delete local record.
-  const errorMsg = await readGitHubError(response);
-  throw new GitHubAppApiError(errorMsg, response.status);
-}
-
-export async function getPrimaryGitHubInstallationForUser(userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("github_app_installations")
-    .select("*")
-    .eq("user_id", userId)
-    .order("connected_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error("Dandi could not load the GitHub installation.");
-  }
-
-  return data as GitHubAppInstallationRecord | null;
-}
-
-export type GitHubRepoAccessResult = 
-  | { authorized: true; token: string }
-  | { 
-      authorized: false; 
-      errorCode: "GITHUB_PRIVATE_REPO_NOT_CONNECTED" | "GITHUB_PRIVATE_REPO_NOT_GRANTED" | "GITHUB_PRIVATE_REPO_TOKEN_FAILED"; 
-      details?: string;
-    };
-
-export async function resolveGitHubRepoAccessForSummary(input: {
-  userId: string | null;
-  repoFullName: string;
-}): Promise<GitHubRepoAccessResult> {
-  if (!input.userId) {
-    return { authorized: false, errorCode: "GITHUB_PRIVATE_REPO_NOT_CONNECTED" };
-  }
-
-  const installation = await getPrimaryGitHubInstallationForUser(input.userId);
-  if (!installation) {
-    return { authorized: false, errorCode: "GITHUB_PRIVATE_REPO_NOT_CONNECTED" };
-  }
-
-  const normalizedRepo = input.repoFullName.toLowerCase();
-  const verifiedRepositories = Array.isArray(installation.verified_repositories)
-    ? installation.verified_repositories
-    : [];
-
-  const isGranted = (verifiedRepositories as Array<Record<string, unknown>>).some(
-    (r) => {
-      const name = r.fullName || r.full_name;
-      return typeof name === "string" && name.toLowerCase() === normalizedRepo;
-    }
-  );
-
-  if (!isGranted) {
-    return { authorized: false, errorCode: "GITHUB_PRIVATE_REPO_NOT_GRANTED" };
-  }
-
-  try {
-    const { token } = await createGitHubInstallationAccessToken(installation.installation_id);
-    return { authorized: true, token };
-  } catch (err) {
-    console.error("Failed to generate installation token:", err);
-    return { 
-      authorized: false, 
-      errorCode: "GITHUB_PRIVATE_REPO_TOKEN_FAILED", 
-      details: err instanceof Error ? err.message : String(err) 
-    };
   }
 }

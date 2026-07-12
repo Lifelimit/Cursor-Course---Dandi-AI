@@ -19,6 +19,8 @@ export type AccountApiKeyAccess = {
   keyType: string;
   isActive: boolean;
   monthlyLimit: number | null;
+  alertThreshold: number | null;
+  alertChannels: Array<"in-page" | "email">;
   ip: null;
   location: null;
   lastSeenAt: string | null;
@@ -59,6 +61,7 @@ export type AccountAccessResponse = {
   currentBrowser: CurrentBrowserTelemetry;
   apiKeys: AccountApiKeyAccess[];
   recentRequests: AccountApiRequestActivity[];
+  emailAlertsAvailable: boolean;
 };
 
 export type AccountUsageLog = {
@@ -79,6 +82,8 @@ export type AccountApiKey = {
   name: string;
   key_type: string;
   monthly_limit: number | null;
+  alert_threshold: number | null;
+  alert_channels: string[] | null;
   created_at?: string | null;
   is_active: boolean;
 };

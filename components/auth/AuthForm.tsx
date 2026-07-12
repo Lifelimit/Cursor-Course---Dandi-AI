@@ -85,8 +85,8 @@ export function AuthForm({ defaultMode, nextPath = "/dashboards" }: AuthFormProp
       setAuthError(new Error("Name is required"));
       return;
     }
-    if (usePassword && (!password || (isSignUp && password.length < 6))) {
-      setAuthError(new Error("Password must be at least 6 characters"));
+    if (usePassword && (!password || (isSignUp && password.length < 12))) {
+      setAuthError(new Error("Password must be at least 12 characters"));
       return;
     }
 
@@ -211,7 +211,7 @@ export function AuthForm({ defaultMode, nextPath = "/dashboards" }: AuthFormProp
               {showPassword ? "◉" : "◌"}
             </button>
           </div>
-          {isSignUp && <p id={`${passwordId}-hint`} className="px-1 text-xs leading-5 text-slate-500">Use at least 6 characters. A password manager can generate and save one for you.</p>}
+          {isSignUp && <p id={`${passwordId}-hint`} className="px-1 text-xs leading-5 text-slate-500">Use at least 12 characters. A password manager can generate and save one for you.</p>}
         </div>}
 
         <button type="submit" disabled={isLoading} aria-busy={isLoading || undefined} className="group relative min-h-12 w-full cursor-pointer overflow-hidden rounded-xl bg-emerald-300 px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-950 shadow-[0_12px_30px_rgba(52,211,153,0.14)] transition-all hover:bg-emerald-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">

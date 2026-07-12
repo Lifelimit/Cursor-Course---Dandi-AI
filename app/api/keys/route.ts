@@ -5,20 +5,22 @@ import { getServerEnv } from "@/lib/env";
 import { resolvePlan } from "@/lib/constants";
 import crypto from "crypto";
 import { hmacHash } from "@/lib/services/api-key.service";
-import { assertCanActivateKeys, getUserPlan } from "@/lib/services/api-key-limits.service";
+import { assertCanActivateKeys, getApiKeyLimitDatabaseMessage, getUserPlan } from "@/lib/services/api-key-limits.service";
 import { getJsonObject, getSafeApiKeyValidationError, parseApiKeySettings } from "@/lib/request-validation";
 import {
   buildCountOnlyDailyTrend,
+  getDurableUsageLogs,
   getDisplayUsageCounts,
-  getDisplayUsageLogs,
   getRecentUsageDates,
+  UsageDataUnavailableError,
 } from "@/lib/services/usage-billing.service";
+import { getUsagePeriod } from "@/lib/utils/usage-period";
 import type { ApiKeyRow } from "@/types/api-keys";
 
 const TABLE_NAME = "api_keys";
 
 function buildKeyValue() {
-  return `sk_live_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
+  return `dandi_${crypto.randomUUID().replace(/-/g, "").slice(0, 28)}`;
 }
 
 export async function GET() {
@@ -37,7 +39,7 @@ export async function GET() {
 
     const { data, error } = await supabaseAdmin
       .from(TABLE_NAME)
-      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active,alert_threshold,alert_channels,alert_phone")
+      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active,alert_threshold,alert_channels")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -45,17 +47,12 @@ export async function GET() {
       return NextResponse.json({ error: "Failed to load API keys." }, { status: 500 });
     }
 
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const now = new Date();
+    const currentMonth = getUsagePeriod(now).key;
     const keyUsageCounts = await getDisplayUsageCounts(data ?? [], currentMonth);
 
-    // Fetch user activity logs to build trend coordinates
-    const logKey = `logs:user:${userId}:${currentMonth}`;
-    const logs = await getDisplayUsageLogs(logKey, 0, 99, {
-      requireKeyId: true,
-      warning: "⚠️ Display Redis log read failed; using empty key trends:",
-    });
-
-    const dates = getRecentUsageDates();
+    const logs = await getDurableUsageLogs(userId, now);
+    const dates = getRecentUsageDates(now);
 
     const mappedKeys = (data ?? []).map((k, index) => {
       const actualUsage = keyUsageCounts[index] || 0;
@@ -75,7 +72,11 @@ export async function GET() {
     return NextResponse.json(mappedKeys, { headers });
   } catch (err) {
     const unauthorized = err instanceof Error && /unauthorized/i.test(err.message);
-    return NextResponse.json({ error: unauthorized ? "Unauthorized" : "Failed to load API keys." }, { status: unauthorized ? 401 : 500 });
+    const unavailable = err instanceof UsageDataUnavailableError;
+    return NextResponse.json(
+      { error: unauthorized ? "Unauthorized" : unavailable ? "API key usage is temporarily unavailable." : "Failed to load API keys." },
+      { status: unauthorized ? 401 : unavailable ? 503 : 500 },
+    );
   }
 }
 
@@ -83,7 +84,12 @@ export async function POST(request: Request) {
   try {
     const userId = await getAuthenticatedUserId();
     const plan = await getUserPlan(userId);
-    const body = getJsonObject(await request.json());
+    let body: Record<string, unknown>;
+    try {
+      body = getJsonObject(await request.json());
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON request body" }, { status: 400 });
+    }
     const settings = parseApiKeySettings(body, { plan, requireName: true });
 
     if (settings.isActive !== false) {
@@ -107,14 +113,17 @@ export async function POST(request: Request) {
         user_id: userId,
         alert_threshold: settings.alertThreshold ?? 80,
         alert_channels: settings.alertChannels ?? ["in-page"],
-        alert_phone: settings.alertPhone ?? null,
         is_active: settings.isActive ?? true,
       })
-      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active,alert_threshold,alert_channels,alert_phone")
+      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active,alert_threshold,alert_channels")
       .single();
 
     if (error) {
-      return NextResponse.json({ error: "Failed to create API key." }, { status: 500 });
+      const limitMessage = getApiKeyLimitDatabaseMessage(error);
+      return NextResponse.json(
+        { error: limitMessage || "Failed to create API key." },
+        { status: limitMessage ? 409 : 500 },
+      );
     }
 
     return NextResponse.json({

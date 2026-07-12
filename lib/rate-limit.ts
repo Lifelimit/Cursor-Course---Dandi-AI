@@ -45,8 +45,13 @@ export async function checkRateLimit(
         },
       }
     );
-  } catch (error) {
-    console.error(options.outageMessage ?? `⚠️ Redis rate-limit outage (${options.failClosed ? "failing closed" : "failing open"}):`, error);
+  } catch {
+    console.error(
+      options.outageMessage ??
+        (options.failClosed
+          ? "Redis rate-limit dependency unavailable; request blocked."
+          : "Redis rate-limit dependency unavailable; request allowed."),
+    );
     if (options.failClosed) {
       return Response.json(
         options.errorBody ?? { error: "This operation is temporarily unavailable. Please try again shortly." },

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import AccountClient from "./AccountClient";
 import { redirect } from "next/navigation";
+import { getVerifiedSession } from "@/lib/services/auth.service";
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -10,7 +11,7 @@ export default async function AccountPage() {
     redirect("/login");
   }
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await getVerifiedSession(supabase, user);
 
   return <AccountClient initialSession={session} />;
 }

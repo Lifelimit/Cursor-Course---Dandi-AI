@@ -2,11 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { ApiKeyApiResponse } from "@/types/api";
 import { resolvePlan } from "@/lib/constants";
 import {
-  buildDailyUsageTrend,
   getBillingPeriodDisplay,
+  getDurableUsageLogs,
   getDisplayUsageCount,
   getDisplayUsageCounts,
-  getDisplayUsageLogs,
   getActiveRepositoryCount,
   getRecentUsageDates,
   getStripePaymentDisplay,
@@ -15,6 +14,7 @@ import {
   getUsagePerformanceMetrics,
   summarizeDailyLogs,
 } from "@/lib/services/usage-billing.service";
+import { getUsagePeriod } from "@/lib/utils/usage-period";
 import type { ServerUsageData } from "@/types/usage";
 
 export { calculateNextInvoiceDate, calculateResetDate } from "@/lib/services/usage-billing.service";
@@ -40,20 +40,18 @@ export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[] | 
 
     const { data, error } = await supabase
       .from("api_keys")
-      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active,alert_threshold,alert_channels,alert_phone")
+      .select("id,name,key_value,key_type,usage_count,monthly_limit,created_at,is_active,alert_threshold,alert_channels")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) return { keys: null, plan };
 
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const now = new Date();
+    const currentMonth = getUsagePeriod(now).key;
     const keyUsageCounts = await getDisplayUsageCounts(data ?? [], currentMonth);
 
-    // Fetch user activity logs from Redis to compute trend details
-    const logKey = `logs:user:${user.id}:${currentMonth}`;
-    const logs = await getDisplayUsageLogs(logKey, 0, -1, { requireKeyId: true });
-
-    const dates = getRecentUsageDates();
+    const logs = await getDurableUsageLogs(user.id, now);
+    const dates = getRecentUsageDates(now);
 
     // Prioritize the key's individual monthly_limit if set, otherwise fallback to plan limit
     const keysMapped = (data ?? []).map((k, index) => {
@@ -61,7 +59,7 @@ export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[] | 
       const limit = k.monthly_limit ?? monthlyLimit;
       const keyLogs = (logs || []).filter(l => l.keyId === k.id);
       
-      const dailyTrend = buildDailyUsageTrend(dates, keyLogs, actualKeyUsage);
+      const dailyTrend = dates.map((date) => summarizeDailyLogs(date, keyLogs));
 
       return {
         ...k,
@@ -80,7 +78,9 @@ export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[] | 
   }
 }
 
-export async function getServerUsageData(): Promise<ServerUsageData | null> {
+export async function getServerUsageData(
+  options: { includeBilling?: boolean } = {},
+): Promise<ServerUsageData | null> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -102,18 +102,18 @@ export async function getServerUsageData(): Promise<ServerUsageData | null> {
 
 
     // 2. Fetch current month's usage from Redis
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const now = new Date();
+    const currentMonth = getUsagePeriod(now).key;
     const usageKey = `usage:user:${userId}:${currentMonth}`;
     const totalUsage = await getDisplayUsageCount(usageKey);
 
-    // 3. Fetch hot logs from Redis
-    const logKey = `logs:user:${userId}:${currentMonth}`;
-    const logs = await getDisplayUsageLogs(logKey, 0, -1, { requireKeyId: true });
+    // 3. Fetch complete last-30-day analytics from durable storage.
+    const logs = await getDurableUsageLogs(userId, now);
 
     // 4. Fetch all API keys for the user
     const { data: keys, error: keysError } = await supabase
       .from("api_keys")
-      .select("id, name, key_type, is_active, monthly_limit, alert_threshold, alert_channels, alert_phone, created_at")
+      .select("id, name, key_type, is_active, monthly_limit, alert_threshold, alert_channels, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -122,7 +122,6 @@ export async function getServerUsageData(): Promise<ServerUsageData | null> {
     // 5. Fetch per-key usage from Redis for accurate counts
     const keyUsageCounts = await getDisplayUsageCounts(keys ?? [], currentMonth);
 
-    const now = new Date();
     const dates = getRecentUsageDates(now);
 
     const processedKeys = (keys || []).map((key, index) => {
@@ -130,7 +129,7 @@ export async function getServerUsageData(): Promise<ServerUsageData | null> {
       
       const actualKeyUsage = keyUsageCounts[index] || 0;
       const limit = key.monthly_limit ?? monthlyLimit;
-      const dailyTrend = buildDailyUsageTrend(dates, keyLogs, actualKeyUsage);
+      const dailyTrend = dates.map((date) => summarizeDailyLogs(date, keyLogs));
 
       return {
         ...key,
@@ -154,20 +153,23 @@ export async function getServerUsageData(): Promise<ServerUsageData | null> {
     const { resetDate, nextInvoiceDate } = await getBillingPeriodDisplay({
       profile,
       now,
-      selfHeal: {
-        mode: "background",
-        updateBy: "id",
-        userId,
-        periodEndSource: "server-data",
-        logContext: "server-data helper",
-      },
+      selfHeal: options.includeBilling
+        ? {
+            mode: "await",
+            userId,
+            periodEndSource: "server-data",
+            logContext: "server-data helper",
+          }
+        : undefined,
     });
 
-    // 8. Fetch payment methods
-    const [{ paymentMethods, customerBalance }, subscriptionDisplay] = await Promise.all([
-      getStripePaymentDisplay(stripeCustomerId),
-      getStripeSubscriptionDisplay(profile?.stripe_subscription_id),
-    ]);
+    // 8. Stripe projections are loaded only for Billing, never for Usage polling.
+    const [{ paymentMethods, customerBalance }, subscriptionDisplay] = options.includeBilling === false
+      ? [{ paymentMethods: [], customerBalance: 0 }, null]
+      : await Promise.all([
+          getStripePaymentDisplay(stripeCustomerId),
+          getStripeSubscriptionDisplay(profile?.stripe_subscription_id),
+        ]);
 
     return {
       plan,
@@ -189,8 +191,8 @@ export async function getServerUsageData(): Promise<ServerUsageData | null> {
       subscriptionStatus: subscriptionDisplay?.status || null,
       cancelAtPeriodEnd: subscriptionDisplay?.cancelAtPeriodEnd || false,
     };
-  } catch (err) {
-    console.error("getServerUsageData error:", err);
+  } catch {
+    console.error("Server usage projection failed.");
     return null;
   }
 }

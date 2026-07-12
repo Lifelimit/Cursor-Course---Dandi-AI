@@ -69,14 +69,8 @@ export async function GET(request: Request) {
       let message = "";
 
       switch (err.code) {
-        case "GITHUB_PRIVATE_REPO_NOT_CONNECTED":
-          message = "Connect GitHub and grant Dandi access to this repository to summarize it.";
-          break;
-        case "GITHUB_PRIVATE_REPO_NOT_GRANTED":
-          message = "This repository is not included in your GitHub App installation. Reconnect GitHub and grant access.";
-          break;
-        case "GITHUB_PRIVATE_REPO_TOKEN_FAILED":
-          message = "Dandi could not verify GitHub App access. Reconnect GitHub or review the repository grant, then retry.";
+        case "GITHUB_PRIVATE_REPO_UNSUPPORTED":
+          message = "Repository metadata currently supports public GitHub repositories only.";
           break;
         case "GITHUB_REPO_NOT_FOUND":
           status = 404;

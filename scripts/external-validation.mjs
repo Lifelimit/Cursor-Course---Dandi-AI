@@ -64,7 +64,7 @@ printStatus("Supabase service role", statusFor("SUPABASE_SERVICE_ROLE_KEY"));
 printStatus("Stripe secret key", statusFor("STRIPE_SECRET_KEY"));
 printStatus("Stripe webhook secret", statusFor("STRIPE_WEBHOOK_SECRET"));
 printStatus("Google API key set", hasGoogleKey() ? "configured" : "missing");
-printStatus("GitHub token (private-flow validation)", statusFor("GITHUB_TOKEN"));
+printStatus("GitHub token (optional public quota retry)", statusFor("GITHUB_TOKEN"));
 printStatus("SMTP password (email-flow validation)", statusFor("SMTP_PASS"));
 printStatus("Webhook receiver target", statusFor("DANDI_WEBHOOK_RECEIVER_URL"));
 
@@ -147,4 +147,4 @@ if (missingReadOnly.length > 0) {
   console.log("\nRead-only probe prerequisites are configured.");
 }
 
-console.log("\nStill intentionally gated: authenticated journeys, private GitHub, live AI/RAG generation, email delivery, Stripe mutations, automatic outbound webhook delivery, and real webhook receivers.");
+console.log("\nStill intentionally gated: authenticated journeys, GitHub App connect/reconnect, live AI/RAG generation, email delivery, Stripe mutations, automatic outbound webhook delivery, and real webhook receivers.");

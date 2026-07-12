@@ -1,66 +1,43 @@
-#!/bin/bash
-# Local CI Pre-Flight Validation Script for Dandi AI
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Set color codes
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+export NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL:-https://example.supabase.co}"
+export NEXT_PUBLIC_SUPABASE_ANON_KEY="${NEXT_PUBLIC_SUPABASE_ANON_KEY:-mock-anon-key}"
+export NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_mock}"
+export NEXT_PUBLIC_APP_URL="${NEXT_PUBLIC_APP_URL:-http://localhost:3000}"
+export NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID="${NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID:-price_mock}"
+export NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY_PRICE_ID="${NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY_PRICE_ID:-price_mock}"
+export NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID="${NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID:-price_mock}"
+export NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID="${NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID:-price_mock}"
+export SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-mock-service-role}"
+export STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-sk_test_mock}"
+export STRIPE_WEBHOOK_SECRET="${STRIPE_WEBHOOK_SECRET:-whsec_mock}"
+export UPSTASH_REDIS_REST_URL="${UPSTASH_REDIS_REST_URL:-https://mock.upstash.io}"
+export UPSTASH_REDIS_REST_TOKEN="${UPSTASH_REDIS_REST_TOKEN:-mock-token}"
+export GOOGLE_API_KEY="${GOOGLE_API_KEY:-mock-google-key}"
+export API_KEY_HMAC_SECRET="${API_KEY_HMAC_SECRET:-mock-hmac-secret-key-32-chars-for-ci-pipeline-pass}"
+# Optional delivery stays disabled during deterministic local/CI validation.
+# Exporting the complete empty group also prevents a partial developer
+# .env.local SMTP setup from making an otherwise isolated build nondeterministic.
+export SMTP_HOST=""
+export SMTP_PORT=""
+export SMTP_USER=""
+export SMTP_PASS=""
+export SMTP_FROM=""
 
-echo -e "${BLUE}==================================================${NC}"
-echo -e "${BLUE}         Dandi AI Local CI Validator              ${NC}"
-echo -e "${BLUE}==================================================${NC}"
+echo "[1/5] Checking Supabase migration lineage"
+yarn migrations:check
 
-# 1. Run ESLint Linting checks
-echo -e "\n${YELLOW}[1/3] Running ESLint check...${NC}"
+echo "[2/5] Running ESLint"
 yarn lint
-LINT_EXIT=$?
-if [ $LINT_EXIT -ne 0 ]; then
-  echo -e "${RED}❌ Linting check failed! Please fix ESLint errors before committing.${NC}"
-  exit $LINT_EXIT
-fi
-echo -e "${GREEN}✓ ESLint checks passed!${NC}"
 
-# 2. Run TypeScript Typechecking
-echo -e "\n${YELLOW}[2/3] Running TypeScript typecheck...${NC}"
+echo "[3/5] Running TypeScript type generation and checking"
 yarn typecheck
-TYPECHECK_EXIT=$?
-if [ $TYPECHECK_EXIT -ne 0 ]; then
-  echo -e "${RED}❌ TypeScript typecheck failed! Please resolve compiler errors before committing.${NC}"
-  exit $TYPECHECK_EXIT
-fi
-echo -e "${GREEN}✓ TypeScript compiler checks passed!${NC}"
 
-# 3. Run Production Build with Mock Variables
-echo -e "\n${YELLOW}[3/3] Running Production Next.js Build...${NC}"
-# Inject the required environment variables for building Next.js pages statically
-export NEXT_PUBLIC_SUPABASE_URL="https://example.supabase.co"
-export NEXT_PUBLIC_SUPABASE_ANON_KEY="mock-anon-key"
-export NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_mock"
-export NEXT_PUBLIC_APP_URL="http://localhost:3000"
-export NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY_PRICE_ID="price_mock"
-export NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY_PRICE_ID="price_mock"
-export NEXT_PUBLIC_STRIPE_RESEARCHER_MONTHLY_PRICE_ID="price_mock"
-export NEXT_PUBLIC_STRIPE_RESEARCHER_YEARLY_PRICE_ID="price_mock"
-export SUPABASE_SERVICE_ROLE_KEY="mock-service-role"
-export STRIPE_SECRET_KEY="sk_test_mock"
-export STRIPE_WEBHOOK_SECRET="whsec_mock"
-export UPSTASH_REDIS_REST_URL="https://mock.upstash.io"
-export UPSTASH_REDIS_REST_TOKEN="mock-token"
-export GOOGLE_API_KEY="mock-google-key"
-export DEMO_API_KEY="sk_live_demo_key_dandi_2026"
-export NEXT_PUBLIC_DEMO_API_KEY="sk_live_demo_key_dandi_2026"
-export API_KEY_HMAC_SECRET="mock-hmac-secret-key-32-chars-for-ci-pipeline-pass"
+echo "[4/5] Running regression tests"
+yarn test
 
+echo "[5/5] Building the production application"
 yarn build
-BUILD_EXIT=$?
-if [ $BUILD_EXIT -ne 0 ]; then
-  echo -e "${RED}❌ Next.js production build failed! Please check page routes and components.${NC}"
-  exit $BUILD_EXIT
-fi
 
-echo -e "\n${GREEN}==================================================${NC}"
-echo -e "${GREEN}  🎉 All local CI pre-flight checks passed successfully!${NC}"
-echo -e "${GREEN}     It is safe to commit and push changes.        ${NC}"
-echo -e "${GREEN}==================================================${NC}"
+echo "All local CI checks passed."

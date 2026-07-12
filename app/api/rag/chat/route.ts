@@ -4,7 +4,7 @@ import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { validateChatMessages } from "@/lib/request-validation";
 import { getApiKeyFromRequest, invalidJsonResponse, jsonError, missingApiKeyResponse, readGitHubRepoUrl, readJsonBody } from "@/lib/api-request";
 import { googleProvider } from "@/lib/services/ai.service";
-import { ApiKeyQuotaError, getApiKeyDataOwnerId, reserveApiKeyUsage, validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
+import { ApiKeyQuotaError, createUsageTelemetryFinalizer, getApiKeyDataOwnerId, reserveApiKeyUsage, validateApiKey } from "@/lib/services/api-key.service";
 import { assertPublicRepositoryForRag, GitHubPublicRepositoryCheckError, GitHubPublicRepositoryRequiredError } from "@/lib/services/github.service";
 import { getEmbeddingModel, googleEmbed, isGeminiEmbeddingRateLimitError } from "@/lib/services/google-gemini.service";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -13,6 +13,7 @@ import type { MatchedRepositoryChunk } from "@/types/rag";
 
 const corsOptions = {
   methods: "POST, OPTIONS",
+  exposedHeaders: "x-rag-sources",
 };
 
 const chatRateLimit = createIpRateLimit("@upstash/ratelimit:rag:chat", 10, "60 s");
@@ -58,9 +59,10 @@ async function getRepositoryEmbeddingModel(repoUrl: string, userId: string) {
 
 export async function POST(request: Request) {
   const startTime = Date.now();
-  const corsHeaders = getCorsHeaders(request, corsOptions);
+  const corsHeaders = { ...getCorsHeaders(request, corsOptions), "Cache-Control": "private, no-store" };
   let githubUrl = "";
   let keyData: ValidatedApiKeyData | null = null;
+  let finalizeUsage: ((status: "success" | "error") => Promise<void>) | null = null;
 
   try {
     if (!isCorsOriginAllowed(request)) return forbiddenCorsResponse(request);
@@ -125,6 +127,12 @@ export async function POST(request: Request) {
         corsHeaders,
       );
     }
+    finalizeUsage = createUsageTelemetryFinalizer({
+      keyData,
+      repoUrl: githubUrl,
+      startedAt: startTime,
+      request,
+    });
     const dataOwnerId = getApiKeyDataOwnerId(keyData);
     const embeddingModel = await getRepositoryEmbeddingModel(githubUrl, dataOwnerId);
     const embedding = await googleEmbed(userQuery, { models: [embeddingModel] });
@@ -142,6 +150,7 @@ export async function POST(request: Request) {
 
     if (searchError) {
       console.warn("Repository evidence retrieval failed.");
+      await finalizeUsage("error");
       return jsonError(
         {
           error: "Repository evidence is temporarily unavailable. No answer was generated.",
@@ -153,6 +162,7 @@ export async function POST(request: Request) {
     }
 
     if (!matchedChunks?.length) {
+      await finalizeUsage("error");
       return jsonError(
         {
           error: "No relevant prepared repository evidence was found. Refine the question or prepare the repository again.",
@@ -181,9 +191,11 @@ Write a concise technical answer, cite relevant file paths naturally, and do not
       model: googleProvider("gemini-3.1-flash-lite"),
       system: systemPrompt,
       messages,
+      abortSignal: request.signal,
+      onError: async () => finalizeUsage?.("error"),
+      onAbort: async () => finalizeUsage?.("error"),
+      onFinish: async ({ finishReason }) => finalizeUsage?.(finishReason === "error" ? "error" : "success"),
     });
-
-    await incrementKeyUsage(keyData, githubUrl, Date.now() - startTime, "success", request);
 
     const sources = (matchedChunks || []).map((chunk: MatchedRepositoryChunk) => ({
       chunkId: chunk.id,
@@ -196,13 +208,12 @@ Write a concise technical answer, cite relevant file paths naturally, and do not
       headers: {
         ...corsHeaders,
         "x-rag-sources": encodeJsonHeader(sources),
+        "Cache-Control": "private, no-store",
       },
     });
   } catch (err) {
     console.error("RAG chat request failed.");
-    if (keyData) {
-      await incrementKeyUsage(keyData, githubUrl, Date.now() - startTime, "error", request);
-    }
+    await finalizeUsage?.("error");
 
     if (err instanceof GitHubPublicRepositoryRequiredError) {
       return jsonError({ error: err.message, code: err.code }, 403, corsHeaders);

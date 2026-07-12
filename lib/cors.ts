@@ -6,6 +6,7 @@ const DEFAULT_HEADERS = "Content-Type, x-api-key";
 export type CorsOptions = {
   methods?: string;
   headers?: string;
+  exposedHeaders?: string;
 };
 
 function parseAllowedOrigins(value = process.env.ALLOWED_API_ORIGINS) {
@@ -39,6 +40,9 @@ export function getCorsHeaders(request: Request, options: CorsOptions = {}) {
     "Access-Control-Allow-Headers": options.headers ?? DEFAULT_HEADERS,
     "Vary": "Origin",
   };
+  if (options.exposedHeaders) {
+    headers["Access-Control-Expose-Headers"] = options.exposedHeaders;
+  }
 
   if (!origin) {
     if (isDevelopment() && allowedOrigins.length === 0) {

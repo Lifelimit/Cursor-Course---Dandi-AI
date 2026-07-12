@@ -5,6 +5,7 @@ import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
 import {
   buildClearPaymentMethodProfilePayload,
   buildPaymentMethodProfilePayload,
+  clearDefaultPaymentMethod,
   getAuthenticatedBillingUser,
   getBillingProfile,
   mapStripeErrorResponse,
@@ -23,7 +24,12 @@ export async function POST(req: Request) {
     const { supabase, user, response } = await getAuthenticatedBillingUser();
     if (response) return response;
 
-    const body = getJsonObject(await req.json());
+    let body: Record<string, unknown>;
+    try {
+      body = getJsonObject(await req.json());
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON request body" }, { status: 400 });
+    }
     const paymentMethodId = validatePaymentMethodId(body.paymentMethodId);
 
     // 1. Get Customer ID and Current Default PM from Supabase
@@ -60,6 +66,7 @@ export async function POST(req: Request) {
         );
       } else {
         // No cards left
+        await clearDefaultPaymentMethod(customerId);
         await updateProfileBillingMetadata(
           user.id,
           buildClearPaymentMethodProfilePayload(),
@@ -70,7 +77,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("Delete Payment Error:", err);
+    console.error("Delete payment method failed.");
     return mapStripeErrorResponse(err, "Failed to delete payment method");
   }
 }

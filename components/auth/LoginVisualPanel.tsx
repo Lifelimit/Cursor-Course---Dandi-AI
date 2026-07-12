@@ -2,9 +2,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 const analysisStages = [
-  { label: "Reading project structure", detail: "247 files · TypeScript · Next.js", tone: "text-cyan-200" },
-  { label: "Architecture summary", detail: "Auth, billing, API routes, shared services", tone: "text-violet-200" },
-  { label: "Sources verified", detail: "Ready for grounded questions", tone: "text-emerald-200" },
+  { label: "Reading README", detail: "Purpose · setup · documented features", tone: "text-cyan-200" },
+  { label: "Preparing public sources", detail: "Explicit repository indexing for Ask", tone: "text-violet-200" },
+  { label: "Sources attached", detail: "Ready for grounded questions", tone: "text-emerald-200" },
 ];
 
 export type LoginVisualPanelProps = {
@@ -15,7 +15,7 @@ export type LoginVisualPanelProps = {
 
 export function LoginVisualPanel({
   eyebrow = "Understand the source",
-  headline = <>Understand any codebase <span className="text-slate-500 italic">in minutes.</span></>,
+  headline = <>Explore public repositories <span className="text-slate-500 italic">with visible evidence.</span></>,
   description = "Summarize repositories, explore indexed code, and ask grounded questions with source-backed answers.",
 }: LoginVisualPanelProps = {}) {
   return (
@@ -74,14 +74,14 @@ export function LoginVisualPanel({
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" aria-hidden="true" />
                   Sources verified
                 </p>
-                <p className="dandi-type-metadata text-[var(--dandi-text-meta)]">Private repositories via GitHub access</p>
+                <p className="dandi-type-metadata text-[var(--dandi-text-meta)]">Public repositories only</p>
               </div>
             </div>
           </div>
 
           <div className="mt-7 grid max-w-xl grid-cols-3 gap-3 border-y border-white/8 py-4">
             {[
-              ["01", "Summarize", "See structure"],
+              ["01", "Summarize", "Read README"],
               ["02", "Prepare", "Index once"],
               ["03", "Ask", "Inspect evidence"],
             ].map(([number, title, detail]) => (

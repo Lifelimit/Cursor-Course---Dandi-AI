@@ -46,6 +46,7 @@ export default function UsageClient({
     error: usageError,
     refresh: fetchUsageData,
   } = useUsageData({
+    endpoint: "/api/usage?scope=usage",
     initialData,
     fetchOnMount: initialData === null,
     pollingIntervalMs: 20000,
@@ -123,7 +124,7 @@ export default function UsageClient({
   const alerts = computeSidebarAlerts(currentData?.keys || [], maxLimitCap);
 
   const handleExport = () => {
-    window.location.href = "/api/usage/export";
+    window.location.href = "/api/usage/export?days=30";
     showToast("success", "Usage report export started.");
   };
 

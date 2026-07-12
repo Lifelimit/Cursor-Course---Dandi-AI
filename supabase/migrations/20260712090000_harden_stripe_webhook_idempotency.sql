@@ -1,4 +1,5 @@
 -- Make Stripe webhook claims recoverable after crashes and inaccessible to client roles.
+-- This uniquely timestamped migration is required by the deployed webhook handler.
 ALTER TABLE public.stripe_webhook_events
   ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'processed',
   ADD COLUMN IF NOT EXISTS attempts integer NOT NULL DEFAULT 0,
@@ -35,20 +36,20 @@ CREATE OR REPLACE FUNCTION public.claim_stripe_webhook_event(
 RETURNS TABLE(claimed boolean, processed boolean, lock_token uuid)
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 BEGIN
   INSERT INTO public.stripe_webhook_events (id, status, attempts, locked_until, lock_token, updated_at)
-  VALUES (p_event_id, 'processing', 1, p_lease_until, gen_random_uuid(), now())
+  VALUES (p_event_id, 'processing', 1, p_lease_until, pg_catalog.gen_random_uuid(), pg_catalog.now())
   ON CONFLICT (id) DO UPDATE
     SET status = 'processing',
         attempts = public.stripe_webhook_events.attempts + 1,
         locked_until = EXCLUDED.locked_until,
         lock_token = EXCLUDED.lock_token,
         last_error = NULL,
-        updated_at = now()
+        updated_at = pg_catalog.now()
     WHERE public.stripe_webhook_events.status <> 'processed'
-      AND (public.stripe_webhook_events.locked_until IS NULL OR public.stripe_webhook_events.locked_until <= now());
+      AND (public.stripe_webhook_events.locked_until IS NULL OR public.stripe_webhook_events.locked_until <= pg_catalog.now());
 
   IF FOUND THEN
     RETURN QUERY

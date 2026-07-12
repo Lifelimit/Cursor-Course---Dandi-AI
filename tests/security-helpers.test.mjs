@@ -517,7 +517,7 @@ test("webhook test helpers pin public destinations and sanitize delivery details
 });
 
 test("scheduled customer webhooks are deferred while on-demand tests remain supported", () => {
-  const migration = readFileSync(resolve(repoRoot, "supabase/migrations/20260712_create_webhook_delivery_queue.sql"), "utf8");
+  const removedQueueMigration = resolve(repoRoot, "supabase/migrations/20260712_create_webhook_delivery_queue.sql");
   const profileRoute = readFileSync(resolve(repoRoot, "app/api/profile/route.ts"), "utf8");
   const accountSource = readFileSync(resolve(repoRoot, "app/account/AccountClient.tsx"), "utf8");
   const webhookPanelSource = readFileSync(resolve(repoRoot, "components/account/AccountDeliveryLogsPanel.tsx"), "utf8");
@@ -531,16 +531,16 @@ test("scheduled customer webhooks are deferred while on-demand tests remain supp
   const apiKeySource = readFileSync(resolve(repoRoot, "lib/services/api-key.service.ts"), "utf8");
 
   assert.equal(JSON.parse(vercelConfig).crons, undefined);
-  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.webhook_deliveries/);
-  assert.match(migration, /ENABLE ROW LEVEL SECURITY/);
-  assert.match(migration, /REVOKE ALL ON TABLE public\.webhook_deliveries FROM PUBLIC, anon, authenticated/);
+  assert.equal(existsSync(removedQueueMigration), false);
   assert.doesNotMatch(profileRoute, /webhook_deliveries|webhook_failure_count|webhook_disabled_until/);
   assert.doesNotMatch(accountSource, /webhook-deliveries|production alert deliveries|retry outcomes/i);
   assert.match(webhookPanelSource, /not persisted as delivery history/i);
   assert.match(webhookSettingsSource, /Automatic customer-event webhooks.*deferred/i);
   assert.match(webhookTestRoute, /sendWebhookTestDelivery/);
+  assert.match(webhookTestRoute, /getWebhookSigningSecret\(userId\)/);
   assert.match(accountSource, /fetch\("\/api\/profile\/webhook-test"/);
   assert.match(stripeWebhookRoute, /stripe\.webhooks\.constructEvent/);
+  assert.doesNotMatch(stripeWebhookRoute, /enqueueProductionWebhookEvent|sendWebhookTestDelivery|webhook-delivery\.service/);
   assert.doesNotMatch(apiKeySource, /enqueueProductionWebhookEvent|webhook-delivery\.service/);
   assert.doesNotMatch(envSource, /CRON_[A-Z_]+/);
   assert.doesNotMatch(envExample, /CRON_[A-Z_]+/);
@@ -565,21 +565,47 @@ test("webhook signing secrets are strong, one-time disclosures with metadata-onl
 
   const profileSource = readFileSync(resolve(repoRoot, "app/api/profile/route.ts"), "utf8");
   const rotationSource = readFileSync(resolve(repoRoot, "app/api/profile/webhook-secret/route.ts"), "utf8");
+  const webhookTestSource = readFileSync(resolve(repoRoot, "app/api/profile/webhook-test/route.ts"), "utf8");
+  const secretServiceSource = readFileSync(resolve(repoRoot, "lib/services/webhook-secret.service.ts"), "utf8");
+  const isolationMigration = readFileSync(
+    resolve(repoRoot, "supabase/migrations/20260712130000_isolate_webhook_signing_secrets.sql"),
+    "utf8",
+  );
   const accountSource = readFileSync(resolve(repoRoot, "app/account/AccountClient.tsx"), "utf8");
   const panelSource = readFileSync(resolve(repoRoot, "components/account/AccountWebhooksPanel.tsx"), "utf8");
 
-  assert.match(profileSource, /getWebhookSecretMetadata\(profile\?\.webhook_secret\)/);
+  assert.match(profileSource, /getWebhookSigningSecret\(user\.id\)/);
+  assert.match(profileSource, /getWebhookSecretMetadata\(webhookSecret\)/);
+  assert.match(profileSource, /updateWebhookConfiguration\(user\.id, sanitizedWebhookUrl, webhookSecret\)/);
   assert.match(profileSource, /\.\.\.\(newWebhookSecret \? \{ newWebhookSecret \} : \{\}\)/);
-  assert.doesNotMatch(profileSource, /webhookSecret:\s*profile\?\.webhook_secret/);
-  assert.doesNotMatch(profileSource, /webhookSecret:\s*updatedProfile\?\.webhook_secret/);
+  assert.doesNotMatch(profileSource, /\.select\([^\n]*webhook_secret/);
   assert.doesNotMatch(profileSource, /updateData\.github_connected/);
   assert.doesNotMatch(profileSource, /const \{ fullName, orgSlug, webhookUrl, githubConnected \}/);
   assert.match(profileSource, /"Cache-Control": "no-store, no-cache, must-revalidate"/);
 
   assert.match(rotationSource, /body\.confirm !== true/);
   assert.match(rotationSource, /\.eq\("id", user\.id\)/);
+  assert.match(rotationSource, /saveWebhookSigningSecret\(user\.id, newWebhookSecret\)/);
+  assert.doesNotMatch(rotationSource, /webhook_secret/);
   assert.match(rotationSource, /"Content-Type must be application\/json\."/);
   assert.match(rotationSource, /"Cache-Control": "no-store, no-cache, must-revalidate"/);
+
+  assert.match(webhookTestSource, /getWebhookSigningSecret\(userId\)/);
+  assert.doesNotMatch(webhookTestSource, /\.select\([^\n]*webhook_secret/);
+  assert.match(secretServiceSource, /\.from\("profile_webhook_secrets"\)/);
+  assert.match(secretServiceSource, /isMissingRelationError\(error\?\.code\)/);
+  assert.match(secretServiceSource, /update_profile_webhook_configuration/);
+  assert.match(secretServiceSource, /Only use the legacy[\s\S]*when the new table is also genuinely absent/);
+
+  assert.match(isolationMigration, /CREATE TABLE IF NOT EXISTS public\.profile_webhook_secrets/);
+  assert.match(isolationMigration, /ALTER TABLE public\.profile_webhook_secrets ENABLE ROW LEVEL SECURITY/);
+  assert.match(isolationMigration, /REVOKE ALL ON TABLE public\.profile_webhook_secrets FROM PUBLIC, anon, authenticated/);
+  assert.match(isolationMigration, /SECURITY DEFINER\s+SET search_path = ''/);
+  assert.match(isolationMigration, /REVOKE ALL ON FUNCTION public\.update_profile_webhook_configuration[\s\S]*FROM PUBLIC, anon, authenticated/);
+  const authenticatedProfileGrantIndex = isolationMigration.indexOf("GRANT SELECT (");
+  assert(authenticatedProfileGrantIndex >= 0);
+  const authenticatedProfileGrant = isolationMigration.slice(authenticatedProfileGrantIndex);
+  assert.doesNotMatch(authenticatedProfileGrant, /\bwebhook_secret\b/);
 
   assert.match(accountSource, /useState<string \| null>\(null\)/);
   assert.match(accountSource, /setNewWebhookSecret\(data\?\.newWebhookSecret \|\| null\)/);
@@ -751,6 +777,9 @@ test("prioritizes RAG files deterministically with folder diversity", () => {
     { path: "src/generated/client.generated.ts", size: 1000 },
     { path: "public/logo.png", size: 1000 },
     { path: "yarn.lock", size: 1000 },
+    { path: ".env.production", size: 1000 },
+    { path: "config/secrets.json", size: 1000 },
+    { path: "infra/service-account.yaml", size: 1000 },
     { path: "README.md", size: 1000 },
     { path: "package.json", size: 1000 },
     { path: "docs/setup.md", size: 1000 },
@@ -771,6 +800,9 @@ test("prioritizes RAG files deterministically with folder diversity", () => {
   assert(!paths.includes("src/generated/client.generated.ts"));
   assert(!paths.includes("public/logo.png"));
   assert(!paths.includes("yarn.lock"));
+  assert(!paths.includes(".env.production"));
+  assert(!paths.includes("config/secrets.json"));
+  assert(!paths.includes("infra/service-account.yaml"));
   assert(paths.filter((path) => path.startsWith("src/")).length < 8);
 });
 
@@ -804,17 +836,24 @@ test("validates API key settings against plan limits", () => {
 });
 
 test("sensitive API routes do not expose database or rate-limit error details", () => {
+  assert.equal(existsSync(resolve(repoRoot, "app/api/usage/alert/route.ts")), false);
+
   const keyRoutes = [
     "app/api/keys/route.ts",
     "app/api/keys/[id]/route.ts",
     "app/api/keys/bulk-delete/route.ts",
-    "app/api/usage/alert/route.ts",
     "app/api/account/environments/route.ts",
+    "app/api/account/route.ts",
+    "app/api/usage/route.ts",
+    "app/api/profile/webhook-test/route.ts",
+    "app/api/stripe/subscribe/route.ts",
+    "app/api/stripe/subscribe/finalize/route.ts",
   ].map((relativePath) => readFileSync(resolve(repoRoot, relativePath), "utf8"));
 
   for (const source of keyRoutes) {
     assert.doesNotMatch(source, /NextResponse\.json\(\{ error: error\.message \}/);
     assert.doesNotMatch(source, /NextResponse\.json\(\{ error: \(err as Error\)\.message \}/);
+    assert.doesNotMatch(source, /details:\s*(?:error|err)(?:\.message|Msg)/);
   }
 });
 
@@ -927,6 +966,7 @@ test("formats Stripe route billing profile payloads and errors", async () => {
     buildPaymentMethodProfilePayload,
     mapStripeErrorResponse,
   } = loadTsModule("lib/services/stripe-route.service.ts");
+  const { BillingRequestValidationError } = loadTsModule("lib/request-validation.ts");
 
   const paymentMethod = {
     card: {
@@ -949,7 +989,10 @@ test("formats Stripe route billing profile payloads and errors", async () => {
   assert.equal(clearPayload.payment_method_expiry, null);
   assert.match(clearPayload.updated_at, /^\d{4}-\d{2}-\d{2}T/);
 
-  const invalidResponse = mapStripeErrorResponse(new Error("Invalid payment method ID"), "Fallback");
+  const invalidResponse = mapStripeErrorResponse(
+    new BillingRequestValidationError("Invalid payment method ID"),
+    "Fallback",
+  );
   assert.equal(invalidResponse.status, 400);
   assert.deepEqual(await invalidResponse.json(), { error: "Invalid payment method ID" });
 
@@ -957,36 +1000,42 @@ test("formats Stripe route billing profile payloads and errors", async () => {
   assert.equal(maskedResponse.status, 500);
   assert.deepEqual(await maskedResponse.json(), { error: "Fallback" });
 
-  const unmaskedResponse = mapStripeErrorResponse(new Error("Stripe exploded"), "Fallback", {
+  const stillMaskedResponse = mapStripeErrorResponse(new Error("Stripe exploded"), "Fallback", {
     maskServerError: false,
   });
-  assert.equal(unmaskedResponse.status, 500);
-  assert.deepEqual(await unmaskedResponse.json(), { error: "Stripe exploded" });
+  assert.equal(stillMaskedResponse.status, 500);
+  assert.deepEqual(await stillMaskedResponse.json(), { error: "Fallback" });
 });
 
 test("Stripe webhook claims are lease-based and server-role-only", () => {
   const webhookRoute = readFileSync(resolve(repoRoot, "app/api/webhooks/stripe/route.ts"), "utf8");
-  const idempotencyMigration = readFileSync(resolve(repoRoot, "supabase/migrations/20260712_harden_stripe_webhook_idempotency.sql"), "utf8");
+  const idempotencyMigration = readFileSync(resolve(repoRoot, "supabase/migrations/20260712090000_harden_stripe_webhook_idempotency.sql"), "utf8");
   const subscribeRoute = readFileSync(resolve(repoRoot, "app/api/stripe/subscribe/route.ts"), "utf8");
   const deletePaymentRoute = readFileSync(resolve(repoRoot, "app/api/stripe/delete-payment/route.ts"), "utf8");
 
   assert.match(webhookRoute, /rpc\("claim_stripe_webhook_event"/);
+  assert.match(webhookRoute, /p_lease_until: new Date\(Date\.now\(\) \+ WEBHOOK_PROCESSING_LEASE_MS\)/);
   assert.match(webhookRoute, /lockToken/);
   assert.match(webhookRoute, /eq\("lock_token", lockToken\)/);
   assert.match(webhookRoute, /status: "processed"/);
   assert.match(webhookRoute, /status: "failed"/);
   assert.match(webhookRoute, /stripe\.subscriptions\.list\(\{[\s\S]*status: "all"/);
   assert.match(webhookRoute, /replacementSubscription/);
-  assert.match(webhookRoute, /if \(!replacementSubscription && keysToKeep\.length > 0\)/);
+  assert.match(webhookRoute, /rpc\(\s*"apply_stripe_hobby_downgrade"/);
+  assert.match(webhookRoute, /p_has_explicit_key_selection: hasExplicitKeySelection/);
   assert.doesNotMatch(webhookRoute, /\.from\("stripe_webhook_events"\)\s*\.delete/);
   assert.match(idempotencyMigration, /ENABLE ROW LEVEL SECURITY/);
   assert.match(idempotencyMigration, /REVOKE ALL ON TABLE public\.stripe_webhook_events FROM anon, authenticated/);
   assert.match(idempotencyMigration, /SECURITY DEFINER/);
+  assert.match(idempotencyMigration, /SET search_path = ''/);
+  assert.match(idempotencyMigration, /pg_catalog\.gen_random_uuid\(\)/);
+  assert.match(idempotencyMigration, /pg_catalog\.now\(\)/);
   assert.match(idempotencyMigration, /ADD COLUMN IF NOT EXISTS lock_token uuid/);
   assert.match(idempotencyMigration, /RETURNS TABLE\(claimed boolean, processed boolean, lock_token uuid\)/);
-  assert.match(idempotencyMigration, /REVOKE ALL ON FUNCTION public\.claim_stripe_webhook_event/);
+  assert.match(idempotencyMigration, /REVOKE ALL ON FUNCTION public\.claim_stripe_webhook_event[\s\S]*FROM PUBLIC, anon, authenticated/);
+  assert.match(idempotencyMigration, /GRANT EXECUTE ON FUNCTION public\.claim_stripe_webhook_event[\s\S]*TO service_role/);
   assert.match(subscribeRoute, /getEntitledPlanForSubscription\(subscription\)/);
-  assert.match(subscribeRoute, /No paid entitlement was granted/);
+  assert.match(subscribeRoute, /const result: SubscriptionActionResult/);
   assert.doesNotMatch(deletePaymentRoute, /maskServerError:\s*false/);
 });
 
@@ -1019,6 +1068,17 @@ test("resolves subscription SCA and billing payload helpers", () => {
     }),
     { type: "requires_payment_method", error: "Your card was declined. Please try another card." }
   );
+  assert.deepEqual(
+    resolveSubscriptionPaymentState({
+      ...subscription,
+      latest_invoice: { payment_intent: { status: "requires_action", client_secret: null } },
+    }),
+    { type: "requires_payment_method", error: "Payment authentication could not start. Please try again." },
+  );
+  assert.deepEqual(
+    resolveSubscriptionPaymentState({ ...subscription, latest_invoice: null }),
+    { type: "ready" },
+  );
 
   const profilePayload = buildSubscriptionProfilePayload({
     planRequest: { planId: "Premium", interval: "year", priceId: "price_premium_year" },
@@ -1044,18 +1104,53 @@ test("resolves subscription SCA and billing payload helpers", () => {
     paymentMethodDetails: { brand: "visa", last4: "4242", expiry: "12/2030" },
     now: new Date("2026-06-03T10:00:00.000Z"),
   });
-  assert.equal(webhookPayload.plan, "Hobby");
+  assert.equal(Object.hasOwn(webhookPayload, "plan"), false);
+  assert.equal(Object.hasOwn(webhookPayload, "billing_interval"), false);
   assert.equal(webhookPayload.stripe_customer_id, "cus_123");
-  assert.equal(webhookPayload.billing_interval, "year");
+  assert.equal(webhookPayload.stripe_scheduled_plan, null);
+  assert.equal(webhookPayload.stripe_scheduled_plan_date, null);
 
-  assert.deepEqual(parseKeysToKeep('["key-1","key-2"]'), ["key-1", "key-2"]);
+  const entitledWebhookPayload = buildWebhookSubscriptionUpdatePayload({
+    customerId: "cus_123",
+    subscriptionId: "sub_123",
+    subscription,
+    verifiedPlan: { planId: "Premium", interval: "year", priceId: "price_premium_year" },
+    now: new Date("2026-06-03T10:00:00.000Z"),
+  });
+  assert.equal(entitledWebhookPayload.plan, "Premium");
+  assert.equal(entitledWebhookPayload.billing_interval, "year");
+
+  const keptKeyIds = [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002",
+  ];
+  assert.deepEqual(parseKeysToKeep(JSON.stringify(keptKeyIds)), keptKeyIds);
+  assert.deepEqual(parseKeysToKeep('["key-1","key-2"]'), []);
+  assert.deepEqual(parseKeysToKeep('["00000000-0000-4000-8000-000000000001),id.not.is.null"]'), []);
   assert.deepEqual(parseKeysToKeep('{"bad":true}'), []);
   assert.deepEqual(buildSubscriptionDeletedProfilePayload(new Date("2026-06-03T10:00:00.000Z")), {
     plan: "Hobby",
+    stripe_subscription_id: null,
+    billing_interval: null,
+    billing_next_date: null,
+    stripe_scheduled_plan: null,
+    stripe_scheduled_plan_date: null,
     updated_at: "2026-06-03T10:00:00.000Z",
   });
   assert.equal(isDuplicateWebhookEventError({ code: "23505" }), true);
   assert.equal(isDuplicateWebhookEventError({ code: "42P01" }), false);
+
+  const billingTypes = readFileSync(resolve(repoRoot, "types/billing.ts"), "utf8");
+  const subscribeRoute = readFileSync(resolve(repoRoot, "app/api/stripe/subscribe/route.ts"), "utf8");
+  const finalizeRoute = readFileSync(resolve(repoRoot, "app/api/stripe/subscribe/finalize/route.ts"), "utf8");
+  for (const status of ["requires_action", "requires_payment_method", "processing", "active", "scheduled"]) {
+    assert.match(billingTypes, new RegExp(`status: "${status}"`));
+  }
+  assert.match(subscribeRoute, /status: "requires_action"[\s\S]*clientSecret: paymentState\.clientSecret[\s\S]*subscriptionId: paymentState\.subscriptionId/);
+  assert.match(subscribeRoute, /status: "processing"[\s\S]*subscriptionId: subscription\.id/);
+  assert.match(finalizeRoute, /subscriptionCustomerId !== profile\.stripe_customer_id/);
+  assert.match(finalizeRoute, /subscription\.metadata\?\.operationId && subscription\.metadata\.operationId !== operationId/);
+  assert.match(finalizeRoute, /status: "processing", subscriptionId/);
 });
 
 test("builds structured account access from browser, active and inactive keys, and request telemetry", () => {
@@ -1491,7 +1586,6 @@ test("keeps all batch embedding chunks on the first selected model", async () =>
 test("builds usage display trends from parsed Redis logs", () => {
   const {
     buildCountOnlyDailyTrend,
-    buildDailyUsageTrend,
     getTopReposFromLogs,
     parseUsageLogs,
     summarizeDailyLogs,
@@ -1524,13 +1618,13 @@ test("builds usage display trends from parsed Redis logs", () => {
   assert.equal(logs.length, 3);
   assert.deepEqual(summarizeDailyLogs("2026-06-01", logs), {
     date: "2026-06-01",
-    count: 1,
+    count: 2,
     success: 1,
     error: 1,
     avgLatency: 100,
   });
-  assert.deepEqual(buildDailyUsageTrend(["2026-06-01", "2026-06-02"], logs, 2), [
-    { date: "2026-06-01", count: 1, success: 1, error: 1, avgLatency: 100 },
+  assert.deepEqual(["2026-06-01", "2026-06-02"].map((date) => summarizeDailyLogs(date, logs)), [
+    { date: "2026-06-01", count: 2, success: 1, error: 1, avgLatency: 100 },
     { date: "2026-06-02", count: 1, success: 1, error: 0, avgLatency: 100 },
   ]);
   assert.deepEqual(buildCountOnlyDailyTrend(["2026-06-01", "2026-06-02"], logs), [
@@ -1542,37 +1636,31 @@ test("builds usage display trends from parsed Redis logs", () => {
   ]);
 });
 
-test("calculates quota reset dates correctly for Hobby and paid subscription tiers", () => {
+test("calculates one UTC calendar-month quota reset independently of Stripe billing dates", () => {
   const { calculateResetDate } = loadTsModule("lib/services/server-data.service.ts");
+  const { getUsagePeriod } = loadTsModule("lib/utils/usage-period.ts");
 
   const now = new Date("2026-06-05T12:00:00.000Z");
+  const expectedReset = "2026-07-01T00:00:00.000Z";
 
-  // 1. Hobby Plan (null nextInvoiceDate) -> resets on 1st of next month
-  const hobbyReset = calculateResetDate(null, now);
-  const hobbyResDate = new Date(hobbyReset);
-  assert.equal(hobbyResDate.getDate(), 1);
-  assert.equal(hobbyResDate.getMonth(), (now.getMonth() + 1) % 12);
-  // Let's assert on the exact UTC components or just construct a new Date to match
-  const expectedHobby = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  assert.equal(hobbyReset, expectedHobby.toISOString());
+  for (const nextInvoiceDate of [
+    null,
+    "2026-06-24T00:00:00.000Z",
+    "2026-05-24T00:00:00.000Z",
+    "2027-06-24T00:00:00.000Z",
+  ]) {
+    assert.equal(calculateResetDate(nextInvoiceDate, now), expectedReset);
+  }
 
-  // 2. Paid monthly plan, future date -> resets on the invoice date
-  const futureMonthlyReset = calculateResetDate("2026-06-24T00:00:00.000Z", now);
-  assert.equal(futureMonthlyReset, "2026-06-24T00:00:00.000Z");
-
-  // 3. Paid plan with stale/past billing date (e.g. May 24, 2026) -> resets on next monthly anniversary (June 24, 2026)
-  const staleMonthlyReset = calculateResetDate("2026-05-24T00:00:00.000Z", now);
-  const resDate = new Date(staleMonthlyReset);
-  assert.equal(resDate.getDate(), 24);
-  assert.equal(resDate.getMonth(), 5); // June is 5 (0-indexed)
-  assert.equal(resDate.getFullYear(), 2026);
-
-  // 4. Yearly plan, future date (e.g. June 24, 2027) -> resets on next monthly anniversary (June 24, 2026)
-  const yearlyReset = calculateResetDate("2027-06-24T00:00:00.000Z", now);
-  const yearlyResDate = new Date(yearlyReset);
-  assert.equal(yearlyResDate.getDate(), 24);
-  assert.equal(yearlyResDate.getMonth(), 5); // June is 5
-  assert.equal(yearlyResDate.getFullYear(), 2026);
+  assert.deepEqual(getUsagePeriod(now), {
+    key: "2026-06",
+    startsAt: "2026-06-01T00:00:00.000Z",
+    resetsAt: expectedReset,
+  });
+  assert.equal(
+    calculateResetDate("2035-09-17T00:00:00.000Z", new Date("2026-12-31T23:59:59.999Z")),
+    "2027-01-01T00:00:00.000Z",
+  );
 });
 
 test("calculates next invoice dates correctly for different subscription plans", () => {
@@ -1705,105 +1793,105 @@ test("request-created data ownership never uses the shared demo metering identit
   );
 });
 
-test("ingestion jobs carry a durable credential discriminator and cleanup is scoped to the legacy demo owner", () => {
+test("ingestion jobs carry a durable credential discriminator with an additive legacy-demo backfill", () => {
   const ingestionService = readFileSync(resolve(repoRoot, "lib/services/ingestion-job.service.ts"), "utf8");
-  const migration = readFileSync(resolve(repoRoot, "supabase/migrations/20260712_demo_credential_discriminator_cleanup.sql"), "utf8");
+  const migration = readFileSync(resolve(repoRoot, "supabase/migrations/20260712100000_add_credential_discriminator.sql"), "utf8");
 
   assert.match(ingestionService, /credential_type: input\.keyData\.id === "demo-id" \? "demo" : "api_key"/);
   assert.match(ingestionService, /job\.credential_type === "demo"/);
   assert.match(ingestionService, /credential_type: job\.credential_type/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS credential_type text NOT NULL DEFAULT 'api_key'/);
-  assert.match(migration, /user_id = 'demo-user-id'/);
-  assert.match(migration, /DELETE FROM public\.repository_chunks/);
-  assert.match(migration, /DELETE FROM public\.ingestion_jobs/);
-  assert.doesNotMatch(migration, /DELETE FROM public\.(repository_chunks|ingestion_jobs)\s*;/);
+  assert.match(migration, /UPDATE public\.ingestion_jobs[\s\S]*WHERE user_id = 'demo-user-id'[\s\S]*AND api_key_id IS NULL/);
+  assert.match(migration, /UPDATE public\.repository_chunks[\s\S]*WHERE user_id = 'demo-user-id'[\s\S]*AND api_key_id IS NULL/);
+  assert.match(migration, /CHECK \(credential_type IN \('api_key', 'demo'\)\)/);
+  assert.doesNotMatch(migration, /DELETE FROM public\.(repository_chunks|ingestion_jobs)/);
 });
 
-test("resolveGitHubRepoAccessForSummary resolves access securely", async () => {
-  const { supabaseAdmin } = loadTsModule("lib/supabase-admin.ts");
-  const githubAppService = loadTsModule("lib/services/github-app.service.ts");
-  const { resolveGitHubRepoAccessForSummary } = githubAppService;
-  
-  const originalFrom = supabaseAdmin.from;
-  let mockInstallationResult = null;
-  
+test("repository summary resolution stays public-only and gates server-token fallback on visibility", async () => {
+  const {
+    fetchRepositoryDataWithAuth,
+    GitHubAuthError,
+  } = loadTsModule("lib/services/github.service.ts");
+  const serverEnv = loadTsModule("lib/env.ts").getServerEnv();
+  const originalFetch = globalThis.fetch;
+  const originalToken = serverEnv.GITHUB_TOKEN;
+  const calls = [];
+
   try {
-    supabaseAdmin.from = (table) => {
-      assert.equal(table, "github_app_installations");
-      return {
-        select: () => ({
-          eq: (col) => {
-            assert.equal(col, "user_id");
-            return {
-              order: () => ({
-                limit: () => ({
-                  maybeSingle: async () => ({ data: mockInstallationResult, error: null }),
-                }),
-              }),
-            };
-          },
-        }),
-      };
-    };
-    
-    // 1. If userId is null, access is denied (not connected)
-    const res1 = await resolveGitHubRepoAccessForSummary({ userId: null, repoFullName: "owner/repo" });
-    assert.equal(res1.authorized, false);
-    assert.equal(res1.errorCode, "GITHUB_PRIVATE_REPO_NOT_CONNECTED");
-    
-    // 2. If no installation found in DB, access is denied (not connected)
-    mockInstallationResult = null;
-    const res2 = await resolveGitHubRepoAccessForSummary({ userId: "user-123", repoFullName: "owner/repo" });
-    assert.equal(res2.authorized, false);
-    assert.equal(res2.errorCode, "GITHUB_PRIVATE_REPO_NOT_CONNECTED");
-    
-    // 3. If installation exists but repository is not in snapshot, access is denied (not granted)
-    mockInstallationResult = {
-      installation_id: 12345,
-      verified_repositories: [
-        { fullName: "owner/other-repo", private: true },
-      ],
-    };
-    const res3 = await resolveGitHubRepoAccessForSummary({ userId: "user-123", repoFullName: "owner/repo" });
-    assert.equal(res3.authorized, false);
-    assert.equal(res3.errorCode, "GITHUB_PRIVATE_REPO_NOT_GRANTED");
+    serverEnv.GITHUB_TOKEN = "server-public-fallback-token";
+    globalThis.fetch = async (url, options) => {
+      const requestUrl = String(url);
+      const authorization = options?.headers?.Authorization;
+      calls.push({ url: requestUrl, authorization });
 
-    // 4. If repository is in snapshot (even with case difference), it attempts to authorize
-    const originalCreateSign = crypto.createSign;
-    crypto.createSign = () => ({
-      update: () => ({
-        sign: () => Buffer.from("mock-signature"),
-      }),
-    });
-
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async (url) => {
-      if (String(url).includes("/access_tokens")) {
-        return {
-          ok: true,
-          json: async () => ({ token: "mock-install-token", expires_at: null }),
-        };
+      if (requestUrl === "https://api.github.com/repos/owner/repo") {
+        if (!authorization) return jsonResponse({ message: "rate limited" }, { status: 403 });
+        return jsonResponse({
+          private: false,
+          stargazers_count: 42,
+          license: { spdx_id: "MIT" },
+          forks_count: 7,
+          description: "Verified public repository",
+        });
       }
-      return { ok: false };
+      if (requestUrl.endsWith("/readme")) {
+        return jsonResponse({ message: "rate limited" }, { status: 403 });
+      }
+      if (requestUrl.startsWith("https://raw.githubusercontent.com/owner/repo/")) {
+        return new Response("# Public README", { status: 200 });
+      }
+      return jsonResponse({ message: "not found" }, { status: 404 });
     };
 
-    mockInstallationResult = {
-      installation_id: 12345,
-      verified_repositories: [
-        { fullName: "OWNER/repo", private: true },
-      ],
+    const repository = await fetchRepositoryDataWithAuth({
+      githubUrl: "https://github.com/owner/repo",
+      userId: "user-123",
+      includeVersionMetadata: false,
+    });
+    assert.equal(repository.readmeContent, "# Public README");
+    assert.equal(repository.metadata.stars, 42);
+
+    const visibilityProofIndex = calls.findIndex((call) =>
+      call.url === "https://api.github.com/repos/owner/repo"
+      && call.authorization === "Bearer server-public-fallback-token"
+    );
+    const authorizedContentIndex = calls.findIndex((call) =>
+      call.url.endsWith("/readme")
+      && call.authorization === "Bearer server-public-fallback-token"
+    );
+    assert(visibilityProofIndex >= 0);
+    assert.equal(authorizedContentIndex, -1);
+
+    calls.length = 0;
+    globalThis.fetch = async (url, options) => {
+      const requestUrl = String(url);
+      const authorization = options?.headers?.Authorization;
+      calls.push({ url: requestUrl, authorization });
+      if (requestUrl === "https://api.github.com/repos/owner/private-repo") {
+        return authorization
+          ? jsonResponse({ private: true })
+          : jsonResponse({ message: "rate limited" }, { status: 403 });
+      }
+      return jsonResponse({ message: "not found" }, { status: 404 });
     };
-    
-    try {
-      const res4 = await resolveGitHubRepoAccessForSummary({ userId: "user-123", repoFullName: "owner/repo" });
-      assert.equal(res4.authorized, true);
-      assert.equal(res4.token, "mock-install-token");
-    } finally {
-      crypto.createSign = originalCreateSign;
-      globalThis.fetch = originalFetch;
-    }
+
+    await assert.rejects(
+      () => fetchRepositoryDataWithAuth({
+        githubUrl: "https://github.com/owner/private-repo",
+        userId: "user-with-installation-snapshot",
+        includeVersionMetadata: false,
+      }),
+      (error) => error instanceof GitHubAuthError && error.code === "GITHUB_PRIVATE_REPO_UNSUPPORTED",
+    );
+    assert.equal(
+      calls.some((call) => call.url.endsWith("/readme") && Boolean(call.authorization)),
+      false,
+      "the server token must never fetch private repository content",
+    );
+    assert.equal(calls.some((call) => call.url.includes("/access_tokens")), false);
   } finally {
-    supabaseAdmin.from = originalFrom;
+    globalThis.fetch = originalFetch;
+    serverEnv.GITHUB_TOKEN = originalToken;
   }
 });
 
@@ -2054,17 +2142,38 @@ test("GitHub summary metadata can skip release and tag lookup on the hot path", 
   }
 });
 
-test("GitHub public quota fallback uses a server token only after visibility is verified", () => {
+test("GitHub public quota fallback uses a server token for visibility only", () => {
   const githubSource = readFileSync(resolve(repoRoot, "lib/services/github.service.ts"), "utf8");
   const ingestionSource = readFileSync(resolve(repoRoot, "lib/services/ingestion-job.service.ts"), "utf8");
 
   assert.match(githubSource, /publicFallbackToken = getServerEnv\(\)\.GITHUB_TOKEN/);
-  assert.match(githubSource, /assertPublicRepositoryForRag\(input\.githubUrl, publicFallbackToken\)/);
-  assert.match(githubSource, /fetchGitHubReadme\(input\.githubUrl, publicFallbackToken\)/);
-  assert.match(githubSource, /Continue to the private authorization path below/);
-  assert.match(ingestionSource, /const publicFetchToken = getServerEnv\(\)\.GITHUB_TOKEN/);
-  assert.match(ingestionSource, /fetchGitHubRepoTree\(job\.repo_url, branch, publicFetchToken\)/);
-  assert.match(ingestionSource, /fetchRawFileContent\(job\.repo_url, branch, file\.path, publicFetchToken\)/);
+  const summaryVisibilityProof = githubSource.indexOf(
+    "await assertPublicRepositoryForRag(input.githubUrl, publicFallbackToken)",
+  );
+  const summaryAnonymousRead = githubSource.indexOf(
+    "fetchGitHubReadme(input.githubUrl)",
+    summaryVisibilityProof,
+  );
+  assert(summaryVisibilityProof >= 0);
+  assert(summaryAnonymousRead > summaryVisibilityProof);
+  assert.doesNotMatch(githubSource, /fetchGitHubReadme\(input\.githubUrl, publicFallbackToken\)/);
+  assert.doesNotMatch(githubSource, /fetchGitHubMetadata\(input\.githubUrl, publicFallbackToken/);
+  assert.match(githubSource, /GitHubPublicRepositoryRequiredError[\s\S]*GITHUB_PRIVATE_REPO_UNSUPPORTED/);
+  assert.doesNotMatch(githubSource, /resolveGitHubRepoAccessForSummary|github-app\.service/);
+
+  const ingestionVisibilityProof = ingestionSource.indexOf(
+    "await assertPublicRepositoryForRag(job.repo_url)",
+  );
+  const ingestionTreeRead = ingestionSource.indexOf(
+    "fetchGitHubRepoTree(job.repo_url, branch)",
+  );
+  const ingestionContentRead = ingestionSource.indexOf(
+    "fetchRawFileContent(job.repo_url, branch, file.path)",
+  );
+  assert(ingestionVisibilityProof >= 0);
+  assert(ingestionTreeRead > ingestionVisibilityProof);
+  assert(ingestionContentRead > ingestionTreeRead);
+  assert.doesNotMatch(ingestionSource, /GITHUB_TOKEN|publicFetchToken/);
 });
 
 test("GitHub App reconnect after local disconnect verifies and recreates the local record", async () => {
@@ -2188,180 +2297,64 @@ test("GitHub App reconnect after local disconnect verifies and recreates the loc
   }
 });
 
-test("GitHub App uninstall endpoint and service behave securely and handle cleanups correctly", async () => {
+test("GitHub disconnect remains local-only and the provider-uninstall endpoint stays removed", async () => {
   const { supabaseAdmin } = loadTsModule("lib/supabase-admin.ts");
   const githubAppService = loadTsModule("lib/services/github-app.service.ts");
-  const { uninstallGitHubAppInstallationForUser } = githubAppService;
-
-  // Static checks on routes
-  const localDeleteRouteSrc = readFileSync(
+  const { removeGitHubInstallationFromDandi } = githubAppService;
+  const localDeleteRouteSource = readFileSync(
     resolve(repoRoot, "app/api/integrations/github/installation/route.ts"),
-    "utf8"
+    "utf8",
   );
-  const uninstallRouteSrc = readFileSync(
-    resolve(repoRoot, "app/api/integrations/github/installation/uninstall/route.ts"),
-    "utf8"
-  );
+  const serviceSource = readFileSync(resolve(repoRoot, "lib/services/github-app.service.ts"), "utf8");
+  const uninstallRoute = resolve(repoRoot, "app/api/integrations/github/installation/uninstall/route.ts");
 
-  // 1. Verify DELETE /api/integrations/github/installation remains local-only
-  // It should call removeGitHubInstallationFromDandi but NOT make fetch calls to api.github.com/app/installations
-  assert.match(localDeleteRouteSrc, /removeGitHubInstallationFromDandi/);
-  assert.doesNotMatch(localDeleteRouteSrc, /uninstallGitHubAppInstallationForUser/);
-  assert.doesNotMatch(localDeleteRouteSrc, /fetch\([^)]*app\/installations/);
+  assert.equal(existsSync(uninstallRoute), false);
+  assert.equal(githubAppService.uninstallGitHubAppInstallationForUser, undefined);
+  assert.doesNotMatch(serviceSource, /export async function uninstallGitHubAppInstallationForUser/);
+  assert.match(localDeleteRouteSource, /getPrimaryGitHubInstallationForUserWithClient\(\{[\s\S]*db: supabase,[\s\S]*userId: user\.id/);
+  assert.match(localDeleteRouteSource, /removeGitHubInstallationFromDandi\(\{[\s\S]*userId: user\.id,[\s\S]*installationId: installation\.installation_id/);
+  assert.match(localDeleteRouteSource, /githubUninstalled: false/);
+  assert.match(localDeleteRouteSource, /The GitHub App may still be installed on GitHub/);
+  assert.doesNotMatch(localDeleteRouteSource, /request\.json\(|fetch\(/);
 
-  // 2. Verify DELETE /api/integrations/github/installation/uninstall performs GitHub-side uninstall
-  assert.match(uninstallRouteSrc, /uninstallGitHubAppInstallationForUser/);
-  assert.match(uninstallRouteSrc, /getSafeGitHubAppErrorMessage/);
-  assert.match(localDeleteRouteSrc, /getSafeGitHubAppErrorMessage/);
-
-  // 3. Verify uninstall route ignores any client-sent installation_id
-  // The route should resolve user.id first and should not read or parse installation_id from Request body/payload.
-  assert.doesNotMatch(uninstallRouteSrc, /installation_id/);
-  assert.doesNotMatch(uninstallRouteSrc, /installationId/);
-
-  // 4. Test service layer behavior with mocked database and fetch
   const originalFrom = supabaseAdmin.from;
   const originalFetch = globalThis.fetch;
-  const originalCreateSign = crypto.createSign;
+  const deleteScopes = [];
+  let providerFetchCalled = false;
 
-  // Mock JWT creation
-  crypto.createSign = () => ({
-    update: () => ({
-      sign: () => Buffer.from("mock-jwt-signature"),
-    }),
-  });
-
-  let dbDeleted = false;
-  let dbDeleteTargetUserId = null;
-  let dbDeleteTargetInstallationId = null;
-  let mockInstallationResult = {
-    installation_id: 141986350,
-  };
-
-  supabaseAdmin.from = (table) => {
-    if (table === "github_app_installations") {
+  try {
+    supabaseAdmin.from = (table) => {
+      assert.equal(table, "github_app_installations");
       return {
-        select: () => ({
-          eq: (col) => {
-            assert.equal(col, "user_id");
+        delete: () => ({
+          eq: (column, value) => {
+            deleteScopes.push([column, value]);
             return {
-              order: () => ({
-                limit: () => ({
-                  maybeSingle: async () => ({ data: mockInstallationResult, error: null }),
-                }),
-              }),
+              eq: async (nextColumn, nextValue) => {
+                deleteScopes.push([nextColumn, nextValue]);
+                return { error: null };
+              },
             };
           },
         }),
-        delete: () => {
-          return {
-            eq: (colId, valId) => {
-              if (colId === "user_id") {
-                dbDeleteTargetUserId = valId;
-              }
-              return {
-                eq: (colInst, valInst) => {
-                  if (colInst === "installation_id") {
-                    dbDeleteTargetInstallationId = valInst;
-                  }
-                  dbDeleted = true;
-                  return Promise.resolve({ data: null, error: null });
-                }
-              };
-            }
-          };
-        }
-      };
-    }
-    return originalFrom(table);
-  };
-
-  try {
-    // A. Verify 204 deletes local record
-    let fetchCalled = false;
-    let fetchUrl = null;
-    let fetchMethod = null;
-    let fetchHeaders = null;
-
-    globalThis.fetch = async (url, options) => {
-      fetchCalled = true;
-      fetchUrl = String(url);
-      fetchMethod = options?.method;
-      fetchHeaders = options?.headers;
-      return {
-        status: 204,
-        statusText: "No Content",
-        ok: true,
       };
     };
-
-    dbDeleted = false;
-    dbDeleteTargetUserId = null;
-    dbDeleteTargetInstallationId = null;
-
-    const res204 = await uninstallGitHubAppInstallationForUser("user-111");
-    assert.equal(res204.success, true);
-    assert.equal(res204.alreadyRemoved, false);
-    assert.equal(dbDeleted, true);
-    assert.equal(dbDeleteTargetUserId, "user-111");
-    assert.equal(dbDeleteTargetInstallationId, 141986350);
-    assert.equal(fetchCalled, true);
-    assert.equal(fetchUrl, "https://api.github.com/app/installations/141986350");
-    assert.equal(fetchMethod, "DELETE");
-    assert.equal(fetchHeaders["Accept"], "application/vnd.github+json");
-    assert.equal(fetchHeaders["X-GitHub-Api-Version"], "2022-11-28");
-    assert.match(fetchHeaders["Authorization"], /^Bearer /);
-
-    // Verify JWT is not exposed in returned result
-    assert.equal(res204.hasOwnProperty("token"), false);
-    assert.equal(res204.hasOwnProperty("jwt"), false);
-
-    // B. Verify 404 deletes local record (already removed)
-    fetchCalled = false;
     globalThis.fetch = async () => {
-      fetchCalled = true;
-      return {
-        status: 404,
-        statusText: "Not Found",
-        ok: false,
-      };
+      providerFetchCalled = true;
+      throw new Error("local disconnect must not call GitHub");
     };
 
-    dbDeleted = false;
-    const res404 = await uninstallGitHubAppInstallationForUser("user-111");
-    assert.equal(res404.success, true);
-    assert.equal(res404.alreadyRemoved, true);
-    assert.equal(dbDeleted, true);
-
-    // C. Verify 401/403/5xx do NOT delete local record
-    const errorStatuses = [401, 403, 429, 500];
-    for (const status of errorStatuses) {
-      fetchCalled = false;
-      globalThis.fetch = async () => {
-        fetchCalled = true;
-        return {
-          status,
-          statusText: "GitHub Error",
-          ok: false,
-          json: async () => ({ message: `Error details ${status}` }),
-        };
-      };
-
-      dbDeleted = false;
-      await assert.rejects(
-        uninstallGitHubAppInstallationForUser("user-111"),
-        (err) => {
-          assert.equal(err.status, status);
-          assert.match(err.message, new RegExp(`Error details ${status}`));
-          return true;
-        }
-      );
-      assert.equal(dbDeleted, false, `DB should not delete for status ${status}`);
-    }
-
+    await removeGitHubInstallationFromDandi({
+      userId: "user-111",
+      installationId: 141986350,
+    });
+    assert.deepEqual(deleteScopes, [
+      ["user_id", "user-111"],
+      ["installation_id", 141986350],
+    ]);
+    assert.equal(providerFetchCalled, false);
   } finally {
     supabaseAdmin.from = originalFrom;
     globalThis.fetch = originalFetch;
-    crypto.createSign = originalCreateSign;
   }
 });

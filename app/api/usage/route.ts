@@ -1,14 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 import { resolvePlan } from "@/lib/constants";
 import {
-  buildDailyUsageTrend,
   getBillingPeriodDisplay,
+  getDurableUsageLogs,
   getDisplayUsageCount,
   getDisplayUsageCounts,
-  getDisplayUsageLogs,
   getActiveRepositoryCount,
   getRecentUsageDates,
   getStripePaymentDisplay,
@@ -16,30 +14,40 @@ import {
   getTopReposFromLogs,
   getUsagePerformanceMetrics,
   summarizeDailyLogs,
+  BillingDataUnavailableError,
+  UsageDataUnavailableError,
 } from "@/lib/services/usage-billing.service";
+import { getUsagePeriod } from "@/lib/utils/usage-period";
 import type { UsageData } from "@/types/usage";
 
-export async function GET() {
+const privateNoStoreHeaders = { "Cache-Control": "private, no-store" };
+
+export async function GET(request: Request) {
   try {
-    const userId = await getAuthenticatedUserId();
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    const userEmail = user?.email;
+    if (!user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: privateNoStoreHeaders },
+      );
+    }
+    const userId = user.id;
 
     // 1. Fetch profile and API keys in parallel; Redis display data is best-effort below
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const now = new Date();
+    const currentMonth = getUsagePeriod(now).key;
+    const includeBilling = new URL(request.url).searchParams.get("scope") !== "usage";
 
     const [profileRes, keysRes] = await Promise.all([
-      userEmail
-        ? supabaseAdmin
-            .from("profiles")
-            .select("plan, billing_next_date, billing_interval, stripe_customer_id, stripe_subscription_id, stripe_scheduled_plan, stripe_scheduled_plan_date")
-            .eq("email", userEmail)
-            .single()
-        : Promise.resolve({ data: null }),
+      supabaseAdmin
+        .from("profiles")
+        .select("plan, billing_next_date, billing_interval, stripe_customer_id, stripe_subscription_id, stripe_scheduled_plan, stripe_scheduled_plan_date")
+        .eq("id", userId)
+        .single(),
       supabaseAdmin
         .from("api_keys")
-        .select("id, name, key_type, usage_count, monthly_limit, is_active, alert_threshold, alert_channels, alert_phone, created_at")
+        .select("id, name, key_type, usage_count, monthly_limit, is_active, alert_threshold, alert_channels, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
     ]);
@@ -59,15 +67,8 @@ export async function GET() {
     // Use numeric limit directly from constants — no regex parsing needed
     const monthlyLimit = resolved.monthlyRequests;
 
-    const userUsage = await getDisplayUsageCount(
-      `usage:user:${userId}:${currentMonth}`,
-      "⚠️ Display Redis usage read failed; using zero total usage:"
-    );
-
-    const logs = await getDisplayUsageLogs(`logs:user:${userId}:${currentMonth}`, 0, 99, {
-      includeSnakeRepoUrl: true,
-      warning: "⚠️ Display Redis log read failed; using empty usage analytics:",
-    });
+    const userUsage = await getDisplayUsageCount(`usage:user:${userId}:${currentMonth}`);
+    const logs = await getDurableUsageLogs(userId, now);
 
     // 2. Fetch per-key usage from Redis
     const keyUsageCounts = await getDisplayUsageCounts(keys ?? [], currentMonth);
@@ -76,7 +77,6 @@ export async function GET() {
     const { avgLatency, successRate } = getUsagePerformanceMetrics(logs);
 
     // 5. Process data for trends and top repos
-    const now = new Date();
     const dates = getRecentUsageDates(now);
 
     const processedKeys = (keys || []).map((key, index) => {
@@ -84,7 +84,7 @@ export async function GET() {
       const actualUsage = keyUsageCounts[index] || 0;
       
       // Daily trend
-      const dailyTrend = buildDailyUsageTrend(dates, keyLogs, actualUsage);
+      const dailyTrend = dates.map((date) => summarizeDailyLogs(date, keyLogs));
 
       // Top repos for this key
       const topRepos = getTopReposFromLogs(keyLogs, 5);
@@ -118,19 +118,24 @@ export async function GET() {
     const { resetDate, nextInvoiceDate } = await getBillingPeriodDisplay({
       profile: profileData,
       now,
-      selfHeal: {
-        mode: "await",
-        updateBy: "email",
-        userEmail,
-        periodEndSource: "usage-api",
-        logContext: "API route",
-      },
+      selfHeal: includeBilling
+        ? {
+            mode: "await",
+            userId,
+            periodEndSource: "usage-api",
+            logContext: "API route",
+          }
+        : undefined,
     });
 
-    const [{ paymentMethods, customerBalance }, subscriptionDisplay] = await Promise.all([
-      getStripePaymentDisplay(stripeCustomerId, { requireActiveCustomer: false }),
-      getStripeSubscriptionDisplay(profileData?.stripe_subscription_id),
-    ]);
+    const billingProjection = includeBilling
+      ? await Promise.all([
+          getStripePaymentDisplay(stripeCustomerId),
+          getStripeSubscriptionDisplay(profileData?.stripe_subscription_id),
+        ])
+      : null;
+    const paymentDisplay = billingProjection?.[0];
+    const subscriptionDisplay = billingProjection?.[1] || null;
 
     const responseBody: UsageData = {
       plan: profileData?.plan || "Hobby",
@@ -142,8 +147,8 @@ export async function GET() {
       successRate,
       resetDate,
       nextInvoiceDate,
-      paymentMethods,
-      customerBalance,
+      paymentMethods: paymentDisplay?.paymentMethods,
+      customerBalance: paymentDisplay?.customerBalance,
       dailyAnalytics,
       scheduledPlan: profileData?.stripe_scheduled_plan || null,
       scheduledPlanDate: profileData?.stripe_scheduled_plan_date || null,
@@ -152,9 +157,15 @@ export async function GET() {
       cancelAtPeriodEnd: subscriptionDisplay?.cancelAtPeriodEnd || false,
     };
 
-    return NextResponse.json(responseBody);
+    return NextResponse.json(responseBody, {
+      headers: privateNoStoreHeaders,
+    });
   } catch (err) {
-    console.error("❌ Usage API: Critical failure:", err);
-    return NextResponse.json({ error: "Usage analytics are temporarily unavailable. Please try again." }, { status: 500 });
+    console.error("Usage analytics request failed.");
+    const status = err instanceof UsageDataUnavailableError || err instanceof BillingDataUnavailableError ? 503 : 500;
+    return NextResponse.json(
+      { error: "Usage analytics are temporarily unavailable. Please try again." },
+      { status, headers: privateNoStoreHeaders },
+    );
   }
 }

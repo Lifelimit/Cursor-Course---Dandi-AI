@@ -55,8 +55,8 @@ export function buildSummaryLoadingStages({
     },
     {
       id: "summary-structure",
-      label: "Analyzing repository structure",
-      detail: "Preparing files and repository context",
+      label: "Reading README evidence",
+      detail: "Preparing a README-grounded repository overview",
       status: summaryAiStage === "active" ? "active" : summaryAiStage === "done" || summaryHasData ? "done" : summaryAiStage,
     },
     {

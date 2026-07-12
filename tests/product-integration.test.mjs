@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
@@ -53,8 +53,36 @@ test("authenticated documentation stays in the product shell and states reposito
   assert.match(docs, /if \(initialSession\)/);
   assert.match(docs, /<DashboardShell/);
   assert.match(docs, /<Navbar session=\{initialSession\}/);
-  assert.match(docs, /Repository Summary also supports a private repository/);
-  assert.match(docs, /Prepare and Ask currently support public repositories only/);
+  assert.match(docs, /README-grounded overview of a public repository/);
+  assert.match(docs, /Summary, Prepare, and Ask currently support public GitHub repositories only/);
+  assert.match(docs, /display-only integration metadata and does not authorize private repository reads/);
+  assert.doesNotMatch(docs, /Repository Summary also supports a private repository/);
+  assert.doesNotMatch(docs, /For private Summary requests/);
+});
+
+test("usage alert settings belong to owner-scoped API key updates", async () => {
+  const [editModal, keyRoute] = await Promise.all([
+    read("components/account/AccountApiKeyEditModal.tsx"),
+    read("app/api/keys/[id]/route.ts"),
+  ]);
+
+  await assert.rejects(
+    access(new URL("../app/api/usage/alert/route.ts", import.meta.url)),
+    (error) => error?.code === "ENOENT",
+  );
+  assert.match(editModal, /fetch\(`\/api\/keys\/\$\{apiKey\.apiKeyId\}`/);
+  assert.match(editModal, /method: "PATCH"/);
+  assert.match(editModal, /alertThreshold: alertsEnabled \? parsedThreshold : null/);
+  assert.match(editModal, /alertChannels: alertsEnabled/);
+  assert.doesNotMatch(editModal, /\/api\/usage\/alert/);
+
+  assert.match(keyRoute, /const userId = await getAuthenticatedUserId\(\)/);
+  assert.match(keyRoute, /updates\.alert_threshold = settings\.alertThreshold/);
+  assert.match(keyRoute, /updates\.alert_channels = settings\.alertChannels/);
+  const ownerFilters = keyRoute.match(/\.eq\("user_id", userId\)/g) || [];
+  assert.ok(ownerFilters.length >= 2, "API key reads and updates must remain owner-scoped");
+  assert.match(keyRoute, /rpc\(\s*"begin_owned_api_key_deletion"/);
+  assert.match(keyRoute, /p_profile_id: userId, p_key_id: id/);
 });
 
 test("external validation is opt-in, read-only, and secret-redacting", async () => {

@@ -1,6 +1,13 @@
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 
+export class StripePaymentMethodAccessError extends Error {
+  constructor() {
+    super("Payment method is invalid or unavailable.");
+    this.name = "StripePaymentMethodAccessError";
+  }
+}
+
 function getPaymentMethodCustomerId(paymentMethod: Stripe.PaymentMethod) {
   const customer = paymentMethod.customer;
   if (!customer) return null;
@@ -10,17 +17,12 @@ function getPaymentMethodCustomerId(paymentMethod: Stripe.PaymentMethod) {
 export async function getOwnedPaymentMethod(
   paymentMethodId: string,
   customerId: string,
-  options: { allowUnattached?: boolean } = {}
 ) {
   const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
   const existingCustomerId = getPaymentMethodCustomerId(paymentMethod);
 
-  if (existingCustomerId && existingCustomerId !== customerId) {
-    throw new Error("Payment method does not belong to this customer.");
-  }
-
-  if (!options.allowUnattached && existingCustomerId !== customerId) {
-    throw new Error("Payment method does not belong to this customer.");
+  if (existingCustomerId !== customerId) {
+    throw new StripePaymentMethodAccessError();
   }
 
   return paymentMethod;

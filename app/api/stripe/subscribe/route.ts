@@ -1,269 +1,295 @@
 import { NextResponse } from "next/server";
+import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
-import Stripe from "stripe";
-import { resolvePaidPlanRequest, getEntitledPlanForSubscription, getPlanForSubscription } from "@/lib/billing-catalog";
-import { getJsonObject, validatePaymentMethodId } from "@/lib/request-validation";
+import { getEntitledPlanForSubscription, getPlanForSubscription, resolvePaidPlanRequest, type PaidPlanRequest } from "@/lib/billing-catalog";
+import { getJsonObject, validateBillingDetails, validateOperationId, validatePaymentMethodId } from "@/lib/request-validation";
 import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
 import { buildSubscriptionProfilePayload, resolveSubscriptionPaymentState } from "@/lib/services/stripe-billing-flow.service";
-import { sendPlanChangeScheduledEmail } from "@/lib/services/email.service";
-import { formatLongDate } from "@/lib/format";
 import {
+  buildPaymentMethodProfilePayload,
   getAuthenticatedBillingUser,
-  getBillingProfile,
+  getOrCreateOwnedStripeCustomer,
   mapStripeErrorResponse,
   persistDefaultPaymentMethod,
-  requireStripeCustomerId,
   updateAuthBillingMetadata,
   updateProfileBillingMetadata,
 } from "@/lib/services/stripe-route.service";
+import type { SubscriptionActionResult } from "@/types/billing";
 
-type BillingProfile = {
-  stripe_customer_id: string | null;
+type ExpandedSubscription = Stripe.Subscription & {
+  current_period_start?: number;
+  current_period_end?: number;
 };
 
-export async function POST(req: Request) {
+function getPeriodStart(subscription: ExpandedSubscription) {
+  return subscription.items.data[0]?.current_period_start
+    || subscription.current_period_start
+    || subscription.billing_cycle_anchor;
+}
+
+function getPeriodEnd(subscription: ExpandedSubscription) {
+  return subscription.items.data[0]?.current_period_end
+    || subscription.current_period_end;
+}
+
+function getPaymentMethodId(value: string | Stripe.PaymentMethod | null | undefined) {
+  return typeof value === "string" ? value : value?.id || null;
+}
+
+function getActiveResult(subscription: ExpandedSubscription, plan: PaidPlanRequest): SubscriptionActionResult {
+  const effectiveAt = getPeriodStart(subscription)
+    ? new Date(getPeriodStart(subscription) * 1000).toISOString()
+    : new Date().toISOString();
+  return {
+    status: "active",
+    plan: plan.planId,
+    interval: plan.interval,
+    reference: subscription.id,
+    effectiveAt,
+  };
+}
+
+async function persistActiveSubscription(input: {
+  user: NonNullable<Awaited<ReturnType<typeof getAuthenticatedBillingUser>>["user"]>;
+  subscription: ExpandedSubscription;
+  plan: PaidPlanRequest;
+  paymentMethodId: string | null;
+  billingDetails?: Record<string, unknown>;
+}) {
+  let paymentMethodDetails: ReturnType<typeof buildPaymentMethodProfilePayload> | undefined;
+  if (input.paymentMethodId) {
+    const method = await getOwnedPaymentMethod(
+      input.paymentMethodId,
+      String(input.subscription.customer),
+    );
+    paymentMethodDetails = buildPaymentMethodProfilePayload(method);
+  }
+
+  const payload = buildSubscriptionProfilePayload({
+    planRequest: input.plan,
+    subscription: input.subscription,
+    paymentMethodDetails,
+    billingDetails: input.billingDetails,
+    scheduledPlan: null,
+    scheduledPlanDate: null,
+  });
+
+  await updateProfileBillingMetadata(input.user.id, payload, {
+    errorLog: "Subscription profile persistence failed.",
+  });
+  await updateAuthBillingMetadata(input.user, payload, {
+    errorLog: "Subscription Auth metadata persistence failed.",
+  });
+}
+
+export async function POST(request: Request) {
   try {
     const { supabase, user, response } = await getAuthenticatedBillingUser({ requireEmail: true });
     if (response) return response;
 
-    const body = getJsonObject(await req.json());
-    const planRequest = resolvePaidPlanRequest(body);
-    const billingDetails = getJsonObject(body.billingDetails);
+    let body: Record<string, unknown>;
+    try {
+      body = getJsonObject(await request.json());
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON request body" }, { status: 400 });
+    }
 
+    const planRequest = resolvePaidPlanRequest(body);
     if (!planRequest) {
       return NextResponse.json({ error: "Invalid plan or price selection" }, { status: 400 });
     }
 
-    // 1. Retrieve the customer ID from profiles
-    const profile = await getBillingProfile<BillingProfile>(supabase, user.id, "stripe_customer_id");
-    const { customerId, response: missingCustomerResponse } = requireStripeCustomerId(profile, "Stripe customer not found");
-    if (missingCustomerResponse) return missingCustomerResponse;
+    const operationId = validateOperationId(body.operationId);
+    const billingDetails = validateBillingDetails(body.billingDetails);
+    const customerId = await getOrCreateOwnedStripeCustomer({ supabase, user });
 
-    // 2. Attach new payment method if provided
-    const pmId = body.paymentMethodId ? validatePaymentMethodId(body.paymentMethodId) : null;
-    if (pmId) {
-      const pm = await getOwnedPaymentMethod(pmId, customerId, { allowUnattached: true });
-      if (!pm.customer) {
-        await stripe.paymentMethods.attach(pmId, { customer: customerId });
-      }
-      await persistDefaultPaymentMethod(customerId, pmId);
+    const requestedPaymentMethodId = body.paymentMethodId
+      ? validatePaymentMethodId(body.paymentMethodId)
+      : null;
+    if (requestedPaymentMethodId) {
+      await getOwnedPaymentMethod(requestedPaymentMethodId, customerId);
+      await persistDefaultPaymentMethod(customerId, requestedPaymentMethodId);
     }
 
-    // 3. Find if customer has an existing subscription
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
       status: "all",
       limit: 100,
+      expand: ["data.latest_invoice.payment_intent"],
     });
 
     const activeSubscription = subscriptions.data.find(
-      (sub) => sub.status === "active" || sub.status === "trialing"
-    ) as Stripe.Subscription & {
-      current_period_start: number;
-      current_period_end: number;
-      schedule?: string | Stripe.SubscriptionSchedule | null;
-    };
+      (subscription) => subscription.status === "active" || subscription.status === "trialing",
+    ) as ExpandedSubscription | undefined;
 
-    const blockedSubscription = subscriptions.data.find(
-      (sub) => sub.status === "incomplete" || sub.status === "incomplete_expired" || sub.status === "past_due" || sub.status === "unpaid" || sub.status === "paused"
+    if (activeSubscription) {
+      const currentPlan = getPlanForSubscription(activeSubscription);
+      if (!currentPlan) {
+        return NextResponse.json(
+          { error: "The active Stripe subscription uses an unrecognized price. No plan change was made." },
+          { status: 409 },
+        );
+      }
+
+      if (currentPlan.priceId === planRequest.priceId) {
+        await persistActiveSubscription({
+          user,
+          subscription: activeSubscription,
+          plan: currentPlan,
+          paymentMethodId: requestedPaymentMethodId || getPaymentMethodId(activeSubscription.default_payment_method),
+          billingDetails,
+        });
+        return NextResponse.json(getActiveResult(activeSubscription, currentPlan));
+      }
+
+      const periodStart = getPeriodStart(activeSubscription);
+      const periodEnd = getPeriodEnd(activeSubscription);
+      if (!periodStart || !periodEnd) {
+        return NextResponse.json({ error: "Stripe did not return a valid billing period." }, { status: 503 });
+      }
+
+      const scheduleId = typeof activeSubscription.schedule === "string"
+        ? activeSubscription.schedule
+        : activeSubscription.schedule?.id;
+      const schedule = scheduleId
+        ? await stripe.subscriptionSchedules.retrieve(scheduleId)
+        : await stripe.subscriptionSchedules.create(
+            { from_subscription: activeSubscription.id },
+            { idempotencyKey: `dandi-${user.id}-${operationId}-schedule-create` },
+          );
+
+      await stripe.subscriptionSchedules.update(
+        schedule.id,
+        {
+          phases: [
+            {
+              start_date: periodStart,
+              end_date: periodEnd,
+              items: [{
+                price: activeSubscription.items.data[0].price.id,
+                quantity: activeSubscription.items.data[0].quantity ?? 1,
+              }],
+            },
+            {
+              start_date: periodEnd,
+              items: [{ price: planRequest.priceId }],
+            },
+          ],
+          end_behavior: "release",
+        },
+        { idempotencyKey: `dandi-${user.id}-${operationId}-schedule-update` },
+      );
+
+      const scheduledAt = new Date(periodEnd * 1000).toISOString();
+      const payload = buildSubscriptionProfilePayload({
+        planRequest: currentPlan,
+        subscription: activeSubscription,
+        scheduledPlan: planRequest.planId,
+        scheduledPlanDate: scheduledAt,
+      });
+      await updateProfileBillingMetadata(user.id, payload, {
+        errorLog: "Scheduled plan profile persistence failed.",
+      });
+      await updateAuthBillingMetadata(user, payload, {
+        errorLog: "Scheduled plan Auth metadata persistence failed.",
+      });
+
+      const result: SubscriptionActionResult = {
+        status: "scheduled",
+        currentPlan: currentPlan.planId,
+        targetPlan: planRequest.planId,
+        interval: planRequest.interval,
+        reference: schedule.id,
+        effectiveAt: scheduledAt,
+      };
+      return NextResponse.json(result);
+    }
+
+    let subscription = subscriptions.data.find(
+      (candidate) => candidate.metadata?.userId === user.id
+        && candidate.metadata?.operationId === operationId,
+    ) as ExpandedSubscription | undefined;
+
+    const conflictingSubscription = subscriptions.data.find((candidate) =>
+      ["incomplete", "past_due", "unpaid", "paused"].includes(candidate.status)
+      && candidate.id !== subscription?.id,
     );
-    if (!activeSubscription && blockedSubscription) {
+    if (!subscription && conflictingSubscription) {
       return NextResponse.json(
-        { error: "Your existing subscription needs payment attention before another plan change can begin." },
+        { error: "An existing subscription needs payment attention before another can begin." },
         { status: 409 },
       );
     }
 
-    let subscription: Stripe.Subscription;
-    let isScheduled = false;
-    let effectiveDateStr = "";
-    let currentPlanName = "";
-    let newPlanName = "";
+    const customer = await stripe.customers.retrieve(customerId);
+    if (customer.deleted) {
+      return NextResponse.json({ error: "The Stripe customer is no longer available." }, { status: 409 });
+    }
+    const defaultPaymentMethodId = getPaymentMethodId(customer.invoice_settings.default_payment_method);
+    const paymentMethodId = requestedPaymentMethodId || defaultPaymentMethodId;
+    if (!paymentMethodId) {
+      const result: SubscriptionActionResult = {
+        status: "requires_payment_method",
+        message: "Add a payment method before starting a paid subscription.",
+      };
+      return NextResponse.json(result, { status: 402 });
+    }
 
-    if (activeSubscription) {
-      // UPGRADE / CHANGE SUBSCRIPTION (END-OF-TERM BILLING)
-      const currentPriceId = activeSubscription.items.data[0].price.id;
-      const currentQuantity = activeSubscription.items.data[0].quantity ?? 1;
-
-      // Create or retrieve Subscription Schedule
-      let schedule: Stripe.SubscriptionSchedule;
-      if (activeSubscription.schedule) {
-        schedule = await stripe.subscriptionSchedules.retrieve(activeSubscription.schedule as string);
-      } else {
-        schedule = await stripe.subscriptionSchedules.create({
-          from_subscription: activeSubscription.id,
-        });
-      }
-
-      // 1. Get the existing phases from the schedule
-      const existingPhases = schedule.phases.map((phase) => ({
-        start_date: phase.start_date,
-        end_date: phase.end_date,
-        items: phase.items.map((item) => ({
-          price: item.price as string,
-          quantity: item.quantity,
-        })),
-      }));
-
-      const nowEpoch = Math.floor(Date.now() / 1000);
-      const activePhase = existingPhases.find(
-        (phase) => phase.start_date <= nowEpoch && phase.end_date > nowEpoch
-      ) || existingPhases[0];
-
-      let phasesToUpdate = [];
-      if (activePhase) {
-        phasesToUpdate = [
-          {
-            start_date: activePhase.start_date,
-            end_date: activePhase.end_date,
-            items: activePhase.items,
+    if (!subscription) {
+      subscription = await stripe.subscriptions.create(
+        {
+          customer: customerId,
+          items: [{ price: planRequest.priceId }],
+          default_payment_method: paymentMethodId,
+          payment_behavior: "default_incomplete",
+          payment_settings: { save_default_payment_method: "on_subscription" },
+          expand: ["latest_invoice.payment_intent"],
+          metadata: {
+            userId: user.id,
+            planId: planRequest.planId,
+            operationId,
           },
-          {
-            start_date: activePhase.end_date,
-            items: [{ price: planRequest.priceId }],
-          },
-        ];
-      } else {
-        const currentPeriodStart =
-          activeSubscription.items.data[0].current_period_start ||
-          activeSubscription.current_period_start ||
-          activeSubscription.billing_cycle_anchor;
-        const currentPeriodEnd =
-          activeSubscription.items.data[0].current_period_end ||
-          activeSubscription.current_period_end;
-
-        phasesToUpdate = [
-          {
-            start_date: currentPeriodStart,
-            end_date: currentPeriodEnd,
-            items: [{ price: currentPriceId, quantity: currentQuantity }],
-          },
-          {
-            start_date: currentPeriodEnd,
-            items: [{ price: planRequest.priceId }],
-          },
-        ];
-      }
-
-      await stripe.subscriptionSchedules.update(schedule.id, {
-        phases: phasesToUpdate,
-        end_behavior: "release",
-      });
-
-      // Retrieve the updated subscription details to return
-      subscription = await stripe.subscriptions.retrieve(activeSubscription.id);
-
-      // Setup details for email confirmation
-      isScheduled = true;
-      const effectiveDateNum =
-        activeSubscription.items.data[0].current_period_end ||
-        activeSubscription.current_period_end;
-      effectiveDateStr = formatLongDate(effectiveDateNum * 1000);
-      const currentPlan = getPlanForSubscription(activeSubscription);
-      currentPlanName = currentPlan ? `${currentPlan.planId} (${currentPlan.interval})` : "Current Plan";
-      newPlanName = `${planRequest.planId} (${planRequest.interval})`;
-    } else {
-      // NEW SUBSCRIPTION
-      subscription = await stripe.subscriptions.create({
-        customer: customerId,
-        items: [{ price: planRequest.priceId }],
-        payment_behavior: "pending_if_incomplete",
-        expand: ["latest_invoice.payment_intent"],
-        metadata: {
-          userId: user.id,
-          userEmail: user.email,
-          planId: planRequest.planId,
         },
-      });
+        { idempotencyKey: `dandi-${user.id}-${operationId}-subscription-create` },
+      ) as ExpandedSubscription;
     }
 
     const paymentState = resolveSubscriptionPaymentState(subscription);
     if (paymentState.type === "requires_action") {
-      return NextResponse.json({
-        success: false,
-        requires_action: true,
-        client_secret: paymentState.clientSecret,
+      const result: SubscriptionActionResult = {
+        status: "requires_action",
+        clientSecret: paymentState.clientSecret,
         subscriptionId: paymentState.subscriptionId,
-      });
+      };
+      return NextResponse.json(result);
     }
-
     if (paymentState.type === "requires_payment_method") {
-      return NextResponse.json({
-        success: false,
-        error: paymentState.error,
-      });
+      const result: SubscriptionActionResult = {
+        status: "requires_payment_method",
+        message: paymentState.error,
+      };
+      return NextResponse.json(result, { status: 402 });
     }
 
     const entitledPlan = getEntitledPlanForSubscription(subscription);
     if (!entitledPlan) {
-      return NextResponse.json(
-        { error: "Stripe has not confirmed an active subscription yet. No paid entitlement was granted." },
-        { status: 409 },
-      );
+      const result: SubscriptionActionResult = {
+        status: "processing",
+        subscriptionId: subscription.id,
+      };
+      return NextResponse.json(result, { status: 202 });
     }
 
-    // 5. Update local database profiles & auth metadata (Successful Checkout / Upgrade)
-    let finalPmId = pmId;
-    if (!finalPmId) {
-      finalPmId = subscription.default_payment_method as string;
-    }
-    if (!finalPmId) {
-      const customerObj = await stripe.customers.retrieve(customerId) as Stripe.Customer;
-      finalPmId = customerObj.invoice_settings?.default_payment_method as string;
-    }
-
-    let pmDetails: Record<string, string | null> = {
-      payment_method_last4: null,
-      payment_method_brand: null,
-      payment_method_expiry: null,
-    };
-
-    if (finalPmId) {
-      try {
-        const finalPm = await getOwnedPaymentMethod(finalPmId, customerId);
-        if (finalPm.card) {
-          pmDetails = {
-            payment_method_last4: finalPm.card.last4,
-            payment_method_brand: finalPm.card.brand,
-            payment_method_expiry: `${finalPm.card.exp_month}/${finalPm.card.exp_year}`,
-          };
-        }
-      } catch (err) {
-        console.warn("Could not retrieve final payment method details:", err);
-      }
-    }
-
-    const activePlanRequest = activeSubscription
-      ? (getEntitledPlanForSubscription(activeSubscription) || planRequest)
-      : entitledPlan;
-
-    const updatePayload = buildSubscriptionProfilePayload({
-      planRequest: activePlanRequest,
+    await persistActiveSubscription({
+      user,
       subscription,
-      paymentMethodDetails: pmDetails,
-      billingDetails: body.billingDetails && typeof body.billingDetails === "object" ? billingDetails : undefined,
-      scheduledPlan: isScheduled ? planRequest.planId : null,
-      scheduledPlanDate: isScheduled && effectiveDateStr ? new Date(effectiveDateStr).toISOString() : null,
+      plan: entitledPlan,
+      paymentMethodId,
+      billingDetails,
     });
-
-    // Update profiles table and auth user metadata
-    await updateProfileBillingMetadata(user.id, updatePayload, {
-      errorLog: "❌ Subscribe: Failed to update profile in database:",
-    });
-    await updateAuthBillingMetadata(user, updatePayload, {
-      errorLog: "❌ Subscribe: Failed to update auth metadata:",
-    });
-
-    if (isScheduled && user.email) {
-      // Send the scheduled change confirmation email asynchronously
-      sendPlanChangeScheduledEmail(user.email, currentPlanName, newPlanName, effectiveDateStr).catch((err) => {
-        console.error("Failed to send plan change email:", err);
-      });
-    }
-
-    return NextResponse.json({ success: true, subscription });
-  } catch (err) {
-    console.error("Subscribe API Error:", err);
-    return mapStripeErrorResponse(err, "Failed to process subscription");
+    return NextResponse.json(getActiveResult(subscription, entitledPlan));
+  } catch (error) {
+    console.error("Subscription operation failed.");
+    return mapStripeErrorResponse(error, "Failed to process subscription");
   }
 }

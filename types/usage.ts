@@ -43,7 +43,6 @@ export type UsageKeySummary<TTrend = DailyUsageTrend> = {
   is_active: boolean;
   alert_threshold: number | null;
   alert_channels: string[] | null;
-  alert_phone: string | null;
   pct: number;
   dailyTrend: TTrend[];
   topRepos?: TopRepositoryUsage[];

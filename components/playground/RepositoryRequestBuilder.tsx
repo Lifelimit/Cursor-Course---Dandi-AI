@@ -63,7 +63,7 @@ export function RepositoryRequestBuilder({
       : currentStep === "cloning"
         ? "Reading Repository..."
         : currentStep === "analyzing"
-          ? "Analyzing Files..."
+          ? "Reading README..."
           : currentStep === "indexing" || ingestStatus === "embedding"
             ? "Generating Embeddings..."
             : "Preparing Repository...";
@@ -79,7 +79,7 @@ export function RepositoryRequestBuilder({
             </h2>
             <p className="mt-2 max-w-2xl text-xs font-semibold leading-relaxed text-slate-400">
               {activeTab === "summary"
-                ? "Explore an unfamiliar repository with a fast overview of its purpose, structure, and key components."
+                ? "Generate a fast README-grounded overview of a public repository and its GitHub metadata."
                 : "Prepare a repository once, then Ask source-backed questions and inspect the evidence."}
             </p>
           </div>
@@ -118,7 +118,7 @@ export function RepositoryRequestBuilder({
                 setSelectedKey("");
                 setSelectValue("");
               }}
-              placeholder="sk_live_..."
+              placeholder="dandi_..."
               className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-6 py-4 font-mono text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600 focus:border-emerald-300/40 focus:ring-4 focus:ring-emerald-300/10"
             />
             {apiKey === "__demo__" ? (

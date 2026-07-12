@@ -66,8 +66,8 @@ export function WorkspaceReadiness({
       detail: githubConnected === null
         ? "Connection status could not be refreshed."
         : githubConnected
-          ? "Private repository access is ready."
-          : "Connect only when private repositories matter.",
+          ? "GitHub connection metadata is available; repository reads remain public-only."
+          : "Connect only to display and manage GitHub integration metadata.",
       href: "/account?tab=github",
     },
     {

@@ -1,4 +1,5 @@
 -- Distinguish demo-originated ingestion/index data from ordinary API-key data.
+-- This migration is additive; it does not delete historical rows.
 ALTER TABLE public.ingestion_jobs
   ADD COLUMN IF NOT EXISTS credential_type text NOT NULL DEFAULT 'api_key';
 
@@ -26,7 +27,8 @@ CREATE INDEX IF NOT EXISTS idx_repository_chunks_credential_type
   ON public.repository_chunks(credential_type, user_id, created_at DESC);
 
 -- Rows created by the legacy shared demo owner are the only historical rows
--- that can be identified without guessing at user-owned data.
+-- that can be identified without guessing at user-owned data. Mark them, but
+-- keep cleanup out of this schema repair migration.
 UPDATE public.ingestion_jobs
 SET credential_type = 'demo'
 WHERE user_id = 'demo-user-id'
@@ -36,11 +38,3 @@ UPDATE public.repository_chunks
 SET credential_type = 'demo'
 WHERE user_id = 'demo-user-id'
   AND api_key_id IS NULL;
-
-DELETE FROM public.repository_chunks
-WHERE credential_type = 'demo'
-  AND user_id = 'demo-user-id';
-
-DELETE FROM public.ingestion_jobs
-WHERE credential_type = 'demo'
-  AND user_id = 'demo-user-id';

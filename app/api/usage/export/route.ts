@@ -1,85 +1,72 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getAuthenticatedUserId } from "@/lib/services/auth.service";
+import { createClient } from "@/lib/supabase/server";
 import { resolvePlan } from "@/lib/constants";
-import { formatIsoDate, formatLocalDate, formatLocalDateTime, formatLocalTime, formatMaskedApiKey, formatRequestCount } from "@/lib/format";
+import {
+  buildUsageCsv,
+  parseUsageExportDays,
+  USAGE_EXPORT_MAX_ROWS,
+  UsageExportValidationError,
+} from "@/lib/usage-export";
 
-export async function GET() {
+const noStoreHeaders = { "Cache-Control": "private, no-store" };
+
+export async function GET(request: Request) {
   try {
-    const userId = await getAuthenticatedUserId();
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: noStoreHeaders });
+    }
 
-    const { data: logs, error } = await supabaseAdmin
-      .from("api_usage_log")
-      .select(`
-        used_at,
-        repo_url,
-        status,
-        latency_ms,
-        api_keys (id, name, key_type, monthly_limit)
-      `)
-      .eq("user_id", userId)
-      .order("used_at", { ascending: false });
+    const days = parseUsageExportDays(new URL(request.url).searchParams.get("days"));
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1_000).toISOString();
+    const [{ data: logs, error: logsError }, { data: profile, error: profileError }] = await Promise.all([
+      supabase
+        .from("api_usage_log")
+        .select("used_at, repo_url, status, latency_ms, api_keys(id, name, key_type, monthly_limit)")
+        .gte("used_at", cutoff)
+        .order("used_at", { ascending: false })
+        .range(0, USAGE_EXPORT_MAX_ROWS),
+      supabase
+        .from("profiles")
+        .select("plan")
+        .eq("id", user.id)
+        .single(),
+    ]);
 
-    if (error) throw new Error(error.message);
-
-    // Fetch user plan for the header
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("plan")
-      .eq("id", userId)
-      .single();
+    if (logsError || profileError) throw new Error("Usage export query failed.");
+    if ((logs?.length || 0) > USAGE_EXPORT_MAX_ROWS) {
+      return NextResponse.json(
+        { error: "This export exceeds 5,000 rows. Choose a shorter date range." },
+        { status: 422, headers: noStoreHeaders },
+      );
+    }
 
     const plan = profile?.plan || "Hobby";
-    const resolved = resolvePlan(plan);
-
-    // Enforce Plan limit extraction
-    const planMonthlyLimit = resolved.monthlyRequests;
-
-
-    // Generate CSV Metadata Header
-    const metadata = [
-      ["DANDI AI - STRATEGIC USAGE REPORT"],
-      [`Export Date: ${formatLocalDateTime(new Date())}`],
-      [`User ID: ${userId}`],
-      [`Account Tier: ${plan.toUpperCase()}`],
-      [], // Spacer
-    ];
-
-    // Generate CSV Table Data
-    const headers = ["Date", "Time", "Repository URL", "API Key Name", "Type", "Key Reference", "Monthly Limit", "Status", "Latency (ms)"];
-    const rows = (logs || []).map(log => {
-      const keyInfo = log.api_keys as unknown as { id: string, name: string, key_type: string, monthly_limit: number | null } | null;
-      const usedAt = new Date(log.used_at);
-      
-      const limit = keyInfo ? (keyInfo.monthly_limit ?? planMonthlyLimit) : planMonthlyLimit;
-
-      return [
-        formatLocalDate(usedAt),
-        formatLocalTime(usedAt),
-        log.repo_url || "N/A",
-        keyInfo?.name || "Unknown",
-        keyInfo?.key_type || "N/A",
-        keyInfo?.id ? formatMaskedApiKey(`key_${keyInfo.id.replace(/-/g, "")}`) : "Hidden",
-        limit ? `${formatRequestCount(limit)} requests` : "Unlimited",
-        log.status || "success",
-        log.latency_ms ?? 0
-      ];
+    const { content, filename } = buildUsageCsv({
+      rows: (logs || []).map((log) => ({
+        ...log,
+        api_keys: Array.isArray(log.api_keys) ? log.api_keys[0] || null : log.api_keys,
+      })),
+      plan,
+      planMonthlyLimit: resolvePlan(plan).monthlyRequests,
     });
 
-    const csvContent = [
-      ...metadata.map(m => m.join(",")),
-      headers.join(","),
-      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
-    ].join("\n");
-
-    return new NextResponse(csvContent, {
+    return new NextResponse(content, {
       headers: {
-        "Content-Type": "text/csv",
-        "Content-Disposition": `attachment; filename="dandi-strategic-report-${formatIsoDate(new Date())}.csv"`
-      }
+        ...noStoreHeaders,
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+      },
     });
-  } catch (err) {
-    console.error("Usage export failed:", err);
-    return NextResponse.json({ error: "Usage export is temporarily unavailable. Please try again." }, { status: 500 });
+  } catch (error) {
+    if (error instanceof UsageExportValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400, headers: noStoreHeaders });
+    }
+    console.error("Usage export failed.");
+    return NextResponse.json(
+      { error: "Usage export is temporarily unavailable. Please try again." },
+      { status: 500, headers: noStoreHeaders },
+    );
   }
 }

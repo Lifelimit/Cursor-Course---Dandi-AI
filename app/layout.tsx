@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import localFont from "next/font/local";
 import "./globals.css";
+import { getURL } from "@/lib/utils/url-helper";
 
 const geistSans = localFont({
   src: "./fonts/geist-sans-latin.woff2",
@@ -14,21 +15,15 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getURL()),
   title: "Dandi AI — Repository Intelligence API",
-  description: "The high-performance API layer for summarizing codebases, tracking metadata, and distilling repository insights in seconds.",
+  description: "README-grounded public repository summaries and source-backed questions over repositories you explicitly prepare.",
+  alternates: { canonical: "/" },
   openGraph: {
     title: "Dandi AI",
-    description: "The high-performance API layer for summarizing codebases.",
-    url: "https://dandi.ai",
+    description: "README-grounded public repository summaries and source-backed prepared-repository questions.",
+    url: "/",
     siteName: "Dandi AI",
-    images: [
-      {
-        url: "https://dandi.ai/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Dandi AI Preview",
-      },
-    ],
     locale: "en_US",
     type: "website",
   },

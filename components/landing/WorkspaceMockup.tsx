@@ -8,8 +8,8 @@ type WorkflowStage = "ready" | "validated" | "metadata" | "summary" | "prepared"
 
 const STAGES: Array<{ id: WorkflowStage; label: string; detail: string }> = [
   { id: "validated", label: "Repository validated", detail: "GitHub URL accepted" },
-  { id: "metadata", label: "Metadata retrieved", detail: "README · package manifest · release data" },
-  { id: "summary", label: "Structure analyzed", detail: "Summary generated from repository context" },
+  { id: "metadata", label: "Metadata retrieved", detail: "README · stars · forks · license" },
+  { id: "summary", label: "README summarized", detail: "Overview grounded in documented repository context" },
   { id: "prepared", label: "Sources ready", detail: "Repository prepared for source-backed questions" },
 ];
 

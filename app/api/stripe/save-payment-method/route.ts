@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { getJsonObject, validatePaymentMethodId } from "@/lib/request-validation";
+import { getJsonObject, validateBillingDetails, validatePaymentMethodId } from "@/lib/request-validation";
 import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
 import {
   buildPaymentMethodProfilePayload,
@@ -22,9 +22,15 @@ export async function POST(req: Request) {
     const { supabase, user, response } = await getAuthenticatedBillingUser({ requireEmail: true });
     if (response) return response;
 
-    const body = getJsonObject(await req.json());
+    let body: Record<string, unknown>;
+    try {
+      body = getJsonObject(await req.json());
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON request body" }, { status: 400 });
+    }
+
     const paymentMethodId = validatePaymentMethodId(body.paymentMethodId);
-    const billingDetails = getJsonObject(body.billingDetails);
+    const billingDetails = validateBillingDetails(body.billingDetails);
 
     // 1. Retrieve the customer ID
     const profile = await getBillingProfile<BillingProfile>(supabase, user.id, "stripe_customer_id");
@@ -32,7 +38,7 @@ export async function POST(req: Request) {
     if (missingCustomerResponse) return missingCustomerResponse;
 
     // 2. Retrieve PaymentMethod from Stripe to get brand, last4, expiry
-    const pm = await getOwnedPaymentMethod(paymentMethodId, customerId, { allowUnattached: true });
+    const pm = await getOwnedPaymentMethod(paymentMethodId, customerId);
     const newFingerprint = pm.card?.fingerprint;
 
     // Check for duplicate fingerprint to prevent linking multiple identical cards
@@ -49,7 +55,7 @@ export async function POST(req: Request) {
       );
 
       if (isDuplicate) {
-        console.warn(`⚠️ Save Payment Method: Duplicate card detected (fingerprint: ${newFingerprint}). PM: ${paymentMethodId}`);
+        console.warn("Duplicate card linkage attempt rejected.");
         // If already attached, detach it
         if (pm.customer === customerId) {
           await stripe.paymentMethods.detach(paymentMethodId);
@@ -70,14 +76,15 @@ export async function POST(req: Request) {
     await persistDefaultPaymentMethod(customerId, paymentMethodId);
 
     // 5. Update profiles and user_metadata
-    const updateData = buildPaymentMethodProfilePayload(pm, { nullFallback: true });
+    const paymentMethodData = buildPaymentMethodProfilePayload(pm, { nullFallback: true });
+    const updateData = { ...paymentMethodData };
 
-    if (body.billingDetails && typeof body.billingDetails === "object") {
-      updateData.billing_street = typeof billingDetails.street === "string" ? billingDetails.street : null;
-      updateData.billing_city = typeof billingDetails.city === "string" ? billingDetails.city : null;
-      updateData.billing_state = typeof billingDetails.state === "string" ? billingDetails.state : null;
-      updateData.billing_zip = typeof billingDetails.zip === "string" ? billingDetails.zip : null;
-      updateData.billing_country = typeof billingDetails.country === "string" ? billingDetails.country : null;
+    if (billingDetails) {
+      updateData.billing_street = billingDetails.street;
+      updateData.billing_city = billingDetails.city;
+      updateData.billing_state = billingDetails.state;
+      updateData.billing_zip = billingDetails.zip;
+      updateData.billing_country = billingDetails.country;
     }
 
     // Update profiles table
@@ -90,9 +97,12 @@ export async function POST(req: Request) {
       errorLog: "❌ Save PM: Failed to update auth metadata:",
     });
 
-    return NextResponse.json({ success: true, paymentMethod: updateData });
+    return NextResponse.json(
+      { success: true, paymentMethod: paymentMethodData },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (err) {
-    console.error("Save Payment Method Error:", err);
+    console.error("Save payment method failed.");
     return mapStripeErrorResponse(err, "Failed to save payment method");
   }
 }

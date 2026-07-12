@@ -1,18 +1,22 @@
-import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { validateUuidList } from "@/lib/request-validation";
+import { getAuthenticatedBillingUser } from "@/lib/services/stripe-route.service";
 
 export async function POST(req: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { supabase, user, response } = await getAuthenticatedBillingUser();
+    if (response) return response;
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    let rawKeysToKeep: unknown;
+    try {
+      const body = await req.json();
+      rawKeysToKeep = body && typeof body === "object" && !Array.isArray(body)
+        ? (body as Record<string, unknown>).keysToKeep
+        : undefined;
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON request body" }, { status: 400 });
     }
-
-    const { keysToKeep: rawKeysToKeep } = await req.json();
     let keysToKeep: string[];
 
     try {
@@ -67,8 +71,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("Cancellation Error:", err);
+  } catch {
+    console.error("Subscription cancellation scheduling failed.");
     return NextResponse.json({ error: "Failed to schedule cancellation" }, { status: 500 });
   }
 }

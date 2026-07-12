@@ -25,7 +25,7 @@ test("sidebar keeps its client stable and unknown usage unavailable", () => {
 });
 
 test("API key ownership points to workspace settings", () => {
-  assert.match(emailSource, /\/account\?tab=api[^\n]+>Manage API Keys<\/a>/);
+  assert.match(emailSource, /Manage API keys: \$\{new URL\("\/account\?tab=api", getURL\(\)\)\.toString\(\)\}/);
   assert.match(readmeSource, /`\/dashboards` - workspace overview and recent repository activity/);
   assert.match(readmeSource, /`\/account` - workspace settings, including profile, GitHub, API access, webhooks, and security/);
   assert.match(architectureSource, /`\/dashboards` - workspace overview and recent repository activity/);

@@ -54,7 +54,7 @@ export function HeroSection({ session }: { session: Session | null }) {
             {["Summarize", "Prepare", "Ask"].map((step, index) => (
               <div key={step} className="min-w-0 pr-2 sm:pr-4">
                 <p className="dandi-type-metadata font-bold uppercase text-emerald-200">0{index + 1} / {step}</p>
-                <p className="mt-1 text-xs leading-relaxed text-[var(--dandi-text-muted)]">{index === 0 ? "See structure." : index === 1 ? "Index once." : "Inspect evidence."}</p>
+                <p className="mt-1 text-xs leading-relaxed text-[var(--dandi-text-muted)]">{index === 0 ? "Read the README." : index === 1 ? "Index once." : "Inspect evidence."}</p>
               </div>
             ))}
           </div>

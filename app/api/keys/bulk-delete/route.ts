@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
-import { assertCanActivateKeys, getUserPlan } from "@/lib/services/api-key-limits.service";
+import { assertCanActivateKeys, getApiKeyLimitDatabaseMessage, getUserPlan } from "@/lib/services/api-key-limits.service";
 import { getJsonObject, getSafeApiKeyValidationError, validateUuidList } from "@/lib/request-validation";
 
 export async function POST(request: Request) {
   try {
     const userId = await getAuthenticatedUserId();
-    const body = getJsonObject(await request.json()) as { ids?: unknown; action?: "disable" | "enable" };
+    let body: { ids?: unknown; action?: "disable" | "enable" };
+    try {
+      body = getJsonObject(await request.json()) as typeof body;
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON request body" }, { status: 400 });
+    }
     const ids = validateUuidList(body.ids, { min: 1, max: 50 });
 
     const isActive = body.action === "enable";
@@ -24,7 +29,11 @@ export async function POST(request: Request) {
       .select("id");
 
     if (error) {
-      return NextResponse.json({ error: "Failed to update API keys." }, { status: 500 });
+      const limitMessage = getApiKeyLimitDatabaseMessage(error);
+      return NextResponse.json(
+        { error: limitMessage || "Failed to update API keys." },
+        { status: limitMessage ? 409 : 500 },
+      );
     }
 
     return NextResponse.json({ success: true, affected: data?.length ?? 0, action: isActive ? "enabled" : "disabled" });

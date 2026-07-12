@@ -3,7 +3,7 @@ import { getServerEnv } from "@/lib/env";
 
 export class GitHubAuthError extends Error {
   constructor(
-    public code: "GITHUB_PRIVATE_REPO_NOT_CONNECTED" | "GITHUB_PRIVATE_REPO_NOT_GRANTED" | "GITHUB_PRIVATE_REPO_TOKEN_FAILED" | "GITHUB_REPO_NOT_FOUND",
+    public code: "GITHUB_PRIVATE_REPO_UNSUPPORTED" | "GITHUB_REPO_NOT_FOUND",
     message?: string
   ) {
     super(message || code);
@@ -28,6 +28,14 @@ export class GitHubPublicRepositoryCheckError extends Error {
     this.name = "GitHubPublicRepositoryCheckError";
   }
 }
+
+type GitHubRepositoryMetadata = {
+  private?: unknown;
+  stargazers_count?: number;
+  license?: { spdx_id?: string | null; name?: string | null } | null;
+  forks_count?: number;
+  description?: string | null;
+};
 
 function getGitHubHeaders(token?: string): Record<string, string> {
   const headers: Record<string, string> = {
@@ -69,10 +77,21 @@ export async function assertPublicRepositoryForRag(
   }
   if (!response.ok) throw new GitHubPublicRepositoryCheckError();
 
-  const repository = await response.json() as { private?: unknown };
+  const repository = await response.json() as GitHubRepositoryMetadata;
   if (repository.private !== false) {
     throw new GitHubPublicRepositoryRequiredError();
   }
+  return repository;
+}
+
+function buildGitHubMetadata(repository: GitHubRepositoryMetadata, version = "Unknown") {
+  return {
+    stars: repository.stargazers_count ?? 0,
+    license: repository.license?.spdx_id || repository.license?.name || "None",
+    version,
+    forks: repository.forks_count ?? 0,
+    description: repository.description ?? null,
+  };
 }
 
 /**
@@ -167,25 +186,19 @@ export async function fetchGitHubMetadata(
 
   const version = includeVersion ? await fetchGitHubVersion(owner, repo, token) : "Unknown";
 
-  return {
-    stars: repoData.stargazers_count,
-    license: repoData.license?.spdx_id || repoData.license?.name || "None",
-    version: version,
-    forks: repoData.forks_count,
-    description: repoData.description
-  };
+  return buildGitHubMetadata(repoData, version);
 }
 
 /**
- * Fetches repository data, checking for public access first, then falling back to private access if authorized.
+ * Fetches public repository data. GitHub App installation snapshots are
+ * display-only and must never be treated as current private-repository
+ * authorization.
  */
 export async function fetchRepositoryDataWithAuth(input: {
   githubUrl: string;
-  userId: string | null;
+  userId?: string | null;
   includeVersionMetadata?: boolean;
 }) {
-  const { owner, repo } = getGitHubRepositoryParts(input.githubUrl);
-  const repoFullName = `${owner}/${repo}`;
   const metadataOptions = { includeVersion: input.includeVersionMetadata ?? true };
 
   // 1. Attempt public fetch first
@@ -198,44 +211,33 @@ export async function fetchRepositoryDataWithAuth(input: {
   } catch {
     const publicFallbackToken = getServerEnv().GITHUB_TOKEN;
 
-    // An optional server token may retry only after the repository visibility
-    // probe confirms `private: false`. It is never used as a blind private-data
-    // fallback; authorized private reads still require the installation flow.
+    // An optional server token may retry the visibility probe only. Repository
+    // content remains anonymous so a broadly scoped token can never turn a
+    // public-only workflow into a private-content read after a visibility race.
     if (publicFallbackToken) {
       try {
-        await assertPublicRepositoryForRag(input.githubUrl, publicFallbackToken);
-        const [readmeContent, metadata] = await Promise.all([
-          fetchGitHubReadme(input.githubUrl, publicFallbackToken),
-          fetchGitHubMetadata(input.githubUrl, publicFallbackToken, metadataOptions),
-        ]);
+        const verifiedRepository = await assertPublicRepositoryForRag(input.githubUrl, publicFallbackToken);
+        const readmeContent = await fetchGitHubReadme(input.githubUrl);
+        const metadata = buildGitHubMetadata(verifiedRepository);
         return { readmeContent, metadata };
-      } catch {
-        // Continue to the private authorization path below.
+      } catch (err) {
+        if (err instanceof GitHubPublicRepositoryRequiredError) {
+          throw new GitHubAuthError("GITHUB_PRIVATE_REPO_UNSUPPORTED");
+        }
+        // Continue to the final public visibility check below.
       }
     }
 
-    // 2. Public fetch failed. Resolve access for private retry
-    const { resolveGitHubRepoAccessForSummary } = await import("./github-app.service");
-    const access = await resolveGitHubRepoAccessForSummary({
-      userId: input.userId,
-      repoFullName,
-    });
-
-    if (!access.authorized) {
-      throw new GitHubAuthError(access.errorCode);
-    }
-
-    // 3. Retry fetching with the installation token
     try {
-      const [readmeContent, metadata] = await Promise.all([
-        fetchGitHubReadme(input.githubUrl, access.token),
-        fetchGitHubMetadata(input.githubUrl, access.token, metadataOptions)
-      ]);
-      return { readmeContent, metadata };
-    } catch {
-      console.warn("GitHub installation fetch failed after repository authorization.");
-      throw new GitHubAuthError("GITHUB_PRIVATE_REPO_TOKEN_FAILED");
+      await assertPublicRepositoryForRag(input.githubUrl);
+    } catch (err) {
+      if (err instanceof GitHubPublicRepositoryRequiredError) {
+        throw new GitHubAuthError("GITHUB_PRIVATE_REPO_UNSUPPORTED");
+      }
+      throw err;
     }
+
+    throw new Error("Public repository README or metadata is unavailable.");
   }
 }
 

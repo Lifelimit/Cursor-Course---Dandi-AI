@@ -99,8 +99,8 @@ export function Overview({
                 <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-slate-400">Charging</p>
               </div>
               <div>
-                <p className="font-mono text-sm font-bold text-white">{cardData.number || "•••• •••• •••• 4242"}</p>
-                <p className="text-[10px] text-slate-400 italic mt-1">{cardData.number ? `${cardData.brand} • Primary method` : "visa • Primary method"}</p>
+                <p className="font-mono text-sm font-bold text-white">{cardData.number || "No payment method saved"}</p>
+                <p className="text-[10px] text-slate-400 italic mt-1">{cardData.number ? `${cardData.brand} • Primary method` : "Add a card before starting a paid plan"}</p>
                 
                 {cardData.number && (
                   <button 

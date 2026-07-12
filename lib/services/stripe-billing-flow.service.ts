@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import type { PaidPlanRequest } from "@/lib/billing-catalog";
+import { isUuid } from "@/lib/security-core";
 
 export type PaymentMethodDetails = {
   brand?: string | null;
@@ -18,11 +19,18 @@ export function getSubscriptionPaymentIntent(subscription: Stripe.Subscription) 
 export function resolveSubscriptionPaymentState(subscription: Stripe.Subscription) {
   const paymentIntent = getSubscriptionPaymentIntent(subscription);
 
-  if (paymentIntent?.status === "requires_action") {
+  if (paymentIntent?.status === "requires_action" && typeof paymentIntent.client_secret === "string") {
     return {
       type: "requires_action" as const,
       clientSecret: paymentIntent.client_secret,
       subscriptionId: subscription.id,
+    };
+  }
+
+  if (paymentIntent?.status === "requires_action") {
+    return {
+      type: "requires_payment_method" as const,
+      error: "Payment authentication could not start. Please try again.",
     };
   }
 
@@ -105,14 +113,17 @@ export function buildWebhookSubscriptionUpdatePayload(input: {
   const updatePayload: Record<string, unknown> = {
     stripe_customer_id: input.customerId,
     updated_at: (input.now ?? new Date()).toISOString(),
-    plan: input.verifiedPlan?.planId ?? "Hobby",
     stripe_subscription_id: input.subscriptionId,
-    billing_interval: interval,
     payment_method_last4: input.paymentMethodDetails?.last4,
     payment_method_brand: input.paymentMethodDetails?.brand,
     payment_method_expiry: input.paymentMethodDetails?.expiry,
     billing_next_date: renewalDate,
   };
+
+  if (input.verifiedPlan) {
+    updatePayload.plan = input.verifiedPlan.planId;
+    updatePayload.billing_interval = interval;
+  }
 
   if (!input.subscription.schedule) {
     updatePayload.stripe_scheduled_plan = null;
@@ -128,7 +139,11 @@ export function parseKeysToKeep(value: string | null | undefined) {
 
   try {
     const parsed = JSON.parse(value);
-    return Array.isArray(parsed) && parsed.every((item) => typeof item === "string") ? parsed : [];
+    return Array.isArray(parsed)
+      && parsed.length <= 3
+      && parsed.every((item) => typeof item === "string" && isUuid(item))
+      ? parsed
+      : [];
   } catch {
     return [];
   }
@@ -137,6 +152,11 @@ export function parseKeysToKeep(value: string | null | undefined) {
 export function buildSubscriptionDeletedProfilePayload(now = new Date()) {
   return {
     plan: "Hobby",
+    stripe_subscription_id: null,
+    billing_interval: null,
+    billing_next_date: null,
+    stripe_scheduled_plan: null,
+    stripe_scheduled_plan_date: null,
     updated_at: now.toISOString(),
   };
 }

@@ -109,6 +109,10 @@ export function buildAccountAccess(input: {
         keyType: key.key_type,
         isActive: key.is_active ?? true,
         monthlyLimit: key.monthly_limit ?? null,
+        alertThreshold: key.alert_threshold ?? null,
+        alertChannels: (key.alert_channels || []).filter(
+          (channel): channel is "in-page" | "email" => channel === "in-page" || channel === "email",
+        ),
         ip: null,
         location: null,
         lastSeenAt: key.created_at ?? null,
@@ -170,5 +174,6 @@ export function buildAccountAccess(input: {
     currentBrowser,
     apiKeys,
     recentRequests,
+    emailAlertsAvailable: false,
   };
 }

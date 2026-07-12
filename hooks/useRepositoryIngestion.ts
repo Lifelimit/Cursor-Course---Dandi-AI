@@ -123,9 +123,10 @@ const updateLogEntries = (entries: LogEntry[], id: string, updates: Partial<LogE
       {
         id,
         label: updates.label || "",
-        duration: updates.duration || 0,
+        duration: updates.duration,
         status: updates.status || "pending",
         timestamp: Date.now(),
+        source: updates.source || "response-derived",
         ...updates,
       } as LogEntry,
     ];
@@ -335,26 +336,22 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
     const controller = new AbortController();
     ingestionControllerRef.current = controller;
 
-    const maskedKey = apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`;
+    const maskedKey = "$DANDI_API_KEY";
     const repoPath = getRepoPath(githubUrl);
-    const selectedKeyName = apiKeys.find((key) => key.key_value === apiKey)?.name || "Custom Key";
 
-    const startTime = getPerformanceNow();
     let jobAccepted = false;
 
     setIndexedLogState("auth", {
-      label: "Authentication Check",
+      label: "Request authorization",
+      source: "response-derived",
       status: "pending",
-      method: "POST",
-      url: "/api/keys/validate",
-      requestHeaders: { "Content-Type": "application/json", "x-api-key": maskedKey },
-      requestBody: { apiKey: maskedKey },
     });
 
     try {
       const crawlStartTime = getPerformanceNow();
       setIndexedLogState("repo_fetch", {
         label: "Create Ingestion Job",
+        source: "client-observed",
         status: "pending",
         method: "POST",
         url: "/api/rag/ingest",
@@ -375,15 +372,18 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
       const data = (await res.json()) as IngestionResponse;
 
       if (!res.ok) {
+        setIndexedLogState("repo_fetch", {
+          status: "error",
+          duration: Math.round(getPerformanceNow() - crawlStartTime),
+          statusCode: res.status,
+          statusText: res.statusText,
+          responseHeaders: { "Content-Type": res.headers.get("content-type") || "application/json" },
+          responseBody: data,
+        });
         setIndexedLogState("auth", {
           status: res.status === 401 || res.status === 403 ? "error" : "success",
-          duration: Math.round(getPerformanceNow() - startTime),
-          statusCode: res.status === 401 || res.status === 403 ? res.status : 200,
-          statusText: res.status === 401 || res.status === 403 ? "Rejected" : "OK",
-          responseHeaders: { "Content-Type": "application/json" },
-          responseBody: res.status === 401 || res.status === 403
-            ? { valid: false, error: data.error || "API key validation failed." }
-            : { valid: true, key_name: selectedKeyName, permissions: ["rag:write"] },
+          statusText: res.status === 401 || res.status === 403 ? "Rejected by API" : "Request reached API",
+          responseBody: { derivedFromStatus: res.status },
         });
         throw new Error(data.error || "Failed to ingest repository");
       }
@@ -391,20 +391,17 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
       jobAccepted = true;
       setIndexedLogState("auth", {
         status: "success",
-        duration: Math.round(getPerformanceNow() - startTime),
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: { "Content-Type": "application/json" },
-        responseBody: { valid: true, key_name: selectedKeyName, permissions: ["rag:write"] },
+        statusText: "Request accepted",
+        responseBody: { derivedFromStatus: res.status },
       });
       applyDurableJobState(toIngestionJobSummary(data, githubUrl));
 
       setIndexedLogState("repo_fetch", {
         status: "success",
         duration: Math.round(getPerformanceNow() - crawlStartTime),
-        statusCode: 200,
-        statusText: "OK",
-        responseHeaders: { "Content-Type": "application/json" },
+        statusCode: res.status,
+        statusText: res.statusText,
+        responseHeaders: { "Content-Type": res.headers.get("content-type") || "application/json" },
         responseBody: {
           success: true,
           jobId: data.jobId,
@@ -415,12 +412,12 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
 
       const embeddingStartTime = getPerformanceNow();
       setIndexedLogState("ai_processing", {
-        label: "Run Repository Ingestion",
+        label: "Job status polling",
+        source: "client-observed",
         status: "pending",
         method: "GET",
-        url: "/api/rag/ingest",
-        requestHeaders: { "Content-Type": "application/json" },
-        requestBody: { jobId: data.jobId, status: data.status },
+        url: `/api/rag/ingest?jobId=${encodeURIComponent(data.jobId as string)}`,
+        requestHeaders: { "x-api-key": maskedKey },
       });
 
       let completedJob = data;
@@ -475,9 +472,9 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
         statusText: "OK",
         responseHeaders: { "Content-Type": "application/json" },
         responseBody: {
-          message: "pgvector tables initialized, cosine index updated.",
-          dimension: 768,
-          indexType: "HNSW",
+          jobId: data.jobId,
+          status: completedJob.status,
+          currentStep: completedJob.currentStep,
           filesCount: completedJob.filesCount,
           chunksCount: completedJob.chunksCount,
           indexedFileCount: completedJob.indexedFileCount,

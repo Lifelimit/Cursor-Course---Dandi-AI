@@ -150,10 +150,10 @@ export function useKeyLimitEditor({
     setError(null);
 
     try {
-      const res = await fetch("/api/usage/alert", {
+      const res = await fetch(`/api/keys/${target.keyId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyId: target.keyId, monthlyLimit: parsedLimit }),
+        body: JSON.stringify({ monthlyLimit: parsedLimit }),
       });
 
       if (mode === "silent") {
