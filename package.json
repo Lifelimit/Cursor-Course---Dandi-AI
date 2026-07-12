@@ -12,6 +12,7 @@
     "lint": "eslint",
     "typecheck": "rm -rf .next && tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
+    "external:readiness": "node scripts/external-validation.mjs",
     "ci:check": "bash scripts/validate.sh"
   },
   "dependencies": {

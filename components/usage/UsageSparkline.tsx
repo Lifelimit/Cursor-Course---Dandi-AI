@@ -35,6 +35,7 @@ export function UsageSparkline({ data, color = "#10b981", isLoading = false }: {
   }).join(" ");
 
   const fillPoints = `${padding},${height} ${points} ${width - padding},${height}`;
+  const tooltipY = hoveredCoords ? Math.max(34, hoveredCoords.y) : 0;
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!svgRef.current) return;
@@ -61,25 +62,6 @@ export function UsageSparkline({ data, color = "#10b981", isLoading = false }: {
 
   return (
     <div className="relative h-14 w-full group/sparkline">
-      {hoveredIndex !== null && hoveredCoords && (
-        <div 
-          className="absolute z-[30] pointer-events-none rounded-lg bg-zinc-950 text-white text-[8px] font-black uppercase tracking-wider px-2 py-1 shadow-md border border-white/10 -translate-x-1/2 -translate-y-[calc(100%+8px)] transition-all ease-out duration-100"
-          style={{ 
-            left: `${(hoveredCoords.x / width) * 100}%`, 
-            top: `${(hoveredCoords.y / height) * 100}%` 
-          }}
-        >
-          <div className="flex flex-col items-center gap-0.5 min-w-[50px] leading-tight">
-            <span className="opacity-60 text-[6px]">
-              {formatShortDate(data[hoveredIndex].date)}
-            </span>
-            <span className="font-mono">{data[hoveredIndex].count} Req</span>
-          </div>
-          {/* Tooltip arrow */}
-          <div className="absolute left-1/2 bottom-0 w-1.5 h-1.5 bg-zinc-950 rotate-45 -translate-x-1/2 translate-y-1/2 border-r border-b border-white/10" />
-        </div>
-      )}
-
       <svg 
         ref={svgRef}
         viewBox={`0 0 ${width} ${height}`} 
@@ -93,6 +75,18 @@ export function UsageSparkline({ data, color = "#10b981", isLoading = false }: {
             <stop offset="100%" stopColor={color} stopOpacity="0.02" />
           </linearGradient>
         </defs>
+        {hoveredIndex !== null && hoveredCoords && (
+          <g transform={`translate(${hoveredCoords.x} ${tooltipY})`} pointerEvents="none">
+            <rect x="-38" y="-31" width="76" height="24" rx="6" className="fill-zinc-950 stroke-white/10" />
+            <text x="0" y="-20" textAnchor="middle" className="fill-white text-[6px] font-black uppercase tracking-wider">
+              {formatShortDate(data[hoveredIndex].date)}
+            </text>
+            <text x="0" y="-10" textAnchor="middle" className="fill-white font-mono text-[8px] font-bold">
+              {data[hoveredIndex].count} Req
+            </text>
+            <path d="M-3-7 0-4 3-7" className="fill-zinc-950 stroke-white/10" />
+          </g>
+        )}
         <polyline
           fill={`url(#gradient-${gradientId})`}
           points={fillPoints}

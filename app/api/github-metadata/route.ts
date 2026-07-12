@@ -22,7 +22,10 @@ export async function GET(request: Request) {
   };
   if (!isCorsOriginAllowed(request)) return forbiddenCorsResponse(request);
 
-  const rateLimited = await checkRateLimit(request, metadataRateLimit, corsHeaders);
+  const rateLimited = await checkRateLimit(request, metadataRateLimit, corsHeaders, {
+    failClosed: true,
+    outageMessage: "Redis rate-limit outage in github-metadata; blocking the request:",
+  });
   if (rateLimited) return rateLimited;
 
   const { searchParams } = new URL(request.url);

@@ -2,11 +2,13 @@ import type { ValidatedApiKeyData } from "@/types/api-keys";
 
 export type IngestionJobStatus = "queued" | "running" | "completed" | "failed";
 export type IngestionJobStep = "queued" | "cloning" | "analyzing" | "summarizing" | "indexing" | "ready" | "failed";
+export type IngestionCredentialType = "api_key" | "demo";
 
 export type IngestionJob = {
   id: string;
   user_id: string;
   api_key_id: string | null;
+  credential_type: IngestionCredentialType;
   repo_url: string;
   repo_name: string | null;
   status: IngestionJobStatus;

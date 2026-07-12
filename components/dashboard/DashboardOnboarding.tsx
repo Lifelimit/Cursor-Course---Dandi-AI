@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CommandPanel, StatusPill } from "@/components/command";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 
 type DashboardOnboardingProps = {
   hasRepositoryWork: boolean;
@@ -34,7 +35,7 @@ export function DashboardOnboarding({ hasRepositoryWork, hasIndexedRepository, h
           <h2 className="mt-2 text-xl font-bold tracking-tight text-white sm:text-2xl">Build your workspace context</h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">Dandi works best when it has a repository to understand and an index to ground your questions.</p>
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-950 ring-1 ring-white/10 lg:mb-2 lg:w-40" role="progressbar" aria-label="Product workflow setup progress" aria-valuemin={0} aria-valuemax={2} aria-valuenow={productComplete}><div className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300 transition-[width] duration-500" style={{ width: `${productComplete * 50}%` }} /></div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-950 ring-1 ring-white/10 lg:mb-2 lg:w-40" role="progressbar" aria-label="Product workflow setup progress" aria-valuemin={0} aria-valuemax={2} aria-valuenow={productComplete}><ProgressBar value={productComplete * 50} indicatorClassName="text-emerald-300" /></div>
       </div>
 
       <div className="mt-5 grid gap-2.5 md:grid-cols-2">

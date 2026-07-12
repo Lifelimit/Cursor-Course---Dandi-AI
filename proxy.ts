@@ -2,6 +2,27 @@ import { createServerClient } from '@supabase/ssr'
 import { publicEnv } from '@/lib/env'
 import { NextResponse, type NextRequest } from 'next/server'
 
+function getContentSecurityPolicy() {
+  const nonce = Buffer.from(globalThis.crypto.randomUUID()).toString('base64')
+  const isDevelopment = process.env.NODE_ENV === 'development'
+  const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ''};
+    style-src 'self' 'nonce-${nonce}';
+    style-src-attr 'none';
+    img-src 'self' data: https://lh3.googleusercontent.com;
+    font-src 'self';
+    connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com;
+    frame-src 'self' https://js.stripe.com https://hooks.stripe.com;
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+  `.replace(/\s{2,}/g, ' ').trim()
+
+  return { nonce, cspHeader }
+}
+
 export default async function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === "/protected" && request.nextUrl.searchParams.has("key")) {
     const sanitizedUrl = request.nextUrl.clone();
@@ -9,8 +30,13 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.redirect(sanitizedUrl);
   }
 
+  const { nonce, cspHeader } = getContentSecurityPolicy()
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('Content-Security-Policy', cspHeader)
+
   let supabaseResponse = NextResponse.next({
-    request,
+    request: { headers: requestHeaders },
   })
 
   const supabase = createServerClient(
@@ -23,8 +49,9 @@ export default async function proxy(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          requestHeaders.set('cookie', request.cookies.toString())
           supabaseResponse = NextResponse.next({
-            request,
+            request: { headers: requestHeaders },
           })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -71,6 +98,7 @@ export default async function proxy(request: NextRequest) {
   // If this is not done, you may be causing the browser and server to go out
   // of sync and terminate the user's session prematurely!
 
+  supabaseResponse.headers.set('Content-Security-Policy', cspHeader)
   return supabaseResponse
 }
 

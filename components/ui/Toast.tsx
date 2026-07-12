@@ -25,56 +25,6 @@ export function Toast({ toast }: { toast: ToastState }) {
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes toast-slide-in {
-          0% {
-            transform: translateY(24px) scale(0.95);
-            opacity: 0;
-          }
-          60% {
-            transform: translateY(-4px) scale(1.02);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(0) scale(1);
-            opacity: 1;
-          }
-        }
-        @keyframes toast-slide-out {
-          0% {
-            transform: translateY(0) scale(1);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(16px) scale(0.95);
-            opacity: 0;
-          }
-        }
-        @keyframes stroke-draw {
-          to {
-            stroke-dashoffset: 0;
-          }
-        }
-        @keyframes scale-up {
-          0% { transform: scale(0.8); opacity: 0; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        .animate-toast-in {
-          animation: toast-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        .animate-toast-out {
-          animation: toast-slide-out 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        .animate-stroke {
-          stroke-dasharray: 20;
-          stroke-dashoffset: 20;
-          animation: stroke-draw 0.35s cubic-bezier(0.4, 0, 0.2, 1) 0.15s forwards;
-        }
-        .animate-icon-scale {
-          animation: scale-up 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        }
-      `}} />
-
       <div className="pointer-events-none fixed bottom-4 left-4 right-4 z-[9999] flex flex-col items-stretch sm:bottom-6 sm:left-auto sm:right-6 sm:items-end">
         <div
           role={isSuccess ? "status" : "alert"}

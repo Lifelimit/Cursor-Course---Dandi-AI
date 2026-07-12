@@ -4,7 +4,7 @@ import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { validateChatMessages } from "@/lib/request-validation";
 import { getApiKeyFromRequest, invalidJsonResponse, jsonError, missingApiKeyResponse, readGitHubRepoUrl, readJsonBody } from "@/lib/api-request";
 import { googleProvider } from "@/lib/services/ai.service";
-import { getApiKeyDataOwnerId, validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
+import { ApiKeyQuotaError, getApiKeyDataOwnerId, reserveApiKeyUsage, validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
 import { assertPublicRepositoryForRag, GitHubPublicRepositoryCheckError, GitHubPublicRepositoryRequiredError } from "@/lib/services/github.service";
 import { getEmbeddingModel, googleEmbed, isGeminiEmbeddingRateLimitError } from "@/lib/services/google-gemini.service";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -65,7 +65,10 @@ export async function POST(request: Request) {
   try {
     if (!isCorsOriginAllowed(request)) return forbiddenCorsResponse(request);
 
-    const rateLimited = await checkRateLimit(request, chatRateLimit, corsHeaders);
+    const rateLimited = await checkRateLimit(request, chatRateLimit, corsHeaders, {
+      failClosed: true,
+      outageMessage: "Redis rate-limit outage in rag-chat; blocking the request:",
+    });
     if (rateLimited) return rateLimited;
 
     let body: Record<string, unknown>;
@@ -86,6 +89,13 @@ export async function POST(request: Request) {
     try {
       keyData = await validateApiKey(apiKey);
     } catch (keyError) {
+      if (keyError instanceof ApiKeyQuotaError) {
+        return jsonError(
+          { error: keyError.code === "unavailable" ? "Usage quota is temporarily unavailable. Please retry shortly." : "Request limit exceeded for this API key or workspace." },
+          keyError.code === "unavailable" ? 503 : 403,
+          corsHeaders,
+        );
+      }
       const errorMessage = (keyError as Error).message;
       const status = errorMessage.includes("limit exceeded") ? 403 : 401;
       return jsonError(
@@ -105,6 +115,16 @@ export async function POST(request: Request) {
     }
 
     await assertPublicRepositoryForRag(githubUrl);
+    try {
+      await reserveApiKeyUsage(keyData);
+    } catch (quotaError) {
+      const error = quotaError instanceof ApiKeyQuotaError ? quotaError : new ApiKeyQuotaError("unavailable");
+      return jsonError(
+        { error: error.code === "unavailable" ? "Usage quota is temporarily unavailable. Please retry shortly." : "Request limit exceeded for this API key or workspace." },
+        error.code === "unavailable" ? 503 : 403,
+        corsHeaders,
+      );
+    }
     const dataOwnerId = getApiKeyDataOwnerId(keyData);
     const embeddingModel = await getRepositoryEmbeddingModel(githubUrl, dataOwnerId);
     const embedding = await googleEmbed(userQuery, { models: [embeddingModel] });

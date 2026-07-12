@@ -7,6 +7,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { SidebarAlerts } from "./SidebarAlerts";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { formatRequestCount } from "@/lib/format";
 import { ROUTES } from "@/lib/routes";
 
@@ -138,12 +139,6 @@ export function Sidebar({
     usageTone === "warning" ? "Review usage" :
     isUnlimited ? "No monthly cap" :
     "Usage healthy";
-  const progressColor =
-    usageTone === "unknown" ? "from-slate-700 to-slate-600" :
-    usageTone === "critical" ? "from-rose-500 via-red-500 to-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.35)]" :
-    usageTone === "warning" ? "from-amber-400 via-orange-400 to-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.35)]" :
-    "from-emerald-500 via-cyan-500 to-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.3)]";
-
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
@@ -429,9 +424,9 @@ export function Sidebar({
             ? `${formatRequestCount(resolvedTotalUsage)} requests used, ${formatRequestCount(usageRemaining ?? 0)} remaining${isUsageStale ? ". Last available snapshot." : ""}`
             : undefined}
         >
-          <div
-            className={`h-full rounded-full bg-gradient-to-r transition-all duration-500 ${progressColor}`}
-            style={{ width: `${!hasUsage ? 0 : isUnlimited ? 100 : usagePct}%` }}
+          <ProgressBar
+            value={!hasUsage ? 0 : isUnlimited ? 100 : usagePct}
+            indicatorClassName={usageTone === "unknown" ? "text-slate-600" : usageTone === "critical" ? "text-rose-400" : usageTone === "warning" ? "text-amber-400" : "text-emerald-400"}
           />
         </div>
 

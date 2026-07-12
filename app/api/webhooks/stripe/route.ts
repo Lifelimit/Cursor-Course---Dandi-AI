@@ -4,13 +4,69 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { serverEnv } from "@/lib/env";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getPlanForSubscription } from "@/lib/billing-catalog";
+import { getEntitledPlanForSubscription } from "@/lib/billing-catalog";
 import {
   buildSubscriptionDeletedProfilePayload,
   buildWebhookSubscriptionUpdatePayload,
-  isDuplicateWebhookEventError,
   parseKeysToKeep,
 } from "@/lib/services/stripe-billing-flow.service";
+
+const WEBHOOK_PROCESSING_LEASE_MS = 10 * 60 * 1000;
+
+async function claimWebhookEvent(eventId: string) {
+  const { data, error } = await supabaseAdmin.rpc("claim_stripe_webhook_event", {
+    p_event_id: eventId,
+    p_lease_until: new Date(Date.now() + WEBHOOK_PROCESSING_LEASE_MS).toISOString(),
+  });
+
+  if (error) {
+    console.error("Stripe webhook idempotency claim failed.");
+    return { error: true, claimed: false, processed: false };
+  }
+
+  const decision = Array.isArray(data) ? data[0] : data;
+  return {
+    error: false,
+    claimed: decision?.claimed === true,
+    processed: decision?.processed === true,
+    lockToken: typeof decision?.lock_token === "string" ? decision.lock_token : null,
+  };
+}
+
+async function markWebhookEventProcessed(eventId: string, lockToken: string) {
+  const { data, error } = await supabaseAdmin
+    .from("stripe_webhook_events")
+    .update({
+      status: "processed",
+      processed_at: new Date().toISOString(),
+      locked_until: null,
+      lock_token: null,
+      last_error: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", eventId)
+    .eq("status", "processing")
+    .eq("lock_token", lockToken)
+    .select("id")
+    .maybeSingle();
+
+  if (error || !data) throw new Error("Webhook completion marker update failed.");
+}
+
+async function markWebhookEventFailed(eventId: string, lockToken: string) {
+  await supabaseAdmin
+    .from("stripe_webhook_events")
+    .update({
+      status: "failed",
+      locked_until: null,
+      lock_token: null,
+      last_error: "Stripe webhook processing failed.",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", eventId)
+    .eq("status", "processing")
+    .eq("lock_token", lockToken);
+}
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -28,19 +84,19 @@ export async function POST(req: Request) {
     return new NextResponse("Invalid webhook signature.", { status: 400 });
   }
 
-  // IDEMPOTENCY CHECK: Ensure we don't process the same event twice
-  const { error: idempotencyError } = await supabaseAdmin
-    .from("stripe_webhook_events")
-    .insert({ id: event.id });
-
-  if (idempotencyError) {
-    // 23505 is the Postgres code for unique_violation
-    if (isDuplicateWebhookEventError(idempotencyError)) {
-      console.info("Duplicate Stripe webhook event skipped.");
-      return NextResponse.json({ received: true });
-    }
-    console.error("Stripe webhook idempotency check failed.");
+  const claim = await claimWebhookEvent(event.id);
+  if (claim.error) {
     return new NextResponse("Webhook idempotency check failed.", { status: 500 });
+  }
+  if (claim.processed) {
+    console.info("Duplicate Stripe webhook event skipped.");
+    return NextResponse.json({ received: true });
+  }
+  if (!claim.claimed) {
+    return new NextResponse("Webhook event is already being processed.", { status: 409 });
+  }
+  if (!claim.lockToken) {
+    return new NextResponse("Webhook idempotency lease was not issued.", { status: 500 });
   }
 
   try {
@@ -94,6 +150,7 @@ export async function POST(req: Request) {
             if (isDuplicate) {
               console.warn("Duplicate Stripe payment method detected; detaching the duplicate.");
               await stripe.paymentMethods.detach(pmId);
+              await markWebhookEventProcessed(event.id, claim.lockToken);
               return NextResponse.json({ received: true, duplicate: true });
             }
             
@@ -121,7 +178,7 @@ export async function POST(req: Request) {
         // Handle subscription events (checkout or update)
         const subscriptionId = (isSubscriptionEvent ? (sessionOrSub as Stripe.Subscription).id : (sessionOrSub as Stripe.Checkout.Session).subscription) as string;
         const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription;
-        const verifiedPlan = getPlanForSubscription(subscription);
+        const verifiedPlan = getEntitledPlanForSubscription(subscription);
         if (!verifiedPlan) {
           console.warn("Stripe subscription has an unknown price; the profile plan was not changed.");
         }
@@ -190,6 +247,7 @@ export async function POST(req: Request) {
         throw new Error("Webhook profile update failed.");
       }
 
+      await markWebhookEventProcessed(event.id, claim.lockToken);
       return NextResponse.json({ received: true });
     }
 
@@ -199,10 +257,35 @@ export async function POST(req: Request) {
       const metadata = subscription.metadata || {};
       const keysToKeep = parseKeysToKeep(metadata.keys_to_keep);
 
-      // 1. Downgrade profile to Hobby
+      // A customer can have more than one subscription. Do not downgrade the
+      // profile or deactivate paid-plan keys while another active/trialing
+      // subscription still grants an entitlement.
+      const activeSubscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "all",
+        limit: 100,
+      });
+      const replacementSubscription = activeSubscriptions.data
+        .filter((candidate) => candidate.id !== subscription.id)
+        .map((candidate) => ({
+          subscription: candidate,
+          plan: getEntitledPlanForSubscription(candidate),
+        }))
+        .find((candidate) => candidate.plan);
+
+      const replacementPayload = replacementSubscription?.plan
+        ? buildWebhookSubscriptionUpdatePayload({
+            customerId,
+            subscriptionId: replacementSubscription.subscription.id,
+            subscription: replacementSubscription.subscription,
+            verifiedPlan: replacementSubscription.plan,
+          })
+        : buildSubscriptionDeletedProfilePayload();
+
+      // 1. Apply the remaining paid entitlement, or downgrade to Hobby.
       let query = supabaseAdmin
         .from("profiles")
-        .update(buildSubscriptionDeletedProfilePayload());
+        .update(replacementPayload);
 
       if (metadata.userId) {
         query = query.eq("id", metadata.userId);
@@ -219,10 +302,11 @@ export async function POST(req: Request) {
         throw new Error("Webhook profile update failed.");
       }
 
-      // 2. Deactivate excess keys
+      // 2. Deactivate excess keys only after the customer has lost all paid
+      // entitlements. A replacement paid subscription keeps its key policy.
       const userId = profile.id;
-      
-      if (keysToKeep.length > 0) {
+
+      if (!replacementSubscription && keysToKeep.length > 0) {
         const { error: keysError } = await supabaseAdmin
           .from("api_keys")
           .update({ is_active: false })
@@ -232,7 +316,7 @@ export async function POST(req: Request) {
           console.error("Stripe webhook API-key deactivation failed.");
           throw new Error("Webhook API-key update failed.");
         }
-      } else {
+      } else if (!replacementSubscription) {
         const { data: allKeys, error: fetchKeysError } = await supabaseAdmin
           .from("api_keys")
           .select("id")
@@ -258,16 +342,14 @@ export async function POST(req: Request) {
         }
       }
 
+      await markWebhookEventProcessed(event.id, claim.lockToken);
       return NextResponse.json({ received: true });
     }
-    
+    await markWebhookEventProcessed(event.id, claim.lockToken);
     return new NextResponse(null, { status: 200 });
   } catch {
-    console.error("Stripe webhook processing failed; clearing its idempotency marker.");
-    await supabaseAdmin
-      .from("stripe_webhook_events")
-      .delete()
-      .eq("id", event.id);
+    console.error("Stripe webhook processing failed; releasing its idempotency lease.");
+    await markWebhookEventFailed(event.id, claim.lockToken);
 
     return new NextResponse("Webhook processing failed.", { status: 500 });
   }

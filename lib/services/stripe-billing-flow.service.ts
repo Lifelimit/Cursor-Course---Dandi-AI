@@ -105,7 +105,7 @@ export function buildWebhookSubscriptionUpdatePayload(input: {
   const updatePayload: Record<string, unknown> = {
     stripe_customer_id: input.customerId,
     updated_at: (input.now ?? new Date()).toISOString(),
-    plan: input.verifiedPlan?.planId,
+    plan: input.verifiedPlan?.planId ?? "Hobby",
     stripe_subscription_id: input.subscriptionId,
     billing_interval: interval,
     payment_method_last4: input.paymentMethodDetails?.last4,

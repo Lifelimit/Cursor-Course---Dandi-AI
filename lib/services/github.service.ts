@@ -196,6 +196,24 @@ export async function fetchRepositoryDataWithAuth(input: {
     ]);
     return { readmeContent, metadata };
   } catch {
+    const publicFallbackToken = getServerEnv().GITHUB_TOKEN;
+
+    // An optional server token may retry only after the repository visibility
+    // probe confirms `private: false`. It is never used as a blind private-data
+    // fallback; authorized private reads still require the installation flow.
+    if (publicFallbackToken) {
+      try {
+        await assertPublicRepositoryForRag(input.githubUrl, publicFallbackToken);
+        const [readmeContent, metadata] = await Promise.all([
+          fetchGitHubReadme(input.githubUrl, publicFallbackToken),
+          fetchGitHubMetadata(input.githubUrl, publicFallbackToken, metadataOptions),
+        ]);
+        return { readmeContent, metadata };
+      } catch {
+        // Continue to the private authorization path below.
+      }
+    }
+
     // 2. Public fetch failed. Resolve access for private retry
     const { resolveGitHubRepoAccessForSummary } = await import("./github-app.service");
     const access = await resolveGitHubRepoAccessForSummary({

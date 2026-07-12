@@ -80,13 +80,11 @@ export function DashboardPageHeader({
   return (
     <header className="min-w-0">
       <div
-        className="dandi-surface-elevated dandi-intensity-elevated relative isolate min-w-0 overflow-hidden rounded-[24px] border p-5 backdrop-blur-xl sm:p-8 md:rounded-[32px]"
-        style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
+        className="dandi-mask-radial dandi-surface-elevated dandi-intensity-elevated relative isolate min-w-0 overflow-hidden rounded-[24px] border p-5 backdrop-blur-xl sm:p-8 md:rounded-[32px]"
       >
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-px overflow-hidden rounded-[23px] md:rounded-[31px]"
-          style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)" }}
+          className="dandi-mask-radial pointer-events-none absolute inset-px overflow-hidden rounded-[23px] md:rounded-[31px]"
         >
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/70 to-transparent" />
           <div className="absolute inset-y-0 right-0 w-1/2 opacity-35 [background-image:linear-gradient(rgba(52,211,153,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(52,211,153,0.14)_1px,transparent_1px)] [background-size:18px_18px] [mask-image:linear-gradient(90deg,transparent,black)]" />

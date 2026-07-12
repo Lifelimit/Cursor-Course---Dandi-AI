@@ -82,3 +82,11 @@ export function getPlanForSubscription(subscription: Stripe.Subscription): PaidP
   const priceId = subscription.items?.data?.[0]?.price?.id;
   return getPlanForPriceId(priceId);
 }
+
+export function getEntitledPlanForSubscription(subscription: Stripe.Subscription): PaidPlanRequest | null {
+  if (subscription.status !== "active" && subscription.status !== "trialing") {
+    return null;
+  }
+
+  return getPlanForSubscription(subscription);
+}

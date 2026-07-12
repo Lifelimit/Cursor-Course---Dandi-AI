@@ -1,13 +1,12 @@
-import type { ReactNode, CSSProperties, HTMLAttributes } from "react";
+import type { ReactNode, HTMLAttributes } from "react";
 import { cx } from "./utils";
 
-export type CommandPanelProps = HTMLAttributes<HTMLDivElement> & {
+export type CommandPanelProps = Omit<HTMLAttributes<HTMLDivElement>, "style"> & {
   children: ReactNode;
   tone?: "default" | "elevated" | "solid" | "danger";
   padding?: "sm" | "md" | "lg" | "none";
   interactive?: boolean;
   className?: string;
-  style?: CSSProperties;
 };
 
 const toneClasses: Record<NonNullable<CommandPanelProps["tone"]>, string> = {
@@ -30,12 +29,12 @@ export function CommandPanel({
   padding = "md",
   interactive = false,
   className,
-  style,
   ...props
 }: CommandPanelProps) {
   return (
     <div
       className={cx(
+        "dandi-mask-radial",
         "dandi-type-interface min-w-0 overflow-hidden rounded-[24px] border backdrop-blur-xl md:rounded-[32px]",
         toneClasses[tone],
         paddingClasses[padding],
@@ -43,7 +42,6 @@ export function CommandPanel({
           "dandi-transition hover:-translate-y-0.5 hover:border-[var(--command-border-bright)] hover:shadow-[var(--dandi-glow-elevated)] focus-within:border-[var(--command-border-bright)]",
         className,
       )}
-      style={{ WebkitMaskImage: "-webkit-radial-gradient(white, black)", ...style }}
       {...props}
     >
       {children}

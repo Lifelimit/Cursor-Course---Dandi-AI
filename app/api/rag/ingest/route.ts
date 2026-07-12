@@ -26,7 +26,10 @@ export async function GET(request: Request) {
   const corsHeaders = getCorsHeaders(request, corsOptions);
   if (!isCorsOriginAllowed(request)) return forbiddenCorsResponse(request);
 
-  const rateLimited = await checkRateLimit(request, ingestStatusRateLimit, corsHeaders);
+  const rateLimited = await checkRateLimit(request, ingestStatusRateLimit, corsHeaders, {
+    failClosed: true,
+    outageMessage: "Redis rate-limit outage in rag-ingest status; blocking the request:",
+  });
   if (rateLimited) return rateLimited;
 
   const { searchParams } = new URL(request.url);
@@ -69,7 +72,10 @@ export async function POST(request: Request) {
   const corsHeaders = getCorsHeaders(request, corsOptions);
   if (!isCorsOriginAllowed(request)) return forbiddenCorsResponse(request);
 
-  const rateLimited = await checkRateLimit(request, ingestRateLimit, corsHeaders);
+  const rateLimited = await checkRateLimit(request, ingestRateLimit, corsHeaders, {
+    failClosed: true,
+    outageMessage: "Redis rate-limit outage in rag-ingest; blocking the request:",
+  });
   if (rateLimited) return rateLimited;
 
   let body: Record<string, unknown>;

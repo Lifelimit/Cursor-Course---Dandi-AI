@@ -34,7 +34,10 @@ export async function GET(request: Request) {
   const corsHeaders = getCorsHeaders(request, corsOptions);
   if (!isCorsOriginAllowed(request)) return forbiddenCorsResponse(request);
 
-  const rateLimited = await checkRateLimit(request, jobsRateLimit, corsHeaders);
+  const rateLimited = await checkRateLimit(request, jobsRateLimit, corsHeaders, {
+    failClosed: true,
+    outageMessage: "Redis rate-limit outage in rag-jobs; blocking the request:",
+  });
   if (rateLimited) return rateLimited;
 
   const { searchParams } = new URL(request.url);

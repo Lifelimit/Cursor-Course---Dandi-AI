@@ -25,10 +25,12 @@ export async function checkRateLimit(
   options: {
     errorBody?: Record<string, unknown>;
     outageMessage?: string;
+    key?: string;
+    failClosed?: boolean;
   } = {},
 ) {
   try {
-    const { success, limit, remaining, reset } = await limiter.limit(getRequestIp(request));
+    const { success, limit, remaining, reset } = await limiter.limit(options.key ?? getRequestIp(request));
     if (success) return null;
 
     return Response.json(
@@ -44,7 +46,19 @@ export async function checkRateLimit(
       }
     );
   } catch (error) {
-    console.error(options.outageMessage ?? "⚠️ Redis rate-limit outage (failing open):", error);
+    console.error(options.outageMessage ?? `⚠️ Redis rate-limit outage (${options.failClosed ? "failing closed" : "failing open"}):`, error);
+    if (options.failClosed) {
+      return Response.json(
+        options.errorBody ?? { error: "This operation is temporarily unavailable. Please try again shortly." },
+        {
+          status: 503,
+          headers: {
+            ...headers,
+            "Retry-After": "60",
+          },
+        },
+      );
+    }
     return null;
   }
 }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 import { assertCanActivateKeys, getUserPlan } from "@/lib/services/api-key-limits.service";
-import { getJsonObject, parseApiKeySettings } from "@/lib/request-validation";
+import { getJsonObject, getSafeApiKeyValidationError, parseApiKeySettings } from "@/lib/request-validation";
 import { isUuid } from "@/lib/security-core";
 
 export async function PATCH(request: Request) {
@@ -80,10 +80,14 @@ export async function PATCH(request: Request) {
       .eq("id", keyId)
       .eq("user_id", userId);
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      return NextResponse.json({ error: "Failed to update usage alerts." }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 400 });
+    const safeMessage = getSafeApiKeyValidationError(err, "Failed to update usage alerts.");
+    const unauthorized = err instanceof Error && /unauthorized/i.test(err.message);
+    return NextResponse.json({ error: unauthorized ? "Unauthorized" : safeMessage }, { status: unauthorized ? 401 : safeMessage === "Failed to update usage alerts." ? 500 : 400 });
   }
 }

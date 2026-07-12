@@ -502,6 +502,7 @@ test("webhook test helpers pin public destinations and sanitize delivery details
     assert.equal(redirectResult.success, false);
     assert.equal(redirectResult.delivery.status, 302);
     assert.equal(requestOptions.length, 1, "redirect destinations must never be followed");
+    assert.equal(requestOptions[0].options.headers["X-Dandi-Signature-Version"], "1");
 
     const connectedAddress = await new Promise((resolve, reject) => {
       requestOptions[0].options.lookup("rebind.example", { all: false }, (error, address, family) => {
@@ -513,6 +514,55 @@ test("webhook test helpers pin public destinations and sanitize delivery details
   } finally {
     httpModule.request = originalRequest;
   }
+});
+
+test("production webhook delivery has a durable lease, retry, circuit, and history contract", () => {
+  const deliveryService = readFileSync(resolve(repoRoot, "lib/services/webhook-delivery.service.ts"), "utf8");
+  const workerRoute = readFileSync(resolve(repoRoot, "app/api/internal/webhook-delivery/route.ts"), "utf8");
+  const historyRoute = readFileSync(resolve(repoRoot, "app/api/profile/webhook-deliveries/route.ts"), "utf8");
+  const migration = readFileSync(resolve(repoRoot, "supabase/migrations/20260712_create_webhook_delivery_queue.sql"), "utf8");
+  const profileRoute = readFileSync(resolve(repoRoot, "app/api/profile/route.ts"), "utf8");
+  const accountSource = readFileSync(resolve(repoRoot, "app/account/AccountClient.tsx"), "utf8");
+  const webhookPanelSource = readFileSync(resolve(repoRoot, "components/account/AccountDeliveryLogsPanel.tsx"), "utf8");
+  const envSource = readFileSync(resolve(repoRoot, "lib/env.ts"), "utf8");
+  const vercelConfig = readFileSync(resolve(repoRoot, "vercel.json"), "utf8");
+  const apiKeySource = readFileSync(resolve(repoRoot, "lib/services/api-key.service.ts"), "utf8");
+
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.webhook_deliveries/);
+  assert.match(migration, /endpoint_url text NOT NULL/);
+  assert.match(migration, /FOR UPDATE OF d SKIP LOCKED/);
+  assert.match(migration, /d\.status = 'processing' AND \(d\.locked_until IS NULL OR d\.locked_until <= now\(\)\)/);
+  assert.match(migration, /lock_token uuid/);
+  assert.match(migration, /webhook_failure_count integer NOT NULL DEFAULT 0/);
+  assert.match(migration, /webhook_disabled_until timestamptz/);
+  assert.match(migration, /status IN \('pending', 'processing', 'succeeded', 'failed', 'cancelled'\)/);
+  assert.match(migration, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(migration, /REVOKE ALL ON TABLE public\.webhook_deliveries FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.claim_webhook_deliveries/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.record_webhook_delivery_outcome/);
+  assert.match(migration, /webhook_failure_count \+ 1/);
+  assert.match(migration, /make_interval\(secs/);
+
+  assert.match(deliveryService, /PRODUCTION_WEBHOOK_EVENT = "dandi\.usage_threshold_exceeded"/);
+  assert.match(deliveryService, /enqueueProductionWebhookEvent/);
+  assert.match(deliveryService, /sendSignedWebhookDelivery/);
+  assert.match(deliveryService, /rpc\("claim_webhook_deliveries"/);
+  assert.match(deliveryService, /rpc\("record_webhook_delivery_outcome"/);
+  assert.match(deliveryService, /WEBHOOK_DELIVERY_MAX_ATTEMPTS = 8/);
+  assert.match(deliveryService, /WEBHOOK_FAILURE_THRESHOLD = 5/);
+  assert.match(deliveryService, /endpoint_url: profile\.webhook_url/);
+  assert.match(deliveryService, /profile\.webhook_url !== delivery\.endpoint_url/);
+  assert.doesNotMatch(deliveryService, /webhook_secret:\s*profile/);
+  assert.match(workerRoute, /CRON_SECRET/);
+  assert.match(workerRoute, /Bearer /);
+  assert.match(workerRoute, /deliverPendingWebhooks/);
+  assert.match(historyRoute, /getWebhookDeliveryHistory/);
+  assert.match(profileRoute, /updateData\.webhook_failure_count = 0/);
+  assert.match(accountSource, /fetch\("\/api\/profile\/webhook-deliveries"\)/);
+  assert.match(webhookPanelSource, /production alert deliveries/i);
+  assert.match(envSource, /CRON_SECRET: optionalString/);
+  assert.match(vercelConfig, /\/api\/internal\/webhook-delivery/);
+  assert.match(apiKeySource, /enqueueProductionWebhookEvent/);
 });
 
 test("webhook signing secrets are strong, one-time disclosures with metadata-only routine reads", () => {
@@ -540,6 +590,8 @@ test("webhook signing secrets are strong, one-time disclosures with metadata-onl
   assert.match(profileSource, /\.\.\.\(newWebhookSecret \? \{ newWebhookSecret \} : \{\}\)/);
   assert.doesNotMatch(profileSource, /webhookSecret:\s*profile\?\.webhook_secret/);
   assert.doesNotMatch(profileSource, /webhookSecret:\s*updatedProfile\?\.webhook_secret/);
+  assert.doesNotMatch(profileSource, /updateData\.github_connected/);
+  assert.doesNotMatch(profileSource, /const \{ fullName, orgSlug, webhookUrl, githubConnected \}/);
   assert.match(profileSource, /"Cache-Control": "no-store, no-cache, must-revalidate"/);
 
   assert.match(rotationSource, /body\.confirm !== true/);
@@ -553,6 +605,48 @@ test("webhook signing secrets are strong, one-time disclosures with metadata-onl
   assert.doesNotMatch(panelSource, /navigator\.clipboard\.writeText\(webhookSecret\)/);
   assert.match(panelSource, /Rotate the signing secret\?/);
   assert.match(panelSource, /shown once/i);
+});
+
+test("webhook test delivery is scoped by authenticated user and fails closed on limiter outages", async () => {
+  const { checkRateLimit } = loadTsModule("lib/rate-limit.ts");
+  const request = new Request("https://dandi.example/api/profile/webhook-test", {
+    headers: {
+      "x-forwarded-for": "203.0.113.44",
+    },
+  });
+
+  let receivedKey = null;
+  const allowed = await checkRateLimit(request, {
+    limit: async (key) => {
+      receivedKey = key;
+      return { success: true, limit: 5, remaining: 4, reset: 123 };
+    },
+  }, {}, { key: "user:user-123", failClosed: true });
+  assert.equal(allowed, null);
+  assert.equal(receivedKey, "user:user-123");
+
+  const blocked = await checkRateLimit(request, {
+    limit: async () => {
+      throw new Error("Redis unavailable");
+    },
+  }, {}, { failClosed: true });
+  assert.equal(blocked.status, 503);
+  assert.equal(blocked.headers.get("Retry-After"), "60");
+  assert.deepEqual(await blocked.json(), {
+    error: "This operation is temporarily unavailable. Please try again shortly.",
+  });
+
+  const routeSource = readFileSync(resolve(repoRoot, "app/api/profile/webhook-test/route.ts"), "utf8");
+  assert.match(routeSource, /createIpRateLimit\("@upstash\/ratelimit:webhook-test", 5, "60 s"\)/);
+  assert.match(routeSource, /key: `user:\$\{userId\}`/);
+  assert.match(routeSource, /failClosed: true/);
+  assert.match(routeSource, /origin !== new URL\(request\.url\)\.origin/);
+  assert.match(routeSource, /Content-Type must be application\/json/);
+  assert.match(routeSource, /body\.confirm !== true/);
+  assert.match(routeSource, /if \(rateLimited\) return rateLimited/);
+
+  const accountSource = readFileSync(resolve(repoRoot, "app/account/AccountClient.tsx"), "utf8");
+  assert.match(accountSource, /fetch\("\/api\/profile\/webhook-test", \{[\s\S]*Content-Type.*application\/json[\s\S]*confirm: true/);
 });
 
 test("computes configurable CORS headers", () => {
@@ -727,6 +821,87 @@ test("validates API key settings against plan limits", () => {
   );
 });
 
+test("sensitive API routes do not expose database or rate-limit error details", () => {
+  const keyRoutes = [
+    "app/api/keys/route.ts",
+    "app/api/keys/[id]/route.ts",
+    "app/api/keys/bulk-delete/route.ts",
+    "app/api/usage/alert/route.ts",
+    "app/api/account/environments/route.ts",
+  ].map((relativePath) => readFileSync(resolve(repoRoot, relativePath), "utf8"));
+
+  for (const source of keyRoutes) {
+    assert.doesNotMatch(source, /NextResponse\.json\(\{ error: error\.message \}/);
+    assert.doesNotMatch(source, /NextResponse\.json\(\{ error: \(err as Error\)\.message \}/);
+  }
+});
+
+test("reserves API usage atomically and fails closed when Redis is unavailable", async () => {
+  const apiKeyFilename = resolve(repoRoot, "lib/services/api-key.service.ts");
+  const redisFilename = resolve(repoRoot, "lib/redis.ts");
+  const originalApiKeyModule = moduleCache.get(apiKeyFilename);
+  const originalRedisModule = moduleCache.get(redisFilename);
+  let evalImplementation = async () => [1, 0, 8, 3];
+  const fakeRedis = {
+    eval: async (script, keys, args) => evalImplementation(script, keys, args),
+  };
+  moduleCache.delete(apiKeyFilename);
+  moduleCache.set(redisFilename, { exports: { redis: fakeRedis } });
+  const { reserveApiKeyUsage, ApiKeyQuotaError } = loadTsModule("lib/services/api-key.service.ts");
+  const keyData = {
+    id: "key-123",
+    name: "Production",
+    usage_count: 2,
+    monthly_limit: 1000,
+    user_id: "user-123",
+    key_type: "production",
+    plan: "Hobby",
+  };
+
+  try {
+    let scriptArgs = null;
+    evalImplementation = async (script, keys, args) => {
+      scriptArgs = { script, keys, args };
+      return [1, 0, 8, 3];
+    };
+
+    const reservation = await reserveApiKeyUsage(keyData);
+    assert.deepEqual(reservation, { userUsage: 8, keyUsage: 3 });
+    assert.equal(keyData.usage_count, 3);
+    assert.deepEqual(scriptArgs.keys, [
+      `usage:user:user-123:${new Date().toISOString().slice(0, 7)}`,
+      `usage:key:key-123:${new Date().toISOString().slice(0, 7)}`,
+    ]);
+    assert.equal(scriptArgs.args[0], "1000");
+    assert.equal(scriptArgs.args[1], "1000");
+
+    evalImplementation = async () => [0, 2, 1000, 1000];
+    await assert.rejects(
+      () => reserveApiKeyUsage({ ...keyData }),
+      (error) => error instanceof ApiKeyQuotaError && error.code === "key_limit",
+    );
+
+    evalImplementation = async () => {
+      throw new Error("Redis unavailable");
+    };
+    await assert.rejects(
+      () => reserveApiKeyUsage({ ...keyData }),
+      (error) => error instanceof ApiKeyQuotaError && error.code === "unavailable",
+    );
+
+    evalImplementation = async () => [1, 0];
+    await assert.rejects(
+      () => reserveApiKeyUsage({ ...keyData }),
+      (error) => error instanceof ApiKeyQuotaError && error.code === "unavailable",
+    );
+  } finally {
+    if (originalApiKeyModule) moduleCache.set(apiKeyFilename, originalApiKeyModule);
+    else moduleCache.delete(apiKeyFilename);
+    if (originalRedisModule) moduleCache.set(redisFilename, originalRedisModule);
+    else moduleCache.delete(redisFilename);
+  }
+});
+
 test("preserves unlimited Researcher key limits", () => {
   const { getPlanLimits, PLAN_DETAILS } = loadTsModule("lib/constants.ts");
 
@@ -735,8 +910,8 @@ test("preserves unlimited Researcher key limits", () => {
   assert.equal(getPlanLimits("Hobby").keyLimit, 3);
 });
 
-test("resolves paid plans only when plan and price match the server catalog", () => {
-  const { resolvePaidPlanRequest, getPlanForPriceId } = loadTsModule("lib/billing-catalog.ts");
+test("resolves paid plans only when plan, price, and subscription status match the server catalog", () => {
+  const { resolvePaidPlanRequest, getEntitledPlanForSubscription, getPlanForPriceId } = loadTsModule("lib/billing-catalog.ts");
 
   assert.deepEqual(resolvePaidPlanRequest({ planId: "Premium", priceId: "price_premium_year" }), {
     planId: "Premium",
@@ -745,6 +920,12 @@ test("resolves paid plans only when plan and price match the server catalog", ()
   });
   assert.equal(resolvePaidPlanRequest({ planId: "Researcher", priceId: "price_premium_year" }), null);
   assert.deepEqual(getPlanForPriceId("price_researcher_month"), {
+    planId: "Researcher",
+    interval: "month",
+    priceId: "price_researcher_month",
+  });
+  assert.equal(getEntitledPlanForSubscription({ status: "past_due", items: { data: [{ price: { id: "price_researcher_month" } }] } }), null);
+  assert.deepEqual(getEntitledPlanForSubscription({ status: "active", items: { data: [{ price: { id: "price_researcher_month" } }] } }), {
     planId: "Researcher",
     interval: "month",
     priceId: "price_researcher_month",
@@ -801,6 +982,32 @@ test("formats Stripe route billing profile payloads and errors", async () => {
   assert.deepEqual(await unmaskedResponse.json(), { error: "Stripe exploded" });
 });
 
+test("Stripe webhook claims are lease-based and server-role-only", () => {
+  const webhookRoute = readFileSync(resolve(repoRoot, "app/api/webhooks/stripe/route.ts"), "utf8");
+  const idempotencyMigration = readFileSync(resolve(repoRoot, "supabase/migrations/20260712_harden_stripe_webhook_idempotency.sql"), "utf8");
+  const subscribeRoute = readFileSync(resolve(repoRoot, "app/api/stripe/subscribe/route.ts"), "utf8");
+  const deletePaymentRoute = readFileSync(resolve(repoRoot, "app/api/stripe/delete-payment/route.ts"), "utf8");
+
+  assert.match(webhookRoute, /rpc\("claim_stripe_webhook_event"/);
+  assert.match(webhookRoute, /lockToken/);
+  assert.match(webhookRoute, /eq\("lock_token", lockToken\)/);
+  assert.match(webhookRoute, /status: "processed"/);
+  assert.match(webhookRoute, /status: "failed"/);
+  assert.match(webhookRoute, /stripe\.subscriptions\.list\(\{[\s\S]*status: "all"/);
+  assert.match(webhookRoute, /replacementSubscription/);
+  assert.match(webhookRoute, /if \(!replacementSubscription && keysToKeep\.length > 0\)/);
+  assert.doesNotMatch(webhookRoute, /\.from\("stripe_webhook_events"\)\s*\.delete/);
+  assert.match(idempotencyMigration, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(idempotencyMigration, /REVOKE ALL ON TABLE public\.stripe_webhook_events FROM anon, authenticated/);
+  assert.match(idempotencyMigration, /SECURITY DEFINER/);
+  assert.match(idempotencyMigration, /ADD COLUMN IF NOT EXISTS lock_token uuid/);
+  assert.match(idempotencyMigration, /RETURNS TABLE\(claimed boolean, processed boolean, lock_token uuid\)/);
+  assert.match(idempotencyMigration, /REVOKE ALL ON FUNCTION public\.claim_stripe_webhook_event/);
+  assert.match(subscribeRoute, /getEntitledPlanForSubscription\(subscription\)/);
+  assert.match(subscribeRoute, /No paid entitlement was granted/);
+  assert.doesNotMatch(deletePaymentRoute, /maskServerError:\s*false/);
+});
+
 test("resolves subscription SCA and billing payload helpers", () => {
   const {
     buildSubscriptionDeletedProfilePayload,
@@ -855,7 +1062,7 @@ test("resolves subscription SCA and billing payload helpers", () => {
     paymentMethodDetails: { brand: "visa", last4: "4242", expiry: "12/2030" },
     now: new Date("2026-06-03T10:00:00.000Z"),
   });
-  assert.equal(webhookPayload.plan, undefined);
+  assert.equal(webhookPayload.plan, "Hobby");
   assert.equal(webhookPayload.stripe_customer_id, "cus_123");
   assert.equal(webhookPayload.billing_interval, "year");
 
@@ -1500,7 +1707,7 @@ test("request-created data ownership never uses the shared demo metering identit
   assert.match(chatRoute, /const dataOwnerId = getApiKeyDataOwnerId\(keyData\)/);
   assert.match(chatRoute, /p_user_id: dataOwnerId/);
   assert.match(ingestionService, /user_id: ownerId/);
-  assert.match(ingestionService, /Demo credentials must be carried from the validated request/);
+  assert.match(ingestionService, /credential_type === "demo"/);
   assert.match(ingestionService, /if \(!job\.api_key_id\) return null/);
   assert.match(ingestionService, /getApiKeyDataOwnerId\(requestKeyData\) === job\.user_id/);
   assert.match(ingestionService, /requestKeyData\.id === "demo-id"/);
@@ -1509,6 +1716,20 @@ test("request-created data ownership never uses the shared demo metering identit
     readFileSync(resolve(repoRoot, "app/api/rag/ingest/route.ts"), "utf8"),
     /runIngestionJob\(job\.id, telemetry, keyData\)/
   );
+});
+
+test("ingestion jobs carry a durable credential discriminator and cleanup is scoped to the legacy demo owner", () => {
+  const ingestionService = readFileSync(resolve(repoRoot, "lib/services/ingestion-job.service.ts"), "utf8");
+  const migration = readFileSync(resolve(repoRoot, "supabase/migrations/20260712_demo_credential_discriminator_cleanup.sql"), "utf8");
+
+  assert.match(ingestionService, /credential_type: input\.keyData\.id === "demo-id" \? "demo" : "api_key"/);
+  assert.match(ingestionService, /job\.credential_type === "demo"/);
+  assert.match(ingestionService, /credential_type: job\.credential_type/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS credential_type text NOT NULL DEFAULT 'api_key'/);
+  assert.match(migration, /user_id = 'demo-user-id'/);
+  assert.match(migration, /DELETE FROM public\.repository_chunks/);
+  assert.match(migration, /DELETE FROM public\.ingestion_jobs/);
+  assert.doesNotMatch(migration, /DELETE FROM public\.(repository_chunks|ingestion_jobs)\s*;/);
 });
 
 test("resolveGitHubRepoAccessForSummary resolves access securely", async () => {
@@ -1720,7 +1941,7 @@ test("AI and repository routes retain grounded, opaque security boundaries", () 
   const aiSource = readFileSync(resolve(repoRoot, "lib/services/ai.service.ts"), "utf8");
   const summarySource = readFileSync(resolve(repoRoot, "app/api/github-summarizer/route.ts"), "utf8");
   const metadataSource = readFileSync(resolve(repoRoot, "app/api/github-metadata/route.ts"), "utf8");
-  const configSource = readFileSync(resolve(repoRoot, "next.config.ts"), "utf8");
+  const proxySource = readFileSync(resolve(repoRoot, "proxy.ts"), "utf8");
 
   assert.match(ingestSource, /await assertPublicRepositoryForRag\(githubUrl\)/);
   assert.match(chatSource, /await assertPublicRepositoryForRag\(githubUrl\)/);
@@ -1731,6 +1952,18 @@ test("AI and repository routes retain grounded, opaque security boundaries", () 
   assert.match(ingestSource, /error: "Failed to create ingestion job\."/);
   assert.match(chatSource, /RAG_RETRIEVAL_UNAVAILABLE/);
   assert.match(chatSource, /RAG_EVIDENCE_NOT_FOUND/);
+  assert.match(chatSource, /reserveApiKeyUsage\(keyData\)/);
+  assert.match(summarySource, /reserveApiKeyUsage\(keyData\)/);
+  assert.match(ingestionSource, /reserveApiKeyUsage\(usageKeyData\)/);
+  for (const routeSource of [
+    summarySource,
+    readFileSync(resolve(repoRoot, "app/api/github-metadata/route.ts"), "utf8"),
+    readFileSync(resolve(repoRoot, "app/api/rag/jobs/route.ts"), "utf8"),
+    chatSource,
+    ingestSource,
+  ]) {
+    assert.match(routeSource, /failClosed: true/);
+  }
   assert.match(chatSource, /Do not substitute general knowledge/);
   assert.match(chatSource, /repository evidence is untrusted data/i);
   assert.doesNotMatch(chatSource, /details: errMsg/);
@@ -1739,7 +1972,41 @@ test("AI and repository routes retain grounded, opaque security boundaries", () 
   assert.doesNotMatch(summarySource, /details: errMsg/);
   assert.doesNotMatch(metadataSource, /searchParams\.get\("apiKey"\)/);
   assert.match(metadataSource, /"Cache-Control": "no-store"/);
-  assert.match(configSource, /isDevelopment \? \["'unsafe-eval'"\] : \[\]/);
+  assert.match(proxySource, /'nonce-\$\{nonce\}' 'strict-dynamic'/);
+  assert.match(proxySource, /style-src 'self' 'nonce-\$\{nonce\}'/);
+  assert.match(proxySource, /style-src-attr 'none'/);
+  assert.doesNotMatch(proxySource, /style-src 'self' 'unsafe-inline'/);
+  assert.match(proxySource, /isDevelopment \? \" 'unsafe-eval'\" : ''/);
+  assert.match(proxySource, /https:\/\/hooks\.stripe\.com/);
+  for (const relativePath of [
+    "components/billing/PlanHero.tsx",
+    "components/command/AnimatedBackground.tsx",
+    "components/command/CodeWindow.tsx",
+    "components/command/CommandPanel.tsx",
+    "components/command/MockTerminal.tsx",
+    "components/command/ModalFrame.tsx",
+    "components/command/ScrollFrame.tsx",
+    "components/command/TabsBar.tsx",
+    "components/dashboard/DashboardOnboarding.tsx",
+    "components/dashboard/DashboardPageHeader.tsx",
+    "components/dashboard/Sidebar.tsx",
+    "components/dashboard/SidebarAlerts.tsx",
+    "components/dashboard/subscription/KeyDowngradeSelector.tsx",
+    "components/playground/ApiKeyDropdown.tsx",
+    "components/playground/NetworkLog.tsx",
+    "components/playground/RepositoryRequestBuilder.tsx",
+    "components/ui/SkeletonBlocks.tsx",
+    "components/usage/UsageIntelligenceDashboard.tsx",
+    "components/usage/UsageSparkline.tsx",
+  ]) {
+    const source = readFileSync(resolve(repoRoot, relativePath), "utf8");
+    assert.doesNotMatch(source, /\bstyle\s*=/, `${relativePath} must not emit inline style attributes`);
+    assert.doesNotMatch(source, /\.style\./, `${relativePath} must not mutate inline styles`);
+  }
+  assert.doesNotMatch(readFileSync(resolve(repoRoot, "components/ui/Toast.tsx"), "utf8"), /dangerouslySetInnerHTML/);
+  assert.doesNotMatch(readFileSync(resolve(repoRoot, "components/playground/NetworkLog.tsx"), "utf8"), /dangerouslySetInnerHTML/);
+  assert.match(readFileSync(resolve(repoRoot, "app/globals.css"), "utf8"), /@keyframes toast-slide-in/);
+  assert.match(readFileSync(resolve(repoRoot, "app/globals.css"), "utf8"), /@keyframes pulse-flow/);
   assert.equal(existsSync(resolve(repoRoot, "app/api/log/route.ts")), false);
   assert.doesNotMatch(
     readFileSync(resolve(repoRoot, "components/dashboard/SidebarAlerts.tsx"), "utf8"),
@@ -1798,6 +2065,19 @@ test("GitHub summary metadata can skip release and tag lookup on the hot path", 
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("GitHub public quota fallback uses a server token only after visibility is verified", () => {
+  const githubSource = readFileSync(resolve(repoRoot, "lib/services/github.service.ts"), "utf8");
+  const ingestionSource = readFileSync(resolve(repoRoot, "lib/services/ingestion-job.service.ts"), "utf8");
+
+  assert.match(githubSource, /publicFallbackToken = getServerEnv\(\)\.GITHUB_TOKEN/);
+  assert.match(githubSource, /assertPublicRepositoryForRag\(input\.githubUrl, publicFallbackToken\)/);
+  assert.match(githubSource, /fetchGitHubReadme\(input\.githubUrl, publicFallbackToken\)/);
+  assert.match(githubSource, /Continue to the private authorization path below/);
+  assert.match(ingestionSource, /const publicFetchToken = getServerEnv\(\)\.GITHUB_TOKEN/);
+  assert.match(ingestionSource, /fetchGitHubRepoTree\(job\.repo_url, branch, publicFetchToken\)/);
+  assert.match(ingestionSource, /fetchRawFileContent\(job\.repo_url, branch, file\.path, publicFetchToken\)/);
 });
 
 test("GitHub App reconnect after local disconnect verifies and recreates the local record", async () => {
@@ -1944,6 +2224,8 @@ test("GitHub App uninstall endpoint and service behave securely and handle clean
 
   // 2. Verify DELETE /api/integrations/github/installation/uninstall performs GitHub-side uninstall
   assert.match(uninstallRouteSrc, /uninstallGitHubAppInstallationForUser/);
+  assert.match(uninstallRouteSrc, /getSafeGitHubAppErrorMessage/);
+  assert.match(localDeleteRouteSrc, /getSafeGitHubAppErrorMessage/);
 
   // 3. Verify uninstall route ignores any client-sent installation_id
   // The route should resolve user.id first and should not read or parse installation_id from Request body/payload.

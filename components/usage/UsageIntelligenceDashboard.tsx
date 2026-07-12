@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CommandPanel, StatusPill, type StatusPillProps } from "@/components/command";
 import { GuidedError } from "@/components/ui/GuidedError";
 import { ProgressiveListFooter } from "@/components/ui/ProgressiveListFooter";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { formatDuration, formatJobDateTime, formatLongDate, formatPercentage, formatRepositoryLabel, formatRequestCount } from "@/lib/format";
 import { getErrorGuidance } from "@/lib/error-guidance";
 import { getIngestionStatusTone } from "@/lib/status-tones";
@@ -139,14 +140,31 @@ function QuotaHero({ currentData, currentPlan, currentLimit, isUnlimited, remain
                 <div className="mt-3 h-3 overflow-hidden rounded-full border border-cyan-300/20 bg-cyan-300/5"><div className="h-full w-full rounded-full bg-[repeating-linear-gradient(135deg,rgba(103,232,249,0.55)_0,rgba(103,232,249,0.55)_8px,rgba(103,232,249,0.15)_8px,rgba(103,232,249,0.15)_16px)]" /></div>
               ) : (
                 <div className="mt-3 h-3 overflow-hidden rounded-full border border-white/10 bg-slate-950/70">
-                  <div className={`h-full rounded-full transition-all duration-700 ${quotaTone === "danger" ? "bg-gradient-to-r from-rose-400 to-rose-300" : quotaTone === "warning" ? "bg-gradient-to-r from-amber-400 to-emerald-300" : "bg-gradient-to-r from-emerald-400 via-emerald-300 to-cyan-300"}`} style={{ width: `${Math.max(usagePct, totalUsage > 0 ? 1 : 0)}%` }} />
+                  <ProgressBar
+                    value={Math.max(usagePct, totalUsage > 0 ? 1 : 0)}
+                    indicatorClassName={quotaTone === "danger" ? "text-rose-300" : quotaTone === "warning" ? "text-amber-300" : "text-emerald-300"}
+                  />
                 </div>
               )}
             </div>
           </div>
 
           <div className="relative mx-auto flex h-40 w-40 items-center justify-center rounded-full border border-white/10 bg-slate-950/50 shadow-[inset_0_0_40px_rgba(52,211,153,0.08)]">
-            <div className={`absolute inset-2 rounded-full border-[6px] ${isUnlimited ? "border-cyan-300/30" : quotaTone === "danger" ? "border-rose-300/70" : quotaTone === "warning" ? "border-amber-300/70" : "border-emerald-300/70"}`} style={!isUnlimited ? { clipPath: `inset(0 ${100 - Math.min(usagePct, 100)}% 0 0)` } : undefined} />
+            <svg aria-hidden="true" className="absolute inset-2 h-[calc(100%-1rem)] w-[calc(100%-1rem)] -rotate-90" viewBox="0 0 100 100">
+              <circle
+                className={isUnlimited ? "text-cyan-300/30" : quotaTone === "danger" ? "text-rose-300/70" : quotaTone === "warning" ? "text-amber-300/70" : "text-emerald-300/70"}
+                cx="50"
+                cy="50"
+                fill="none"
+                pathLength="100"
+                r="46"
+                stroke="currentColor"
+                strokeDasharray="100"
+                strokeDashoffset={isUnlimited ? 0 : 100 - Math.min(usagePct, 100)}
+                strokeLinecap="round"
+                strokeWidth="6"
+              />
+            </svg>
             <div className="text-center">
               <p className="font-mono text-3xl font-black text-white">{isUnlimited ? "∞" : `${Math.round(usagePct)}%`}</p>
               <p className="mt-1 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">{isUnlimited ? "capacity" : "consumed"}</p>
@@ -265,7 +283,7 @@ function RepositoryDemand({ currentData }: { currentData: UsageData }) {
   const repos = (currentData.globalTopRepos || []).slice(0, 6);
   const totalUsage = currentData.totalUsage;
 
-  return <CommandPanel id="repositories" className="scroll-mt-6 p-6 sm:p-8"><SectionHeading eyebrow="Repository demand" title="What is driving usage?" description="Ranked by observed request volume in the current usage window." action={<Link href="/playground?mode=summary" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:text-emerald-200"><span>Open Playground</span><span aria-hidden="true">↗</span></Link>} /><div className="mt-7 space-y-3">{repos.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/40 px-5 py-8 text-center"><p className="text-sm font-bold text-slate-200">No repository usage yet</p><p className="mt-2 text-xs leading-5 text-slate-500">Analyze a repository to start seeing demand patterns here.</p></div> : repos.map((repo, index) => { const share = totalUsage > 0 ? Math.min((repo.count / totalUsage) * 100, 100) : 0; return <a key={repo.repo_url} href={repo.repo_url} target="_blank" rel="noopener noreferrer" className="group block rounded-2xl border border-white/10 bg-slate-950/40 p-4 transition hover:border-emerald-300/25 hover:bg-slate-950/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"><div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><span className="font-mono text-[10px] font-black text-slate-600">{String(index + 1).padStart(2, "0")}</span><span className="min-w-0 truncate text-sm font-bold text-slate-200 group-hover:text-emerald-200">{formatRepositoryLabel(repo.repo_url)}</span></div><span className="shrink-0 font-mono text-xs font-bold tabular-nums text-emerald-200">{formatRequestCount(repo.count)}</span></div><div className="mt-3 flex items-center gap-3"><div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300" style={{ width: `${Math.max(share, 2)}%` }} /></div><span className="w-12 shrink-0 text-right font-mono text-[10px] font-bold tabular-nums text-slate-500">{share < 10 ? share.toFixed(1) : Math.round(share)}%</span></div></a>; })}</div></CommandPanel>;
+  return <CommandPanel id="repositories" className="scroll-mt-6 p-6 sm:p-8"><SectionHeading eyebrow="Repository demand" title="What is driving usage?" description="Ranked by observed request volume in the current usage window." action={<Link href="/playground?mode=summary" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:text-emerald-200"><span>Open Playground</span><span aria-hidden="true">↗</span></Link>} /><div className="mt-7 space-y-3">{repos.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/40 px-5 py-8 text-center"><p className="text-sm font-bold text-slate-200">No repository usage yet</p><p className="mt-2 text-xs leading-5 text-slate-500">Analyze a repository to start seeing demand patterns here.</p></div> : repos.map((repo, index) => { const share = totalUsage > 0 ? Math.min((repo.count / totalUsage) * 100, 100) : 0; return <a key={repo.repo_url} href={repo.repo_url} target="_blank" rel="noopener noreferrer" className="group block rounded-2xl border border-white/10 bg-slate-950/40 p-4 transition hover:border-emerald-300/25 hover:bg-slate-950/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"><div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><span className="font-mono text-[10px] font-black text-slate-600">{String(index + 1).padStart(2, "0")}</span><span className="min-w-0 truncate text-sm font-bold text-slate-200 group-hover:text-emerald-200">{formatRepositoryLabel(repo.repo_url)}</span></div><span className="shrink-0 font-mono text-xs font-bold tabular-nums text-emerald-200">{formatRequestCount(repo.count)}</span></div><div className="mt-3 flex items-center gap-3"><div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10"><ProgressBar value={Math.max(share, 2)} indicatorClassName="text-emerald-300" /></div><span className="w-12 shrink-0 text-right font-mono text-[10px] font-bold tabular-nums text-slate-500">{share < 10 ? share.toFixed(1) : Math.round(share)}%</span></div></a>; })}</div></CommandPanel>;
 }
 
 function getKeyTypeLabel(keyType: string) {
@@ -284,7 +302,7 @@ function CredentialsUsage({ currentData }: { currentData: UsageData }) {
 function CredentialRow({ keyData, totalUsage }: { keyData: UsageKeySummary; totalUsage: number }) {
   const share = totalUsage > 0 ? Math.min((keyData.usage_count / totalUsage) * 100, 100) : 0;
   const limit = keyData.monthly_limit;
-  return <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><div className="flex min-w-0 flex-wrap items-center gap-2"><p className="max-w-[16rem] truncate text-sm font-bold text-white">{keyData.name}</p><StatusPill tone={keyData.is_active ? "success" : "warning"} compact>{keyData.is_active ? "Active" : "Inactive"}</StatusPill></div><p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">{getKeyTypeLabel(keyData.key_type)} · {limit === null ? "No key cap" : `${formatRequestCount(limit)} request cap`}</p></div><div className="text-right"><p className="font-mono text-sm font-black tabular-nums text-slate-200">{formatRequestCount(keyData.usage_count)}</p><p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-600">requests</p></div></div><div className="mt-4 flex items-center gap-3"><div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-violet-300" style={{ width: `${Math.max(share, keyData.usage_count > 0 ? 2 : 0)}%` }} /></div><span className="w-12 shrink-0 text-right font-mono text-[10px] font-bold tabular-nums text-slate-500">{share < 10 ? share.toFixed(1) : Math.round(share)}%</span></div></div>;
+  return <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><div className="flex min-w-0 flex-wrap items-center gap-2"><p className="max-w-[16rem] truncate text-sm font-bold text-white">{keyData.name}</p><StatusPill tone={keyData.is_active ? "success" : "warning"} compact>{keyData.is_active ? "Active" : "Inactive"}</StatusPill></div><p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">{getKeyTypeLabel(keyData.key_type)} · {limit === null ? "No key cap" : `${formatRequestCount(limit)} request cap`}</p></div><div className="text-right"><p className="font-mono text-sm font-black tabular-nums text-slate-200">{formatRequestCount(keyData.usage_count)}</p><p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-600">requests</p></div></div><div className="mt-4 flex items-center gap-3"><div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10"><ProgressBar value={Math.max(share, keyData.usage_count > 0 ? 2 : 0)} indicatorClassName="text-cyan-300" /></div><span className="w-12 shrink-0 text-right font-mono text-[10px] font-bold tabular-nums text-slate-500">{share < 10 ? share.toFixed(1) : Math.round(share)}%</span></div></div>;
 }
 
 function getJobEventDate(job: IngestionJobSummary) {

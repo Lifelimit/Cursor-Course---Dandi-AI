@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
 import { assertCanActivateKeys, getUserPlan } from "@/lib/services/api-key-limits.service";
-import { getJsonObject, parseApiKeySettings } from "@/lib/request-validation";
+import { getJsonObject, getSafeApiKeyValidationError, parseApiKeySettings } from "@/lib/request-validation";
 import { isUuid } from "@/lib/security-core";
 
 const TABLE_NAME = "api_keys";
@@ -104,12 +104,14 @@ export async function PATCH(request: Request, context: RouteContext) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to update API key." }, { status: 500 });
     }
 
     return NextResponse.json(data);
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 400 });
+    const safeMessage = getSafeApiKeyValidationError(err, "Failed to update API key.");
+    const unauthorized = err instanceof Error && /unauthorized/i.test(err.message);
+    return NextResponse.json({ error: unauthorized ? "Unauthorized" : safeMessage }, { status: unauthorized ? 401 : safeMessage === "Failed to update API key." ? 500 : 400 });
   }
 }
 
@@ -128,11 +130,12 @@ export async function DELETE(_request: Request, context: RouteContext) {
       .eq("user_id", userId); // Security: Ensure owner
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to delete API key." }, { status: 500 });
     }
 
     return new NextResponse(null, { status: 204 });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 401 });
+    const unauthorized = err instanceof Error && /unauthorized/i.test(err.message);
+    return NextResponse.json({ error: unauthorized ? "Unauthorized" : "Failed to delete API key." }, { status: unauthorized ? 401 : 500 });
   }
 }

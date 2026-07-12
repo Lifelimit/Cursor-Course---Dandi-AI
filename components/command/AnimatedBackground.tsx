@@ -1,6 +1,5 @@
-import { useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { cx } from "./utils";
-import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 export type CommandShellVariant =
   | "public"
@@ -30,29 +29,8 @@ export function AnimatedBackground({
   className,
   children,
 }: AnimatedBackgroundProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const glowRef = useRef<HTMLDivElement>(null);
-  const reducedMotion = useReducedMotion();
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (reducedMotion || !glowRef.current) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left - 300;
-    const y = e.clientY - rect.top - 300;
-    glowRef.current.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    glowRef.current.style.opacity = "var(--command-mouse-glow-opacity, 0.12)";
-  };
-
-  const handlePointerLeave = () => {
-    if (reducedMotion || !glowRef.current) return;
-    glowRef.current.style.opacity = "0";
-  };
-
   return (
     <div
-      ref={containerRef}
-      onPointerMove={reducedMotion ? undefined : handlePointerMove}
-      onPointerLeave={reducedMotion ? undefined : handlePointerLeave}
       className={cx(
         "command-ambient dandi-surface-ambient relative overflow-hidden",
         intensityClasses[intensity],
@@ -63,10 +41,8 @@ export function AnimatedBackground({
       <div aria-hidden="true" className="command-ambient-radial command-ambient-radial-one pointer-events-none absolute inset-0" />
       <div aria-hidden="true" className="command-ambient-radial command-ambient-radial-two pointer-events-none absolute inset-0" />
       <div
-        ref={glowRef}
         aria-hidden="true"
-        className="command-ambient-spotlight pointer-events-none absolute w-[600px] h-[600px] rounded-full opacity-0"
-        style={{ transform: "translate3d(-9999px, -9999px, 0)" }}
+        className="command-ambient-spotlight pointer-events-none absolute left-1/2 top-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-0"
       />
       <div aria-hidden="true" className="command-ambient-grid pointer-events-none absolute inset-0" />
       <div aria-hidden="true" className="command-ambient-vignette pointer-events-none absolute inset-0" />

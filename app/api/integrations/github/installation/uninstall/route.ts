@@ -4,6 +4,7 @@ import {
   uninstallGitHubAppInstallationForUser,
   GitHubAppApiError,
   GitHubAppPartialFailureError,
+  getSafeGitHubAppErrorMessage,
 } from "@/lib/services/github-app.service";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +41,7 @@ export async function DELETE() {
         {
           success: false,
           partialFailure: true,
-          error: err.message,
+          error: getSafeGitHubAppErrorMessage(err),
         },
         { status: 500 }
       );
@@ -51,18 +52,17 @@ export async function DELETE() {
         {
           success: false,
           partialFailure: false,
-          error: err.message,
+          error: getSafeGitHubAppErrorMessage(err),
         },
         { status: err.status }
       );
     }
 
-    const message = err instanceof Error ? err.message : "Failed to uninstall GitHub App.";
     return NextResponse.json(
       {
         success: false,
         partialFailure: false,
-        error: message,
+        error: getSafeGitHubAppErrorMessage(err),
       },
       { status: 500 }
     );

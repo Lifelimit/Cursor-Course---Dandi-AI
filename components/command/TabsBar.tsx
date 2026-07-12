@@ -59,16 +59,12 @@ export function TabsBar({
         role="tablist"
         aria-label={ariaLabel}
         className={cx(
+          variant === "pills" && "dandi-mask-radial",
           "flex min-w-max snap-x snap-mandatory items-center gap-1.5 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 sm:gap-2",
           variant === "underline" && "border-b border-[var(--command-border)]",
           variant === "pills" &&
             "isolate overflow-hidden rounded-full border border-[var(--command-border)] bg-white/[0.03] p-1",
         )}
-        style={
-          variant === "pills"
-            ? { WebkitMaskImage: "-webkit-radial-gradient(white, black)" }
-            : undefined
-        }
       >
         {tabs.map((tab, index) => {
           const selected = tab.id === activeId;

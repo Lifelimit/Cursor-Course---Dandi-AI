@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 import { SyntaxHighlightedJSON } from "@/components/ui/SyntaxHighlightedJSON";
 import { CopyIconButton } from "@/components/ui/CopyIconButton";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { MockTerminal, StatusPill } from "@/components/command";
 import { getToastErrorMessage } from "@/lib/error-guidance";
 import { formatLocalTime } from "@/lib/format";
@@ -159,48 +160,6 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
  
       {/* Request Progress Stepper Track */}
       <div className="relative overflow-hidden rounded-2xl border border-[var(--command-border)] bg-[var(--command-bg)]/20 px-3 py-6 select-none sm:px-6 md:py-8">
-        {/* Style Block for custom animations */}
-        <style dangerouslySetInnerHTML={{__html: `
-          @keyframes pulse-flow {
-            0% { stroke-dashoffset: 24; }
-            100% { stroke-dashoffset: 0; }
-          }
-          .animate-pulse-flow {
-            animation: pulse-flow 0.8s linear infinite;
-          }
-          @keyframes spin-slow {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-          .animate-spin-slow {
-            animation: spin-slow 8s linear infinite;
-          }
-          @keyframes pulse-ring {
-            0% { transform: scale(0.95); opacity: 0.2; }
-            50% { transform: scale(1.15); opacity: 0.5; }
-            100% { transform: scale(0.95); opacity: 0.2; }
-          }
-          .animate-pulse-ring {
-            animation: pulse-ring 2s ease-in-out infinite;
-          }
-          @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-4px); }
-            75% { transform: translateX(4px); }
-          }
-          .animate-shake {
-            animation: shake 0.3s ease-in-out 2;
-          }
-          @media (prefers-reduced-motion: reduce) {
-            .animate-pulse-flow,
-            .animate-spin-slow,
-            .animate-pulse-ring,
-            .animate-shake {
-              animation: none !important;
-            }
-          }
-        `}} />
- 
         {/* SVG Connector Lines */}
         <svg className="absolute inset-0 h-full w-full pointer-events-none z-0" xmlns="http://www.w3.org/2000/svg">
           {/* Track 1: Auth to Repo Fetch */}
@@ -410,12 +369,9 @@ export function NetworkLog({ logs, onShowToast }: NetworkLogProps) {
                     <div className="flex shrink-0 items-center gap-2 sm:gap-4">
                       {/* Visual Micro Latency Line Bar */}
                       <div className="h-1 w-24 overflow-hidden rounded-full bg-slate-900 hidden md:block">
-                        <div 
-                          className={`h-full rounded-full transition-all duration-1000 ${
-                            log.status === "success" ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" : 
-                            log.status === "error" ? "bg-rose-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]" : "bg-amber-400 animate-pulse"
-                          }`}
-                          style={{ width: `${log.status === "pending" ? 30 : Math.min((log.duration / 1000) * 100, 100)}%` }}
+                        <ProgressBar
+                          value={log.status === "pending" ? 30 : Math.min((log.duration / 1000) * 100, 100)}
+                          indicatorClassName={log.status === "success" ? "text-emerald-500" : log.status === "error" ? "text-rose-500" : "text-amber-400"}
                         />
                       </div>
                       

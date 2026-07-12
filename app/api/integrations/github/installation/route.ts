@@ -5,6 +5,7 @@ import {
   getPrimaryGitHubInstallationForUserWithClient,
   isGitHubAppConfigured,
   removeGitHubInstallationFromDandi,
+  getSafeGitHubAppErrorMessage,
 } from "@/lib/services/github-app.service";
 
 export const dynamic = "force-dynamic";
@@ -62,10 +63,9 @@ export async function GET() {
       githubAppManagementUrl: getGitHubAppManagementUrl(),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load GitHub installation.";
-    const status = message.toLowerCase().includes("configured") ? 503 : 500;
+    const status = err instanceof Error && /configured/i.test(err.message) ? 503 : 500;
     return NextResponse.json(
-      { error: status === 503 ? message : "Failed to load GitHub installation." },
+      { error: status === 503 ? getSafeGitHubAppErrorMessage(err) : "Failed to load GitHub installation." },
       { status }
     );
   }

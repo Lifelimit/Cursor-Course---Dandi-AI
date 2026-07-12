@@ -9,6 +9,8 @@ type AccountWebhooksPanelProps = {
   savedWebhookUrl: string;
   webhookSecretConfigured: boolean;
   webhookSecretLastFour: string | null;
+  webhookFailureCount?: number;
+  webhookDisabledUntil?: string | null;
   newWebhookSecret: string | null;
   isSavingWebhook: boolean;
   isRotatingWebhookSecret: boolean;
@@ -35,6 +37,8 @@ export function AccountWebhooksPanel({
   savedWebhookUrl,
   webhookSecretConfigured,
   webhookSecretLastFour,
+  webhookFailureCount = 0,
+  webhookDisabledUntil = null,
   newWebhookSecret,
   isSavingWebhook,
   isRotatingWebhookSecret,
@@ -64,14 +68,24 @@ export function AccountWebhooksPanel({
   const maskedSigningSecret = webhookSecretLastFour
     ? `whsec_dandi_••••••••••••••••••••${webhookSecretLastFour}`
     : "whsec_dandi_••••••••••••••••••••";
+  const circuitOpen = Boolean(webhookDisabledUntil);
 
   return (
     <CommandPanel id="account-webhooks-panel" role="tabpanel" aria-labelledby="webhooks-tab" tone="elevated" className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
       <div className="space-y-1">
         <p className="dandi-type-metadata text-cyan-200/75">Event delivery plane</p>
         <h3 className="dandi-type-display text-3xl font-bold tracking-tight text-white sm:text-4xl">Webhooks</h3>
-        <p className="max-w-2xl text-sm leading-6 text-slate-400">Configure the endpoint Dandi uses for alert deliveries, send a real test, and inspect recent delivery history.</p>
+        <p className="max-w-2xl text-sm leading-6 text-slate-400">Configure the endpoint Dandi uses for signed alert deliveries, send a real test, and inspect recent delivery history.</p>
       </div>
+
+      {circuitOpen && (
+        <div className="rounded-2xl border border-amber-300/20 bg-amber-500/10 p-4" role="status">
+          <p className="text-sm font-bold text-amber-100">Automatic delivery is paused</p>
+          <p className="mt-1 text-xs leading-5 text-amber-100/75">
+            Dandi paused this endpoint after {webhookFailureCount} retryable failures. Delivery will resume after {new Date(webhookDisabledUntil as string).toLocaleString()} or when you save a corrected endpoint.
+          </p>
+        </div>
+      )}
 
       <form onSubmit={onSubmit} className="max-w-xl space-y-6">
         <div className="space-y-2">
@@ -192,6 +206,7 @@ export function AccountWebhooksPanel({
 Host: your-api-endpoint.com
 Content-Type: application/json
 X-Dandi-Signature: [hidden]
+X-Dandi-Signature-Version: 1
 X-Dandi-Event: dandi.test_delivery`}
                 </pre>
               </div>

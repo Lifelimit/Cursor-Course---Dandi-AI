@@ -6,7 +6,7 @@ import { resolvePlan } from "@/lib/constants";
 import crypto from "crypto";
 import { hmacHash } from "@/lib/services/api-key.service";
 import { assertCanActivateKeys, getUserPlan } from "@/lib/services/api-key-limits.service";
-import { getJsonObject, parseApiKeySettings } from "@/lib/request-validation";
+import { getJsonObject, getSafeApiKeyValidationError, parseApiKeySettings } from "@/lib/request-validation";
 import {
   buildCountOnlyDailyTrend,
   getDisplayUsageCounts,
@@ -42,7 +42,7 @@ export async function GET() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to load API keys." }, { status: 500 });
     }
 
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -74,7 +74,8 @@ export async function GET() {
     if (plan) headers["x-dandi-plan"] = plan;
     return NextResponse.json(mappedKeys, { headers });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 401 });
+    const unauthorized = err instanceof Error && /unauthorized/i.test(err.message);
+    return NextResponse.json({ error: unauthorized ? "Unauthorized" : "Failed to load API keys." }, { status: unauthorized ? 401 : 500 });
   }
 }
 
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to create API key." }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -128,8 +129,9 @@ export async function POST(request: Request) {
       }
     });
   } catch (err) {
-    const message = (err as Error).message;
-    const status = message.includes("active API keys") || message.includes("Monthly limit") ? 400 : 401;
-    return NextResponse.json({ error: message }, { status });
+    const safeMessage = getSafeApiKeyValidationError(err, "Failed to create API key.");
+    const isValidation = safeMessage !== "Failed to create API key.";
+    const unauthorized = err instanceof Error && /unauthorized/i.test(err.message);
+    return NextResponse.json({ error: unauthorized ? "Unauthorized" : safeMessage }, { status: unauthorized ? 401 : isValidation ? 400 : 500 });
   }
 }

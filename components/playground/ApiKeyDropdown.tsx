@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import { createPortal } from "react-dom";
 import type { ApiKey } from "@/types/api";
 
 type ApiKeyDropdownProps = {
@@ -15,13 +14,6 @@ type ApiKeyOption = {
   id: string;
   value: string;
   label: string;
-};
-
-type MenuPosition = {
-  left: number;
-  top: number;
-  width: number;
-  maxHeight: number;
 };
 
 function formatUsage(key: ApiKey) {
@@ -61,7 +53,7 @@ function CheckIcon() {
 export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
-  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
+  const [menuDirection, setMenuDirection] = useState<"above" | "below">("below");
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -93,26 +85,14 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
     return idx === -1 ? 0 : idx;
   }, [options, selectedOption]);
 
-  const updateMenuPosition = () => {
+  const updateMenuDirection = () => {
     const trigger = buttonRef.current;
     if (!trigger) return;
 
     const rect = trigger.getBoundingClientRect();
-    const width = Math.min(288, window.innerWidth - 32);
-    const left = Math.min(Math.max(16, rect.right - width), window.innerWidth - width - 16);
     const availableBelow = Math.max(window.innerHeight - rect.bottom - 24, 0);
     const availableAbove = Math.max(rect.top - 24, 0);
-    const openAbove = availableBelow < 192 && availableAbove > availableBelow;
-    const maxHeight = Math.max(80, Math.min(288, openAbove ? availableAbove : availableBelow));
-    const preferredTop = openAbove ? rect.top - maxHeight - 8 : rect.bottom + 8;
-    const top = Math.min(Math.max(16, preferredTop), Math.max(16, window.innerHeight - maxHeight - 16));
-
-    setMenuPosition({
-      left,
-      top,
-      width,
-      maxHeight,
-    });
+    setMenuDirection(availableBelow < 192 && availableAbove > availableBelow ? "above" : "below");
   };
 
   useEffect(() => {
@@ -136,12 +116,12 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
   useEffect(() => {
     if (!isOpen) return;
 
-    window.addEventListener("resize", updateMenuPosition);
-    window.addEventListener("scroll", updateMenuPosition, true);
+    window.addEventListener("resize", updateMenuDirection);
+    window.addEventListener("scroll", updateMenuDirection, true);
 
     return () => {
-      window.removeEventListener("resize", updateMenuPosition);
-      window.removeEventListener("scroll", updateMenuPosition, true);
+      window.removeEventListener("resize", updateMenuDirection);
+      window.removeEventListener("scroll", updateMenuDirection, true);
     };
   }, [isOpen]);
 
@@ -154,7 +134,7 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
   };
 
   const openMenu = () => {
-    updateMenuPosition();
+    updateMenuDirection();
     setHighlightedIndex(selectedIndex);
     setIsOpen(true);
   };
@@ -242,23 +222,16 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
         <ChevronIcon isOpen={isOpen} />
       </button>
 
-      {isOpen && menuPosition && createPortal(
+      {isOpen && (
         <div
           ref={menuRef}
-          className="fixed z-[9999] overflow-hidden rounded-2xl border border-emerald-300/20 bg-slate-950/95 p-1.5 shadow-[0_18px_60px_rgba(0,0,0,0.45),0_0_36px_rgba(16,185,129,0.14)] backdrop-blur-xl"
-          style={{
-            left: menuPosition.left,
-            top: menuPosition.top,
-            width: menuPosition.width,
-            maxHeight: menuPosition.maxHeight,
-          }}
+          className={`absolute left-0 z-[9999] w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-emerald-300/20 bg-slate-950/95 p-1.5 shadow-[0_18px_60px_rgba(0,0,0,0.45),0_0_36px_rgba(16,185,129,0.14)] backdrop-blur-xl ${menuDirection === "above" ? "bottom-[calc(100%+0.5rem)]" : "top-[calc(100%+0.5rem)]"}`}
         >
           <ul
             id={listboxId}
             role="listbox"
             aria-label="API key quick select"
-            className="overflow-y-auto py-1"
-            style={{ maxHeight: Math.max(menuPosition.maxHeight - 12, 48) }}
+            className="max-h-[calc(100dvh-4rem)] overflow-y-auto py-1"
           >
             {options.map((option, index) => {
               const isSelected = option.id === selectedOption.id;
@@ -295,8 +268,7 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
               );
             })}
           </ul>
-        </div>,
-        document.body,
+        </div>
       )}
     </div>
   );

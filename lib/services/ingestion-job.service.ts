@@ -1,6 +1,6 @@
 import { getRequestTelemetry } from "@/lib/account-environments";
 import { isUuid } from "@/lib/security-core";
-import { getApiKeyDataOwnerId, incrementKeyUsage } from "@/lib/services/api-key.service";
+import { ApiKeyQuotaError, getApiKeyDataOwnerId, incrementKeyUsage, reserveApiKeyUsage } from "@/lib/services/api-key.service";
 import {
   assertPublicRepositoryForRag,
   fetchGitHubBranch,
@@ -13,6 +13,7 @@ import { googleBatchEmbedWithModel, isGeminiEmbeddingRateLimitError } from "@/li
 import { selectRagFiles } from "@/lib/services/rag-file-selection.service";
 import { redis } from "@/lib/redis";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getServerEnv } from "@/lib/env";
 import type { IngestionJob, IngestionJobStep, IngestionKeyData, IngestionJobSummary } from "@/types/rag";
 
 const LOCK_TTL_SEC = 900;
@@ -67,6 +68,12 @@ function sanitizeIngestionError(err: unknown) {
 
   if (isGeminiEmbeddingRateLimitError(err)) {
     return "Gemini embedding rate limit reached during ingestion. Please retry this repository after the quota window resets.";
+  }
+
+  if (err instanceof ApiKeyQuotaError) {
+    return err.code === "unavailable"
+      ? "Usage quota is temporarily unavailable. Retry repository preparation shortly."
+      : "The workspace request allowance has been reached. Upgrade your plan or retry after the quota window resets.";
   }
 
   const message = err instanceof Error ? err.message : String(err);
@@ -168,8 +175,20 @@ async function loadJob(jobId: string) {
 }
 
 async function loadUsageKeyData(job: IngestionJob): Promise<IngestionKeyData | null> {
+  if (job.credential_type === "demo") {
+    return {
+      id: "demo-id",
+      name: "Playground Demo Key",
+      usage_count: 0,
+      monthly_limit: 1000,
+      user_id: "demo-user-id",
+      browserUserId: job.user_id,
+      key_type: "production",
+      plan: "Hobby",
+    };
+  }
+
   // A null FK is ambiguous because deleted regular keys use ON DELETE SET NULL.
-  // Demo credentials must be carried from the validated request, never inferred.
   if (!job.api_key_id) return null;
 
   const { data, error } = await supabaseAdmin
@@ -223,6 +242,7 @@ export async function createIngestionJob(input: {
     .insert({
       user_id: ownerId,
       api_key_id: isUuid(input.keyData.id) ? input.keyData.id : null,
+      credential_type: input.keyData.id === "demo-id" ? "demo" : "api_key",
       repo_url: input.repoUrl,
       repo_name: getRepoName(input.repoUrl),
       status: "queued",
@@ -322,6 +342,8 @@ export async function runIngestionJob(
     }
 
     await assertPublicRepositoryForRag(job.repo_url);
+    await reserveApiKeyUsage(usageKeyData);
+    const publicFetchToken = getServerEnv().GITHUB_TOKEN;
 
     job = await updateJob(job.id, {
       status: "running",
@@ -333,8 +355,8 @@ export async function runIngestionJob(
       started_at: job.started_at ?? new Date().toISOString(),
     });
 
-    const branch = await fetchGitHubBranch(job.repo_url);
-    const tree = await fetchGitHubRepoTree(job.repo_url, branch);
+    const branch = await fetchGitHubBranch(job.repo_url, publicFetchToken);
+    const tree = await fetchGitHubRepoTree(job.repo_url, branch, publicFetchToken);
     job = await updateJob(job.id, {
       current_step: "analyzing",
       repo_name: job.repo_name ?? getRepoName(job.repo_url),
@@ -358,7 +380,7 @@ export async function runIngestionJob(
     const crawlResults = await Promise.all(
       filesToIngest.map(async (file) => {
         try {
-          const text = await fetchRawFileContent(job.repo_url, branch, file.path);
+          const text = await fetchRawFileContent(job.repo_url, branch, file.path, publicFetchToken);
           return { path: file.path, chunks: splitIntoChunks(text, file.path) };
         } catch {
           console.warn("A repository file was skipped during ingestion.");
@@ -386,6 +408,7 @@ export async function runIngestionJob(
         repo_url: job.repo_url,
         user_id: job.user_id,
         api_key_id: job.api_key_id,
+        credential_type: job.credential_type,
         embedding_model: model,
         file_path: chunk.path,
         content: chunk.content,

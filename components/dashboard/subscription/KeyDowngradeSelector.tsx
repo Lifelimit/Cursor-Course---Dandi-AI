@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { GhostButton } from "@/components/ui/ActionButtons";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ApiKey, ApiKeyApiResponse, mapApiKey } from "@/types/api";
 import { formatRequestCount } from "@/lib/format";
 
@@ -150,9 +151,9 @@ export function KeyDowngradeSelector({ isLoading, hasCard, onConfirm, onBack }: 
                   </div>
 
                   <div className="h-1 w-full bg-slate-900 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-1000 ${isSelected ? intensityColor : 'bg-slate-800'}`}
-                      style={{ width: `${usagePercent}%` }}
+                    <ProgressBar
+                      value={usagePercent}
+                      indicatorClassName={isSelected ? (intensityColor.includes("amber") ? "text-amber-400" : "text-emerald-400") : "text-slate-800"}
                     />
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-import { validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
+import { ApiKeyQuotaError, reserveApiKeyUsage, validateApiKey, incrementKeyUsage } from "@/lib/services/api-key.service";
 import { fetchRepositoryDataWithAuth, GitHubAuthError } from "@/lib/services/github.service";
 import { streamGithubSummary } from "@/lib/services/ai.service";
 import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOriginAllowed } from "@/lib/cors";
@@ -24,7 +24,8 @@ export async function POST(request: Request) {
         error: "Too Many Requests",
         details: "You have exceeded the rate limit of 5 requests per minute.",
       },
-      outageMessage: "⚠️ Redis rate-limit outage in github-summarizer (failing open):",
+      outageMessage: "Redis rate-limit outage in github-summarizer; blocking the request:",
+      failClosed: true,
     });
     if (rateLimited) return rateLimited;
 
@@ -47,6 +48,13 @@ export async function POST(request: Request) {
     try {
       keyData = await validateApiKey(apiKey);
     } catch (keyError) {
+      if (keyError instanceof ApiKeyQuotaError) {
+        return jsonError(
+          { error: keyError.code === "unavailable" ? "Usage quota is temporarily unavailable. Please retry shortly." : "Request limit exceeded for this API key or workspace." },
+          keyError.code === "unavailable" ? 503 : 403,
+          corsHeaders,
+        );
+      }
       const errorMessage = (keyError as Error).message;
       const status = errorMessage.includes("limit exceeded") ? 403 : 401;
       return jsonError(
@@ -64,6 +72,17 @@ export async function POST(request: Request) {
         { error: err instanceof Error ? err.message : "Invalid GitHub repository URL." },
         400,
         corsHeaders
+      );
+    }
+
+    try {
+      await reserveApiKeyUsage(keyData);
+    } catch (quotaError) {
+      const error = quotaError instanceof ApiKeyQuotaError ? quotaError : new ApiKeyQuotaError("unavailable");
+      return jsonError(
+        { error: error.code === "unavailable" ? "Usage quota is temporarily unavailable. Please retry shortly." : "Request limit exceeded for this API key or workspace." },
+        error.code === "unavailable" ? 503 : 403,
+        corsHeaders,
       );
     }
 

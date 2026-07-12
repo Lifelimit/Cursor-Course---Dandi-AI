@@ -30,6 +30,25 @@ export function getJsonObject(value: unknown): Record<string, unknown> {
     : {};
 }
 
+const safeApiKeyValidationPatterns = [
+  /^Name is required\.$/i,
+  /^Name must be 100 characters or less\.$/i,
+  /^Monthly limit must /i,
+  /^Alert threshold must /i,
+  /^Alert phone must /i,
+  /^isActive must be a boolean\.$/i,
+  /^Your [\w -]+ plan allows up to \d+ active API keys\.$/i,
+  /^One or more API keys were not found\.$/i,
+  /^Expected between \d+ and \d+ IDs\.$/i,
+  /^All IDs must be valid UUIDs\.$/i,
+  /^No valid updates provided\.$/i,
+];
+
+export function getSafeApiKeyValidationError(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : "";
+  return safeApiKeyValidationPatterns.some((pattern) => pattern.test(message)) ? message : fallback;
+}
+
 export function getPlanLimit(plan: string) {
   return resolvePlan(plan).monthlyRequests;
 }

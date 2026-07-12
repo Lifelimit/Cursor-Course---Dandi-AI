@@ -89,6 +89,7 @@ export function SidebarAlerts({
           const actionText = isMaxed ? "Increase the key limit or upgrade the plan." : "Increase the key limit before traffic is blocked.";
           const isPeeking = peekingKey === alert.id;
           const isFlying = limitEditor.openKeyId === alert.id;
+          const isFlyoutOpen = isFlying && closingKeyId !== alert.id;
           const limitState = limitEditor.getLimitState({
             keyId: alert.id,
             currentLimit: alert.currentLimit,
@@ -245,19 +246,8 @@ export function SidebarAlerts({
               </div>
 
               {/* Horizontal Flyout Increase Form - Desktop Only */}
-              <div 
-                style={{
-                  transitionDuration: "500ms",
-                  transitionTimingFunction: isFlying && closingKeyId !== alert.id
-                    ? "cubic-bezier(0.175, 0.885, 0.32, 1.275)"
-                    : "cubic-bezier(0.6, -0.28, 0.735, 0.045)",
-                  transform: isFlying && closingKeyId !== alert.id
-                    ? "translateX(12px) scale(1)"
-                    : "translateX(-16px) scale(0)",
-                  opacity: isFlying && closingKeyId !== alert.id ? 1 : 0,
-                  pointerEvents: isFlying && closingKeyId !== alert.id ? "auto" : "none",
-                }}
-                className="hidden md:flex absolute left-full top-1/2 z-[110] -translate-y-1/2 items-center transition-all origin-left"
+              <div
+                className={`sidebar-alert-flyout hidden md:flex absolute left-full top-1/2 z-[110] -translate-y-1/2 items-center transition-all origin-left ${isFlyoutOpen ? "sidebar-alert-flyout-open" : "sidebar-alert-flyout-closed"}`}
               >
                 {/* iMessage-Style Tail Connector */}
                 <div className="relative -mr-[1px] z-20 flex items-center h-full">

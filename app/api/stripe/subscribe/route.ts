@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
-import { resolvePaidPlanRequest, getPlanForSubscription } from "@/lib/billing-catalog";
+import { resolvePaidPlanRequest, getEntitledPlanForSubscription, getPlanForSubscription } from "@/lib/billing-catalog";
 import { getJsonObject, validatePaymentMethodId } from "@/lib/request-validation";
 import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
 import { buildSubscriptionProfilePayload, resolveSubscriptionPaymentState } from "@/lib/services/stripe-billing-flow.service";
@@ -57,12 +57,22 @@ export async function POST(req: Request) {
     });
 
     const activeSubscription = subscriptions.data.find(
-      (sub) => sub.status === "active" || sub.status === "trialing" || sub.status === "incomplete"
+      (sub) => sub.status === "active" || sub.status === "trialing"
     ) as Stripe.Subscription & {
       current_period_start: number;
       current_period_end: number;
       schedule?: string | Stripe.SubscriptionSchedule | null;
     };
+
+    const blockedSubscription = subscriptions.data.find(
+      (sub) => sub.status === "incomplete" || sub.status === "incomplete_expired" || sub.status === "past_due" || sub.status === "unpaid" || sub.status === "paused"
+    );
+    if (!activeSubscription && blockedSubscription) {
+      return NextResponse.json(
+        { error: "Your existing subscription needs payment attention before another plan change can begin." },
+        { status: 409 },
+      );
+    }
 
     let subscription: Stripe.Subscription;
     let isScheduled = false;
@@ -184,6 +194,14 @@ export async function POST(req: Request) {
       });
     }
 
+    const entitledPlan = getEntitledPlanForSubscription(subscription);
+    if (!entitledPlan) {
+      return NextResponse.json(
+        { error: "Stripe has not confirmed an active subscription yet. No paid entitlement was granted." },
+        { status: 409 },
+      );
+    }
+
     // 5. Update local database profiles & auth metadata (Successful Checkout / Upgrade)
     let finalPmId = pmId;
     if (!finalPmId) {
@@ -216,8 +234,8 @@ export async function POST(req: Request) {
     }
 
     const activePlanRequest = activeSubscription
-      ? (getPlanForSubscription(activeSubscription) || planRequest)
-      : planRequest;
+      ? (getEntitledPlanForSubscription(activeSubscription) || planRequest)
+      : entitledPlan;
 
     const updatePayload = buildSubscriptionProfilePayload({
       planRequest: activePlanRequest,

@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to load account environments." }, { status: 500 });
     }
 
     const currentMonth = new Date().toISOString().slice(0, 7);
@@ -41,8 +41,7 @@ export async function GET(request: Request) {
       recentRequests: accountAccess.recentRequests,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unauthorized";
-    const status = message.toLowerCase().includes("unauthorized") ? 401 : 500;
-    return NextResponse.json({ error: message }, { status });
+    const unauthorized = err instanceof Error && /unauthorized/i.test(err.message);
+    return NextResponse.json({ error: unauthorized ? "Unauthorized" : "Failed to load account environments." }, { status: unauthorized ? 401 : 500 });
   }
 }

@@ -44,7 +44,7 @@ export function AccountDeliveryLogsPanel({
       <div className="space-y-1">
         <h4 className="text-base font-bold text-white">Delivery logs</h4>
         <p className="max-w-2xl text-xs leading-5 text-zinc-400">
-          Review test deliveries sent from this page. Persisted alert delivery history is not available yet.
+          Review signed test deliveries and production alert deliveries, including retry outcomes and receiver responses.
         </p>
       </div>
 
@@ -52,7 +52,7 @@ export function AccountDeliveryLogsPanel({
         {webhookLogs.length === 0 ? (
           <EmptyState
             title="No webhook deliveries yet."
-            description="Send a test delivery to record the signed request and sanitized endpoint response in this page."
+            description="Send a test delivery to record the signed request and sanitized endpoint response here."
             action={(
               <button
                 type="button"
@@ -145,7 +145,7 @@ export function AccountDeliveryLogsPanel({
                     <EmptyState
                       className="mx-auto max-w-md"
                       title="No webhook deliveries yet."
-                      description="Send a test delivery to record the signed request and sanitized endpoint response in this page."
+                      description="Send a test delivery to record the signed request and sanitized endpoint response here."
                       action={(
                         <button
                           type="button"

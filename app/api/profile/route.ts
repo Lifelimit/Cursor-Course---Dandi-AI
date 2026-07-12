@@ -22,7 +22,7 @@ export async function GET() {
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("plan, full_name, avatar_url, org_slug, webhook_url, webhook_secret, github_connected")
+      .select("plan, full_name, avatar_url, org_slug, webhook_url, webhook_secret, webhook_failure_count, webhook_disabled_until, github_connected")
       .eq("id", user.id)
       .single();
 
@@ -33,6 +33,8 @@ export async function GET() {
       orgSlug: profile?.org_slug || "",
       webhookUrl: profile?.webhook_url || "",
       ...getWebhookSecretMetadata(profile?.webhook_secret),
+      webhookFailureCount: profile?.webhook_failure_count ?? 0,
+      webhookDisabledUntil: profile?.webhook_disabled_until ?? null,
       githubConnected: !!profile?.github_connected
     }, { headers: secretResponseHeaders });
   } catch {
@@ -60,7 +62,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Invalid JSON request body" }, { status: 400 });
     }
 
-    const { fullName, orgSlug, webhookUrl, githubConnected } = body;
+    const { fullName, orgSlug, webhookUrl } = body;
 
     let sanitizedFullName: string | undefined;
     if (fullName !== undefined) {
@@ -120,9 +122,10 @@ export async function PATCH(req: Request) {
 
     let webhookSecret = existingProfile?.webhook_secret || "";
     let newWebhookSecret: string | undefined;
+    let endpointChanged = false;
 
     if (sanitizedWebhookUrl !== undefined) {
-      const endpointChanged = sanitizedWebhookUrl !== (existingProfile?.webhook_url || "").trim();
+      endpointChanged = sanitizedWebhookUrl !== (existingProfile?.webhook_url || "").trim();
       // New receivers get a new secret exactly once. Replacing an endpoint also
       // invalidates the secret held by the previous receiver.
       if (sanitizedWebhookUrl && (!webhookSecret || endpointChanged)) {
@@ -136,21 +139,43 @@ export async function PATCH(req: Request) {
     const updateData: Record<string, unknown> = {};
     if (fullName !== undefined) updateData.full_name = sanitizedFullName;
     if (orgSlug !== undefined) updateData.org_slug = sanitizedOrgSlug;
-    if (sanitizedWebhookUrl !== undefined) updateData.webhook_url = sanitizedWebhookUrl;
-    if (sanitizedWebhookUrl !== undefined) updateData.webhook_secret = webhookSecret;
-    if (githubConnected !== undefined) updateData.github_connected = githubConnected;
+    if (sanitizedWebhookUrl !== undefined) {
+      updateData.webhook_url = sanitizedWebhookUrl;
+      updateData.webhook_secret = webhookSecret;
+      // Saving the endpoint is an explicit operator action: clear a previous
+      // delivery circuit and allow the new configuration to be tried again.
+      updateData.webhook_failure_count = 0;
+      updateData.webhook_disabled_until = null;
+    }
     updateData.updated_at = new Date().toISOString();
 
     const { data: updatedProfile, error } = await supabaseAdmin
       .from("profiles")
       .update(updateData)
       .eq("id", user.id)
-      .select("plan, full_name, avatar_url, org_slug, webhook_url, webhook_secret, github_connected")
+      .select("plan, full_name, avatar_url, org_slug, webhook_url, webhook_secret, webhook_failure_count, webhook_disabled_until, github_connected")
       .single();
 
     if (error) {
       console.error("Failed to update profile settings.");
       return NextResponse.json({ error: "Failed to update profile settings." }, { status: 500 });
+    }
+
+    if (endpointChanged) {
+      const { error: cancelledDeliveryError } = await supabaseAdmin
+        .from("webhook_deliveries")
+        .update({
+          status: "cancelled",
+          last_error: "Webhook endpoint configuration changed before delivery.",
+          locked_until: null,
+          lock_token: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id)
+        .in("status", ["pending", "processing"]);
+      if (cancelledDeliveryError) {
+        console.warn("Failed to cancel queued deliveries for the previous webhook endpoint.");
+      }
     }
 
     return NextResponse.json({
@@ -161,6 +186,8 @@ export async function PATCH(req: Request) {
       orgSlug: updatedProfile?.org_slug || "",
       webhookUrl: updatedProfile?.webhook_url || "",
       ...getWebhookSecretMetadata(updatedProfile?.webhook_secret),
+      webhookFailureCount: updatedProfile?.webhook_failure_count ?? 0,
+      webhookDisabledUntil: updatedProfile?.webhook_disabled_until ?? null,
       ...(newWebhookSecret ? { newWebhookSecret } : {}),
       githubConnected: !!updatedProfile?.github_connected
     }, { headers: secretResponseHeaders });

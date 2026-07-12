@@ -57,6 +57,15 @@ test("authenticated documentation stays in the product shell and states reposito
   assert.match(docs, /Prepare and Ask currently support public repositories only/);
 });
 
+test("external validation is opt-in, read-only, and secret-redacting", async () => {
+  const script = await read("scripts/external-validation.mjs");
+
+  assert.match(script, /process\.argv\.includes\("--probe"\)/);
+  assert.match(script, /no customer, payment, email, AI-generation, or webhook-delivery mutations/i);
+  assert.match(script, /Still intentionally gated/);
+  assert.doesNotMatch(script, /console\.log\([^\n]*(STRIPE_SECRET_KEY|GOOGLE_API_KEY|SUPABASE_SERVICE_ROLE_KEY)/);
+});
+
 test("shared controls expose table, tab, listbox, quota, and contrast semantics", async () => {
   const [apiTables, deliveryTable, deliveryInspector, accountNav, keyDropdown, sidebar, usage, shell, css] = await Promise.all([
     read("components/account/AccountApiKeysPanel.tsx"),
@@ -82,7 +91,8 @@ test("shared controls expose table, tab, listbox, quota, and contrast semantics"
   assert.match(keyDropdown, /role="combobox"/);
   assert.match(keyDropdown, /aria-activedescendant/);
   assert.match(keyDropdown, /event\.key === "Tab"/);
-  assert.match(keyDropdown, /maxHeight: menuPosition\.maxHeight/);
+  assert.match(keyDropdown, /menuDirection === "above"/);
+  assert.match(keyDropdown, /max-h-\[calc\(100dvh-4rem\)\]/);
   assert.match(sidebar, /role=\{hasUsage && !isUnlimited && hasLimit \? "meter" : undefined\}/);
   assert.match(sidebar, /isUsageStale \? "Snapshot stale"/);
   assert.match(usage, /aria-pressed=\{metric === option\}/);
@@ -94,9 +104,10 @@ test("shared controls expose table, tab, listbox, quota, and contrast semantics"
 });
 
 test("hidden API key validation never places credentials in the URL", async () => {
-  const [protectedClient, proxy] = await Promise.all([
+  const [protectedClient, proxy, validationRoute] = await Promise.all([
     read("app/protected/ProtectedClient.tsx"),
     read("proxy.ts"),
+    read("app/api/validate/route.ts"),
   ]);
 
   assert.match(protectedClient, /<form className="mt-10 space-y-3" onSubmit=\{validateKey\}>/);
@@ -105,6 +116,9 @@ test("hidden API key validation never places credentials in the URL", async () =
   assert.doesNotMatch(protectedClient, /useSearchParams|searchParams\.get\("key"\)|hasKeyQueryParam/);
   assert.match(proxy, /pathname === "\/protected" && request\.nextUrl\.searchParams\.has\("key"\)/);
   assert.match(proxy, /sanitizedUrl\.searchParams\.delete\("key"\)/);
+  assert.match(validationRoute, /Redis was unavailable during validation rate limiting; blocking the request/);
+  assert.match(validationRoute, /status: 503/);
+  assert.match(validationRoute, /"Retry-After": "60"/);
 });
 
 test("repository preparation polling is abortable and sleeps while the page is hidden", async () => {

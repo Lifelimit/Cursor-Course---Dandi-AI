@@ -1,6 +1,7 @@
 import type { Dispatch, FormEventHandler, SetStateAction } from "react";
 import { CommandPanel, StatusPill } from "@/components/command";
 import { ApiKeyDropdown } from "@/components/playground/ApiKeyDropdown";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { formatRequestCount } from "@/lib/format";
 import type { ApiKey } from "@/types/api";
 import type { LoadingStageStatus } from "@/components/ui/LoadingStages";
@@ -68,7 +69,7 @@ export function RepositoryRequestBuilder({
             : "Preparing Repository...";
 
   return (
-    <CommandPanel padding="none" className="border-emerald-300/15 bg-slate-950/65 p-5 shadow-[0_22px_70px_rgba(0,0,0,0.18)] sm:p-8">
+    <CommandPanel padding="none" className="!overflow-visible border-emerald-300/15 bg-slate-950/65 p-5 shadow-[0_22px_70px_rgba(0,0,0,0.18)] sm:p-8">
       <form onSubmit={activeTab === "summary" ? handleSummarize : handleIngest} className="space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -150,11 +151,9 @@ export function RepositoryRequestBuilder({
                     </div>
                     {pct !== null && (
                       <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            isOver ? "bg-red-500" : pct > 70 ? "bg-amber-400" : "bg-emerald-500"
-                          }`}
-                          style={{ width: `${pct}%` }}
+                        <ProgressBar
+                          value={pct}
+                          indicatorClassName={isOver ? "text-red-500" : pct > 70 ? "text-amber-400" : "text-emerald-500"}
                         />
                       </div>
                     )}

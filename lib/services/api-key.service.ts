@@ -5,6 +5,51 @@ import crypto from "crypto";
 import { normalizeGitHubRepoUrl } from "@/lib/security-core";
 import { getRequestTelemetry } from "@/lib/account-environments";
 import type { ValidatedApiKeyData } from "@/types/api-keys";
+import { enqueueProductionWebhookEvent } from "@/lib/services/webhook-delivery.service";
+
+const USAGE_RESERVATION_SCRIPT = `
+  local user_key = KEYS[1]
+  local key_key = KEYS[2]
+  local user_limit = tonumber(ARGV[1])
+  local key_limit = tonumber(ARGV[2])
+  local ttl = tonumber(ARGV[3])
+
+  local user_current = tonumber(redis.call("GET", user_key) or "0")
+  local key_current = tonumber(redis.call("GET", key_key) or "0")
+
+  if user_limit >= 0 and user_current >= user_limit then
+    return {0, 1, user_current, key_current}
+  end
+  if key_limit >= 0 and key_current >= key_limit then
+    return {0, 2, user_current, key_current}
+  end
+
+  local user_next = redis.call("INCR", user_key)
+  local key_next = redis.call("INCR", key_key)
+  redis.call("EXPIRE", user_key, ttl)
+  redis.call("EXPIRE", key_key, ttl)
+  return {1, 0, user_next, key_next}
+`;
+
+export type ApiKeyQuotaErrorCode = "key_limit" | "plan_limit" | "unavailable";
+
+export class ApiKeyQuotaError extends Error {
+  constructor(public readonly code: ApiKeyQuotaErrorCode) {
+    super(
+      code === "key_limit"
+        ? "Rate limit exceeded for this API key. Upgrade at dandi.ai"
+        : code === "plan_limit"
+          ? "Monthly usage limit exceeded for your plan. Upgrade at dandi.ai"
+          : "Usage quota is temporarily unavailable. Please retry shortly.",
+    );
+    this.name = "ApiKeyQuotaError";
+  }
+}
+
+export type ApiKeyQuotaReservation = {
+  userUsage: number;
+  keyUsage: number;
+};
 
 /** HMAC-SHA256 hash using the server secret. Used for new key hashing. */
 export function hmacHash(value: string, secret: string): string {
@@ -55,23 +100,10 @@ export async function validateApiKey(keyValue: string) {
       throw new Error("Unauthorized: Active browser session required to use the Demo Key.");
     }
 
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-    const keyUsageKey = `usage:key:demo-id:${currentMonth}`;
-    let currentKeyUsage = 0;
-    try {
-      currentKeyUsage = await redis.get<number>(keyUsageKey).then(v => v || 0);
-    } catch {
-      console.error("Redis was unavailable during the demo usage check; using the fallback policy.");
-    }
-
-    if (currentKeyUsage >= 1000) {
-      throw new Error("Monthly usage limit of 1,000 requests exceeded for the Playground Demo Key.");
-    }
-
     return {
       id: "demo-id",
       name: "Playground Demo Key",
-      usage_count: currentKeyUsage,
+      usage_count: 0,
       monthly_limit: 1000,
       user_id: "demo-user-id",
       browserUserId: activeUser.id,
@@ -149,43 +181,58 @@ export async function validateApiKey(keyValue: string) {
   const resolved = resolvePlan(plan);
   const monthlyLimit = resolved.monthlyRequests;
 
-  // Get current usage from Redis (Hot data)
-  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-  const usageKey = `usage:user:${keyData.user_id}:${currentMonth}`;
-  const keyUsageKey = `usage:key:${keyData.id}:${currentMonth}`;
-
-  let currentUsage = 0;
-  let currentKeyUsage = 0;
-  try {
-    const [usage, keyUsage] = await Promise.all([
-      redis.get<number>(usageKey).then(v => v || 0),
-      redis.get<number>(keyUsageKey).then(v => v || 0)
-    ]);
-    currentUsage = usage;
-    currentKeyUsage = keyUsage;
-  } catch {
-    console.error("Redis was unavailable during the usage check; using persisted key usage.");
-    // Fail open: fallback to persistent usage count from db
-    currentKeyUsage = keyData.usage_count || 0;
-  }
-
-  // Enforce Specific Key Limit if set
-  if (keyData.monthly_limit !== null && currentKeyUsage >= keyData.monthly_limit) {
-    throw new Error(`Rate limit exceeded for this API key. Upgrade at dandi.ai`);
-  }
-
-  // Enforce Global Plan Limit
-  if (monthlyLimit !== null && currentUsage >= monthlyLimit) {
-    throw new Error(`Monthly usage limit exceeded for your plan. Upgrade at dandi.ai`);
-  }
-
   return {
     ...keyData,
     monthly_limit: keyData.monthly_limit ?? monthlyLimit,
-    usage_count: currentKeyUsage,
+    usage_count: keyData.usage_count || 0,
     plan,
     email: userEmail
   };
+}
+
+export async function reserveApiKeyUsage(
+  keyData: ValidatedApiKeyData,
+): Promise<ApiKeyQuotaReservation> {
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const isDemoKey = keyData.id === "demo-id";
+  const userId = isDemoKey ? "demo" : keyData.user_id;
+  const userLimit = isDemoKey ? null : resolvePlan(keyData.plan).monthlyRequests;
+  const keyLimit = isDemoKey ? 1000 : keyData.monthly_limit ?? userLimit;
+  const usageKey = `usage:user:${userId}:${currentMonth}`;
+  const keyUsageKey = `usage:key:${keyData.id}:${currentMonth}`;
+  const ttlSeconds = 60 * 24 * 60 * 60;
+
+  try {
+    const result = await redis.eval(USAGE_RESERVATION_SCRIPT, [usageKey, keyUsageKey], [
+      String(userLimit ?? -1),
+      String(keyLimit ?? -1),
+      String(ttlSeconds),
+    ]) as unknown;
+    const values = Array.isArray(result) ? result.map(Number) : [];
+    const [reserved, reason, userUsage, keyUsage] = values;
+
+    if (
+      values.length < 4
+      || !Number.isFinite(reserved)
+      || !Number.isFinite(reason)
+      || !Number.isFinite(userUsage)
+      || !Number.isFinite(keyUsage)
+      || (reserved !== 0 && reserved !== 1)
+    ) {
+      throw new ApiKeyQuotaError("unavailable");
+    }
+
+    if (reserved !== 1) {
+      throw new ApiKeyQuotaError(reason === 1 ? "plan_limit" : "key_limit");
+    }
+
+    keyData.usage_count = keyUsage;
+    return { userUsage, keyUsage };
+  } catch (error) {
+    if (error instanceof ApiKeyQuotaError) throw error;
+    console.error("Redis was unavailable during atomic usage reservation; blocking the request.");
+    throw new ApiKeyQuotaError("unavailable");
+  }
 }
 
 export async function incrementKeyUsage(
@@ -199,64 +246,65 @@ export async function incrementKeyUsage(
   const keyId = keyData.id;
   const userId = keyData.user_id;
   if (keyId === "demo-id") {
-    if (status === "success") {
-      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-      try {
-        await redis.incr(`usage:key:demo-id:${currentMonth}`);
-      } catch {
-        console.error("Redis was unavailable during the demo usage increment.");
-      }
-    }
     return;
   }
 
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-  const usageKey = `usage:user:${userId}:${currentMonth}`;
-  const keyUsageKey = `usage:key:${keyId}:${currentMonth}`;
 
-  let newKeyUsage = 0;
+  const newKeyUsage = keyData.usage_count || 0;
 
-  // 1. Increment usage in Redis (Atomic) — only for successful requests to be fair to users
-  if (status === "success") {
-    try {
-      const [, val] = await Promise.all([
-        redis.incr(usageKey),
-        redis.incr(keyUsageKey),
-      ]);
-      newKeyUsage = val;
-      // Set a 60-day TTL so stale monthly counters expire automatically
-      const ttlSeconds = 60 * 24 * 60 * 60;
-      await Promise.all([
-        redis.expire(usageKey, ttlSeconds),
-        redis.expire(keyUsageKey, ttlSeconds),
-      ]);
+  // Quota counters are reserved atomically before provider work. This function
+  // records telemetry and sends threshold alerts after that reservation; it must
+  // not increment the counters again.
+  if (status === "success" && keyData.monthly_limit && keyData.alert_threshold) {
+    const pct = (newKeyUsage / keyData.monthly_limit) * 100;
+    if (pct >= keyData.alert_threshold) {
+      const emailAlertsEnabled = keyData.alert_channels?.includes("email") && keyData.email;
+      if (emailAlertsEnabled) {
+        const alertSentKey = `alert:sent:${keyId}:${currentMonth}`;
+        let alreadySent = false;
+        try {
+          alreadySent = Boolean(await redis.get(alertSentKey));
+        } catch {
+          console.error("Redis was unavailable during usage-alert deduplication.");
+        }
 
-      // Check for alerts
-      if (keyData.monthly_limit && keyData.alert_threshold && keyData.alert_channels?.includes("email") && keyData.email) {
-        const pct = (newKeyUsage / keyData.monthly_limit) * 100;
-        if (pct >= keyData.alert_threshold) {
-          // Only send once per month per key per threshold. Use Redis to deduplicate.
-          const alertSentKey = `alert:sent:${keyId}:${currentMonth}`;
+        if (!alreadySent) {
           try {
-            const alreadySent = await redis.get(alertSentKey);
-            if (!alreadySent) {
-              // Await email sending to prevent early serverless execution suspension
-              try {
-                const { sendAlertEmail } = await import("./email.service");
-                await sendAlertEmail(keyData.email, keyData.name, pct, keyData.alert_threshold);
-              } catch {
-                console.error("Failed to send a usage alert email.");
-              }
-              
-              await redis.set(alertSentKey, "true", { ex: ttlSeconds });
-            }
+            const { sendAlertEmail } = await import("./email.service");
+            await sendAlertEmail(keyData.email, keyData.name, pct, keyData.alert_threshold);
           } catch {
-            console.error("Redis was unavailable during usage-alert deduplication.");
+            console.error("Failed to send a usage alert email.");
+          }
+
+          try {
+            await redis.set(alertSentKey, "true", { ex: 60 * 24 * 60 * 60 });
+          } catch {
+            console.error("Redis was unavailable while recording a usage alert.");
           }
         }
       }
-    } catch {
-      console.error("Redis was unavailable during the usage increment.");
+
+      // The durable database dedupe key keeps production webhook events
+      // single-shot even when Redis is unavailable or its alert marker is
+      // stale from a previous delivery attempt.
+      try {
+        await enqueueProductionWebhookEvent({
+          userId,
+          dedupeKey: `usage-threshold:${keyId}:${currentMonth}`,
+          data: {
+            apiKeyId: keyId,
+            apiKeyName: keyData.name,
+            usage: newKeyUsage,
+            monthlyLimit: keyData.monthly_limit,
+            thresholdPercent: Math.round(pct * 100) / 100,
+            threshold: keyData.alert_threshold,
+            period: currentMonth,
+          },
+        });
+      } catch {
+        console.error("Failed to enqueue a usage-threshold webhook event.");
+      }
     }
   }
 

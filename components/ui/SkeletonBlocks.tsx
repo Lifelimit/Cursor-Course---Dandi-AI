@@ -2,6 +2,17 @@
 
 import { cx } from "@/components/command/utils";
 
+const tableColumnClasses: Record<number, string> = {
+  1: "grid-cols-1",
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+  4: "grid-cols-4",
+  5: "grid-cols-5",
+  6: "grid-cols-6",
+  7: "grid-cols-7",
+  8: "grid-cols-8",
+};
+
 export function SkeletonBlock({ className }: { className?: string }) {
   return <div className={cx("dandi-type-interface animate-pulse rounded-xl bg-white/[0.06]", className)} aria-hidden="true" />;
 }
@@ -30,7 +41,7 @@ export function TableRowsSkeleton({ rows = 5, columns = 4 }: { rows?: number; co
       <div aria-hidden="true">
       <div className="space-y-2">
         {Array.from({ length: rows }).map((_, rowIndex) => (
-          <div key={rowIndex} className="grid gap-3 rounded-xl border border-white/5 bg-slate-950/45 p-3" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+          <div key={rowIndex} className={cx("grid gap-3 rounded-xl border border-white/5 bg-slate-950/45 p-3", tableColumnClasses[columns] ?? "grid-cols-4")}>
             {Array.from({ length: columns }).map((__, columnIndex) => (
               <SkeletonBlock key={columnIndex} className={cx("h-3", columnIndex === 0 ? "w-4/5" : "w-2/3")} />
             ))}

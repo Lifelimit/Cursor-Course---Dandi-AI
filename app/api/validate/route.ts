@@ -30,7 +30,11 @@ export async function POST(request: Request) {
       remaining = res.remaining;
       reset = res.reset;
     } catch {
-      console.error("Redis was unavailable during validation rate limiting; using the fallback policy.");
+      console.error("Redis was unavailable during validation rate limiting; blocking the request.");
+      return NextResponse.json(
+        { error: "API key validation is temporarily unavailable. Please try again shortly." },
+        { status: 503, headers: { "Retry-After": "60" } },
+      );
     }
 
     if (!rateLimitPassed) {

@@ -71,6 +71,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Delete Payment Error:", err);
-    return mapStripeErrorResponse(err, "Failed to delete payment method", { maskServerError: false });
+    return mapStripeErrorResponse(err, "Failed to delete payment method");
   }
 }

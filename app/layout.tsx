@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -33,11 +34,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Nonce-based CSP requires request-time rendering so Next can attach the
+  // proxy-generated nonce to its framework scripts and inline payloads.
+  await headers();
+
   return (
     <html
       lang="en"
@@ -50,4 +55,3 @@ export default function RootLayout({
     </html>
   );
 }
-

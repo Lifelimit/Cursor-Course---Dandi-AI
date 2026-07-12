@@ -60,6 +60,8 @@ export async function POST(request: Request) {
       .from("profiles")
       .update({
         webhook_secret: newWebhookSecret,
+        webhook_failure_count: 0,
+        webhook_disabled_until: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", user.id);
@@ -73,6 +75,8 @@ export async function POST(request: Request) {
       success: true,
       newWebhookSecret,
       ...getWebhookSecretMetadata(newWebhookSecret),
+      webhookFailureCount: 0,
+      webhookDisabledUntil: null,
     }, { headers: secretResponseHeaders });
   } catch {
     console.error("Webhook signing secret rotation failed.");

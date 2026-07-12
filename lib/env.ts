@@ -60,6 +60,7 @@ const serverEnvSchema = publicEnvSchema.extend({
   GITHUB_APP_SLUG: optionalString,
   GITHUB_APP_INSTALLATION_URL: optionalString,
   ALLOWED_API_ORIGINS: optionalString,
+  CRON_SECRET: optionalString,
   /** Used for HMAC-SHA256 hashing of API keys. Must be a long random secret. */
   API_KEY_HMAC_SECRET: requiredString("API_KEY_HMAC_SECRET"),
 }).superRefine((value, ctx) => {
@@ -123,6 +124,7 @@ export function getServerEnv() {
     GITHUB_APP_SLUG: process.env.GITHUB_APP_SLUG,
     GITHUB_APP_INSTALLATION_URL: process.env.GITHUB_APP_INSTALLATION_URL,
     ALLOWED_API_ORIGINS: process.env.ALLOWED_API_ORIGINS,
+    CRON_SECRET: process.env.CRON_SECRET,
     API_KEY_HMAC_SECRET: process.env.API_KEY_HMAC_SECRET,
   });
 
