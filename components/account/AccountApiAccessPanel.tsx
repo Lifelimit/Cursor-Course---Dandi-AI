@@ -14,7 +14,11 @@ type AccountApiAccessPanelProps = {
   onAccessViewChange: (view: AccessView) => void;
   onCreateApiKey: () => void;
   onInspectApiActivity: (activity: AccountApiRequestActivity) => void;
+  onEditApiKey: (apiKey: AccountApiKeyAccess) => void;
   onRevokeApiKey: (apiKey: AccountApiKeyAccess) => void;
+  onEnableApiKey: (apiKey: AccountApiKeyAccess) => void;
+  onDeleteApiKey: (apiKey: AccountApiKeyAccess) => void;
+  busyApiKeyId?: string | null;
   onRefreshSessions: () => void;
 };
 
@@ -27,10 +31,16 @@ export function AccountApiAccessPanel({
   onAccessViewChange,
   onCreateApiKey,
   onInspectApiActivity,
+  onEditApiKey,
   onRevokeApiKey,
+  onEnableApiKey,
+  onDeleteApiKey,
+  busyApiKeyId,
   onRefreshSessions,
 }: AccountApiAccessPanelProps) {
-  const apiKeyCountLabel = `${apiKeys.length} active ${apiKeys.length === 1 ? "key" : "keys"}`;
+  const activeApiKeyCount = apiKeys.filter((apiKey) => apiKey.isActive).length;
+  const inactiveApiKeyCount = apiKeys.length - activeApiKeyCount;
+  const apiKeyCountLabel = `${activeApiKeyCount} active ${activeApiKeyCount === 1 ? "key" : "keys"}`;
   const recentRequestCountLabel = `${recentRequests.length} recent ${recentRequests.length === 1 ? "request" : "requests"}`;
 
   return (
@@ -44,13 +54,14 @@ export function AccountApiAccessPanel({
         <div className="flex flex-wrap gap-2">
           <span className="rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-200">{apiKeyCountLabel}</span>
           <span className="rounded-full border border-cyan-300/15 bg-cyan-300/[0.06] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-cyan-200">{recentRequestCountLabel}</span>
+          {inactiveApiKeyCount > 0 && <span className="rounded-full border border-amber-300/15 bg-amber-300/[0.06] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-amber-200">{inactiveApiKeyCount} inactive</span>}
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4">
           <p className="dandi-type-metadata text-slate-500">Credential status</p>
-          <p className="mt-2 text-lg font-bold text-white">{apiKeys.length > 0 ? "Ready" : "Not configured"}</p>
+          <p className="mt-2 text-lg font-bold text-white">{activeApiKeyCount > 0 ? "Ready" : "Not configured"}</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">Keys remain masked until the existing secure reveal flow.</p>
         </div>
         <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4">
@@ -93,7 +104,17 @@ export function AccountApiAccessPanel({
             <button type="button" onClick={onRefreshSessions} className="mt-4 min-h-10 rounded-full border border-rose-400/25 px-4 py-2 text-[9px] font-black uppercase tracking-widest text-rose-100 transition hover:bg-rose-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300">Retry access data</button>
           </div>
         ) : accessView === "api" ? (
-          <AccountApiKeysPanel apiKeys={apiKeys} recentRequests={recentRequests} onCreateApiKey={onCreateApiKey} onInspectApiActivity={onInspectApiActivity} onRevokeApiKey={onRevokeApiKey} />
+          <AccountApiKeysPanel
+            apiKeys={apiKeys}
+            recentRequests={recentRequests}
+            onCreateApiKey={onCreateApiKey}
+            onInspectApiActivity={onInspectApiActivity}
+            onEditApiKey={onEditApiKey}
+            onRevokeApiKey={onRevokeApiKey}
+            onEnableApiKey={onEnableApiKey}
+            onDeleteApiKey={onDeleteApiKey}
+            busyApiKeyId={busyApiKeyId}
+          />
         ) : (
           <AccountSessionsPanel currentBrowser={currentBrowser} onRefreshSessions={onRefreshSessions} />
         )}

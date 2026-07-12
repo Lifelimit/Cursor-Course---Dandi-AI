@@ -8,7 +8,11 @@ type AccountApiKeysPanelProps = {
   recentRequests: AccountApiRequestActivity[];
   onCreateApiKey: () => void;
   onInspectApiActivity: (activity: AccountApiRequestActivity) => void;
+  onEditApiKey: (apiKey: AccountApiKeyAccess) => void;
   onRevokeApiKey: (apiKey: AccountApiKeyAccess) => void;
+  onEnableApiKey: (apiKey: AccountApiKeyAccess) => void;
+  onDeleteApiKey: (apiKey: AccountApiKeyAccess) => void;
+  busyApiKeyId?: string | null;
 };
 
 function getApiKeyTypeLabel(apiKey: AccountApiKeyAccess) {
@@ -41,6 +45,12 @@ function getApiKeyRequestCount(apiKey: AccountApiKeyAccess) {
   return formatRequestCount(apiKey.requestsThisMonth ?? 0);
 }
 
+function getApiKeyLimitLabel(apiKey: AccountApiKeyAccess) {
+  return apiKey.monthlyLimit === null
+    ? "Plan default"
+    : `${formatRequestCount(apiKey.monthlyLimit)} / month`;
+}
+
 function CreateApiKeyButton({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -58,8 +68,15 @@ export function AccountApiKeysPanel({
   recentRequests,
   onCreateApiKey,
   onInspectApiActivity,
+  onEditApiKey,
   onRevokeApiKey,
+  onEnableApiKey,
+  onDeleteApiKey,
+  busyApiKeyId = null,
 }: AccountApiKeysPanelProps) {
+  const activeApiKeys = apiKeys.filter((apiKey) => apiKey.isActive);
+  const inactiveApiKeys = apiKeys.filter((apiKey) => !apiKey.isActive);
+
   return (
     <div className="space-y-8">
       <section className="space-y-4">
@@ -67,7 +84,7 @@ export function AccountApiKeysPanel({
           <div className="space-y-1">
             <h5 className="text-sm font-bold text-white">API keys</h5>
             <p className="max-w-2xl text-xs leading-5 text-zinc-400">
-              Create and revoke credentials for external clients and scripts. Usage details summarize request telemetry, but actions here apply only to API key credentials.
+              Create, edit, disable, and delete credentials for external clients and scripts. Usage details summarize request telemetry, while inactive credentials remain available for cleanup or reactivation.
             </p>
           </div>
           <button
@@ -80,7 +97,7 @@ export function AccountApiKeysPanel({
         </div>
 
         <div className="space-y-3 md:hidden">
-          {apiKeys.map((apiKey) => {
+          {activeApiKeys.map((apiKey) => {
             const canRevokeApiKey = apiKey.revocable;
 
             return (
@@ -108,6 +125,10 @@ export function AccountApiKeysPanel({
                     <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Requests</p>
                     <p className="font-bold text-zinc-400">{getApiKeyRequestCount(apiKey)}</p>
                   </div>
+                  <div className="space-y-1">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Hard limit</p>
+                    <p className="font-bold text-zinc-400">{getApiKeyLimitLabel(apiKey)}</p>
+                  </div>
                   {apiKey.latestStatus && (
                     <div className="space-y-1">
                       <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Latest status</p>
@@ -122,29 +143,42 @@ export function AccountApiKeysPanel({
                   </p>
                 )}
 
-                <div className="border-t border-white/5 pt-3">
-                  {canRevokeApiKey ? (
+                <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => onEditApiKey(apiKey)}
+                    disabled={busyApiKeyId === apiKey.apiKeyId}
+                    className="rounded-xl border border-white/10 px-3 py-3 text-[9px] font-black uppercase tracking-widest text-slate-300 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white disabled:opacity-50"
+                  >
+                    Edit
+                  </button>
+                  {canRevokeApiKey && (
                     <button
                       type="button"
                       onClick={() => onRevokeApiKey(apiKey)}
-                      className="w-full rounded-xl border border-rose-500/20 bg-rose-950/20 px-4 py-3 text-[9px] font-black uppercase tracking-widest text-rose-400 transition-all hover:bg-rose-500 hover:text-white active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                      disabled={busyApiKeyId === apiKey.apiKeyId}
+                      className="rounded-xl border border-rose-500/20 bg-rose-950/20 px-3 py-3 text-[9px] font-black uppercase tracking-widest text-rose-400 transition-all hover:bg-rose-500 hover:text-white active:scale-[0.98] disabled:opacity-50"
                       title="Disable this API key"
                     >
-                      Revoke API key
+                      Revoke
                     </button>
-                  ) : (
-                    <p className="text-center text-[8px] font-black uppercase tracking-widest text-zinc-500">
-                      No API key action available
-                    </p>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => onDeleteApiKey(apiKey)}
+                    disabled={busyApiKeyId === apiKey.apiKeyId}
+                    className="col-span-2 rounded-xl border border-white/5 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-zinc-500 transition-all hover:border-rose-500/20 hover:bg-rose-950/20 hover:text-rose-300 disabled:opacity-50"
+                  >
+                    Delete permanently
+                  </button>
                 </div>
               </div>
             );
           })}
-          {apiKeys.length === 0 && (
+          {activeApiKeys.length === 0 && (
             <EmptyState
-              title="No API keys yet."
-              description="Create an API key when an external client, script, or deployed service needs credentialed access."
+              title={inactiveApiKeys.length > 0 ? "No active API keys." : "No API keys yet."}
+              description={inactiveApiKeys.length > 0 ? "All existing credentials are inactive. Reactivate one below or create a new key." : "Create an API key when an external client, script, or deployed service needs credentialed access."}
               action={<CreateApiKeyButton onClick={onCreateApiKey} />}
             />
           )}
@@ -155,12 +189,12 @@ export function AccountApiKeysPanel({
             <table className="w-full table-fixed border-collapse text-left font-sans text-xs">
               <caption className="sr-only">API keys and credential activity</caption>
               <colgroup>
-                <col className="w-[28%]" />
-                <col className="w-[12%]" />
+                <col className="w-[25%]" />
+                <col className="w-[11%]" />
+                <col className="w-[11%]" />
+                <col className="w-[22%]" />
                 <col className="w-[13%]" />
-                <col className="w-[24%]" />
-                <col className="w-[13%]" />
-                <col className="w-[10%]" />
+                <col className="w-[18%]" />
               </colgroup>
               <thead>
                 <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
@@ -173,7 +207,7 @@ export function AccountApiKeysPanel({
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 font-medium">
-                {apiKeys.map((apiKey) => {
+                {activeApiKeys.map((apiKey) => {
                   const canRevokeApiKey = apiKey.revocable;
 
                   return (
@@ -205,36 +239,54 @@ export function AccountApiKeysPanel({
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">
                           <span className="font-bold text-zinc-400">{getApiKeyRequestCount(apiKey)}</span>
+                          <span className="text-[10px] font-medium text-zinc-500">Limit: {getApiKeyLimitLabel(apiKey)}</span>
                           {apiKey.latestStatus && (
                             <span className="text-[10px] font-medium capitalize text-zinc-500">{apiKey.latestStatus}</span>
                           )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {canRevokeApiKey ? (
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onEditApiKey(apiKey)}
+                            disabled={busyApiKeyId === apiKey.apiKeyId}
+                            className="rounded-full border border-white/10 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-slate-300 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white disabled:opacity-50"
+                          >
+                            Edit
+                          </button>
+                          {canRevokeApiKey && (
                           <button
                             type="button"
                             onClick={() => onRevokeApiKey(apiKey)}
+                            disabled={busyApiKeyId === apiKey.apiKeyId}
                             className="rounded-full border border-rose-500/20 bg-rose-950/20 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-rose-400 shadow-sm transition-all hover:bg-rose-500 hover:text-white active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                             title="Disable this API key"
                             aria-label={`Revoke API key ${apiKey.label}`}
                           >
                             Revoke
                           </button>
-                        ) : (
-                          <span className="pr-4 text-[8px] font-black uppercase tracking-widest text-zinc-500 select-none">No action</span>
-                        )}
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => onDeleteApiKey(apiKey)}
+                            disabled={busyApiKeyId === apiKey.apiKeyId}
+                            className="rounded-full border border-white/5 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-zinc-500 transition-all hover:border-rose-500/20 hover:bg-rose-950/20 hover:text-rose-300 disabled:opacity-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
                 })}
-                {apiKeys.length === 0 && (
+                {activeApiKeys.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-6 py-10 text-center">
                       <EmptyState
                         className="mx-auto max-w-md"
-                        title="No API keys yet."
-                        description="Create an API key when an external client, script, or deployed service needs credentialed access."
+                        title={inactiveApiKeys.length > 0 ? "No active API keys." : "No API keys yet."}
+                        description={inactiveApiKeys.length > 0 ? "All existing credentials are inactive. Reactivate one below or create a new key." : "Create an API key when an external client, script, or deployed service needs credentialed access."}
                         action={<CreateApiKeyButton onClick={onCreateApiKey} />}
                       />
                     </td>
@@ -245,6 +297,80 @@ export function AccountApiKeysPanel({
           </ScrollFrame>
         </div>
       </section>
+
+      {inactiveApiKeys.length > 0 && (
+        <section className="space-y-4 border-t border-white/5 pt-6">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-3">
+              <h5 className="text-sm font-bold text-white">Inactive keys</h5>
+              <span className="rounded-full border border-amber-300/15 bg-amber-300/[0.06] px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-amber-200">
+                {inactiveApiKeys.length} {inactiveApiKeys.length === 1 ? "key" : "keys"}
+              </span>
+            </div>
+            <p className="max-w-2xl text-xs leading-5 text-zinc-400">
+              Inactive keys cannot authenticate requests. Reactivate, edit, or permanently delete them here.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {inactiveApiKeys.map((apiKey) => {
+              const isBusy = busyApiKeyId === apiKey.apiKeyId;
+
+              return (
+                <article key={apiKey.id} className="space-y-4 rounded-2xl border border-amber-300/10 bg-amber-300/[0.025] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <h6 className="break-words text-sm font-bold text-slate-200">{apiKey.label}</h6>
+                      <p className="text-[10px] font-medium text-zinc-500">{apiKey.detail || "API key credential"}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full border border-amber-300/15 bg-amber-300/[0.06] px-2 py-1 text-[8px] font-black uppercase tracking-widest text-amber-200">
+                      Inactive
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Type</p>
+                      <p className="font-bold text-zinc-400">{getApiKeyTypeLabel(apiKey)}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Hard limit</p>
+                      <p className="font-bold text-zinc-400">{getApiKeyLimitLabel(apiKey)}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => onEditApiKey(apiKey)}
+                      disabled={isBusy}
+                      className="rounded-xl border border-white/10 px-3 py-3 text-[9px] font-black uppercase tracking-widest text-slate-300 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white disabled:opacity-50"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onEnableApiKey(apiKey)}
+                      disabled={isBusy}
+                      className="rounded-xl bg-emerald-400 px-3 py-3 text-[9px] font-black uppercase tracking-widest text-slate-950 transition-all hover:bg-emerald-300 disabled:opacity-50"
+                    >
+                      {isBusy ? "Enabling..." : "Enable"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteApiKey(apiKey)}
+                      disabled={isBusy}
+                      className="col-span-2 rounded-xl border border-white/5 px-3 py-2 text-[8px] font-black uppercase tracking-widest text-zinc-500 transition-all hover:border-rose-500/20 hover:bg-rose-950/20 hover:text-rose-300 disabled:opacity-50"
+                    >
+                      Delete permanently
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-4 border-t border-white/5 pt-6">
         <div className="space-y-1">
@@ -298,8 +424,7 @@ export function AccountApiKeysPanel({
           )}
         </div>
 
-        <div className="hidden md:block">
-          <ScrollFrame axis="x" minWidth="820px" label="Recent API activity table">
+        <div className="hidden overflow-hidden rounded-2xl border border-white/5 md:block" role="region" aria-label="Recent API activity table">
             <table className="w-full table-fixed border-collapse text-left font-sans text-xs">
               <caption className="sr-only">Recent API request activity</caption>
               <colgroup>
@@ -363,7 +488,6 @@ export function AccountApiKeysPanel({
                 )}
               </tbody>
             </table>
-          </ScrollFrame>
         </div>
       </section>
     </div>

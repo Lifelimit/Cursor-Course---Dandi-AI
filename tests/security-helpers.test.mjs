@@ -1058,7 +1058,7 @@ test("resolves subscription SCA and billing payload helpers", () => {
   assert.equal(isDuplicateWebhookEventError({ code: "42P01" }), false);
 });
 
-test("builds structured account access from browser, active keys, and request telemetry", () => {
+test("builds structured account access from browser, active and inactive keys, and request telemetry", () => {
   const { buildAccountAccess } = loadTsModule("lib/account-environments.ts");
 
   const accountAccess = buildAccountAccess({
@@ -1112,7 +1112,7 @@ test("builds structured account access from browser, active keys, and request te
   assert.equal(accountAccess.currentBrowser.revocable, false);
   assert.equal(accountAccess.currentBrowser.location, "Dublin, IE");
 
-  assert.equal(accountAccess.apiKeys.length, 1);
+  assert.equal(accountAccess.apiKeys.length, 2);
   assert.equal(accountAccess.apiKeys[0]?.id, "api-key-key-active");
   assert.equal(accountAccess.apiKeys[0]?.label, "Production Key");
   assert.equal(accountAccess.apiKeys[0]?.keyType, "production");
@@ -1125,6 +1125,11 @@ test("builds structured account access from browser, active keys, and request te
   assert.equal(accountAccess.apiKeys[0]?.lastUsedLocation, "London, GB");
   assert.equal(accountAccess.apiKeys[0]?.latestRepoUrl, "https://github.com/vercel/next.js");
   assert.equal(accountAccess.apiKeys[0]?.latestStatus, "success");
+  assert.equal(accountAccess.apiKeys[0]?.isActive, true);
+  assert.equal(accountAccess.apiKeys[1]?.label, "Disabled Key");
+  assert.equal(accountAccess.apiKeys[1]?.isActive, false);
+  assert.equal(accountAccess.apiKeys[1]?.revocable, false);
+  assert.equal(accountAccess.apiKeys[1]?.deletable, true);
 
   assert.equal(accountAccess.recentRequests.length, 2);
   assert.equal(accountAccess.recentRequests[0]?.label, "Node.js client");

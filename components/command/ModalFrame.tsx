@@ -41,7 +41,12 @@ export function ModalFrame({
 }: ModalFrameProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
   const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setMounted(true));
@@ -69,13 +74,14 @@ export function ModalFrame({
       const dialog = dialogRef.current;
       if (!dialog) return;
 
-      const firstFocusable = dialog.querySelector<HTMLElement>(focusableSelector);
+      const firstFocusable = dialog.querySelector<HTMLElement>("[data-autofocus='true']")
+        || dialog.querySelector<HTMLElement>(focusableSelector);
       (firstFocusable || dialog).focus({ preventScroll: true });
     });
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
 
@@ -113,7 +119,7 @@ export function ModalFrame({
       previousFocusRef.current?.focus({ preventScroll: true });
       previousFocusRef.current = null;
     };
-  }, [mounted, onClose, open]);
+  }, [mounted, open]);
 
   if (!open || !mounted) return null;
 

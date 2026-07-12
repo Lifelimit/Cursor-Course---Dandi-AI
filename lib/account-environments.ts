@@ -94,9 +94,7 @@ export function buildAccountAccess(input: {
     logsByApiKey.set(log.keyId, keyLogs);
   }
 
-  const apiKeys: AccountApiKeyAccess[] = input.apiKeys
-    .filter((key) => key.is_active)
-    .map((key) => {
+  const apiKeys: AccountApiKeyAccess[] = input.apiKeys.map((key) => {
       const keyLogs = logsByApiKey.get(key.id) ?? [];
       const latestLog = keyLogs.reduce<AccountUsageLog | null>((latest, log) => {
         const latestTime = latest?.usedAt ? Date.parse(latest.usedAt) : 0;
@@ -109,11 +107,14 @@ export function buildAccountAccess(input: {
         label: key.name,
         detail: `${key.key_type === "production" ? "Production" : "Development"} API key`,
         keyType: key.key_type,
+        isActive: key.is_active ?? true,
+        monthlyLimit: key.monthly_limit ?? null,
         ip: null,
         location: null,
         lastSeenAt: key.created_at ?? null,
         current: false,
-        revocable: true,
+        revocable: key.is_active ?? true,
+        deletable: true,
         apiKeyId: key.id,
         requestsThisMonth: keyLogs.length,
         lastUsedAt: latestLog?.usedAt ?? null,

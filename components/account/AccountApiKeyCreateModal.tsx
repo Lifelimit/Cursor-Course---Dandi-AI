@@ -5,6 +5,8 @@ import { GuidedError } from "@/components/ui/GuidedError";
 import type { ToastType } from "@/hooks/useToast";
 import { getErrorGuidance } from "@/lib/error-guidance";
 import { CopyCheckIcon, CopyLockedIcon } from "@/components/icons";
+import { AccountApiKeyLimitField, type ApiKeyLimitValue } from "./AccountApiKeyLimitField";
+import { resolvePlan } from "@/lib/constants";
 
 type ApiKeyType = "development" | "production";
 
@@ -13,6 +15,7 @@ type AccountApiKeyCreateModalProps = {
   onClose: () => void;
   onCreated: () => void;
   showToast: (type: ToastType, message: string) => void;
+  planName: string;
 };
 
 type CreatedApiKeyResponse = {
@@ -25,9 +28,11 @@ export function AccountApiKeyCreateModal({
   onClose,
   onCreated,
   showToast,
+  planName,
 }: AccountApiKeyCreateModalProps) {
   const [keyName, setKeyName] = useState("");
   const [keyType, setKeyType] = useState<ApiKeyType>("development");
+  const [limit, setLimit] = useState<ApiKeyLimitValue>({ mode: "plan", customLimit: "" });
   const [createdPlainKey, setCreatedPlainKey] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,6 +41,7 @@ export function AccountApiKeyCreateModal({
   const resetModalState = () => {
     setKeyName("");
     setKeyType("development");
+    setLimit({ mode: "plan", customLimit: "" });
     setCreatedPlainKey(null);
     setErrorMessage("");
     setIsSubmitting(false);
@@ -65,6 +71,17 @@ export function AccountApiKeyCreateModal({
       return;
     }
 
+    let monthlyLimit: number | null = null;
+    if (limit.mode === "custom") {
+      const parsedLimit = Number.parseInt(limit.customLimit, 10);
+      const maxLimit = resolvePlan(planName).maxLimitCap;
+      if (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > maxLimit) {
+        setErrorMessage(`Monthly hard limit must be between 1 and ${maxLimit.toLocaleString()}.`);
+        return;
+      }
+      monthlyLimit = parsedLimit;
+    }
+
     setIsSubmitting(true);
     setErrorMessage("");
 
@@ -75,6 +92,7 @@ export function AccountApiKeyCreateModal({
         body: JSON.stringify({
           name: trimmedName,
           keyType,
+          monthlyLimit,
           isActive: true,
         }),
       });
@@ -197,6 +215,7 @@ export function AccountApiKeyCreateModal({
               placeholder="e.g. Production Worker"
               required
               disabled={isSubmitting}
+              data-autofocus="true"
               className="h-14 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 text-sm font-medium text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 disabled:opacity-50"
             />
           </div>
@@ -231,20 +250,28 @@ export function AccountApiKeyCreateModal({
             </div>
           </fieldset>
 
-          <div className="flex flex-col gap-3 border-t border-white/5 pt-5 sm:flex-row sm:justify-end">
+          <AccountApiKeyLimitField
+            planName={planName}
+            value={limit}
+            onChange={setLimit}
+            disabled={isSubmitting}
+          />
+
+          <div className="flex flex-col gap-3 border-t border-white/5 pt-5 sm:flex-row sm:justify-end" aria-busy={isSubmitting}>
             <button
               type="button"
               onClick={closeAndForgetKey}
               disabled={isSubmitting}
-              className="rounded-full border border-white/10 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-300 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50"
+              className="min-h-12 rounded-full border border-white/10 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-300 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50 sm:min-w-[8rem] sm:shrink-0"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="rounded-full bg-emerald-500 px-7 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-60"
+              className="inline-flex min-h-12 min-w-[11rem] items-center justify-center gap-2 rounded-full bg-emerald-500 px-7 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-60 sm:shrink-0"
             >
+              {isSubmitting && <span className="h-3 w-3 animate-spin rounded-full border-2 border-current/25 border-t-current" aria-hidden="true" />}
               {isSubmitting ? "Creating..." : "Create API key"}
             </button>
           </div>

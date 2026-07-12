@@ -17,11 +17,14 @@ export type AccountApiKeyAccess = {
   label: string;
   detail?: string;
   keyType: string;
+  isActive: boolean;
+  monthlyLimit: number | null;
   ip: null;
   location: null;
   lastSeenAt: string | null;
   current: false;
   revocable: boolean;
+  deletable: boolean;
   apiKeyId: string;
   telemetryAge?: string;
   requestsThisMonth?: number;
@@ -75,6 +78,7 @@ export type AccountApiKey = {
   id: string;
   name: string;
   key_type: string;
+  monthly_limit: number | null;
   created_at?: string | null;
   is_active: boolean;
 };

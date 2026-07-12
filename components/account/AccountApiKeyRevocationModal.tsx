@@ -4,6 +4,7 @@ import type { AccountApiKeyAccess } from "@/types/account";
 type AccountApiKeyRevocationModalProps = {
   apiKey: AccountApiKeyAccess | null;
   isRevoking: boolean;
+  mode?: "revoke" | "delete";
   onCancel: () => void;
   onConfirm: () => void;
 };
@@ -11,28 +12,36 @@ type AccountApiKeyRevocationModalProps = {
 export function AccountApiKeyRevocationModal({
   apiKey,
   isRevoking,
+  mode = "revoke",
   onCancel,
   onConfirm,
 }: AccountApiKeyRevocationModalProps) {
   if (!apiKey) return null;
 
+  const isDelete = mode === "delete";
+  const actionLabel = isDelete ? "Delete API key" : "Revoke API key";
+
   return (
-    <ModalFrame open={true} onClose={isRevoking ? undefined : onCancel} size="md" titleId="account-revoke-api-key-title">
+    <ModalFrame open={true} onClose={isRevoking ? undefined : onCancel} size="md" titleId="account-api-key-lifecycle-title">
       <div className="space-y-6">
         <div className="space-y-2 border-b border-white/5 pb-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-400">API key access</p>
-          <h3 id="account-revoke-api-key-title" className="font-serif text-2xl font-bold italic text-white sm:text-3xl">
-            Revoke API key
+          <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${isDelete ? "text-rose-300" : "text-rose-400"}`}>API key access</p>
+          <h3 id="account-api-key-lifecycle-title" className="font-serif text-2xl font-bold italic text-white sm:text-3xl">
+            {actionLabel}
           </h3>
           <p className="text-sm leading-6 text-slate-400">
-            Revoking disables the entire API key <span className="font-bold text-white">&quot;{apiKey.label}&quot;</span>. Scripts, automation, or integrations using this key may stop working immediately.
+            {isDelete
+              ? <>Deleting permanently removes <span className="font-bold text-white">&quot;{apiKey.label}&quot;</span> and its credential record.</>
+              : <>Revoking disables the entire API key <span className="font-bold text-white">&quot;{apiKey.label}&quot;</span>. Scripts, automation, or integrations using this key may stop working immediately.</>}
           </p>
         </div>
 
         <div className="rounded-2xl border border-rose-500/20 bg-rose-950/20 p-4">
           <p className="text-xs font-black uppercase tracking-wider text-rose-200">Before You Continue</p>
           <p className="mt-2 text-xs leading-5 text-rose-300">
-            This action only revokes this API key credential. Recent API activity rows are read-only telemetry and cannot be revoked from this view.
+            {isDelete
+              ? "This cannot be undone. Recent API activity remains read-only and is not managed from this control."
+              : "This action only revokes this API key credential. Recent API activity rows are read-only telemetry and cannot be revoked from this view."}
           </p>
         </div>
 
@@ -59,7 +68,7 @@ export function AccountApiKeyRevocationModal({
             disabled={isRevoking}
             className="rounded-full border border-rose-500/30 bg-rose-600 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-rose-950/20 transition-all hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-60"
           >
-            {isRevoking ? "Revoking..." : "Revoke API key"}
+            {isRevoking ? `${isDelete ? "Deleting" : "Revoking"}...` : actionLabel}
           </button>
         </div>
       </div>

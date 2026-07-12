@@ -73,9 +73,9 @@ export function AccountSettingsNav({ activeSection, onChange }: AccountSettingsN
                 <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border font-mono text-sm ${isActive ? "border-emerald-300/30 bg-emerald-300/10 text-emerald-200" : "border-white/10 bg-slate-950/60 text-slate-500 group-hover:text-slate-300"}`} aria-hidden="true">
                   {section.icon}
                 </span>
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-bold tracking-tight">{section.label}</span>
-                  <span className={`mt-0.5 hidden truncate text-[10px] leading-4 md:block ${isActive ? "text-emerald-100/65" : "text-slate-500"}`}>
+                  <span className={`mt-0.5 hidden whitespace-normal break-words text-[10px] leading-4 md:block ${isActive ? "text-emerald-100/65" : "text-slate-500"}`}>
                     {section.description}
                   </span>
                 </span>

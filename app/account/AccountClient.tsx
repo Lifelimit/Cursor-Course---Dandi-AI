@@ -28,6 +28,7 @@ import type {
 } from "@/types/account";
 import { AccountApiActivityInspectorModal } from "@/components/account/AccountApiActivityInspectorModal";
 import { AccountApiKeyCreateModal } from "@/components/account/AccountApiKeyCreateModal";
+import { AccountApiKeyEditModal } from "@/components/account/AccountApiKeyEditModal";
 import { AccountApiKeyRevocationModal } from "@/components/account/AccountApiKeyRevocationModal";
 import { AccountDeliveryLogInspectorModal } from "@/components/account/AccountDeliveryLogInspectorModal";
 import { AccountEnvironmentPanel } from "@/components/account/AccountEnvironmentPanel";
@@ -101,8 +102,12 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const [modalActiveTab, setModalActiveTab] = useState<DeliveryLogModalTab>("request");
   const [inspectedApiActivity, setInspectedApiActivity] = useState<AccountApiRequestActivity | null>(null);
   const [isCreateApiKeyOpen, setIsCreateApiKeyOpen] = useState(false);
+  const [apiKeyPendingEdit, setApiKeyPendingEdit] = useState<AccountApiKeyAccess | null>(null);
   const [apiKeyPendingRevocation, setApiKeyPendingRevocation] = useState<AccountApiKeyAccess | null>(null);
+  const [apiKeyPendingDeletion, setApiKeyPendingDeletion] = useState<AccountApiKeyAccess | null>(null);
   const [isRevokingApiKey, setIsRevokingApiKey] = useState(false);
+  const [isDeletingApiKey, setIsDeletingApiKey] = useState(false);
+  const [busyApiKeyId, setBusyApiKeyId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -345,6 +350,50 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
     setApiKeyPendingRevocation(apiKey);
   };
 
+  const handleEditApiKey = (apiKey: AccountApiKeyAccess) => {
+    if (!apiKey.apiKeyId) {
+      showToast("error", getToastErrorMessage("api-key", "This API key cannot be edited from here."));
+      return;
+    }
+
+    setApiKeyPendingEdit(apiKey);
+  };
+
+  const handleEnableApiKey = async (apiKey: AccountApiKeyAccess) => {
+    if (!apiKey.apiKeyId || apiKey.isActive || busyApiKeyId) return;
+
+    setBusyApiKeyId(apiKey.apiKeyId);
+    try {
+      const res = await fetch(`/api/keys/${apiKey.apiKeyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: true }),
+      });
+      if (!res.ok) {
+        throw new Error(await readResponseError(res, "Failed to enable API key."));
+      }
+
+      setApiKeys((prev) => prev.map((key) => key.apiKeyId === apiKey.apiKeyId
+        ? { ...key, isActive: true, revocable: true }
+        : key));
+      showToast("success", "API key enabled.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to enable API key.";
+      showToast("error", getToastErrorMessage("api-key", message));
+    } finally {
+      setBusyApiKeyId(null);
+    }
+  };
+
+  const handleDeleteApiKey = (apiKey: AccountApiKeyAccess) => {
+    if (!apiKey.apiKeyId || !apiKey.deletable) {
+      showToast("error", getToastErrorMessage("api-key", "This API key cannot be deleted from here."));
+      return;
+    }
+
+    setApiKeyPendingDeletion(apiKey);
+  };
+
   const handleConfirmRevokeApiKey = async () => {
     const apiKey = apiKeyPendingRevocation;
     if (!apiKey?.apiKeyId || !apiKey.revocable || isRevokingApiKey) {
@@ -365,7 +414,9 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         throw new Error(data.error || "Failed to revoke API key.");
       }
 
-      setApiKeys(prev => prev.filter(key => key.apiKeyId !== apiKey.apiKeyId));
+      setApiKeys(prev => prev.map(key => key.apiKeyId === apiKey.apiKeyId
+        ? { ...key, isActive: false, revocable: false }
+        : key));
       setApiKeyPendingRevocation(null);
       showToast("success", "API key successfully revoked.");
     } catch (err) {
@@ -373,6 +424,28 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       showToast("error", getToastErrorMessage("api-key", message));
     } finally {
       setIsRevokingApiKey(false);
+    }
+  };
+
+  const handleConfirmDeleteApiKey = async () => {
+    const apiKey = apiKeyPendingDeletion;
+    if (!apiKey?.apiKeyId || !apiKey.deletable || isDeletingApiKey) return;
+
+    setIsDeletingApiKey(true);
+    try {
+      const res = await fetch(`/api/keys/${apiKey.apiKeyId}`, { method: "DELETE" });
+      if (!res.ok) {
+        throw new Error(await readResponseError(res, "Failed to delete API key."));
+      }
+
+      setApiKeys((prev) => prev.filter((key) => key.apiKeyId !== apiKey.apiKeyId));
+      setApiKeyPendingDeletion(null);
+      showToast("success", "API key deleted.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete API key.";
+      showToast("error", getToastErrorMessage("api-key", message));
+    } finally {
+      setIsDeletingApiKey(false);
     }
   };
 
@@ -521,7 +594,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           description="Manage identity, connected services, developer access, and account protection from one focused control plane."
         />
 
-        <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(190px,220px)_minmax(0,1fr)] xl:gap-8">
+        <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(240px,280px)_minmax(0,1fr)] xl:gap-8">
           <AccountSettingsNav
             activeSection={activeTab}
             onChange={(section) => {
@@ -603,7 +676,11 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                 onAccessViewChange={setAccessView}
                 onCreateApiKey={() => setIsCreateApiKeyOpen(true)}
                 onInspectApiActivity={setInspectedApiActivity}
+                onEditApiKey={handleEditApiKey}
                 onRevokeApiKey={handleRevokeApiKey}
+                onEnableApiKey={handleEnableApiKey}
+                onDeleteApiKey={handleDeleteApiKey}
+                busyApiKeyId={busyApiKeyId}
                 onRefreshSessions={loadData}
               />
             )}
@@ -684,6 +761,19 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           void loadData();
         }}
         showToast={showToast}
+        planName={userPlan}
+      />
+
+      <AccountApiKeyEditModal
+        key={apiKeyPendingEdit?.apiKeyId ?? "no-api-key-edit"}
+        isOpen={Boolean(apiKeyPendingEdit)}
+        apiKey={apiKeyPendingEdit}
+        onClose={() => setApiKeyPendingEdit(null)}
+        onUpdated={() => {
+          void loadData();
+        }}
+        showToast={showToast}
+        planName={userPlan}
       />
 
       <AccountApiActivityInspectorModal
@@ -701,6 +791,18 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           }
         }}
         onConfirm={handleConfirmRevokeApiKey}
+      />
+
+      <AccountApiKeyRevocationModal
+        apiKey={apiKeyPendingDeletion}
+        isRevoking={isDeletingApiKey}
+        mode="delete"
+        onCancel={() => {
+          if (!isDeletingApiKey) {
+            setApiKeyPendingDeletion(null);
+          }
+        }}
+        onConfirm={handleConfirmDeleteApiKey}
       />
 
       <Toast toast={toast} />

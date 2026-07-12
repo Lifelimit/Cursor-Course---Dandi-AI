@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
     const { data: apiKeys, error } = await supabaseAdmin
       .from("api_keys")
-      .select("id, name, key_type, created_at, is_active")
+      .select("id, name, key_type, monthly_limit, created_at, is_active")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
