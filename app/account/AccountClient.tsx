@@ -107,11 +107,10 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [profileRes, usageRes, accessRes, deliveryRes] = await Promise.all([
+      const [profileRes, usageRes, accessRes] = await Promise.all([
         fetch("/api/profile"),
         fetch("/api/usage"),
         fetch("/api/account/environments"),
-        fetch("/api/profile/webhook-deliveries"),
       ]);
       let nextAccountLoadError: string | null = null;
 
@@ -152,15 +151,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         setAccessLoadError(await readResponseError(accessRes, "Failed to load API key and request telemetry."));
       }
 
-      if (deliveryRes.ok) {
-        const deliveryData = await deliveryRes.json() as { deliveries?: WebhookLogEntry[] };
-        setWebhookLogs(deliveryData.deliveries || []);
-      } else {
-        // Delivery history is an enhancement to the account surface; keep the
-        // rest of settings usable if an older deployment has not applied the
-        // queue migration yet.
-        setWebhookLogs([]);
-      }
       setAccountLoadError(nextAccountLoadError);
     } catch {
       console.error("Account details request failed.");
@@ -266,8 +256,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         webhookUrl: data?.webhookUrl ?? prev?.webhookUrl ?? webhookUrl,
         webhookSecretConfigured: data?.webhookSecretConfigured ?? prev?.webhookSecretConfigured ?? false,
         webhookSecretLastFour: data?.webhookSecretLastFour ?? prev?.webhookSecretLastFour ?? null,
-        webhookFailureCount: data?.webhookFailureCount ?? prev?.webhookFailureCount ?? 0,
-        webhookDisabledUntil: data?.webhookDisabledUntil ?? prev?.webhookDisabledUntil ?? null,
         githubConnected: data?.githubConnected ?? prev?.githubConnected ?? false,
       }));
       setProfileSaveMessage({ type: "success", text: "Developer profile saved. The values shown here match what Dandi stored." });
@@ -302,13 +290,11 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
           webhookUrl: savedWebhookUrl,
           webhookSecretConfigured: data?.webhookSecretConfigured ?? prev?.webhookSecretConfigured ?? false,
           webhookSecretLastFour: data?.webhookSecretLastFour ?? prev?.webhookSecretLastFour ?? null,
-          webhookFailureCount: data?.webhookFailureCount ?? 0,
-          webhookDisabledUntil: data?.webhookDisabledUntil ?? null,
           githubConnected: data?.githubConnected ?? prev?.githubConnected ?? false,
         }));
         setWebhookUrl(savedWebhookUrl);
         setNewWebhookSecret(data?.newWebhookSecret || null);
-        showToast("success", "Alert webhook configuration updated.");
+        showToast("success", "Webhook test endpoint configuration updated.");
       } else {
         showToast("error", getToastErrorMessage("webhook", data?.error || "Failed to save webhook settings."));
       }
@@ -628,8 +614,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                 savedWebhookUrl={profile?.webhookUrl || ""}
         webhookSecretConfigured={profile?.webhookSecretConfigured ?? false}
         webhookSecretLastFour={profile?.webhookSecretLastFour ?? null}
-        webhookFailureCount={profile?.webhookFailureCount ?? 0}
-        webhookDisabledUntil={profile?.webhookDisabledUntil ?? null}
                 newWebhookSecret={newWebhookSecret}
                 isSavingWebhook={isSavingWebhook}
                 isRotatingWebhookSecret={isRotatingWebhookSecret}

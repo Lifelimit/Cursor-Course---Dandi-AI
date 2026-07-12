@@ -87,8 +87,6 @@ export type AccountProfileData = {
   webhookUrl: string;
   webhookSecretConfigured: boolean;
   webhookSecretLastFour: string | null;
-  webhookFailureCount?: number;
-  webhookDisabledUntil?: string | null;
   githubConnected: boolean;
 };
 

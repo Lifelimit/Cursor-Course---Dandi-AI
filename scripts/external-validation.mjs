@@ -66,7 +66,6 @@ printStatus("Stripe webhook secret", statusFor("STRIPE_WEBHOOK_SECRET"));
 printStatus("Google API key set", hasGoogleKey() ? "configured" : "missing");
 printStatus("GitHub token (private-flow validation)", statusFor("GITHUB_TOKEN"));
 printStatus("SMTP password (email-flow validation)", statusFor("SMTP_PASS"));
-printStatus("Cron secret (delivery-worker validation)", statusFor("CRON_SECRET"));
 printStatus("Webhook receiver target", statusFor("DANDI_WEBHOOK_RECEIVER_URL"));
 
 const readOnlyPrerequisites = [
@@ -99,7 +98,7 @@ async function probe(name, url, options = {}, expectedStatuses = []) {
 let probeFailures = 0;
 
 if (shouldProbe) {
-  console.log("\nRead-only probes enabled; no customer, payment, email, AI-generation, or webhook-delivery mutations are attempted.");
+  console.log("\nRead-only probes enabled; no customer, payment, email, AI-generation, repository-ingestion, or outbound-webhook mutations are attempted.");
 
   if (hasValue("STRIPE_SECRET_KEY")) {
     await probe("Stripe account metadata", "https://api.stripe.com/v1/account", {
@@ -133,13 +132,6 @@ if (shouldProbe) {
   const baseUrl = probeValue("DANDI_BASE_URL");
   if (baseUrl && /^https?:\/\//i.test(baseUrl)) {
     await probe("Dandi CSP response", new URL("/", baseUrl).toString());
-    const expectedWorkerStatuses = hasValue("CRON_SECRET") ? [401] : [503];
-    await probe(
-      "Webhook worker auth boundary",
-      new URL("/api/internal/webhook-delivery", baseUrl).toString(),
-      {},
-      expectedWorkerStatuses,
-    );
   }
 } else {
   console.log("\nRead-only probes not run. Pass --probe or DANDI_RUN_EXTERNAL_PROBES=1 to opt in.");
@@ -155,4 +147,4 @@ if (missingReadOnly.length > 0) {
   console.log("\nRead-only probe prerequisites are configured.");
 }
 
-console.log("\nStill intentionally gated: authenticated journeys, private GitHub, live AI/RAG generation, email delivery, Stripe mutations, and real webhook receivers.");
+console.log("\nStill intentionally gated: authenticated journeys, private GitHub, live AI/RAG generation, email delivery, Stripe mutations, automatic outbound webhook delivery, and real webhook receivers.");

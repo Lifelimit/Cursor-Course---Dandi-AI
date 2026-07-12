@@ -20,4 +20,4 @@ The Account webhook test action performs a real server-side outbound HTTP reques
 
 Legitimate users can send up to five test deliveries per minute. A Redis outage temporarily disables webhook test deliveries but protects the application and configured receivers from unbounded server-side egress. The limiter key intentionally does not use a client-supplied or proxy-derived IP value: the authenticated user ID is the authoritative abuse boundary for this browser-authenticated route.
 
-This is an abuse budget, not a billing or usage counter. It does not replace future product-level webhook delivery quotas or receiver-level circuit breaking.
+This is an abuse budget, not a billing or usage counter. It does not replace future product-level quotas or automatic outbound webhook delivery controls.

@@ -60,8 +60,6 @@ export async function POST(request: Request) {
       .from("profiles")
       .update({
         webhook_secret: newWebhookSecret,
-        webhook_failure_count: 0,
-        webhook_disabled_until: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", user.id);

@@ -22,7 +22,7 @@ export async function GET() {
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("plan, full_name, avatar_url, org_slug, webhook_url, webhook_secret, webhook_failure_count, webhook_disabled_until, github_connected")
+      .select("plan, full_name, avatar_url, org_slug, webhook_url, webhook_secret, github_connected")
       .eq("id", user.id)
       .single();
 
@@ -33,8 +33,6 @@ export async function GET() {
       orgSlug: profile?.org_slug || "",
       webhookUrl: profile?.webhook_url || "",
       ...getWebhookSecretMetadata(profile?.webhook_secret),
-      webhookFailureCount: profile?.webhook_failure_count ?? 0,
-      webhookDisabledUntil: profile?.webhook_disabled_until ?? null,
       githubConnected: !!profile?.github_connected
     }, { headers: secretResponseHeaders });
   } catch {
@@ -142,10 +140,6 @@ export async function PATCH(req: Request) {
     if (sanitizedWebhookUrl !== undefined) {
       updateData.webhook_url = sanitizedWebhookUrl;
       updateData.webhook_secret = webhookSecret;
-      // Saving the endpoint is an explicit operator action: clear a previous
-      // delivery circuit and allow the new configuration to be tried again.
-      updateData.webhook_failure_count = 0;
-      updateData.webhook_disabled_until = null;
     }
     updateData.updated_at = new Date().toISOString();
 
@@ -153,29 +147,12 @@ export async function PATCH(req: Request) {
       .from("profiles")
       .update(updateData)
       .eq("id", user.id)
-      .select("plan, full_name, avatar_url, org_slug, webhook_url, webhook_secret, webhook_failure_count, webhook_disabled_until, github_connected")
+      .select("plan, full_name, avatar_url, org_slug, webhook_url, webhook_secret, github_connected")
       .single();
 
     if (error) {
       console.error("Failed to update profile settings.");
       return NextResponse.json({ error: "Failed to update profile settings." }, { status: 500 });
-    }
-
-    if (endpointChanged) {
-      const { error: cancelledDeliveryError } = await supabaseAdmin
-        .from("webhook_deliveries")
-        .update({
-          status: "cancelled",
-          last_error: "Webhook endpoint configuration changed before delivery.",
-          locked_until: null,
-          lock_token: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user.id)
-        .in("status", ["pending", "processing"]);
-      if (cancelledDeliveryError) {
-        console.warn("Failed to cancel queued deliveries for the previous webhook endpoint.");
-      }
     }
 
     return NextResponse.json({
@@ -186,8 +163,6 @@ export async function PATCH(req: Request) {
       orgSlug: updatedProfile?.org_slug || "",
       webhookUrl: updatedProfile?.webhook_url || "",
       ...getWebhookSecretMetadata(updatedProfile?.webhook_secret),
-      webhookFailureCount: updatedProfile?.webhook_failure_count ?? 0,
-      webhookDisabledUntil: updatedProfile?.webhook_disabled_until ?? null,
       ...(newWebhookSecret ? { newWebhookSecret } : {}),
       githubConnected: !!updatedProfile?.github_connected
     }, { headers: secretResponseHeaders });

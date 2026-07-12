@@ -516,53 +516,35 @@ test("webhook test helpers pin public destinations and sanitize delivery details
   }
 });
 
-test("production webhook delivery has a durable lease, retry, circuit, and history contract", () => {
-  const deliveryService = readFileSync(resolve(repoRoot, "lib/services/webhook-delivery.service.ts"), "utf8");
-  const workerRoute = readFileSync(resolve(repoRoot, "app/api/internal/webhook-delivery/route.ts"), "utf8");
-  const historyRoute = readFileSync(resolve(repoRoot, "app/api/profile/webhook-deliveries/route.ts"), "utf8");
+test("scheduled customer webhooks are deferred while on-demand tests remain supported", () => {
   const migration = readFileSync(resolve(repoRoot, "supabase/migrations/20260712_create_webhook_delivery_queue.sql"), "utf8");
   const profileRoute = readFileSync(resolve(repoRoot, "app/api/profile/route.ts"), "utf8");
   const accountSource = readFileSync(resolve(repoRoot, "app/account/AccountClient.tsx"), "utf8");
   const webhookPanelSource = readFileSync(resolve(repoRoot, "components/account/AccountDeliveryLogsPanel.tsx"), "utf8");
+  const webhookSettingsSource = readFileSync(resolve(repoRoot, "components/account/AccountWebhooksPanel.tsx"), "utf8");
+  const webhookTestRoute = readFileSync(resolve(repoRoot, "app/api/profile/webhook-test/route.ts"), "utf8");
+  const stripeWebhookRoute = readFileSync(resolve(repoRoot, "app/api/webhooks/stripe/route.ts"), "utf8");
   const envSource = readFileSync(resolve(repoRoot, "lib/env.ts"), "utf8");
+  const envExample = readFileSync(resolve(repoRoot, ".env.example"), "utf8");
+  const validationScript = readFileSync(resolve(repoRoot, "scripts/external-validation.mjs"), "utf8");
   const vercelConfig = readFileSync(resolve(repoRoot, "vercel.json"), "utf8");
   const apiKeySource = readFileSync(resolve(repoRoot, "lib/services/api-key.service.ts"), "utf8");
 
+  assert.equal(JSON.parse(vercelConfig).crons, undefined);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.webhook_deliveries/);
-  assert.match(migration, /endpoint_url text NOT NULL/);
-  assert.match(migration, /FOR UPDATE OF d SKIP LOCKED/);
-  assert.match(migration, /d\.status = 'processing' AND \(d\.locked_until IS NULL OR d\.locked_until <= now\(\)\)/);
-  assert.match(migration, /lock_token uuid/);
-  assert.match(migration, /webhook_failure_count integer NOT NULL DEFAULT 0/);
-  assert.match(migration, /webhook_disabled_until timestamptz/);
-  assert.match(migration, /status IN \('pending', 'processing', 'succeeded', 'failed', 'cancelled'\)/);
   assert.match(migration, /ENABLE ROW LEVEL SECURITY/);
   assert.match(migration, /REVOKE ALL ON TABLE public\.webhook_deliveries FROM PUBLIC, anon, authenticated/);
-  assert.match(migration, /REVOKE ALL ON FUNCTION public\.claim_webhook_deliveries/);
-  assert.match(migration, /REVOKE ALL ON FUNCTION public\.record_webhook_delivery_outcome/);
-  assert.match(migration, /webhook_failure_count \+ 1/);
-  assert.match(migration, /make_interval\(secs/);
-
-  assert.match(deliveryService, /PRODUCTION_WEBHOOK_EVENT = "dandi\.usage_threshold_exceeded"/);
-  assert.match(deliveryService, /enqueueProductionWebhookEvent/);
-  assert.match(deliveryService, /sendSignedWebhookDelivery/);
-  assert.match(deliveryService, /rpc\("claim_webhook_deliveries"/);
-  assert.match(deliveryService, /rpc\("record_webhook_delivery_outcome"/);
-  assert.match(deliveryService, /WEBHOOK_DELIVERY_MAX_ATTEMPTS = 8/);
-  assert.match(deliveryService, /WEBHOOK_FAILURE_THRESHOLD = 5/);
-  assert.match(deliveryService, /endpoint_url: profile\.webhook_url/);
-  assert.match(deliveryService, /profile\.webhook_url !== delivery\.endpoint_url/);
-  assert.doesNotMatch(deliveryService, /webhook_secret:\s*profile/);
-  assert.match(workerRoute, /CRON_SECRET/);
-  assert.match(workerRoute, /Bearer /);
-  assert.match(workerRoute, /deliverPendingWebhooks/);
-  assert.match(historyRoute, /getWebhookDeliveryHistory/);
-  assert.match(profileRoute, /updateData\.webhook_failure_count = 0/);
-  assert.match(accountSource, /fetch\("\/api\/profile\/webhook-deliveries"\)/);
-  assert.match(webhookPanelSource, /production alert deliveries/i);
-  assert.match(envSource, /CRON_SECRET: optionalString/);
-  assert.match(vercelConfig, /\/api\/internal\/webhook-delivery/);
-  assert.match(apiKeySource, /enqueueProductionWebhookEvent/);
+  assert.doesNotMatch(profileRoute, /webhook_deliveries|webhook_failure_count|webhook_disabled_until/);
+  assert.doesNotMatch(accountSource, /webhook-deliveries|production alert deliveries|retry outcomes/i);
+  assert.match(webhookPanelSource, /not persisted as delivery history/i);
+  assert.match(webhookSettingsSource, /Automatic customer-event webhooks.*deferred/i);
+  assert.match(webhookTestRoute, /sendWebhookTestDelivery/);
+  assert.match(accountSource, /fetch\("\/api\/profile\/webhook-test"/);
+  assert.match(stripeWebhookRoute, /stripe\.webhooks\.constructEvent/);
+  assert.doesNotMatch(apiKeySource, /enqueueProductionWebhookEvent|webhook-delivery\.service/);
+  assert.doesNotMatch(envSource, /CRON_[A-Z_]+/);
+  assert.doesNotMatch(envExample, /CRON_[A-Z_]+/);
+  assert.doesNotMatch(validationScript, /CRON_[A-Z_]+|webhook-delivery|worker auth/i);
 });
 
 test("webhook signing secrets are strong, one-time disclosures with metadata-only routine reads", () => {

@@ -1,56 +1,48 @@
-# Production webhook delivery architecture
+# Production webhook delivery
 
 Date: 2026-07-12
-Status: Implemented
+Status: Deferred
 
-## Contract
+## Context
 
-Production events use a versioned JSON envelope:
+Dandi's usage-threshold alert path was extended with an outbound customer
+webhook design. The design used a durable service-role-only outbox,
+scheduled processing, retries, circuit breaking, and persisted delivery
+history.
 
-```json
-{
-  "id": "evt_<uuid>",
-  "event": "dandi.usage_threshold_exceeded",
-  "version": 1,
-  "createdAt": "2026-07-12T00:00:00.000Z",
-  "mode": "live",
-  "data": {}
-}
-```
+The scheduled worker was added to drain that outbox independently of user
+requests. It was configured to run every minute so retryable receiver failures
+could be retried promptly. That schedule requires a Vercel plan with
+sub-daily cron support, which is not appropriate for the current personal
+launch scope.
 
-The initial producer is the existing usage-threshold alert path. Webhook
-enqueueing is independent of the user's email alert-channel preference. A
-monthly, per-key dedupe key prevents concurrent requests from creating
-duplicate alert events. The same pinned public-egress policy and HMAC signing format used by
-test delivery are reused for production delivery, with
-`X-Dandi-Signature-Version: 1` and `X-Dandi-Event` headers.
+## Current launch contract
 
-## Durable delivery
+- Account settings can save a webhook endpoint and manage its signing secret.
+- An authenticated user can send an immediate signed test delivery.
+- Test delivery responses are shown in the current account session only; they
+  are not persisted as delivery history.
+- Usage-threshold email alerts remain unchanged.
+- Automatic customer-event webhook delivery, retries, circuit breaking, and
+  delivery history are deferred.
 
-`webhook_deliveries` is a service-role-only outbox and history table. It stores
-the event payload and sanitized response metadata, but never copies the
-endpoint signing secret. A Vercel Cron request to
-`/api/internal/webhook-delivery` claims up to 20 rows using a Postgres
-`FOR UPDATE SKIP LOCKED` lease. The route requires `Authorization: Bearer
-<CRON_SECRET>` and is scheduled once per minute in `vercel.json`.
-The once-per-minute schedule requires a Vercel plan that supports sub-daily
-cron intervals (Vercel Pro or an equivalent external scheduler); Hobby
-deployments must use an approved external scheduler or a daily schedule.
+The account UI states this limitation explicitly. No route or configuration
+value is reserved for a scheduled delivery worker.
 
-Claims carry a lock token, so a worker that finishes after its lease expires
-cannot overwrite a later worker's result. Successful deliveries are retained
-as history. Missing endpoint configuration is cancelled without attempting
-network access.
+## Schema decision
 
-## Retry and circuit policy
+The isolated migration named 20260712_create_webhook_delivery_queue.sql is
+left unchanged. It may already have been applied, and removing its table,
+functions, or profile columns would be a destructive migration. With the
+application producer, worker, history route, and history UI removed, the
+schema is harmlessly unused and available for a separately approved future
+delivery design. If an environment is confirmed not to have applied the
+migration, deleting that migration before applying it is optional cleanup, not
+part of this launch change.
 
-HTTP 2xx responses complete the delivery. Timeouts, network failures, 408,
-425, 429, and 5xx responses retry with delays of 1m, 5m, 30m, 2h, 12h, and
-24h, capped at eight attempts. Other HTTP errors become terminal failures.
-After five retryable failures, the profile circuit opens for one hour; the
-claim function skips that endpoint until the circuit window expires. Saving an
-endpoint or rotating its secret resets the circuit. A successful delivery also
-resets the failure count.
+## Re-enable criteria
 
-The account delivery history route reads only the authenticated user's rows;
-response headers and bodies are sanitized and bounded before persistence.
+Automatic customer webhooks should return only with an explicitly approved
+delivery architecture, scheduler plan, retry policy, and user-facing
+delivery-history contract. That work should also include focused validation
+against an isolated receiver.

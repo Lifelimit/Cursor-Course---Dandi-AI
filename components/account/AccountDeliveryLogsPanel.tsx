@@ -42,9 +42,9 @@ export function AccountDeliveryLogsPanel({
   return (
     <div className="max-w-4xl space-y-6 border-t border-white/5 pt-8 md:pt-10">
       <div className="space-y-1">
-        <h4 className="text-base font-bold text-white">Delivery logs</h4>
+        <h4 className="text-base font-bold text-white">Test delivery details</h4>
         <p className="max-w-2xl text-xs leading-5 text-zinc-400">
-          Review signed test deliveries and production alert deliveries, including retry outcomes and receiver responses.
+          Review signed test deliveries made during this session. Test results are not persisted as delivery history.
         </p>
       </div>
 
@@ -125,9 +125,9 @@ export function AccountDeliveryLogsPanel({
       </div>
 
       <div className="hidden md:block">
-        <ScrollFrame axis="x" minWidth="760px" label="Webhook delivery logs">
+        <ScrollFrame axis="x" minWidth="760px" label="Webhook test delivery details">
           <table className="min-w-[760px] w-full border-collapse text-left font-sans text-xs">
-            <caption className="sr-only">Webhook delivery history</caption>
+            <caption className="sr-only">Webhook test delivery details</caption>
             <thead>
               <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
                 <th scope="col" className="px-6 py-4">Status</th>

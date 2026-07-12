@@ -5,7 +5,6 @@ import crypto from "crypto";
 import { normalizeGitHubRepoUrl } from "@/lib/security-core";
 import { getRequestTelemetry } from "@/lib/account-environments";
 import type { ValidatedApiKeyData } from "@/types/api-keys";
-import { enqueueProductionWebhookEvent } from "@/lib/services/webhook-delivery.service";
 
 const USAGE_RESERVATION_SCRIPT = `
   local user_key = KEYS[1]
@@ -285,26 +284,6 @@ export async function incrementKeyUsage(
         }
       }
 
-      // The durable database dedupe key keeps production webhook events
-      // single-shot even when Redis is unavailable or its alert marker is
-      // stale from a previous delivery attempt.
-      try {
-        await enqueueProductionWebhookEvent({
-          userId,
-          dedupeKey: `usage-threshold:${keyId}:${currentMonth}`,
-          data: {
-            apiKeyId: keyId,
-            apiKeyName: keyData.name,
-            usage: newKeyUsage,
-            monthlyLimit: keyData.monthly_limit,
-            thresholdPercent: Math.round(pct * 100) / 100,
-            threshold: keyData.alert_threshold,
-            period: currentMonth,
-          },
-        });
-      } catch {
-        console.error("Failed to enqueue a usage-threshold webhook event.");
-      }
     }
   }
 

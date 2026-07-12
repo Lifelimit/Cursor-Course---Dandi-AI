@@ -61,7 +61,7 @@ test("external validation is opt-in, read-only, and secret-redacting", async () 
   const script = await read("scripts/external-validation.mjs");
 
   assert.match(script, /process\.argv\.includes\("--probe"\)/);
-  assert.match(script, /no customer, payment, email, AI-generation, or webhook-delivery mutations/i);
+  assert.match(script, /no customer, payment, email, AI-generation, repository-ingestion, or outbound-webhook mutations/i);
   assert.match(script, /Still intentionally gated/);
   assert.doesNotMatch(script, /console\.log\([^\n]*(STRIPE_SECRET_KEY|GOOGLE_API_KEY|SUPABASE_SERVICE_ROLE_KEY)/);
 });
@@ -81,7 +81,7 @@ test("shared controls expose table, tab, listbox, quota, and contrast semantics"
 
   assert.match(apiTables, /<caption className="sr-only">API keys and credential activity<\/caption>/);
   assert.match(apiTables, /<th scope="col"/);
-  assert.match(deliveryTable, /<caption className="sr-only">Webhook delivery history<\/caption>/);
+  assert.match(deliveryTable, /<caption className="sr-only">Webhook test delivery details<\/caption>/);
   assert.match(deliveryInspector, /aria-controls="delivery-log-request-panel"/);
   assert.match(deliveryInspector, /event\.key === "Home"/);
   assert.match(accountNav, /role="tablist"/);

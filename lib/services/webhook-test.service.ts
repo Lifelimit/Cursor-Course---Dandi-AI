@@ -322,67 +322,6 @@ export function parseSafeResponseBody(bodyText: string, contentType: string | nu
   return safeBodyText;
 }
 
-export type SignedWebhookDeliveryResult = {
-  success: boolean;
-  retryable: boolean;
-  status: number;
-  latency: number;
-  responseHeaders: Record<string, string>;
-  responseBody: unknown;
-  error?: string;
-};
-
-function isRetryableWebhookStatus(status: number) {
-  return status === 408 || status === 425 || status === 429 || status >= 500;
-}
-
-/**
- * Deliver a versioned, signed product event using the same pinned egress
- * policy as the account test delivery. The result is sanitized and safe to
- * persist in delivery history; it never includes the signing secret.
- */
-export async function sendSignedWebhookDelivery(input: {
-  webhookUrl: string;
-  signingSecret: string;
-  event: string;
-  payload: unknown;
-  now?: Date;
-}): Promise<SignedWebhookDeliveryResult> {
-  const now = input.now ?? new Date();
-  const payloadBody = JSON.stringify(input.payload);
-  const timestamp = Math.floor(now.getTime() / 1000);
-  const signature = signWebhookPayload(payloadBody, input.signingSecret, timestamp);
-  const startedAt = performance.now();
-
-  try {
-    const endpoint = await assertSafeWebhookEndpoint(input.webhookUrl);
-    const response = await postToPinnedWebhookEndpoint(endpoint, payloadBody, signature, input.event);
-    const latency = Math.max(0, Math.round(performance.now() - startedAt));
-    const responseHeaders = sanitizeResponseHeaders(response.headers);
-    const responseBody = parseSafeResponseBody(response.bodyText, response.headers.get("content-type"));
-
-    return {
-      success: response.status >= 200 && response.status < 300,
-      retryable: isRetryableWebhookStatus(response.status),
-      status: response.status,
-      latency,
-      responseHeaders,
-      responseBody,
-    };
-  } catch (error) {
-    const safeError = getSafeWebhookErrorMessage(error);
-    return {
-      success: false,
-      retryable: !/invalid|must use|embedded|public hostname|resolved|reserved|too long/i.test(safeError),
-      status: 0,
-      latency: Math.max(0, Math.round(performance.now() - startedAt)),
-      responseHeaders: {},
-      responseBody: { error: safeError },
-      error: safeError,
-    };
-  }
-}
-
 export async function sendWebhookTestDelivery(input: {
   webhookUrl: string;
   signingSecret: string;
