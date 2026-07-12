@@ -22,6 +22,7 @@ import type {
   AccountApiRequestActivity,
   AccountDataResponse,
   AccountProfileData,
+  AccountProfileMutationData,
   CurrentBrowserTelemetry,
   WebhookLogEntry,
 } from "@/types/account";
@@ -80,6 +81,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
   const [webhookUrl, setWebhookUrl] = useState("");
   const [isSavingWebhook, setIsSavingWebhook] = useState(false);
+  const [newWebhookSecret, setNewWebhookSecret] = useState<string | null>(null);
+  const [isRotatingWebhookSecret, setIsRotatingWebhookSecret] = useState(false);
 
   const [testerLogs, setTesterLogs] = useState<string[]>([]);
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
@@ -113,6 +116,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
       if (profileRes.ok) {
         const pData: AccountProfileData = await profileRes.json();
+        setNewWebhookSecret(null);
         setProfile(pData);
         setFullName(pData.fullName);
         setOrgSlug(pData.orgSlug);
@@ -249,7 +253,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         avatarUrl: data?.avatarUrl ?? prev?.avatarUrl ?? "",
         plan: data?.plan ?? prev?.plan ?? userPlan,
         webhookUrl: data?.webhookUrl ?? prev?.webhookUrl ?? webhookUrl,
-        webhookSecret: data?.webhookSecret ?? prev?.webhookSecret ?? "",
+        webhookSecretConfigured: data?.webhookSecretConfigured ?? prev?.webhookSecretConfigured ?? false,
+        webhookSecretLastFour: data?.webhookSecretLastFour ?? prev?.webhookSecretLastFour ?? null,
         githubConnected: data?.githubConnected ?? prev?.githubConnected ?? false,
       }));
       setProfileSaveMessage({ type: "success", text: "Developer profile saved. The values shown here match what Dandi stored." });
@@ -273,25 +278,60 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         body: JSON.stringify({ webhookUrl })
       });
 
+      const data = await res.json().catch(() => null) as (Partial<AccountProfileMutationData> & { error?: string }) | null;
       if (res.ok) {
-        const data = await res.json() as Partial<AccountProfileData>;
+        const savedWebhookUrl = data?.webhookUrl ?? webhookUrl;
         setProfile(prev => ({
           fullName: prev?.fullName ?? fullName,
           orgSlug: prev?.orgSlug ?? orgSlug,
           avatarUrl: prev?.avatarUrl ?? "",
           plan: prev?.plan ?? userPlan,
-          webhookUrl: data.webhookUrl ?? webhookUrl,
-          webhookSecret: data.webhookSecret ?? prev?.webhookSecret ?? "",
-          githubConnected: data.githubConnected ?? prev?.githubConnected ?? false,
+          webhookUrl: savedWebhookUrl,
+          webhookSecretConfigured: data?.webhookSecretConfigured ?? prev?.webhookSecretConfigured ?? false,
+          webhookSecretLastFour: data?.webhookSecretLastFour ?? prev?.webhookSecretLastFour ?? null,
+          githubConnected: data?.githubConnected ?? prev?.githubConnected ?? false,
         }));
+        setWebhookUrl(savedWebhookUrl);
+        setNewWebhookSecret(data?.newWebhookSecret || null);
         showToast("success", "Alert webhook configuration updated.");
       } else {
-        showToast("error", getToastErrorMessage("webhook", "Failed to save webhook settings."));
+        showToast("error", getToastErrorMessage("webhook", data?.error || "Failed to save webhook settings."));
       }
     } catch {
       showToast("error", getToastErrorMessage("webhook", "Error saving webhook settings."));
     } finally {
       setIsSavingWebhook(false);
+    }
+  };
+
+  const handleRotateWebhookSecret = async () => {
+    if (isRotatingWebhookSecret) return;
+
+    setIsRotatingWebhookSecret(true);
+    try {
+      const response = await fetch("/api/profile/webhook-secret", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: true }),
+      });
+      const data = await response.json().catch(() => null) as (Partial<AccountProfileMutationData> & { error?: string }) | null;
+      if (!response.ok || !data?.newWebhookSecret) {
+        throw new Error(data?.error || "Failed to rotate webhook signing secret.");
+      }
+
+      setNewWebhookSecret(data.newWebhookSecret);
+      setProfile(prev => prev ? {
+        ...prev,
+        webhookSecretConfigured: data.webhookSecretConfigured ?? true,
+        webhookSecretLastFour: data.webhookSecretLastFour ?? data.newWebhookSecret?.slice(-4) ?? null,
+      } : prev);
+      showToast("success", "Webhook signing secret rotated. Copy the new secret now.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to rotate webhook signing secret.";
+      showToast("error", getToastErrorMessage("webhook", message));
+      throw error;
+    } finally {
+      setIsRotatingWebhookSecret(false);
     }
   };
 
@@ -567,8 +607,11 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
               <AccountWebhooksPanel
                 webhookUrl={webhookUrl}
                 savedWebhookUrl={profile?.webhookUrl || ""}
-                webhookSecret={profile?.webhookSecret || ""}
+                webhookSecretConfigured={profile?.webhookSecretConfigured ?? false}
+                webhookSecretLastFour={profile?.webhookSecretLastFour ?? null}
+                newWebhookSecret={newWebhookSecret}
                 isSavingWebhook={isSavingWebhook}
+                isRotatingWebhookSecret={isRotatingWebhookSecret}
                 testerLogs={testerLogs}
                 isTestingWebhook={isTestingWebhook}
                 webhookLogs={webhookLogs}
@@ -577,6 +620,8 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                 canShowLessWebhookLogs={canShowLessWebhookLogs}
                 onWebhookUrlChange={setWebhookUrl}
                 onSubmit={handleSaveWebhook}
+                onRotateWebhookSecret={handleRotateWebhookSecret}
+                onDismissWebhookSecret={() => setNewWebhookSecret(null)}
                 onRunWebhookTest={runWebhookTest}
                 onFocusWebhookUrlInput={focusWebhookUrlInput}
                 onShowMoreWebhookLogs={handleShowMoreWebhookLogs}

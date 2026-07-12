@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { CommandPanel, MockTerminal } from "@/components/command";
 import type { ToastType } from "@/hooks/useToast";
 import type { WebhookLogEntry } from "@/types/account";
@@ -7,8 +7,11 @@ import { AccountDeliveryLogsPanel } from "./AccountDeliveryLogsPanel";
 type AccountWebhooksPanelProps = {
   webhookUrl: string;
   savedWebhookUrl: string;
-  webhookSecret: string;
+  webhookSecretConfigured: boolean;
+  webhookSecretLastFour: string | null;
+  newWebhookSecret: string | null;
   isSavingWebhook: boolean;
+  isRotatingWebhookSecret: boolean;
   testerLogs: string[];
   isTestingWebhook: boolean;
   webhookLogs: WebhookLogEntry[];
@@ -17,6 +20,8 @@ type AccountWebhooksPanelProps = {
   canShowLessWebhookLogs: boolean;
   onWebhookUrlChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onRotateWebhookSecret: () => Promise<void>;
+  onDismissWebhookSecret: () => void;
   onRunWebhookTest: () => void;
   onFocusWebhookUrlInput: () => void;
   onShowMoreWebhookLogs: () => void;
@@ -28,8 +33,11 @@ type AccountWebhooksPanelProps = {
 export function AccountWebhooksPanel({
   webhookUrl,
   savedWebhookUrl,
-  webhookSecret,
+  webhookSecretConfigured,
+  webhookSecretLastFour,
+  newWebhookSecret,
   isSavingWebhook,
+  isRotatingWebhookSecret,
   testerLogs,
   isTestingWebhook,
   webhookLogs,
@@ -38,6 +46,8 @@ export function AccountWebhooksPanel({
   canShowLessWebhookLogs,
   onWebhookUrlChange,
   onSubmit,
+  onRotateWebhookSecret,
+  onDismissWebhookSecret,
   onRunWebhookTest,
   onFocusWebhookUrlInput,
   onShowMoreWebhookLogs,
@@ -45,14 +55,15 @@ export function AccountWebhooksPanel({
   onInspectLog,
   showToast,
 }: AccountWebhooksPanelProps) {
+  const [isConfirmingRotation, setIsConfirmingRotation] = useState(false);
   const trimmedWebhookUrl = webhookUrl.trim();
   const trimmedSavedWebhookUrl = savedWebhookUrl.trim();
-  const hasSavedEndpoint = Boolean(trimmedSavedWebhookUrl && webhookSecret);
+  const hasSavedEndpoint = Boolean(trimmedSavedWebhookUrl && webhookSecretConfigured);
   const hasUnsavedEndpointChange = trimmedWebhookUrl !== trimmedSavedWebhookUrl;
   const canRunTestDelivery = Boolean(hasSavedEndpoint && !hasUnsavedEndpointChange && !isTestingWebhook);
-  const maskedSigningSecret = webhookSecret
-    ? `${webhookSecret.slice(0, 14)}...${webhookSecret.slice(-4)}`
-    : "";
+  const maskedSigningSecret = webhookSecretLastFour
+    ? `whsec_dandi_••••••••••••••••••••${webhookSecretLastFour}`
+    : "whsec_dandi_••••••••••••••••••••";
 
   return (
     <CommandPanel id="account-webhooks-panel" role="tabpanel" aria-labelledby="webhooks-tab" tone="elevated" className="space-y-8 p-5 sm:p-8 md:space-y-10 md:p-10">
@@ -75,35 +86,82 @@ export function AccountWebhooksPanel({
           />
         </div>
 
-        {webhookSecret && (
+        {newWebhookSecret && (
           <div className="space-y-2 animate-in fade-in duration-300">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Signing secret</p>
-            <div className="flex flex-col gap-2 rounded-2xl border border-white/5 bg-slate-950/20 p-3 sm:flex-row sm:items-center sm:pl-6">
-              <code className="min-w-0 flex-1 break-all font-mono text-xs font-bold tracking-wider text-slate-300" aria-label="Masked signing secret">
-                {maskedSigningSecret}
-              </code>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(webhookSecret);
-                    showToast("success", "Signing secret copied to clipboard.");
-                  } catch {
-                    showToast("error", "Failed to copy signing secret.");
-                  }
-                }}
-                className="flex h-12 w-full shrink-0 items-center justify-center rounded-xl bg-slate-900 border border-white/10 text-slate-300 shadow transition hover:bg-white hover:text-zinc-950 sm:w-12 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-                aria-label="Copy signing secret"
-                title="Copy signing secret"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" />
-                </svg>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300 ml-1">New signing secret — shown once</p>
+            <div className="rounded-2xl border border-emerald-300/20 bg-emerald-500/10 p-4">
+              <p className="mb-3 text-xs leading-5 text-emerald-100/85">Copy this secret to your server-side secret store now. Dandi will not show it again after you dismiss or leave this page.</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <code className="min-w-0 flex-1 break-all rounded-xl bg-slate-950/70 p-3 font-mono text-xs font-bold tracking-wider text-slate-200" aria-label="New webhook signing secret">
+                  {newWebhookSecret}
+                </code>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(newWebhookSecret);
+                      showToast("success", "Signing secret copied to clipboard.");
+                    } catch {
+                      showToast("error", "Failed to copy signing secret.");
+                    }
+                  }}
+                  className="flex h-12 w-full shrink-0 items-center justify-center rounded-xl bg-emerald-300 text-slate-950 shadow transition hover:bg-white sm:w-12 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                  aria-label="Copy signing secret"
+                  title="Copy signing secret"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" />
+                  </svg>
+                </button>
+              </div>
+              <button type="button" onClick={onDismissWebhookSecret} className="mt-3 text-xs font-bold text-emerald-100 underline decoration-emerald-300/40 underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">
+                I have stored it securely — dismiss
               </button>
             </div>
-            <p className="text-[8px] text-zinc-500 leading-relaxed italic ml-1">
-              Masked in the UI. Copy only to a server-side secret store that verifies the X-Dandi-Signature header on incoming deliveries.
-            </p>
+          </div>
+        )}
+
+        {webhookSecretConfigured && (
+          <div className="space-y-3 animate-in fade-in duration-300">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Active signing secret</p>
+            <code className="block break-all rounded-2xl border border-white/5 bg-slate-950/20 px-5 py-4 font-mono text-xs font-bold tracking-wider text-slate-400" aria-label="Masked active signing secret">
+              {maskedSigningSecret}
+            </code>
+            <p className="text-xs leading-5 text-zinc-500">Stored secret values cannot be recovered. Rotate the secret if you no longer have it; rotation immediately invalidates the previous value for future deliveries.</p>
+
+            {isConfirmingRotation ? (
+              <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4" role="alert">
+                <p className="text-sm font-bold text-amber-100">Rotate the signing secret?</p>
+                <p className="mt-1 text-xs leading-5 text-amber-100/75">Your receiver must be updated with the new secret before it can verify future deliveries.</p>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <button type="button" disabled={isRotatingWebhookSecret} onClick={() => setIsConfirmingRotation(false)} className="rounded-full border border-white/10 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-slate-300 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">Cancel</button>
+                  <button
+                    type="button"
+                    disabled={isRotatingWebhookSecret}
+                    onClick={async () => {
+                      try {
+                        await onRotateWebhookSecret();
+                        setIsConfirmingRotation(false);
+                      } catch {
+                        // The parent surfaces the actionable error and keeps confirmation open.
+                      }
+                    }}
+                    className="rounded-full bg-amber-300 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-slate-950 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
+                  >
+                    {isRotatingWebhookSecret ? "Rotating..." : "Rotate now"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={hasUnsavedEndpointChange || isSavingWebhook || isRotatingWebhookSecret}
+                onClick={() => setIsConfirmingRotation(true)}
+                className="rounded-full border border-white/10 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-slate-300 transition hover:border-amber-300/30 hover:text-amber-100 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+              >
+                Rotate signing secret
+              </button>
+            )}
           </div>
         )}
 

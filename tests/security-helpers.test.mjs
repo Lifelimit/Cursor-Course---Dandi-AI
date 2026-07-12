@@ -515,6 +515,46 @@ test("webhook test helpers pin public destinations and sanitize delivery details
   }
 });
 
+test("webhook signing secrets are strong, one-time disclosures with metadata-only routine reads", () => {
+  const { generateWebhookSigningSecret, getWebhookSecretMetadata } = loadTsModule("lib/services/webhook-secret.service.ts");
+  const first = generateWebhookSigningSecret();
+  const second = generateWebhookSigningSecret();
+
+  assert.match(first, /^whsec_dandi_[a-f0-9]{64}$/);
+  assert.notEqual(first, second);
+  assert.deepEqual(getWebhookSecretMetadata(first), {
+    webhookSecretConfigured: true,
+    webhookSecretLastFour: first.slice(-4),
+  });
+  assert.deepEqual(getWebhookSecretMetadata(""), {
+    webhookSecretConfigured: false,
+    webhookSecretLastFour: null,
+  });
+
+  const profileSource = readFileSync(resolve(repoRoot, "app/api/profile/route.ts"), "utf8");
+  const rotationSource = readFileSync(resolve(repoRoot, "app/api/profile/webhook-secret/route.ts"), "utf8");
+  const accountSource = readFileSync(resolve(repoRoot, "app/account/AccountClient.tsx"), "utf8");
+  const panelSource = readFileSync(resolve(repoRoot, "components/account/AccountWebhooksPanel.tsx"), "utf8");
+
+  assert.match(profileSource, /getWebhookSecretMetadata\(profile\?\.webhook_secret\)/);
+  assert.match(profileSource, /\.\.\.\(newWebhookSecret \? \{ newWebhookSecret \} : \{\}\)/);
+  assert.doesNotMatch(profileSource, /webhookSecret:\s*profile\?\.webhook_secret/);
+  assert.doesNotMatch(profileSource, /webhookSecret:\s*updatedProfile\?\.webhook_secret/);
+  assert.match(profileSource, /"Cache-Control": "no-store, no-cache, must-revalidate"/);
+
+  assert.match(rotationSource, /body\.confirm !== true/);
+  assert.match(rotationSource, /\.eq\("id", user\.id\)/);
+  assert.match(rotationSource, /"Content-Type must be application\/json\."/);
+  assert.match(rotationSource, /"Cache-Control": "no-store, no-cache, must-revalidate"/);
+
+  assert.match(accountSource, /useState<string \| null>\(null\)/);
+  assert.match(accountSource, /setNewWebhookSecret\(data\?\.newWebhookSecret \|\| null\)/);
+  assert.match(panelSource, /navigator\.clipboard\.writeText\(newWebhookSecret\)/);
+  assert.doesNotMatch(panelSource, /navigator\.clipboard\.writeText\(webhookSecret\)/);
+  assert.match(panelSource, /Rotate the signing secret\?/);
+  assert.match(panelSource, /shown once/i);
+});
+
 test("computes configurable CORS headers", () => {
   const { getCorsHeaders, isCorsOriginAllowed } = loadTsModule("lib/cors.ts");
   const originalNodeEnv = process.env.NODE_ENV;

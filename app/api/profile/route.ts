@@ -2,9 +2,14 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { assertSafeWebhookEndpoint, getSafeWebhookErrorMessage } from "@/lib/services/webhook-test.service";
-import crypto from "crypto";
+import { generateWebhookSigningSecret, getWebhookSecretMetadata } from "@/lib/services/webhook-secret.service";
 
 export const dynamic = "force-dynamic";
+
+const secretResponseHeaders = {
+  "Cache-Control": "no-store, no-cache, must-revalidate",
+  "Pragma": "no-cache",
+};
 
 export async function GET() {
   try {
@@ -27,9 +32,9 @@ export async function GET() {
       avatarUrl: profile?.avatar_url || "",
       orgSlug: profile?.org_slug || "",
       webhookUrl: profile?.webhook_url || "",
-      webhookSecret: profile?.webhook_secret || "",
+      ...getWebhookSecretMetadata(profile?.webhook_secret),
       githubConnected: !!profile?.github_connected
-    });
+    }, { headers: secretResponseHeaders });
   } catch {
     console.error("Failed to fetch profile settings.");
     return NextResponse.json({ plan: "Hobby", error: "Internal Server Error" }, { status: 500 });
@@ -102,18 +107,27 @@ export async function PATCH(req: Request) {
     }
 
     // Load existing profile first to check webhook secret
-    const { data: existingProfile } = await supabaseAdmin
+    const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
       .from("profiles")
       .select("webhook_secret, webhook_url")
       .eq("id", user.id)
       .single();
 
+    if (existingProfileError) {
+      console.error("Failed to load existing webhook settings.");
+      return NextResponse.json({ error: "Failed to update profile settings." }, { status: 500 });
+    }
+
     let webhookSecret = existingProfile?.webhook_secret || "";
+    let newWebhookSecret: string | undefined;
 
     if (sanitizedWebhookUrl !== undefined) {
-      // Automatically generate a signing secret if a new webhook URL is defined and no secret exists yet.
-      if (sanitizedWebhookUrl && !webhookSecret) {
-        webhookSecret = `whsec_dandi_${crypto.randomBytes(8).toString("hex")}`;
+      const endpointChanged = sanitizedWebhookUrl !== (existingProfile?.webhook_url || "").trim();
+      // New receivers get a new secret exactly once. Replacing an endpoint also
+      // invalidates the secret held by the previous receiver.
+      if (sanitizedWebhookUrl && (!webhookSecret || endpointChanged)) {
+        webhookSecret = generateWebhookSigningSecret();
+        newWebhookSecret = webhookSecret;
       } else if (!sanitizedWebhookUrl) {
         webhookSecret = "";
       }
@@ -131,7 +145,7 @@ export async function PATCH(req: Request) {
       .from("profiles")
       .update(updateData)
       .eq("id", user.id)
-      .select()
+      .select("plan, full_name, avatar_url, org_slug, webhook_url, webhook_secret, github_connected")
       .single();
 
     if (error) {
@@ -146,9 +160,10 @@ export async function PATCH(req: Request) {
       avatarUrl: updatedProfile?.avatar_url || "",
       orgSlug: updatedProfile?.org_slug || "",
       webhookUrl: updatedProfile?.webhook_url || "",
-      webhookSecret: updatedProfile?.webhook_secret || "",
+      ...getWebhookSecretMetadata(updatedProfile?.webhook_secret),
+      ...(newWebhookSecret ? { newWebhookSecret } : {}),
       githubConnected: !!updatedProfile?.github_connected
-    });
+    }, { headers: secretResponseHeaders });
   } catch {
     console.error("Failed to patch profile settings.");
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

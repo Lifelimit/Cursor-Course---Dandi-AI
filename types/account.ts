@@ -85,8 +85,13 @@ export type AccountProfileData = {
   plan: string;
   orgSlug: string;
   webhookUrl: string;
-  webhookSecret: string;
+  webhookSecretConfigured: boolean;
+  webhookSecretLastFour: string | null;
   githubConnected: boolean;
+};
+
+export type AccountProfileMutationData = AccountProfileData & {
+  newWebhookSecret?: string;
 };
 
 export type WebhookLogEntry = {
