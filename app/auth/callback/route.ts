@@ -1,6 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
-import { getSafeAuthRedirect } from "@/lib/auth-utils";
+import { DEFAULT_AUTH_REDIRECT, getSafeAuthRedirect } from "@/lib/auth-utils";
 import { NextResponse } from "next/server";
+
+function authFailureRedirect(origin: string, reason: string, next: string) {
+  const destination = new URL("/login", origin);
+  destination.searchParams.set("error", "auth-failed");
+  destination.searchParams.set("reason", reason);
+  if (next !== DEFAULT_AUTH_REDIRECT) destination.searchParams.set("next", next);
+  return NextResponse.redirect(destination);
+}
 
 export async function GET(request: Request) {
   // The `/auth/callback` route is required for the server-side auth flow implemented
@@ -11,6 +19,10 @@ export async function GET(request: Request) {
   const next = getSafeAuthRedirect(requestUrl.searchParams.get("next"));
   const flow = requestUrl.searchParams.get("flow") === "signup" ? "signup" : null;
   const returnTo = getSafeAuthRedirect(requestUrl.searchParams.get("returnTo"));
+  const recoveryDestination =
+    (next === "/reset-password" || next === "/auth/success") && returnTo !== DEFAULT_AUTH_REDIRECT
+      ? returnTo
+      : next;
 
   if (requestUrl.searchParams.has("error") && !code) {
     const reason = requestUrl.searchParams.get("error_code") === "otp_expired"
@@ -18,7 +30,7 @@ export async function GET(request: Request) {
       : requestUrl.searchParams.get("error") === "access_denied"
         ? "oauth-canceled"
         : "callback-failed";
-    return NextResponse.redirect(new URL(`/login?error=auth-failed&reason=${reason}`, requestUrl.origin));
+    return authFailureRedirect(requestUrl.origin, reason, recoveryDestination);
   }
 
   if (code) {
@@ -27,10 +39,12 @@ export async function GET(request: Request) {
     if (!error) {
       const destination = new URL(next, requestUrl.origin);
       if (flow) destination.searchParams.set("flow", flow);
-      if (next === "/reset-password" && returnTo !== "/dashboards") destination.searchParams.set("next", returnTo);
+      if ((next === "/reset-password" || next === "/auth/success") && returnTo !== DEFAULT_AUTH_REDIRECT) {
+        destination.searchParams.set("next", returnTo);
+      }
       return NextResponse.redirect(destination);
     }
   }
 
-  return NextResponse.redirect(new URL("/login?error=auth-failed&reason=callback-failed", requestUrl.origin));
+  return authFailureRedirect(requestUrl.origin, "callback-failed", recoveryDestination);
 }

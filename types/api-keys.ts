@@ -59,4 +59,5 @@ export type ValidatedApiKeyData = {
   alert_threshold?: number | null;
   alert_channels?: string[] | null;
   email?: string | null;
+  browserUserId?: string;
 };

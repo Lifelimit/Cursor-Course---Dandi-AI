@@ -56,7 +56,7 @@ export function AccountProfilePanel({
             tone="readonly"
             aria-describedby={emailHelpId}
           />
-          <p id={emailHelpId} className="text-[11px] text-zinc-500 leading-relaxed ml-1">
+          <p id={emailHelpId} className="text-[11px] text-zinc-400 leading-relaxed ml-1">
             Read-only on this tab. Use Security to start an account email change.
           </p>
         </div>
@@ -71,7 +71,7 @@ export function AccountProfilePanel({
             tone="readonly"
             aria-describedby={planHelpId}
           />
-          <p id={planHelpId} className="text-[11px] text-zinc-500 leading-relaxed ml-1">
+          <p id={planHelpId} className="text-[11px] text-zinc-400 leading-relaxed ml-1">
             Read-only here. Plan changes live in Billing.
           </p>
           <a href="/billing" className="ml-1 inline-flex min-h-9 items-center text-[10px] font-black uppercase tracking-[0.15em] text-emerald-300 transition hover:text-emerald-200 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">
@@ -92,7 +92,7 @@ export function AccountProfilePanel({
             disabled={isSavingProfile}
             aria-describedby={fullNameHelpId}
           />
-          <p id={fullNameHelpId} className="text-[11px] text-zinc-500 leading-relaxed ml-1">
+          <p id={fullNameHelpId} className="text-[11px] text-zinc-400 leading-relaxed ml-1">
             Optional. Saved to your Dandi profile for account display and support context.
           </p>
         </div>
@@ -111,11 +111,11 @@ export function AccountProfilePanel({
             aria-invalid={orgSlugFormatError || undefined}
             aria-describedby={orgSlugHelpId}
           />
-          <p id={orgSlugHelpId} className="text-[11px] text-zinc-500 leading-relaxed ml-1">
+          <p id={orgSlugHelpId} className="text-[11px] text-zinc-400 leading-relaxed ml-1">
             Optional. Use lowercase letters, numbers, and hyphens only. This is a stored API/account namespace, not a public URL.
           </p>
           {normalizedOrgSlug && (
-            <div className="ml-1 flex flex-col gap-1 rounded-xl border border-white/5 bg-slate-950/20 p-3 font-mono text-[10px] text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
+            <div className="ml-1 flex flex-col gap-1 rounded-xl border border-white/5 bg-slate-950/20 p-3 font-mono text-[10px] text-zinc-400 sm:flex-row sm:items-center sm:justify-between">
               <span>Saved format</span>
               <span className={orgSlugFormatError ? "break-all font-bold text-rose-300" : "break-all font-bold text-emerald-300 select-all"}>{normalizedOrgSlug}</span>
             </div>
@@ -134,7 +134,7 @@ export function AccountProfilePanel({
               {/* Provider avatar hosts vary by auth provider and are not guaranteed in next/image config. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={avatarUrl} alt="" className="h-12 w-12 rounded-full border border-white/10 object-cover" />
-              <p id={avatarHelpId} className="text-[11px] font-medium leading-relaxed text-zinc-500">
+              <p id={avatarHelpId} className="text-[11px] font-medium leading-relaxed text-zinc-400">
                 Read-only here. This image comes from the connected sign-in provider when available.
               </p>
             </div>

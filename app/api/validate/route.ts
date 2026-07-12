@@ -29,8 +29,8 @@ export async function POST(request: Request) {
       limit = res.limit;
       remaining = res.remaining;
       reset = res.reset;
-    } catch (redisErr) {
-      console.error("⚠️ Redis rate-limit outage in validate (failing open):", redisErr);
+    } catch {
+      console.error("Redis was unavailable during validation rate limiting; using the fallback policy.");
     }
 
     if (!rateLimitPassed) {

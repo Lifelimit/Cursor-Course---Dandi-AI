@@ -7,6 +7,7 @@ import { getApiKeyFromRequest, invalidJsonResponse, jsonError, missingApiKeyResp
 import { isUuid } from "@/lib/security-core";
 import { createIngestionJob, formatIngestionJob, getIngestionJob, runIngestionJob } from "@/lib/services/ingestion-job.service";
 import { validateApiKey } from "@/lib/services/api-key.service";
+import { assertPublicRepositoryForRag, GitHubPublicRepositoryCheckError, GitHubPublicRepositoryRequiredError } from "@/lib/services/github.service";
 
 const corsOptions = {
   methods: "GET, POST, OPTIONS",
@@ -53,8 +54,14 @@ export async function GET(request: Request) {
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load ingestion job.";
-    const status = message.includes("not found") ? 404 : 401;
-    return jsonError({ error: message }, status, corsHeaders);
+    if (message.includes("not found")) {
+      return jsonError({ error: "Ingestion job not found." }, 404, corsHeaders);
+    }
+    if (message.toLowerCase().includes("invalid api key")) {
+      return jsonError({ error: "Invalid API key." }, 401, corsHeaders);
+    }
+    console.error("Failed to load an ingestion job.");
+    return jsonError({ error: "Failed to load ingestion job." }, 500, corsHeaders);
   }
 }
 
@@ -86,13 +93,14 @@ export async function POST(request: Request) {
 
   try {
     const keyData = await validateApiKey(apiKey);
-    const { job } = await createIngestionJob({ keyData, repoUrl: githubUrl });
+    await assertPublicRepositoryForRag(githubUrl);
+    const { job, reused } = await createIngestionJob({ keyData, repoUrl: githubUrl });
     const telemetry = getRequestTelemetry(request);
 
-    if (job.status === "queued") {
+    if (job.status === "queued" && !reused) {
       after(() => {
-        runIngestionJob(job.id, telemetry).catch((err) => {
-          console.error("RAG ingestion job failed:", err);
+        runIngestionJob(job.id, telemetry, keyData).catch(() => {
+          console.error("RAG ingestion job failed.");
         });
       });
     }
@@ -105,6 +113,13 @@ export async function POST(request: Request) {
       { headers: corsHeaders }
     );
   } catch (err) {
+    if (err instanceof GitHubPublicRepositoryRequiredError) {
+      return jsonError({ error: err.message, code: err.code }, 403, corsHeaders);
+    }
+    if (err instanceof GitHubPublicRepositoryCheckError) {
+      return jsonError({ error: err.message, code: err.code }, 503, corsHeaders);
+    }
+
     const message = err instanceof Error ? err.message : "Failed to create ingestion job.";
     const lowerMessage = message.toLowerCase();
     if (lowerMessage.includes("ingestion_jobs") && lowerMessage.includes("schema cache")) {
@@ -122,6 +137,13 @@ export async function POST(request: Request) {
       : lowerMessage.includes("invalid api key")
           ? 401
           : 500;
-    return jsonError({ error: message }, status, corsHeaders);
+    if (status === 403) {
+      return jsonError({ error: "Request limit exceeded for this API key." }, status, corsHeaders);
+    }
+    if (status === 401) {
+      return jsonError({ error: "Invalid API key." }, status, corsHeaders);
+    }
+    console.error("Failed to create an ingestion job.");
+    return jsonError({ error: "Failed to create ingestion job." }, status, corsHeaders);
   }
 }

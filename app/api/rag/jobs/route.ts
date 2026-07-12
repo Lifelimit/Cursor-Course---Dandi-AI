@@ -3,7 +3,7 @@ import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOri
 import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { clampInteger, isUuid } from "@/lib/security-core";
 import { getAuthenticatedUserId } from "@/lib/services/auth.service";
-import { validateApiKey } from "@/lib/services/api-key.service";
+import { getApiKeyDataOwnerId, validateApiKey } from "@/lib/services/api-key.service";
 import { formatIngestionJob, listRecentIngestionJobs } from "@/lib/services/ingestion-job.service";
 
 const corsOptions = {
@@ -24,7 +24,7 @@ async function getRequestScope(request: Request) {
   const apiKey = getApiKeyFromRequest(request);
   if (apiKey) {
     const keyData = await validateApiKey(apiKey);
-    return { userId: keyData.user_id, apiKeyId: isUuid(keyData.id) ? keyData.id : null };
+    return { userId: getApiKeyDataOwnerId(keyData), apiKeyId: isUuid(keyData.id) ? keyData.id : null };
   }
 
   return { userId: await getAuthenticatedUserId(), apiKeyId: null };

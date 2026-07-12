@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type RefObject } from "react";
+import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
 import type { User } from "@supabase/supabase-js";
 import type { LogEntry } from "@/components/playground/NetworkLog";
 import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
@@ -65,9 +65,19 @@ export function useRepositoryChat({
   const [chatProgressStep, setChatProgressStep] = useState<ChatProgressStep>("idle");
   const repositoryChatRef = useRef<HTMLDivElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const requestControllerRef = useRef<AbortController | null>(null);
+  const isMountedRef = useRef(true);
   const askedRepositoryTrackedRef = useRef(
     Boolean((initialUser?.user_metadata as { dandi_onboarding?: DandiOnboardingMetadata } | undefined)?.dandi_onboarding?.askedRepository)
   );
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      requestControllerRef.current?.abort();
+    };
+  }, []);
 
   const markAskedRepositoryComplete = async () => {
     if (!initialUser || askedRepositoryTrackedRef.current) return;
@@ -97,6 +107,7 @@ export function useRepositoryChat({
     }
 
     const userMsg = chatInput.trim();
+    setErrorMessage("");
     setChatInput("");
     setIsChatLoading(true);
     setChatProgressStep("searching");
@@ -107,6 +118,7 @@ export function useRepositoryChat({
 
     if (isLightweightGreeting(userMsg)) {
       await sleep(180);
+      if (!isMountedRef.current) return;
       setRagMessages((prev) => [
         ...prev,
         {
@@ -125,6 +137,9 @@ export function useRepositoryChat({
 
     const startTime = getPerformanceNow();
     const maskedKey = getMaskedApiKey(apiKey);
+    requestControllerRef.current?.abort();
+    const controller = new AbortController();
+    requestControllerRef.current = controller;
     let searchStarted = false;
     let streamStarted = false;
 
@@ -159,10 +174,11 @@ export function useRepositoryChat({
           githubUrl,
           messages: newMessages.map(({ role, content }) => ({ role, content })),
         }),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({})) as { error?: string };
         setIndexedLogState("auth", {
           status: response.status === 401 || response.status === 403 ? "error" : "success",
           duration: Math.round(getPerformanceNow() - startTime),
@@ -190,8 +206,8 @@ export function useRepositoryChat({
       if (sourcesHeader) {
         try {
           sources = JSON.parse(sourcesHeader);
-        } catch (parseError) {
-          console.error("Failed to parse repository sources header", parseError);
+        } catch {
+          console.warn("Repository source metadata could not be parsed.");
         }
       }
       setChatProgressStep("context");
@@ -265,8 +281,9 @@ export function useRepositoryChat({
       void markAskedRepositoryComplete();
       void refreshKeys();
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
       const errMsg = getUnknownErrorMessage(err, "Failed to stream answer.");
-      console.warn("Repository chat request failed:", errMsg);
+      console.warn("Repository chat request failed.");
       setErrorMessage(errMsg);
       if (searchStarted && !streamStarted) {
         setIndexedLogState("repo_fetch", {
@@ -300,8 +317,15 @@ export function useRepositoryChat({
       });
       showToast("error", getToastErrorMessage("repository-chat", errMsg));
     } finally {
-      setIsChatLoading(false);
-      window.setTimeout(() => setChatProgressStep("idle"), 300);
+      if (requestControllerRef.current === controller) {
+        requestControllerRef.current = null;
+      }
+      if (isMountedRef.current) {
+        setIsChatLoading(false);
+        window.setTimeout(() => {
+          if (isMountedRef.current) setChatProgressStep("idle");
+        }, 300);
+      }
     }
   };
 

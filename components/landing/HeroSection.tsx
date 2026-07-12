@@ -73,14 +73,17 @@ export function HeroSection({ session }: { session: Session | null }) {
             <pre className="overflow-x-auto whitespace-pre text-left font-mono text-[9px] leading-relaxed text-slate-400 md:text-sm">
               <span className="text-emerald-400">const</span> res = <span className="text-blue-400">await</span> fetch(&quot;/api/github-summarizer&quot;, {"{"}<br />
               {"  "}method: &quot;POST&quot;,<br />
-              {"  "}headers: {"{"} &quot;x-api-key&quot;: apiKey {"}"},<br />
+              {"  "}headers: {"{"} &quot;Content-Type&quot;: &quot;application/json&quot;, &quot;x-api-key&quot;: apiKey {"}"},<br />
               {"  "}body: JSON.stringify({"{"}<br />
               {"    "}githubUrl: &quot;https://github.com/facebook/react&quot;<br />
               {"  "}{"}"})<br />
               {"}"});<br />
               <br />
-              <span className="text-emerald-400">const</span> data = <span className="text-blue-400">await</span> res.json();<br />
-              console.<span className="text-amber-400">log</span>(data.data.metadata.stars);
+              <span className="text-emerald-400">const</span> summary = <span className="text-blue-400">await</span> res.text();<br />
+              <span className="text-emerald-400">const</span> metadata = JSON.parse(atob(<br />
+              {"  "}res.headers.get(&quot;x-github-metadata&quot;) ?? &quot;&quot;<br />
+              ));<br />
+              console.<span className="text-amber-400">log</span>(summary, metadata.metadata.stars);
             </pre>
           </div>
         </div>

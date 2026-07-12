@@ -1,7 +1,14 @@
 import { getRequestTelemetry } from "@/lib/account-environments";
 import { isUuid } from "@/lib/security-core";
-import { incrementKeyUsage } from "@/lib/services/api-key.service";
-import { fetchGitHubBranch, fetchGitHubRepoTree, fetchRawFileContent } from "@/lib/services/github.service";
+import { getApiKeyDataOwnerId, incrementKeyUsage } from "@/lib/services/api-key.service";
+import {
+  assertPublicRepositoryForRag,
+  fetchGitHubBranch,
+  fetchGitHubRepoTree,
+  fetchRawFileContent,
+  GitHubPublicRepositoryCheckError,
+  GitHubPublicRepositoryRequiredError,
+} from "@/lib/services/github.service";
 import { googleBatchEmbedWithModel, isGeminiEmbeddingRateLimitError } from "@/lib/services/google-gemini.service";
 import { selectRagFiles } from "@/lib/services/rag-file-selection.service";
 import { redis } from "@/lib/redis";
@@ -54,6 +61,10 @@ function deriveCurrentStep(job: IngestionJob): IngestionJobStep {
 }
 
 function sanitizeIngestionError(err: unknown) {
+  if (err instanceof GitHubPublicRepositoryRequiredError || err instanceof GitHubPublicRepositoryCheckError) {
+    return err.message;
+  }
+
   if (isGeminiEmbeddingRateLimitError(err)) {
     return "Gemini embedding rate limit reached during ingestion. Please retry this repository after the quota window resets.";
   }
@@ -73,7 +84,15 @@ function sanitizeIngestionError(err: unknown) {
     return "Dandi could not persist the repository index.";
   }
 
-  return message || "Repository ingestion failed.";
+  if (lowerMessage.includes("credential is no longer available")) {
+    return "The ingestion credential is no longer available. Start repository preparation again.";
+  }
+
+  if (lowerMessage.includes("could not read queryable repository content")) {
+    return "Dandi could not read queryable repository content from GitHub.";
+  }
+
+  return "Repository ingestion failed. Wait a moment, then retry preparation.";
 }
 
 export function formatIngestionJob(job: IngestionJob): IngestionJobSummary {
@@ -149,18 +168,8 @@ async function loadJob(jobId: string) {
 }
 
 async function loadUsageKeyData(job: IngestionJob): Promise<IngestionKeyData | null> {
-  if (!job.api_key_id && job.user_id === "demo-user-id") {
-    return {
-      id: "demo-id",
-      name: "Playground Demo Key",
-      usage_count: 0,
-      monthly_limit: 1000,
-      user_id: "demo-user-id",
-      key_type: "production",
-      plan: "Hobby",
-    };
-  }
-
+  // A null FK is ambiguous because deleted regular keys use ON DELETE SET NULL.
+  // Demo credentials must be carried from the validated request, never inferred.
   if (!job.api_key_id) return null;
 
   const { data, error } = await supabaseAdmin
@@ -170,7 +179,7 @@ async function loadUsageKeyData(job: IngestionJob): Promise<IngestionKeyData | n
     .single();
 
   if (error || !data) {
-    console.warn("Failed to load API key for ingestion usage logging:", error?.message);
+    console.warn("Ingestion usage credential lookup failed.");
     return null;
   }
 
@@ -203,7 +212,8 @@ export async function createIngestionJob(input: {
   keyData: IngestionKeyData;
   repoUrl: string;
 }): Promise<JobResult> {
-  const existing = await activeJobQuery(input.keyData.user_id, input.repoUrl);
+  const ownerId = getApiKeyDataOwnerId(input.keyData);
+  const existing = await activeJobQuery(ownerId, input.repoUrl);
   if (existing.data) {
     return { job: toIngestionJob(existing.data), reused: true };
   }
@@ -211,7 +221,7 @@ export async function createIngestionJob(input: {
   const { data, error } = await supabaseAdmin
     .from("ingestion_jobs")
     .insert({
-      user_id: input.keyData.user_id,
+      user_id: ownerId,
       api_key_id: isUuid(input.keyData.id) ? input.keyData.id : null,
       repo_url: input.repoUrl,
       repo_name: getRepoName(input.repoUrl),
@@ -223,7 +233,7 @@ export async function createIngestionJob(input: {
 
   if (error) {
     if (error.code === "23505") {
-      const duplicate = await activeJobQuery(input.keyData.user_id, input.repoUrl);
+      const duplicate = await activeJobQuery(ownerId, input.repoUrl);
       if (duplicate.data) {
         return { job: toIngestionJob(duplicate.data), reused: true };
       }
@@ -238,11 +248,12 @@ export async function getIngestionJob(input: {
   jobId: string;
   keyData: IngestionKeyData;
 }) {
+  const ownerId = getApiKeyDataOwnerId(input.keyData);
   const { data, error } = await supabaseAdmin
     .from("ingestion_jobs")
     .select("*")
     .eq("id", input.jobId)
-    .eq("user_id", input.keyData.user_id)
+    .eq("user_id", ownerId)
     .single();
 
   if (error || !data) {
@@ -272,12 +283,28 @@ export async function listRecentIngestionJobs(input: {
   return (data ?? []).map(toIngestionJob);
 }
 
-export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetry) {
+export async function runIngestionJob(
+  jobId: string,
+  telemetry?: RequestTelemetry,
+  requestKeyData?: IngestionKeyData,
+) {
   const startTime = Date.now();
   let lockAcquired = false;
   let lockKey = "";
   let job = await loadJob(jobId);
-  const usageKeyData = await loadUsageKeyData(job);
+  const requestOwnerMatches = (() => {
+    if (!requestKeyData) return false;
+    try {
+      return getApiKeyDataOwnerId(requestKeyData) === job.user_id;
+    } catch {
+      return false;
+    }
+  })();
+  let usageKeyData = requestKeyData
+    && requestOwnerMatches
+    && (job.api_key_id ? requestKeyData.id === job.api_key_id : requestKeyData.id === "demo-id")
+    ? requestKeyData
+    : null;
 
   if (job.status === "completed") return job;
 
@@ -288,6 +315,13 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
       return job;
     }
     lockAcquired = true;
+
+    usageKeyData ??= await loadUsageKeyData(job);
+    if (!usageKeyData) {
+      throw new Error("The ingestion credential is no longer available. Start repository preparation again.");
+    }
+
+    await assertPublicRepositoryForRag(job.repo_url);
 
     job = await updateJob(job.id, {
       status: "running",
@@ -326,8 +360,8 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
         try {
           const text = await fetchRawFileContent(job.repo_url, branch, file.path);
           return { path: file.path, chunks: splitIntoChunks(text, file.path) };
-        } catch (err) {
-          console.error(`Failed to fetch or split ${file.path}:`, err);
+        } catch {
+          console.warn("A repository file was skipped during ingestion.");
           return { path: file.path, chunks: [] };
         }
       })
@@ -336,6 +370,10 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
     const allChunks = crawlResults.flatMap((result) =>
       result.chunks.map((content) => ({ path: result.path, content }))
     );
+
+    if (allChunks.length === 0) {
+      throw new Error("Dandi could not read queryable repository content from GitHub.");
+    }
 
     job = await updateJob(job.id, {
       current_step: "indexing",
@@ -411,8 +449,8 @@ export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetr
     if (lockAcquired && lockKey) {
       try {
         await redis.del(lockKey);
-      } catch (err) {
-        console.error(`Failed to release ingestion lock for ${lockKey}:`, err);
+      } catch {
+        console.error("Failed to release an ingestion lock.");
       }
     }
   }

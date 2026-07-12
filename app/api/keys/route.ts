@@ -25,14 +25,14 @@ export async function GET() {
   try {
     const userId = await getAuthenticatedUserId();
 
-    const { data: profile } = await supabaseAdmin
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("plan")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
-    const plan = profile?.plan || "Hobby";
-    const resolved = resolvePlan(plan);
+    const plan = profileError ? null : profile?.plan || "Hobby";
+    const resolved = resolvePlan(plan ?? "Hobby");
     const monthlyLimit = resolved.monthlyRequests;
 
     const { data, error } = await supabaseAdmin
@@ -70,7 +70,9 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json(mappedKeys);
+    const headers: Record<string, string> = { "Cache-Control": "no-store" };
+    if (plan) headers["x-dandi-plan"] = plan;
+    return NextResponse.json(mappedKeys, { headers });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 401 });
   }

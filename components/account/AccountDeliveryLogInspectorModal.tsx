@@ -2,6 +2,7 @@ import { ModalFrame } from "@/components/command";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import type { ToastType } from "@/hooks/useToast";
 import type { WebhookLogEntry } from "@/types/account";
+import type { KeyboardEvent } from "react";
 import { getWebhookDeliveryBadge } from "./account-display-utils";
 
 type DeliveryLogModalTab = "request" | "response";
@@ -22,6 +23,21 @@ export function AccountDeliveryLogInspectorModal({
   showToast,
 }: AccountDeliveryLogInspectorModalProps) {
   const deliveryBadge = getWebhookDeliveryBadge(inspectedLog.status);
+  const moveTabFocus = (event: KeyboardEvent<HTMLButtonElement>, currentTab: DeliveryLogModalTab) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const nextTab = event.key === "Home"
+      ? "request"
+      : event.key === "End"
+        ? "response"
+        : currentTab === "request"
+          ? "response"
+          : "request";
+    onActiveTabChange(nextTab);
+    window.requestAnimationFrame(() => {
+      document.getElementById(`delivery-log-${nextTab}-tab`)?.focus();
+    });
+  };
 
   return (
     <ModalFrame
@@ -55,10 +71,14 @@ export function AccountDeliveryLogInspectorModal({
           </p>
           <div className="flex gap-2 overflow-x-auto" role="tablist" aria-label="Delivery log detail sections">
           <button
+            id="delivery-log-request-tab"
             type="button"
             onClick={() => onActiveTabChange("request")}
+            onKeyDown={(event) => moveTabFocus(event, "request")}
             role="tab"
             aria-selected={activeTab === "request"}
+            aria-controls="delivery-log-request-panel"
+            tabIndex={activeTab === "request" ? 0 : -1}
             className={`rounded-full px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
               activeTab === "request"
                 ? "bg-white text-zinc-950 shadow-sm"
@@ -68,10 +88,14 @@ export function AccountDeliveryLogInspectorModal({
             Request payload
           </button>
           <button
+            id="delivery-log-response-tab"
             type="button"
             onClick={() => onActiveTabChange("response")}
+            onKeyDown={(event) => moveTabFocus(event, "response")}
             role="tab"
             aria-selected={activeTab === "response"}
+            aria-controls="delivery-log-response-panel"
+            tabIndex={activeTab === "response" ? 0 : -1}
             className={`rounded-full px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
               activeTab === "response"
                 ? "bg-white text-zinc-950 shadow-sm"
@@ -84,14 +108,18 @@ export function AccountDeliveryLogInspectorModal({
         </div>
 
         {activeTab === "request" ? (
-          <div className="space-y-4">
+          <div id="delivery-log-request-panel" role="tabpanel" aria-labelledby="delivery-log-request-tab" tabIndex={0} className="space-y-4 outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">
             <div className="flex items-center justify-between">
               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">HTTP POST request body</span>
               <button
                 type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(JSON.stringify(inspectedLog.requestBody, null, 2));
-                  showToast("success", "Request payload copied to clipboard.");
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(JSON.stringify(inspectedLog.requestBody, null, 2));
+                    showToast("success", "Request payload copied to clipboard.");
+                  } catch {
+                    showToast("error", "Could not copy the request payload. Select the JSON and copy it manually.");
+                  }
                 }}
                 className="inline-flex items-center gap-1.5 text-[9px] font-bold text-zinc-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                 aria-label="Copy request payload"
@@ -107,7 +135,7 @@ export function AccountDeliveryLogInspectorModal({
             </pre>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div id="delivery-log-response-panel" role="tabpanel" aria-labelledby="delivery-log-response-tab" tabIndex={0} className="space-y-6 outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">
             <div className="space-y-2">
               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Sanitized response headers</span>
               <div className="font-mono text-[9px] text-zinc-300 bg-slate-950 p-4 rounded-2xl border border-white/5 space-y-1 overflow-x-auto">

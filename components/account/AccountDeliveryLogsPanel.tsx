@@ -127,14 +127,15 @@ export function AccountDeliveryLogsPanel({
       <div className="hidden md:block">
         <ScrollFrame axis="x" minWidth="760px" label="Webhook delivery logs">
           <table className="min-w-[760px] w-full border-collapse text-left font-sans text-xs">
+            <caption className="sr-only">Webhook delivery history</caption>
             <thead>
               <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Method & URL</th>
-                <th className="px-6 py-4">Event</th>
-                <th className="px-6 py-4">Latency</th>
-                <th className="px-6 py-4">Sent</th>
-                <th className="px-6 py-4 text-right">Details</th>
+                <th scope="col" className="px-6 py-4">Status</th>
+                <th scope="col" className="px-6 py-4">Method & URL</th>
+                <th scope="col" className="px-6 py-4">Event</th>
+                <th scope="col" className="px-6 py-4">Latency</th>
+                <th scope="col" className="px-6 py-4">Sent</th>
+                <th scope="col" className="px-6 py-4 text-right">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 font-medium">

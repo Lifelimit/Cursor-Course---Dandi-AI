@@ -1,5 +1,5 @@
-import { getServerEnv } from "@/lib/env";
 import { getGitHubRepositoryParts } from "@/lib/github-url";
+import { getServerEnv } from "@/lib/env";
 
 export class GitHubAuthError extends Error {
   constructor(
@@ -11,6 +11,24 @@ export class GitHubAuthError extends Error {
   }
 }
 
+export class GitHubPublicRepositoryRequiredError extends Error {
+  readonly code = "GITHUB_PUBLIC_REPOSITORY_REQUIRED";
+
+  constructor() {
+    super("Prepare & Ask currently supports public repositories only. Verify the repository URL or use a public repository.");
+    this.name = "GitHubPublicRepositoryRequiredError";
+  }
+}
+
+export class GitHubPublicRepositoryCheckError extends Error {
+  readonly code = "GITHUB_PUBLIC_REPOSITORY_CHECK_UNAVAILABLE";
+
+  constructor() {
+    super("Dandi could not verify that this repository is public. Wait a moment and retry.");
+    this.name = "GitHubPublicRepositoryCheckError";
+  }
+}
+
 function getGitHubHeaders(token?: string): Record<string, string> {
   const headers: Record<string, string> = {
     "Accept": "application/vnd.github.v3+json",
@@ -19,16 +37,42 @@ function getGitHubHeaders(token?: string): Record<string, string> {
 
   if (token) {
     headers["Authorization"] = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
-  } else {
-    const githubToken = getServerEnv().GITHUB_TOKEN;
-    if (githubToken) {
-      headers["Authorization"] = githubToken.startsWith("token ") || githubToken.startsWith("Bearer ")
-        ? githubToken
-        : `token ${githubToken}`;
-    }
   }
 
   return headers;
+}
+
+/**
+ * Private RAG remains intentionally disabled. The first visibility check is
+ * unauthenticated. If GitHub rate-limits that check, an optional server token
+ * may retry metadata only; `private` must still be exactly false before any
+ * repository content is fetched.
+ */
+export async function assertPublicRepositoryForRag(
+  githubUrl: string,
+  visibilityProbeToken = getServerEnv().GITHUB_TOKEN,
+) {
+  const { owner, repo } = getGitHubRepositoryParts(githubUrl);
+  const repositoryUrl = `https://api.github.com/repos/${owner}/${repo}`;
+  let response = await fetch(repositoryUrl, {
+    headers: getGitHubHeaders(),
+  });
+
+  if ((response.status === 403 || response.status === 429) && visibilityProbeToken) {
+    response = await fetch(repositoryUrl, {
+      headers: getGitHubHeaders(visibilityProbeToken),
+    });
+  }
+
+  if (response.status === 404) {
+    throw new GitHubPublicRepositoryRequiredError();
+  }
+  if (!response.ok) throw new GitHubPublicRepositoryCheckError();
+
+  const repository = await response.json() as { private?: unknown };
+  if (repository.private !== false) {
+    throw new GitHubPublicRepositoryRequiredError();
+  }
 }
 
 /**
@@ -91,8 +135,8 @@ async function fetchGitHubVersion(owner: string, repo: string, token?: string) {
         return tagsData[0].name;
       }
     }
-  } catch (err) {
-    console.error("Failed to fetch version:", err);
+  } catch {
+    console.warn("Optional GitHub version lookup failed.");
   }
 
   return "Unknown";
@@ -160,10 +204,7 @@ export async function fetchRepositoryDataWithAuth(input: {
     });
 
     if (!access.authorized) {
-      throw new GitHubAuthError(
-        access.errorCode,
-        access.errorCode === "GITHUB_PRIVATE_REPO_TOKEN_FAILED" ? access.details : undefined
-      );
+      throw new GitHubAuthError(access.errorCode);
     }
 
     // 3. Retry fetching with the installation token
@@ -173,12 +214,9 @@ export async function fetchRepositoryDataWithAuth(input: {
         fetchGitHubMetadata(input.githubUrl, access.token, metadataOptions)
       ]);
       return { readmeContent, metadata };
-    } catch (privateErr) {
-      console.error("Fetch with installation token failed:", privateErr);
-      throw new GitHubAuthError(
-        "GITHUB_PRIVATE_REPO_TOKEN_FAILED",
-        privateErr instanceof Error ? privateErr.message : String(privateErr)
-      );
+    } catch {
+      console.warn("GitHub installation fetch failed after repository authorization.");
+      throw new GitHubAuthError("GITHUB_PRIVATE_REPO_TOKEN_FAILED");
     }
   }
 }
@@ -187,11 +225,11 @@ export async function fetchRepositoryDataWithAuth(input: {
 /**
  * Fetches default branch of a GitHub repository
  */
-export async function fetchGitHubBranch(githubUrl: string): Promise<string> {
+export async function fetchGitHubBranch(githubUrl: string, token?: string): Promise<string> {
   const { owner, repo } = getGitHubRepositoryParts(githubUrl);
 
   const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-    headers: getGitHubHeaders()
+    headers: getGitHubHeaders(token)
   });
 
   if (!response.ok) {
@@ -205,11 +243,11 @@ export async function fetchGitHubBranch(githubUrl: string): Promise<string> {
 /**
  * Recursively fetches a repository file tree
  */
-export async function fetchGitHubRepoTree(githubUrl: string, branch: string): Promise<{ path: string; size: number }[]> {
+export async function fetchGitHubRepoTree(githubUrl: string, branch: string, token?: string): Promise<{ path: string; size: number }[]> {
   const { owner, repo } = getGitHubRepositoryParts(githubUrl);
 
   const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, {
-    headers: getGitHubHeaders()
+    headers: getGitHubHeaders(token)
   });
 
   if (!response.ok) {
@@ -255,12 +293,12 @@ export async function fetchGitHubRepoTree(githubUrl: string, branch: string): Pr
 /**
  * Downloads raw file content from GitHub raw usercontent servers
  */
-export async function fetchRawFileContent(githubUrl: string, branch: string, path: string): Promise<string> {
+export async function fetchRawFileContent(githubUrl: string, branch: string, path: string, token?: string): Promise<string> {
   const { owner, repo } = getGitHubRepositoryParts(githubUrl);
 
   const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
   const response = await fetch(rawUrl, {
-    headers: getGitHubHeaders()
+    headers: getGitHubHeaders(token)
   });
 
   if (!response.ok) {

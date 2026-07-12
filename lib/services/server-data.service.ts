@@ -19,21 +19,22 @@ import type { ServerUsageData } from "@/types/usage";
 
 export { calculateNextInvoiceDate, calculateResetDate } from "@/lib/services/usage-billing.service";
 
-export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], plan: string }> {
+export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[] | null; plan: string | null }> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
-    if (!user) return { keys: [], plan: "Hobby" };
+    if (!user) return { keys: null, plan: null };
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("plan")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    const plan = profile?.plan || "Hobby";
-    const resolved = resolvePlan(plan);
+    const metadataPlan = (user.user_metadata as { plan?: string } | undefined)?.plan;
+    const plan = profileError ? metadataPlan ?? null : profile?.plan || metadataPlan || "Hobby";
+    const resolved = resolvePlan(plan ?? "Hobby");
     const monthlyLimit = resolved.monthlyRequests;
 
 
@@ -43,7 +44,7 @@ export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], p
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (error) return { keys: [], plan: plan || "Hobby" };
+    if (error) return { keys: null, plan };
 
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
     const keyUsageCounts = await getDisplayUsageCounts(data ?? [], currentMonth);
@@ -75,7 +76,7 @@ export async function getServerApiKeys(): Promise<{ keys: ApiKeyApiResponse[], p
       plan
     };
   } catch {
-    return { keys: [], plan: "Hobby" };
+    return { keys: null, plan: null };
   }
 }
 

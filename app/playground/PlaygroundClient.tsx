@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, type SetStateAction } from "react";
+import { useState, useEffect, useRef, useCallback, type SetStateAction } from "react";
 import dynamic from "next/dynamic";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
@@ -29,6 +29,7 @@ import { PLAN_DETAILS } from "@/lib/constants";
 import { computeSidebarAlerts } from "@/lib/alerts";
 import { formatGitHubRepo, formatRequestCount } from "@/lib/format";
 import { getGitHubRepositoryParts, GITHUB_REPOSITORY_URL_VALIDATION_MESSAGE } from "@/lib/github-url";
+import { playgroundRoute } from "@/lib/routes";
 
 const getRepoPath = (url: string) => {
   try {
@@ -69,37 +70,27 @@ const RepositoryChatPanel = dynamic(
 
 export default function PlaygroundClient({ 
   initialUser,
-  initialKeys = [],
-  initialPlan = "Hobby",
+  initialKeys,
+  initialPlan = null,
   initialRepositoryUrl = "",
 }: { 
   initialUser: User | null;
   initialKeys?: ApiKey[];
-  initialPlan?: string;
+  initialPlan?: string | null;
   initialRepositoryUrl?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [realtimePlan, setRealtimePlan] = useState<string | null>(null);
   
-  const { apiKeys, refreshKeys } = useApiKeys(initialKeys);
+  const metadataPlan = (initialUser?.user_metadata as { plan?: string } | undefined)?.plan ?? null;
+  const { apiKeys, refreshKeys, plan: hydratedPlan } = useApiKeys(initialKeys, initialPlan || metadataPlan);
   const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
   
-  // Dynamic Tier Logic - Using the most recent session or dynamic data available
-  const currentPlan = realtimePlan || initialPlan || (initialUser?.user_metadata as { plan?: string })?.plan || "Hobby"; 
+  // The server-rendered key snapshot already includes the current plan.
+  const currentPlan = hydratedPlan || initialPlan || metadataPlan || "Plan unavailable";
   const planDetail = PLAN_DETAILS[currentPlan as keyof typeof PLAN_DETAILS] || PLAN_DETAILS.Hobby;
   const currentLimit = planDetail.monthlyLimit ?? 1000000;
   const isUnlimited = planDetail.monthlyLimit === null;
-
-  // Fetch real-time plan from usage endpoint on mount
-  useEffect(() => {
-    fetch("/api/usage")
-      .then(res => res.json())
-      .then(data => {
-        if (data.plan) setRealtimePlan(data.plan);
-      })
-      .catch(() => {});
-  }, []);
 
   const alerts = computeSidebarAlerts(apiKeys);
 
@@ -114,15 +105,20 @@ export default function PlaygroundClient({
   const [repositoryUrlError, setRepositoryUrlError] = useState("");
   const { toast, showToast } = useToast();
 
-  const setTrackedValue = (setter: (value: SetStateAction<string>) => void, ref: React.MutableRefObject<string>, next: SetStateAction<string>) => {
-    setter((current) => {
+  const setTrackedApiKey = useCallback((next: SetStateAction<string>) => {
+    setApiKey((current) => {
       const value = typeof next === "function" ? next(current) : next;
-      ref.current = value;
+      apiKeyRef.current = value;
       return value;
     });
-  };
-  const setTrackedApiKey = (next: SetStateAction<string>) => setTrackedValue(setApiKey, apiKeyRef, next);
-  const setTrackedGithubUrl = (next: SetStateAction<string>) => setTrackedValue(setGithubUrl, githubUrlRef, next);
+  }, []);
+  const setTrackedGithubUrl = useCallback((next: SetStateAction<string>) => {
+    setGithubUrl((current) => {
+      const value = typeof next === "function" ? next(current) : next;
+      githubUrlRef.current = value;
+      return value;
+    });
+  }, []);
 
   // Repository question tab state
   const [activeTab, setActiveTab] = useState<"summary" | "rag">(() => (
@@ -140,9 +136,7 @@ export default function PlaygroundClient({
       return;
     }
 
-    if (mode === "summary") {
-      setActiveTab("summary");
-    }
+    setActiveTab("summary");
   }, [searchParams]);
 
   const scrollToSection = (target: React.RefObject<HTMLElement | null>) => {
@@ -167,6 +161,7 @@ export default function PlaygroundClient({
     isLoadingSummary,
     streamError,
     handleSummarize: submitSummary,
+    resetSummary,
   } = useRepositorySummary({
     apiKey,
     githubUrl,
@@ -228,6 +223,32 @@ export default function PlaygroundClient({
     setRagMessages,
     isChatLoading,
   });
+
+  const repositoryQuery = searchParams.get("repo");
+  const previousRepositoryQueryRef = useRef(repositoryQuery);
+
+  useEffect(() => {
+    if (repositoryQuery === previousRepositoryQueryRef.current) return;
+    previousRepositoryQueryRef.current = repositoryQuery;
+
+    let nextRepositoryUrl = "";
+    let nextRepositoryError = "";
+    if (repositoryQuery) {
+      try {
+        getGitHubRepositoryParts(repositoryQuery);
+        nextRepositoryUrl = repositoryQuery;
+      } catch {
+        nextRepositoryError = GITHUB_REPOSITORY_URL_VALIDATION_MESSAGE;
+      }
+    }
+
+    setTrackedGithubUrl(nextRepositoryUrl);
+    setRepositoryUrlError(nextRepositoryError);
+    setErrorMessage("");
+    resetSummary();
+    resetIngestedRepository();
+    setRagMessages([]);
+  }, [repositoryQuery, resetIngestedRepository, resetSummary, setRagMessages, setTrackedGithubUrl]);
 
   const validateRepositoryUrl = () => {
     try {
@@ -409,6 +430,15 @@ export default function PlaygroundClient({
     latencyRows,
     getRepoPath,
   });
+  const hasValidRepository = (() => {
+    try {
+      getGitHubRepositoryParts(githubUrl.trim());
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  const canRunCurrentWorkflow = Boolean(apiKey.trim()) && hasValidRepository;
 
   return (
     <>
@@ -431,8 +461,8 @@ export default function PlaygroundClient({
             title="API Playground"
             description="Validate API keys, summarize repositories, prepare code for questions, and inspect the request pipeline."
             rightAction={
-              <StatusPill tone={isPipelineActive ? "warning" : hasPipelineError ? "danger" : "success"} pulse={isPipelineActive}>
-                {isPipelineActive ? "Pipeline Running" : hasPipelineError ? "Action Required" : "Workbench Ready"}
+              <StatusPill tone={isPipelineActive ? "warning" : hasPipelineError ? "danger" : canRunCurrentWorkflow ? "success" : "neutral"} pulse={isPipelineActive}>
+                {isPipelineActive ? "Pipeline Running" : hasPipelineError ? "Action Required" : canRunCurrentWorkflow ? "Ready to Run" : "Setup Required"}
               </StatusPill>
             }
           >
@@ -444,8 +474,7 @@ export default function PlaygroundClient({
                 const params = new URLSearchParams(window.location.search);
                 const mode = tab === "summary" ? "summary" : "ask";
                 if (params.get("mode") !== mode) {
-                  params.set("mode", mode);
-                  router.push(`/playground?${params.toString()}`, { scroll: false });
+                  router.push(playgroundRoute(mode, undefined, params), { scroll: false });
                 }
               }}
             />
@@ -470,6 +499,7 @@ export default function PlaygroundClient({
                   chatInput={chatInput}
                   setChatInput={setChatInput}
                   isChatLoading={isChatLoading}
+                  chatErrorMessage={errorMessage}
                   chatLoadingStages={chatLoadingStages}
                   handleChatSubmit={handleChatSubmit}
                   resetIngestedRepository={resetIngestedRepository}

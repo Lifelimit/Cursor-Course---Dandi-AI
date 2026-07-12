@@ -33,23 +33,13 @@ export function SidebarAlerts({
   const [closingKeyId, setClosingKeyId] = React.useState<string | null>(null);
   const closeTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
-  const clientLog = React.useCallback((msg: string, data: unknown) => {
-    fetch("/api/log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ msg, data }),
-    }).catch(() => {});
-  }, []);
-
   React.useEffect(() => {
-    clientLog("SidebarAlerts mounted/unmount-setup", {});
     return () => {
-      clientLog("SidebarAlerts unmounting - clearing timer", { hasTimer: !!closeTimerRef.current });
       if (closeTimerRef.current) {
         clearTimeout(closeTimerRef.current);
       }
     };
-  }, [clientLog]);
+  }, []);
 
   const { maxLimitCap, isUnlimited } = getPlanLimits(plan);
   const limitEditor = useKeyLimitEditor({
@@ -59,25 +49,20 @@ export function SidebarAlerts({
   });
 
   const closeFlyoutWithAnimation = React.useCallback((alertId: string) => {
-    clientLog("closeFlyoutWithAnimation called", { alertId, currentOpenKey: limitEditor.openKeyId });
     if (closeTimerRef.current) {
-      clientLog("clearing existing timer", {});
       clearTimeout(closeTimerRef.current);
     }
     setClosingKeyId(alertId);
     closeTimerRef.current = setTimeout(() => {
-      clientLog("timeout fired", { alertId, currentOpenKey: limitEditor.openKeyId });
       if (limitEditor.openKeyId === alertId) {
         limitEditor.closeEditor({ resetValue: true, clearError: true });
       }
       setClosingKeyId(null);
       closeTimerRef.current = null;
     }, 500);
-  }, [limitEditor, clientLog]);
+  }, [limitEditor]);
 
   if (alerts.length === 0) return null;
-
-  clientLog("SidebarAlerts render", { openKeyId: limitEditor.openKeyId, closingKeyId });
 
   return (
     <div className="mt-8 space-y-4">

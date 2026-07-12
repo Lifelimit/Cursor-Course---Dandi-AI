@@ -18,6 +18,7 @@ import { getPlanLimits } from "@/lib/constants";
 import { useUsageData } from "@/hooks/useUsageData";
 import type { UsageData } from "@/types/usage";
 import type { DashboardRepositoryWork } from "@/components/dashboard/dashboard-types";
+import { playgroundRoute, ROUTES } from "@/lib/routes";
 
 function getDisplayName(initialDisplayName: string | null, user: User) {
   const profileName = initialDisplayName?.trim();
@@ -49,7 +50,7 @@ export default function DashboardClient({
   const router = useRouter();
   const { currentData: usageData, isLoading, isSyncing, error: usageError, refresh: refreshUsageData } = useUsageData<UsageData>({
     initialData: initialUsageData,
-    initialRefreshDelayMs: initialUsageData ? 1500 : 0,
+    fetchOnMount: initialUsageData === null,
     pollingIntervalMs: null,
     requireOkResponse: true,
     logErrors: false,
@@ -89,17 +90,17 @@ export default function DashboardClient({
   const failedWork = initialRecentWork.find((work) => work.status === "failed");
   const attentionItems = [
     usageData?.subscriptionStatus === "past_due" || usageData?.subscriptionStatus === "unpaid"
-      ? { label: "Billing needs attention", detail: "Your subscription is not in a healthy payment state.", href: "/billing", action: "Review billing", tone: "danger" as const }
+      ? { label: "Billing needs attention", detail: "Your subscription is not in a healthy payment state.", href: ROUTES.billing, action: "Review billing", tone: "danger" as const }
       : null,
     !usageData && !isInitialDashboardLoading
-      ? { label: "Usage data unavailable", detail: "The workspace is still usable, but capacity information could not be confirmed.", href: "/usage", action: "Open Usage", tone: "warning" as const }
+      ? { label: "Usage data unavailable", detail: "The workspace is still usable, but capacity information could not be confirmed.", href: ROUTES.usage, action: "Open Usage", tone: "warning" as const }
       : usagePct >= 100
-        ? { label: "Capacity limit reached", detail: "Your current plan has no remaining request capacity for this cycle.", href: "/billing", action: "Review plan", tone: "danger" as const }
+        ? { label: "Capacity limit reached", detail: "Your current plan has no remaining request capacity for this cycle.", href: ROUTES.billing, action: "Review plan", tone: "danger" as const }
         : usagePct >= 80
-          ? { label: "Capacity is getting close", detail: "You are approaching the current cycle limit.", href: "/usage", action: "View capacity", tone: "warning" as const }
+          ? { label: "Capacity is getting close", detail: "You are approaching the current cycle limit.", href: ROUTES.usage, action: "View capacity", tone: "warning" as const }
           : null,
     failedWork
-      ? { label: "Repository processing needs a retry", detail: failedWork.errorMessage || "Dandi could not complete the latest repository workflow.", href: `/playground?mode=summary&repo=${encodeURIComponent(failedWork.repoUrl)}`, action: "Retry workflow", tone: "warning" as const }
+      ? { label: "Repository processing needs a retry", detail: failedWork.errorMessage || "Dandi could not complete the latest repository workflow.", href: playgroundRoute("ask", failedWork.repoUrl), action: "Retry workflow", tone: "warning" as const }
       : null,
   ].filter((item): item is NonNullable<typeof item> => Boolean(item));
 

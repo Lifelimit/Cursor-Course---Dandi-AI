@@ -153,6 +153,7 @@ export function AccountApiKeysPanel({
         <div className="hidden md:block">
           <ScrollFrame axis="x" minWidth="900px" label="API keys table">
             <table className="w-full table-fixed border-collapse text-left font-sans text-xs">
+              <caption className="sr-only">API keys and credential activity</caption>
               <colgroup>
                 <col className="w-[28%]" />
                 <col className="w-[12%]" />
@@ -163,12 +164,12 @@ export function AccountApiKeysPanel({
               </colgroup>
               <thead>
                 <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
-                  <th className="px-4 py-3">Key</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Created</th>
-                  <th className="px-4 py-3">Last used</th>
-                  <th className="px-4 py-3">Monthly requests</th>
-                  <th className="px-4 py-3 text-right">Action</th>
+                  <th scope="col" className="px-4 py-3">Key</th>
+                  <th scope="col" className="px-4 py-3">Type</th>
+                  <th scope="col" className="px-4 py-3">Created</th>
+                  <th scope="col" className="px-4 py-3">Last used</th>
+                  <th scope="col" className="px-4 py-3">Monthly requests</th>
+                  <th scope="col" className="px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 font-medium">
@@ -300,6 +301,7 @@ export function AccountApiKeysPanel({
         <div className="hidden md:block">
           <ScrollFrame axis="x" minWidth="820px" label="Recent API activity table">
             <table className="w-full table-fixed border-collapse text-left font-sans text-xs">
+              <caption className="sr-only">Recent API request activity</caption>
               <colgroup>
                 <col className="w-[22%]" />
                 <col className="w-[28%]" />
@@ -310,12 +312,12 @@ export function AccountApiKeysPanel({
               </colgroup>
               <thead>
                 <tr className="border-b border-white/5 bg-slate-950/20 text-[9px] font-bold uppercase tracking-widest text-zinc-500 select-none">
-                  <th className="px-4 py-3">Client</th>
-                  <th className="px-4 py-3">Request</th>
-                  <th className="px-4 py-3">IP</th>
-                  <th className="px-4 py-3">Location</th>
-                  <th className="px-4 py-3">Last seen</th>
-                  <th className="px-4 py-3 text-right">Details</th>
+                  <th scope="col" className="px-4 py-3">Client</th>
+                  <th scope="col" className="px-4 py-3">Request</th>
+                  <th scope="col" className="px-4 py-3">IP</th>
+                  <th scope="col" className="px-4 py-3">Location</th>
+                  <th scope="col" className="px-4 py-3">Last seen</th>
+                  <th scope="col" className="px-4 py-3 text-right">Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 font-medium">

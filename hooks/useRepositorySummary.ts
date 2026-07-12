@@ -1,7 +1,7 @@
 "use client";
 
 import { experimental_useObject } from "@ai-sdk/react";
-import { useState, type FormEvent } from "react";
+import { useCallback, useState, type FormEvent } from "react";
 import { z } from "zod";
 import type { LogEntry } from "@/components/playground/NetworkLog";
 import type { ApiKey } from "@/types/api";
@@ -183,6 +183,8 @@ export function useRepositorySummary({
     object: summaryResult,
     isLoading: isLoadingSummary,
     error: streamError,
+    stop,
+    clear,
   } = experimental_useObject<typeof summarySchema, RepositorySummaryResult, { githubUrl: string }>({
     api: "/api/github-summarizer",
     headers: (): Record<string, string> => (apiKey ? { "x-api-key": apiKey } : {}),
@@ -384,6 +386,15 @@ export function useRepositorySummary({
     }
   };
 
+  const resetSummary = useCallback(() => {
+    stop();
+    clear();
+    setSummaryRequestLogs([]);
+    setSummaryStatus("idle");
+    setSummaryIssue("");
+    setRepoMetadata(null);
+  }, [clear, stop]);
+
   return {
     summaryRequestLogs,
     summaryStatus,
@@ -393,5 +404,6 @@ export function useRepositorySummary({
     isLoadingSummary,
     streamError,
     handleSummarize,
+    resetSummary,
   };
 }

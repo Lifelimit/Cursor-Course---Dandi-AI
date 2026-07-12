@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import type { LogEntry } from "@/components/playground/NetworkLog";
 import { getToastErrorMessage } from "@/lib/error-guidance";
 import type { ApiKey } from "@/types/api";
@@ -62,7 +62,50 @@ type IngestionResponse = {
   errorMessage?: string;
 };
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const waitForTimeout = (ms: number, signal: AbortSignal) => new Promise<void>((resolve, reject) => {
+  if (signal.aborted) {
+    reject(new DOMException("The operation was aborted.", "AbortError"));
+    return;
+  }
+
+  const timeoutId = window.setTimeout(() => {
+    signal.removeEventListener("abort", handleAbort);
+    resolve();
+  }, ms);
+  const handleAbort = () => {
+    window.clearTimeout(timeoutId);
+    reject(new DOMException("The operation was aborted.", "AbortError"));
+  };
+  signal.addEventListener("abort", handleAbort, { once: true });
+});
+
+const waitUntilVisible = (signal: AbortSignal) => new Promise<void>((resolve, reject) => {
+  if (signal.aborted) {
+    reject(new DOMException("The operation was aborted.", "AbortError"));
+    return;
+  }
+  if (document.visibilityState !== "hidden") {
+    resolve();
+    return;
+  }
+
+  const cleanup = () => {
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+    signal.removeEventListener("abort", handleAbort);
+  };
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "hidden") return;
+    cleanup();
+    resolve();
+  };
+  const handleAbort = () => {
+    cleanup();
+    reject(new DOMException("The operation was aborted.", "AbortError"));
+  };
+
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  signal.addEventListener("abort", handleAbort, { once: true });
+});
 const getIngestionPollDelay = (attempt: number) => {
   if (attempt === 0) return 0;
   if (attempt <= 4) return 500;
@@ -161,6 +204,11 @@ export function useRepositoryIngestion({
   const [indexingAttemptedRepo, setIndexingAttemptedRepo] = useState<string | null>(null);
   const [ingestedRepo, setIngestedRepo] = useState<string | null>(null);
   const [indexedRepositoryStats, setIndexedRepositoryStats] = useState<IndexedRepositoryStats | null>(null);
+  const ingestionControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => {
+    ingestionControllerRef.current?.abort();
+  }, []);
 
   const setIndexedLogState = (id: string, updates: Partial<LogEntry>) => {
     setIndexedRequestLogs((prev) => updateLogEntries(prev, id, updates));
@@ -207,6 +255,7 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
     if (ingestStatus === "crawling" || ingestStatus === "embedding" || isChatLoading) return;
 
     let cancelled = false;
+    const controller = new AbortController();
     const requestedApiKey = apiKey;
     const requestedGithubUrl = githubUrl;
     const loadJobs = async () => {
@@ -216,6 +265,7 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
         const res = await fetch("/api/rag/jobs?limit=10", {
           cache: "no-store",
           headers,
+          signal: controller.signal,
         });
         const data = await res.json();
         if (!res.ok) return;
@@ -257,6 +307,7 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
     // Preserve restoration cadence: only refetch when the selected key or repository changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -279,6 +330,10 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
     setIndexedRequestLogs([]);
     setIndexedRepositoryStats(null);
     scrollToRequestProgress();
+
+    ingestionControllerRef.current?.abort();
+    const controller = new AbortController();
+    ingestionControllerRef.current = controller;
 
     const maskedKey = apiKey === "__demo__" ? "__demo__" : `${apiKey.substring(0, 8)}••••••••`;
     const repoPath = getRepoPath(githubUrl);
@@ -314,6 +369,7 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
           "x-api-key": apiKey,
         },
         body: JSON.stringify({ githubUrl }),
+        signal: controller.signal,
       });
 
       const data = (await res.json()) as IngestionResponse;
@@ -369,12 +425,15 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
 
       let completedJob = data;
       for (let attempt = 0; attempt < 90; attempt++) {
+        await waitUntilVisible(controller.signal);
         const pollDelay = getIngestionPollDelay(attempt);
         if (pollDelay > 0) {
-          await sleep(pollDelay);
+          await waitForTimeout(pollDelay, controller.signal);
         }
+        await waitUntilVisible(controller.signal);
         const statusRes = await fetch(`/api/rag/ingest?jobId=${encodeURIComponent(data.jobId as string)}`, {
           headers: { "x-api-key": apiKey },
+          signal: controller.signal,
         });
         const statusData = (await statusRes.json()) as IngestionResponse;
 
@@ -452,8 +511,9 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
       showToast("success", "Repository indexed and ready for questions.");
       void refreshKeys();
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
       const errMsg = getUnknownErrorMessage(err, "Ingestion process encountered an error.");
-      console.warn("Ask a Repository request failed:", errMsg);
+      console.warn("Prepare & Ask request failed.");
       const diagnosticError = {
         status: "failed",
         detail: "Ask a Repository request failed. See the Repository Chat error card for the reason and next action.",
@@ -482,13 +542,22 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
         });
       }
       showToast("error", getToastErrorMessage("repository-indexing", errMsg));
+    } finally {
+      if (ingestionControllerRef.current === controller) {
+        ingestionControllerRef.current = null;
+      }
     }
   };
 
-  const resetIngestedRepository = () => {
+  const resetIngestedRepository = useCallback(() => {
+    ingestionControllerRef.current?.abort();
+    ingestionControllerRef.current = null;
     setIngestStatus("idle");
+    setIndexingAttemptedRepo(null);
     setIngestedRepo(null);
-  };
+    setIndexedRepositoryStats(null);
+    setIndexedRequestLogs([]);
+  }, []);
 
   return {
     indexedRequestLogs,

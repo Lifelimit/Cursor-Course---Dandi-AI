@@ -132,8 +132,8 @@ export function PlanHero({
               <p className="pt-2 text-right text-sm font-bold tabular-nums text-emerald-200">{isUnlimited ? "∞" : `${Math.round(pct)}%`}</p>
             </div>
             <p className="mt-1 text-xs text-slate-400">of {isUnlimited ? "unlimited" : `${formatRequestCount(limit)} included`} requests used</p>
-            <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Request usage this billing cycle" aria-valuemin={0} aria-valuemax={isUnlimited ? undefined : 100} aria-valuenow={isUnlimited ? undefined : Math.round(pct)} aria-valuetext={isUnlimited ? `${formatRequestCount(usage)} requests used on an unlimited plan` : `${formatRequestCount(usage)} of ${formatRequestCount(limit)} requests used`}>
-              <div className={`h-full rounded-full transition-[width] duration-700 motion-reduce:transition-none ${pct >= 80 ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.3)]" : "bg-emerald-300 shadow-[0_0_18px_rgba(52,211,153,0.35)]"}`} style={{ width: isUnlimited ? "12%" : `${Math.max(pct, usage > 0 ? 2 : 0)}%` }} />
+            <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/10" role={isUnlimited ? "group" : "meter"} aria-label={isUnlimited ? `${formatRequestCount(usage)} requests used on an unlimited plan` : "Request usage this billing cycle"} aria-valuemin={isUnlimited ? undefined : 0} aria-valuemax={isUnlimited ? undefined : 100} aria-valuenow={isUnlimited ? undefined : Math.round(pct)} aria-valuetext={isUnlimited ? undefined : `${formatRequestCount(usage)} of ${formatRequestCount(limit)} requests used`}>
+              <div className={`h-full rounded-full transition-[width] duration-700 motion-reduce:transition-none ${pct >= 80 ? "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.3)]" : "bg-emerald-300 shadow-[0_0_18px_rgba(52,211,153,0.35)]"}`} style={{ width: isUnlimited ? "100%" : `${Math.max(pct, usage > 0 ? 2 : 0)}%` }} />
             </div>
             <p className="mt-3 text-xs leading-5 text-slate-400">{fitMessage}</p>
           </div>

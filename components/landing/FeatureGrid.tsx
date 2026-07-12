@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type KeyboardEvent } from "react";
 import Link from "next/link";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 interface RepoInfo {
   stars: string;
@@ -51,6 +52,8 @@ const REPO_DATA: Record<string, RepoInfo> = {
   }
 };
 
+const REPO_OPTIONS = ["facebook/react", "vercel/next.js", "tailwindlabs/tailwindcss"] as const;
+
 export function FeatureGrid() {
   const [selectedRepo, setSelectedRepo] = useState<string>("facebook/react");
   const [isOrchestrating, setIsOrchestrating] = useState<boolean>(false);
@@ -59,9 +62,11 @@ export function FeatureGrid() {
   const [showResult, setShowResult] = useState<boolean>(false);
   const [activeFactIdx, setActiveFactIdx] = useState<number>(0);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  const [highlightedRepoIndex, setHighlightedRepoIndex] = useState(0);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const typewriterTimer = useRef<NodeJS.Timeout | null>(null);
   const timeoutIds = useRef<NodeJS.Timeout[]>([]);
+  const reducedMotion = useReducedMotion();
 
   // Interactive playground preview state.
   const [playgroundState, setPlaygroundState] = useState<"idle" | "running" | "completed">("idle");
@@ -69,6 +74,13 @@ export function FeatureGrid() {
 
   const runPlaygroundSimulator = () => {
     if (playgroundState !== "idle") return;
+
+    if (reducedMotion) {
+      setPlaygroundTab("response");
+      setPlaygroundState("completed");
+      return;
+    }
+
     setPlaygroundState("running");
     setPlaygroundTab("response");
 
@@ -96,6 +108,52 @@ export function FeatureGrid() {
     };
   }, []);
 
+  const selectRepository = (repo: string) => {
+    setSelectedRepo(repo);
+    setIsDropdownOpen(false);
+    setShowResult(false);
+    setLogs([]);
+    setTypewrittenSummary("");
+  };
+
+  const openRepositoryOptions = () => {
+    const selectedIndex = REPO_OPTIONS.findIndex((repo) => repo === selectedRepo);
+    setHighlightedRepoIndex(Math.max(selectedIndex, 0));
+    setIsDropdownOpen(true);
+  };
+
+  const handleRepositoryKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      if (isDropdownOpen) selectRepository(REPO_OPTIONS[highlightedRepoIndex]);
+      else openRepositoryOptions();
+      return;
+    }
+
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!isDropdownOpen) {
+        openRepositoryOptions();
+        return;
+      }
+      const direction = event.key === "ArrowDown" ? 1 : -1;
+      setHighlightedRepoIndex((current) => (current + direction + REPO_OPTIONS.length) % REPO_OPTIONS.length);
+      return;
+    }
+
+    if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      if (!isDropdownOpen) openRepositoryOptions();
+      setHighlightedRepoIndex(event.key === "Home" ? 0 : REPO_OPTIONS.length - 1);
+      return;
+    }
+
+    if (event.key === "Escape" || event.key === "Tab") {
+      if (event.key === "Escape") event.preventDefault();
+      setIsDropdownOpen(false);
+    }
+  };
+
   const startOrchestration = () => {
     if (isOrchestrating) return;
 
@@ -112,6 +170,19 @@ export function FeatureGrid() {
     // Clear any existing pending timeouts
     timeoutIds.current.forEach(clearTimeout);
     timeoutIds.current = [];
+
+    if (reducedMotion) {
+      setLogs([
+        "[info] dandi: validating repository request",
+        "[info] github: reading repository metadata and README",
+        "[info] api: preparing structured repository summary",
+        "[success] api: repository summary generated",
+      ]);
+      setTypewrittenSummary(REPO_DATA[selectedRepo].summary);
+      setShowResult(true);
+      setIsOrchestrating(false);
+      return;
+    }
 
     const t1 = setTimeout(() => {
       setLogs(prev => [...prev, "[info] dandi: validating repository request"]);
@@ -161,6 +232,42 @@ export function FeatureGrid() {
       timeoutIds.current.forEach(clearTimeout);
     };
   }, []);
+
+  useEffect(() => {
+    if (!reducedMotion) return;
+    let active = true;
+
+    if (typewriterTimer.current) {
+      clearInterval(typewriterTimer.current);
+      typewriterTimer.current = null;
+    }
+    timeoutIds.current.forEach(clearTimeout);
+    timeoutIds.current = [];
+
+    queueMicrotask(() => {
+      if (!active) return;
+
+      if (isOrchestrating) {
+        setLogs([
+          "[info] dandi: validating repository request",
+          "[info] github: reading repository metadata and README",
+          "[info] api: preparing structured repository summary",
+          "[success] api: repository summary generated",
+        ]);
+        setTypewrittenSummary(REPO_DATA[selectedRepo].summary);
+        setShowResult(true);
+        setIsOrchestrating(false);
+      }
+
+      if (playgroundState === "running") {
+        setPlaygroundState("completed");
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [isOrchestrating, playgroundState, reducedMotion, selectedRepo]);
 
   const currentRepoInfo = REPO_DATA[selectedRepo];
 
@@ -212,11 +319,18 @@ export function FeatureGrid() {
               <div ref={dropdownRef} className="relative flex-1 select-none z-30">
                 <button
                   type="button"
+                  role="combobox"
                   disabled={isOrchestrating}
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  onClick={() => {
+                    if (isDropdownOpen) setIsDropdownOpen(false);
+                    else openRepositoryOptions();
+                  }}
+                  onKeyDown={handleRepositoryKeyDown}
                   aria-haspopup="listbox"
                   aria-expanded={isDropdownOpen}
                   aria-controls="landing-repo-preview-listbox"
+                  aria-activedescendant={isDropdownOpen ? `landing-repo-preview-option-${highlightedRepoIndex}` : undefined}
+                  aria-autocomplete="none"
                   aria-label="Select repository preview"
                   className="w-full cursor-pointer appearance-none rounded-xl border border-white/10 bg-slate-950 py-3 pl-4 pr-10 text-left text-xs font-bold text-slate-200 outline-none transition hover:border-white/20 focus-visible:border-emerald-300/60 focus-visible:ring-2 focus-visible:ring-emerald-300/30 disabled:opacity-50 active:scale-[0.99]"
                 >
@@ -233,32 +347,32 @@ export function FeatureGrid() {
                   id="landing-repo-preview-listbox"
                   role="listbox"
                   aria-label="Repository preview options"
+                  aria-hidden={!isDropdownOpen}
+                  hidden={!isDropdownOpen}
                   className={`absolute left-0 right-0 top-full z-50 mt-2 origin-top rounded-2xl border border-white/10 bg-slate-950/98 p-1.5 shadow-xl backdrop-blur-sm transition-all duration-200 ${
                     isDropdownOpen
                       ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
                       : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
                   }`}
                 >
-                  {["facebook/react", "vercel/next.js", "tailwindlabs/tailwindcss"].map((repo) => {
+                  {REPO_OPTIONS.map((repo, index) => {
                     const isSelected = selectedRepo === repo;
+                    const isHighlighted = highlightedRepoIndex === index;
                     return (
                       <button
                         key={repo}
+                        id={`landing-repo-preview-option-${index}`}
                         type="button"
                         role="option"
                         aria-selected={isSelected}
+                        tabIndex={-1}
                         className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-left transition cursor-pointer ${
-                          isSelected
+                          isSelected || isHighlighted
                             ? "bg-emerald-500/10 text-emerald-400"
                             : "text-slate-400 hover:bg-white/5 hover:text-white"
                         }`}
-                        onClick={() => {
-                          setSelectedRepo(repo);
-                          setIsDropdownOpen(false);
-                          setShowResult(false);
-                          setLogs([]);
-                          setTypewrittenSummary("");
-                        }}
+                        onMouseEnter={() => setHighlightedRepoIndex(index)}
+                        onClick={() => selectRepository(repo)}
                       >
                         <span>{repo.replace("/", " / ")}</span>
                         {isSelected && (
@@ -313,6 +427,7 @@ export function FeatureGrid() {
                 {showResult && (
                   <div className="pt-2 animate-in fade-in duration-500 space-y-4">
                     {/* Multi Column Stats Grid */}
+                    <p className="text-[8px] font-bold uppercase tracking-wider text-slate-500">Decoded x-github-metadata header</p>
                     <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-800 bg-slate-900/50 p-3 text-center sm:grid-cols-4">
                       <div>
                         <p className="text-[8px] font-bold uppercase tracking-wider text-slate-500">Stars</p>
@@ -334,7 +449,7 @@ export function FeatureGrid() {
 
                     {/* Summary output */}
                     <div>
-                      <p className="mb-1 text-[8px] font-bold uppercase tracking-wider text-slate-500">Generated Summary</p>
+                      <p className="mb-1 text-[8px] font-bold uppercase tracking-wider text-slate-500">Streamed response body</p>
                       <p className="rounded-xl border border-slate-800/50 bg-slate-900/25 p-3 text-[10px] leading-relaxed text-slate-200">
                         {typewrittenSummary}
                       </p>
@@ -391,7 +506,7 @@ export function FeatureGrid() {
         <div className="group relative order-3 flex min-h-[300px] flex-col gap-6 overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all hover:border-emerald-400/20 sm:p-8 md:p-10 lg:flex-row lg:items-center">
           <div className="space-y-4 lg:w-5/12 relative z-10">
             <h3 className="text-2xl font-bold text-white">Live Playground</h3>
-            <p className="text-sm leading-relaxed text-slate-400">Test requests before you ship. Inspect raw JSON responses, review request state, and generate snippets quickly.</p>
+            <p className="text-sm leading-relaxed text-slate-400">Test requests before you ship. Inspect the streamed summary text, decode repository metadata from the response header, and review request state.</p>
           </div>
           
           <div className="lg:w-7/12 relative mt-4 lg:mt-0 h-full">
@@ -480,11 +595,16 @@ export function FeatureGrid() {
                   &nbsp;&nbsp;&quot;/api/github-summarizer&quot;,<br/>
                   &nbsp;&nbsp;&#123;<br/>
                   &nbsp;&nbsp;&nbsp;&nbsp;method: &quot;POST&quot;,<br/>
-                  &nbsp;&nbsp;&nbsp;&nbsp;headers: &#123; &quot;x-api-key&quot;: key &#125;,<br/>
+                  &nbsp;&nbsp;&nbsp;&nbsp;headers: &#123; &quot;Content-Type&quot;: &quot;application/json&quot;, &quot;x-api-key&quot;: key &#125;,<br/>
                   &nbsp;&nbsp;&nbsp;&nbsp;body: JSON.stringify(&#123;<br/>
                   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;githubUrl: &quot;...&quot;<br/>
                   &nbsp;&nbsp;&nbsp;&nbsp;&#125;)<br/>
                   &nbsp;&nbsp;&#125;<br/>
+                  );<br/>
+                  <span className="text-blue-400">const</span> summary = <span className="text-blue-400">await</span> res.text();<br/>
+                  <span className="text-blue-400">const</span> metadata = JSON.parse(<br/>
+                  &nbsp;&nbsp;atob(res.headers.get(<br/>
+                  &nbsp;&nbsp;&nbsp;&nbsp;&quot;x-github-metadata&quot;) ?? &quot;&quot;)<br/>
                   );
                 </div>
                 {/* Right Pane: Output */}
@@ -515,13 +635,11 @@ export function FeatureGrid() {
 
                   {playgroundState === "completed" && (
                     <div className="animate-in slide-in-from-bottom-2 fade-in duration-500 text-zinc-400">
-                      &#123;<br/>
-                      &nbsp;&nbsp;&quot;status&quot;: 200,<br/>
-                      &nbsp;&nbsp;&quot;data&quot;: &#123;<br/>
-                      &nbsp;&nbsp;&nbsp;&nbsp;&quot;stars&quot;: &quot;120.4K&quot;,<br/>
-                      &nbsp;&nbsp;&nbsp;&nbsp;&quot;license&quot;: &quot;MIT&quot;<br/>
-                      &nbsp;&nbsp;&#125;<br/>
-                      &#125;
+                      <span className="text-emerald-300">x-github-metadata</span><br/>
+                      &#123; &quot;metadata&quot;: &#123; &quot;stars&quot;: &quot;120.4K&quot;, &quot;license&quot;: &quot;MIT&quot; &#125; &#125;<br/>
+                      <br/>
+                      <span className="text-emerald-300">streamed body</span><br/>
+                      Next.js is a React framework for building full-stack web applications…
                     </div>
                   )}
                   

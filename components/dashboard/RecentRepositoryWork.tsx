@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CommandPanel, StatusPill } from "@/components/command";
 import { formatShortDate } from "@/lib/format";
 import type { DashboardRepositoryWork } from "./dashboard-types";
+import { playgroundRoute, ROUTES } from "@/lib/routes";
 
 function repoLabel(work: DashboardRepositoryWork) {
   if (work.repoName) return work.repoName;
@@ -17,13 +18,12 @@ function statusMeta(work: DashboardRepositoryWork) {
   if (work.status === "failed") return { label: "Needs attention", tone: "danger" as const, step: work.errorMessage || "Processing failed. Retry this workflow from Playground." };
   if (work.status === "running") return { label: "Processing", tone: "info" as const, step: work.currentStep || "Dandi is processing this repository." };
   if (work.status === "queued") return { label: "Queued", tone: "info" as const, step: "Waiting for the repository workflow to start." };
-  if (work.indexAvailable) return { label: "Indexed", tone: "success" as const, step: work.summaryAvailable ? "Summary complete · Ready for grounded questions" : "Ready for grounded questions" };
+  if (work.indexAvailable) return { label: "Prepared", tone: "success" as const, step: work.summaryAvailable ? "Summary complete · Ready for grounded questions" : "Ready for grounded questions" };
   return { label: "Summary complete", tone: "success" as const, step: "Repository overview is ready" };
 }
 
-function workHref(work: DashboardRepositoryWork) {
-  const mode = work.indexAvailable ? "ask" : "summary";
-  return `/playground?mode=${mode}&repo=${encodeURIComponent(work.repoUrl)}`;
+function workHref(work: DashboardRepositoryWork, mode: "summary" | "ask" = "ask") {
+  return playgroundRoute(mode, work.repoUrl);
 }
 
 export function RecentRepositoryWork({ works }: { works: DashboardRepositoryWork[] }) {
@@ -44,7 +44,7 @@ export function RecentRepositoryWork({ works }: { works: DashboardRepositoryWork
           <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] text-cyan-200" aria-hidden="true">⌁</div>
           <h3 className="mt-4 text-sm font-bold text-white">No repository work yet</h3>
           <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-slate-500">Analyze a public repository or connect GitHub to start with a private one.</p>
-          <Link href="/playground?mode=summary" className="mt-5 inline-flex min-h-10 items-center justify-center rounded-full bg-emerald-300 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-slate-950 transition hover:bg-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">Analyze a repository</Link>
+          <Link href={ROUTES.playgroundSummary} className="mt-5 inline-flex min-h-10 items-center justify-center rounded-full bg-emerald-300 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-slate-950 transition hover:bg-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">Analyze a repository</Link>
         </div>
       ) : (
         <div className="mt-5 space-y-2.5">
@@ -67,7 +67,7 @@ export function RecentRepositoryWork({ works }: { works: DashboardRepositoryWork
                   <Link href={workHref(work)} className="inline-flex min-h-8 items-center justify-center rounded-full border border-emerald-300/20 bg-emerald-300/[0.08] px-3 text-[9px] font-black uppercase tracking-[0.15em] text-emerald-100 transition hover:border-emerald-200/45 hover:bg-emerald-300/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">
                     {work.status === "failed" ? "Retry" : work.indexAvailable ? "Ask Dandi" : "Continue"}
                   </Link>
-                  {work.indexAvailable && <Link href={workHref({ ...work, indexAvailable: false })} className="inline-flex min-h-8 items-center justify-center rounded-full border border-white/10 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 transition hover:border-white/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">View summary</Link>}
+                  {work.summaryAvailable && <Link href={workHref(work, "summary")} className="inline-flex min-h-8 items-center justify-center rounded-full border border-white/10 px-3 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 transition hover:border-white/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">View summary</Link>}
                 </div>
               </div>
             );

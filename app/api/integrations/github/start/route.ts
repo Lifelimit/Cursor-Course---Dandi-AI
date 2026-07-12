@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (err) {
     const url = new URL("/account", origin);
-    url.searchParams.set("tab", "integrations");
+    url.searchParams.set("tab", "github");
     url.searchParams.set("github_error", getSafeGitHubAppErrorMessage(err));
     return NextResponse.redirect(url);
   }

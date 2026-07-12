@@ -3,6 +3,12 @@ import { publicEnv } from '@/lib/env'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export default async function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname === "/protected" && request.nextUrl.searchParams.has("key")) {
+    const sanitizedUrl = request.nextUrl.clone();
+    sanitizedUrl.searchParams.delete("key");
+    return NextResponse.redirect(sanitizedUrl);
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })

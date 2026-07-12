@@ -27,11 +27,11 @@ Dandi is a Next.js product dashboard for authenticated AI API access, usage moni
 
 - `/` - landing page.
 - `/signup` and `/login` - authentication.
-- `/dashboards` - API key overview and credential management.
+- `/dashboards` - workspace overview and recent repository activity.
 - `/playground` - GitHub summarization and RAG testing.
 - `/usage` - usage analytics and quota health.
 - `/billing` - plans, invoices, and payment methods.
-- `/account` - account details.
+- `/account` - workspace settings, including profile, GitHub, API access, webhooks, and security.
 - `/docs` - product documentation surface.
 - `/protected` - hidden auth-gated API key validation route.
 

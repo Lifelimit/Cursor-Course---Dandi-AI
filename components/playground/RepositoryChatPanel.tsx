@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import type { Dispatch, FormEventHandler, ReactNode, RefObject, SetStateAction } from "react";
 import { isLightweightGreeting } from "@/hooks/useRepositoryChat";
 import type { IndexedRepositoryStats } from "@/hooks/useRepositoryIngestion";
@@ -17,6 +18,7 @@ type RepositoryChatPanelProps = {
   chatInput: string;
   setChatInput: Dispatch<SetStateAction<string>>;
   isChatLoading: boolean;
+  chatErrorMessage: string;
   chatLoadingStages: LoadingStage[];
   handleChatSubmit: FormEventHandler<HTMLFormElement>;
   resetIngestedRepository: () => void;
@@ -48,7 +50,7 @@ const renderTextWithInlineCode = (text: string) => {
       nodes.push(
         <span
           key={`${keyPrefix}-file-${fileStart}`}
-          className="mx-0.5 inline-flex max-w-full items-center rounded-lg border border-emerald-300/20 bg-emerald-300/[0.08] px-1.5 py-0.5 align-baseline font-mono text-[0.82em] font-bold text-emerald-200"
+          className="mx-0.5 inline-flex max-w-full break-all items-center rounded-lg border border-emerald-300/20 bg-emerald-300/[0.08] px-1.5 py-0.5 align-baseline font-mono text-[0.82em] font-bold text-emerald-200"
         >
           {filePath}
         </span>
@@ -103,7 +105,7 @@ const renderTextWithInlineCode = (text: string) => {
   return parts.map((part, index) => {
     if (part.startsWith("`") && part.endsWith("`")) {
       return (
-        <code key={index} className="rounded-md border border-emerald-300/20 bg-emerald-300/[0.08] px-1.5 py-0.5 font-mono text-[0.86em] font-bold text-emerald-200">
+        <code key={index} className="break-all rounded-md border border-emerald-300/20 bg-emerald-300/[0.08] px-1.5 py-0.5 font-mono text-[0.86em] font-bold text-emerald-200">
           {part.slice(1, -1)}
         </code>
       );
@@ -245,7 +247,7 @@ function renderMessageContent(content: string, showToast: (type: "success" | "er
                       {headers.map((_, cellIdx) => (
                         <td
                           key={cellIdx}
-                          className="px-4 py-3 align-top text-[13px] font-medium leading-6 text-slate-300"
+                          className="px-4 py-3 align-top text-[13px] font-medium leading-6 text-slate-300 [overflow-wrap:anywhere]"
                         >
                           {renderLineText(row[cellIdx] ?? "")}
                         </td>
@@ -370,6 +372,7 @@ export function RepositoryChatPanel({
   chatInput,
   setChatInput,
   isChatLoading,
+  chatErrorMessage,
   chatLoadingStages,
   handleChatSubmit,
   resetIngestedRepository,
@@ -377,6 +380,29 @@ export function RepositoryChatPanel({
   getRepoPath,
   showToast,
 }: RepositoryChatPanelProps) {
+  const [completionAnnouncement, setCompletionAnnouncement] = useState("");
+  const completionPendingRef = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+
+    if (isChatLoading) {
+      completionPendingRef.current = true;
+      queueMicrotask(() => {
+        if (active) setCompletionAnnouncement("");
+      });
+    } else if (completionPendingRef.current) {
+      completionPendingRef.current = false;
+      queueMicrotask(() => {
+        if (active) setCompletionAnnouncement(chatErrorMessage ? "" : "Dandi response complete.");
+      });
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [chatErrorMessage, isChatLoading]);
+
   const visibleRagMessages = ragMessages.filter((message, index) => {
     const hasPreviousQuestion = ragMessages.slice(0, index).some((candidate) => candidate.role === "user");
     return message.role === "user" || hasPreviousQuestion;
@@ -497,7 +523,7 @@ export function RepositoryChatPanel({
                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">User Question</p>
                         <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400">You</span>
                       </div>
-                      <p className="text-sm font-semibold leading-6 text-slate-100 sm:text-[15px]">
+                      <p className="text-sm font-semibold leading-6 text-slate-100 [overflow-wrap:anywhere] sm:text-[15px]">
                         {renderTextWithInlineCode(turn.question.content)}
                       </p>
                     </section>
@@ -517,7 +543,7 @@ export function RepositoryChatPanel({
                       </div>
                     </div>
 
-                    <div className="prose-dandi mx-auto max-w-3xl xl:max-w-[78ch]">
+                    <div className="prose-dandi mx-auto max-w-3xl [overflow-wrap:anywhere] xl:max-w-[78ch]">
                       {answerContent ? (
                         <>
                           {needsSectionLabel && (
@@ -586,7 +612,7 @@ export function RepositoryChatPanel({
                               <div className="mt-3 space-y-3 rounded-xl border border-emerald-300/10 bg-slate-950/70 p-3">
                                 <div>
                                   <p className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-300/75">Evidence Preview</p>
-                                  <div className="mt-2 rounded-lg border border-white/10 bg-white/[0.035] p-3 text-[13px] font-medium leading-6 text-slate-100">
+                                  <div className="mt-2 rounded-lg border border-white/10 bg-white/[0.035] p-3 text-[13px] font-medium leading-6 text-slate-100 [overflow-wrap:anywhere]">
                                     {src.preview ? (
                                       <p>{src.preview}</p>
                                     ) : (
@@ -603,7 +629,7 @@ export function RepositoryChatPanel({
                                       <span className="text-slate-600 transition-transform group-open/meta:rotate-180">⌄</span>
                                     </summary>
                                     <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-slate-950/75 p-2">
-                                      <span className="font-mono text-[10px] font-semibold text-slate-500" title={src.chunkId}>
+                                      <span className="break-all font-mono text-[10px] font-semibold text-slate-500" title={src.chunkId}>
                                         Chunk ID {src.chunkId}
                                       </span>
                                       <button
@@ -658,9 +684,17 @@ export function RepositoryChatPanel({
           </div>
         )}
 
+        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {completionAnnouncement}
+        </p>
+
         <form onSubmit={handleChatSubmit} className="flex gap-3 border-t border-[var(--command-border)] pt-4">
+          <label htmlFor="repository-chat-question" className="sr-only">Question about this repository</label>
           <input
+            id="repository-chat-question"
+            name="repository-question"
             type="text"
+            autoComplete="off"
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
             disabled={isChatLoading}

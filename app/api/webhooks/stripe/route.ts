@@ -24,9 +24,8 @@ export async function POST(req: Request) {
       signature,
       serverEnv.STRIPE_WEBHOOK_SECRET
     );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return new NextResponse(`Webhook Error: ${message}`, { status: 400 });
+  } catch {
+    return new NextResponse("Invalid webhook signature.", { status: 400 });
   }
 
   // IDEMPOTENCY CHECK: Ensure we don't process the same event twice
@@ -37,11 +36,11 @@ export async function POST(req: Request) {
   if (idempotencyError) {
     // 23505 is the Postgres code for unique_violation
     if (isDuplicateWebhookEventError(idempotencyError)) {
-      console.log(`♻️ Webhook: Duplicate event detected (${event.id}). Skipping...`);
+      console.info("Duplicate Stripe webhook event skipped.");
       return NextResponse.json({ received: true });
     }
-    console.error("❌ Webhook: Idempotency check failed:", idempotencyError.message);
-    return new NextResponse(`Database error: ${idempotencyError.message}`, { status: 500 });
+    console.error("Stripe webhook idempotency check failed.");
+    return new NextResponse("Webhook idempotency check failed.", { status: 500 });
   }
 
   try {
@@ -58,10 +57,9 @@ export async function POST(req: Request) {
 
       const isSetupSession = !isSubscriptionEvent && (sessionOrSub as Stripe.Checkout.Session).mode === "setup";
 
-      console.log(`🔔 Webhook: ${event.type} received`, {
-        userId,
-        customerId,
-        mode: isSetupSession ? "setup" : "subscription"
+      console.info("Stripe webhook received.", {
+        eventType: event.type,
+        mode: isSetupSession ? "setup" : "subscription",
       });
 
       let paymentMethodDetails: Record<string, string> | null = null;
@@ -94,7 +92,7 @@ export async function POST(req: Request) {
             );
 
             if (isDuplicate) {
-              console.warn(`⚠️ Webhook: Duplicate card detected (fingerprint: ${newFingerprint}). Detaching PM: ${pmId}`);
+              console.warn("Duplicate Stripe payment method detected; detaching the duplicate.");
               await stripe.paymentMethods.detach(pmId);
               return NextResponse.json({ received: true, duplicate: true });
             }
@@ -116,8 +114,8 @@ export async function POST(req: Request) {
               updatePayload.payment_method_expiry = paymentMethodDetails.expiry;
             }
           }
-        } catch (err) {
-          console.error("❌ Webhook setup error:", err);
+        } catch {
+          console.error("Stripe webhook setup handling failed.");
         }
       } else {
         // Handle subscription events (checkout or update)
@@ -125,10 +123,7 @@ export async function POST(req: Request) {
         const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription;
         const verifiedPlan = getPlanForSubscription(subscription);
         if (!verifiedPlan) {
-          console.warn("⚠️ Webhook: Subscription has an unknown Stripe price; profile plan will not be changed.", {
-            subscriptionId,
-            priceId: subscription.items?.data?.[0]?.price?.id,
-          });
+          console.warn("Stripe subscription has an unknown price; the profile plan was not changed.");
         }
         
         try {
@@ -169,8 +164,8 @@ export async function POST(req: Request) {
               };
             }
           }
-        } catch (err) {
-          console.warn("⚠️ Webhook warning: Could not retrieve payment method details:", err);
+        } catch {
+          console.warn("Stripe payment method details could not be retrieved.");
         }
 
         updatePayload = buildWebhookSubscriptionUpdatePayload({
@@ -191,8 +186,8 @@ export async function POST(req: Request) {
       const { error } = await query.select();
 
       if (error) {
-        console.error("❌ Supabase webhook update error:", error.message);
-        throw new Error(`Database update failed: ${error.message}`);
+        console.error("Stripe webhook profile update failed.");
+        throw new Error("Webhook profile update failed.");
       }
 
       return NextResponse.json({ received: true });
@@ -220,8 +215,8 @@ export async function POST(req: Request) {
         .single();
 
       if (profileError || !profile) {
-        console.error("❌ Webhook: Failed to downgrade profile:", profileError);
-        throw new Error(`Profile update failed`);
+        console.error("Stripe webhook profile downgrade failed.");
+        throw new Error("Webhook profile update failed.");
       }
 
       // 2. Deactivate excess keys
@@ -234,8 +229,8 @@ export async function POST(req: Request) {
           .eq("user_id", userId)
           .not("id", "in", `(${keysToKeep.join(",")})`);
         if (keysError) {
-          console.error("❌ Webhook: Failed to deactivate excess keys:", keysError.message);
-          throw new Error(`Keys deactivation failed: ${keysError.message}`);
+          console.error("Stripe webhook API-key deactivation failed.");
+          throw new Error("Webhook API-key update failed.");
         }
       } else {
         const { data: allKeys, error: fetchKeysError } = await supabaseAdmin
@@ -245,8 +240,8 @@ export async function POST(req: Request) {
           .order("created_at", { ascending: true });
 
         if (fetchKeysError) {
-          console.error("❌ Webhook: Failed to fetch user keys for deactivation:", fetchKeysError.message);
-          throw new Error(`Keys fetch failed: ${fetchKeysError.message}`);
+          console.error("Stripe webhook API-key lookup failed.");
+          throw new Error("Webhook API-key lookup failed.");
         }
 
         if (allKeys && allKeys.length > 3) {
@@ -257,8 +252,8 @@ export async function POST(req: Request) {
             .eq("user_id", userId)
             .in("id", keysToDeactivate);
           if (deactivateError) {
-            console.error("❌ Webhook: Failed to deactivate excess keys:", deactivateError.message);
-            throw new Error(`Keys deactivation failed: ${deactivateError.message}`);
+            console.error("Stripe webhook API-key deactivation failed.");
+            throw new Error("Webhook API-key update failed.");
           }
         }
       }
@@ -267,14 +262,13 @@ export async function POST(req: Request) {
     }
     
     return new NextResponse(null, { status: 200 });
-  } catch (err) {
-    console.error("❌ Webhook processing error, cleaning up idempotency key:", err);
+  } catch {
+    console.error("Stripe webhook processing failed; clearing its idempotency marker.");
     await supabaseAdmin
       .from("stripe_webhook_events")
       .delete()
       .eq("id", event.id);
 
-    const message = err instanceof Error ? err.message : "Internal Server Error";
-    return new NextResponse(`Webhook processing failed: ${message}`, { status: 500 });
+    return new NextResponse("Webhook processing failed.", { status: 500 });
   }
 }

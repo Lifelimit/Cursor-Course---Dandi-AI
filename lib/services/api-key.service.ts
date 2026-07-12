@@ -4,10 +4,25 @@ import { resolvePlan } from "@/lib/constants";
 import crypto from "crypto";
 import { normalizeGitHubRepoUrl } from "@/lib/security-core";
 import { getRequestTelemetry } from "@/lib/account-environments";
+import type { ValidatedApiKeyData } from "@/types/api-keys";
 
 /** HMAC-SHA256 hash using the server secret. Used for new key hashing. */
 export function hmacHash(value: string, secret: string): string {
   return crypto.createHmac("sha256", secret).update(value).digest("hex");
+}
+
+/**
+ * Resolve the user who owns request-created data. The demo credential is shared
+ * for metering, but its browser session is never a shared authorization owner.
+ */
+export function getApiKeyDataOwnerId(
+  keyData: Pick<ValidatedApiKeyData, "user_id" | "browserUserId">,
+) {
+  const ownerId = keyData.browserUserId || keyData.user_id;
+  if (!ownerId || ownerId === "demo-user-id") {
+    throw new Error("Authenticated data owner is required.");
+  }
+  return ownerId;
 }
 
 /** Returns true if the string looks like a valid GitHub repository URL. */
@@ -35,8 +50,8 @@ export async function validateApiKey(keyValue: string) {
         throw new Error("Unauthorized: Active browser session required to use the Demo Key.");
       }
       activeUser = user;
-    } catch (sessionError) {
-      console.error("Demo key session validation failed:", sessionError);
+    } catch {
+      console.error("Demo key session validation failed.");
       throw new Error("Unauthorized: Active browser session required to use the Demo Key.");
     }
 
@@ -45,8 +60,8 @@ export async function validateApiKey(keyValue: string) {
     let currentKeyUsage = 0;
     try {
       currentKeyUsage = await redis.get<number>(keyUsageKey).then(v => v || 0);
-    } catch (redisError) {
-      console.error("⚠️ Redis outage during demo key usage check (failing open):", redisError);
+    } catch {
+      console.error("Redis was unavailable during the demo usage check; using the fallback policy.");
     }
 
     if (currentKeyUsage >= 1000) {
@@ -75,8 +90,8 @@ export async function validateApiKey(keyValue: string) {
     try {
       const { getAuthenticatedUserId } = await import("@/lib/services/auth.service");
       profileId = await getAuthenticatedUserId();
-    } catch (sessionError) {
-      console.error("Masked key session validation failed:", sessionError);
+    } catch {
+      console.error("Masked key session validation failed.");
     }
 
     if (!profileId) {
@@ -148,8 +163,8 @@ export async function validateApiKey(keyValue: string) {
     ]);
     currentUsage = usage;
     currentKeyUsage = keyUsage;
-  } catch (redisError) {
-    console.error("⚠️ Redis outage during user/key usage check (failing open):", redisError);
+  } catch {
+    console.error("Redis was unavailable during the usage check; using persisted key usage.");
     // Fail open: fallback to persistent usage count from db
     currentKeyUsage = keyData.usage_count || 0;
   }
@@ -188,8 +203,8 @@ export async function incrementKeyUsage(
       const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
       try {
         await redis.incr(`usage:key:demo-id:${currentMonth}`);
-      } catch (redisError) {
-        console.error("⚠️ Redis outage during demo key increment:", redisError);
+      } catch {
+        console.error("Redis was unavailable during the demo usage increment.");
       }
     }
     return;
@@ -229,19 +244,19 @@ export async function incrementKeyUsage(
               try {
                 const { sendAlertEmail } = await import("./email.service");
                 await sendAlertEmail(keyData.email, keyData.name, pct, keyData.alert_threshold);
-              } catch (emailError) {
-                console.error("Failed to send alert email:", emailError);
+              } catch {
+                console.error("Failed to send a usage alert email.");
               }
               
               await redis.set(alertSentKey, "true", { ex: ttlSeconds });
             }
-          } catch (redisAlertErr) {
-            console.error("⚠️ Redis error during alert check/deduplication:", redisAlertErr);
+          } catch {
+            console.error("Redis was unavailable during usage-alert deduplication.");
           }
         }
       }
-    } catch (redisError) {
-      console.error("⚠️ Redis outage during usage increment/expiry:", redisError);
+    } catch {
+      console.error("Redis was unavailable during the usage increment.");
     }
   }
 
@@ -263,8 +278,8 @@ export async function incrementKeyUsage(
 
     // Keep only last 100 logs in Redis per user for "hot" analytics
     await redis.ltrim(logKey, 0, 99);
-  } catch (redisLogErr) {
-    console.error("⚠️ Redis outage during log push/trim:", redisLogErr);
+  } catch {
+    console.error("Redis was unavailable while recording usage telemetry.");
   }
 
   await supabaseAdmin
@@ -277,8 +292,6 @@ export async function incrementKeyUsage(
       latency_ms: Math.max(0, Math.round(latencyMs)),
     })
     .then(({ error }) => {
-      if (error) {
-        console.warn("Failed to persist API usage log:", error.message);
-      }
+      if (error) console.warn("Failed to persist API usage telemetry.");
     });
 }

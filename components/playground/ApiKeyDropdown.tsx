@@ -21,6 +21,7 @@ type MenuPosition = {
   left: number;
   top: number;
   width: number;
+  maxHeight: number;
 };
 
 function formatUsage(key: ApiKey) {
@@ -99,11 +100,18 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
     const rect = trigger.getBoundingClientRect();
     const width = Math.min(288, window.innerWidth - 32);
     const left = Math.min(Math.max(16, rect.right - width), window.innerWidth - width - 16);
+    const availableBelow = Math.max(window.innerHeight - rect.bottom - 24, 0);
+    const availableAbove = Math.max(rect.top - 24, 0);
+    const openAbove = availableBelow < 192 && availableAbove > availableBelow;
+    const maxHeight = Math.max(80, Math.min(288, openAbove ? availableAbove : availableBelow));
+    const preferredTop = openAbove ? rect.top - maxHeight - 8 : rect.bottom + 8;
+    const top = Math.min(Math.max(16, preferredTop), Math.max(16, window.innerHeight - maxHeight - 16));
 
     setMenuPosition({
       left,
-      top: rect.bottom + 8,
+      top,
       width,
+      maxHeight,
     });
   };
 
@@ -164,7 +172,7 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (event.key === "Enter") {
+    if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       if (isOpen) {
         selectOption(options[highlightedIndex]);
@@ -174,9 +182,8 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
       return;
     }
 
-    if (event.key === " ") {
-      event.preventDefault();
-      toggleMenu();
+    if (event.key === "Tab") {
+      setIsOpen(false);
       return;
     }
 
@@ -212,12 +219,23 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
       <button
         ref={buttonRef}
         type="button"
+        role="combobox"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={listboxId}
+        aria-activedescendant={isOpen ? `${listboxId}-option-${highlightedIndex}` : undefined}
+        aria-autocomplete="none"
         aria-label="Quick select API key"
         onClick={toggleMenu}
         onKeyDown={handleKeyDown}
+        onBlur={() => {
+          window.requestAnimationFrame(() => {
+            const activeElement = document.activeElement;
+            if (!rootRef.current?.contains(activeElement) && !menuRef.current?.contains(activeElement)) {
+              setIsOpen(false);
+            }
+          });
+        }}
         className="flex min-h-9 w-44 max-w-[calc(100vw-3rem)] items-center justify-between gap-3 rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-left text-[10px] font-black uppercase tracking-widest text-emerald-300 shadow-[0_0_22px_rgba(16,185,129,0.08)] outline-none transition-all hover:border-emerald-300/35 hover:bg-emerald-300/15 focus:border-emerald-300/50 focus:ring-4 focus:ring-emerald-300/10"
       >
         <span className="min-w-0 truncate">{selectedOption.label}</span>
@@ -232,13 +250,15 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
             left: menuPosition.left,
             top: menuPosition.top,
             width: menuPosition.width,
+            maxHeight: menuPosition.maxHeight,
           }}
         >
           <ul
             id={listboxId}
             role="listbox"
             aria-label="API key quick select"
-            className="max-h-72 overflow-y-auto py-1"
+            className="overflow-y-auto py-1"
+            style={{ maxHeight: Math.max(menuPosition.maxHeight - 12, 48) }}
           >
             {options.map((option, index) => {
               const isSelected = option.id === selectedOption.id;
@@ -256,6 +276,7 @@ export function ApiKeyDropdown({ apiKeys, value, onChange }: ApiKeyDropdownProps
                     id={`${listboxId}-option-${index}`}
                     role="option"
                     aria-selected={isSelected}
+                    tabIndex={-1}
                     type="button"
                     onMouseEnter={() => setHighlightedIndex(index)}
                     onClick={() => selectOption(option)}

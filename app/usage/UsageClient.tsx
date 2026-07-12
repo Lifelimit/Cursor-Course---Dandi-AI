@@ -47,7 +47,7 @@ export default function UsageClient({
     refresh: fetchUsageData,
   } = useUsageData({
     initialData,
-    initialRefreshDelayMs: initialData ? 1000 : 0,
+    fetchOnMount: initialData === null,
     pollingIntervalMs: 20000,
     requestCache: "no-store",
     fallbackErrorMessage: "Failed to load usage analytics.",
@@ -107,14 +107,15 @@ export default function UsageClient({
 
   const currentPlan = currentData?.plan || activeSession?.user?.user_metadata?.plan || "Hobby";
   const { monthlyLimit: currentLimit, isUnlimited, maxLimitCap } = getPlanLimits(currentPlan);
-  const totalUsage = currentData?.totalUsage ?? 0;
-  const remainingQuota = isUnlimited ? null : Math.max(currentLimit - totalUsage, 0);
-  const usagePct = isUnlimited || currentLimit <= 0 ? 0 : Math.min((totalUsage / currentLimit) * 100, 100);
+  const totalUsage = currentData?.totalUsage ?? null;
+  const resolvedTotalUsage = totalUsage ?? 0;
+  const remainingQuota = isUnlimited ? null : Math.max(currentLimit - resolvedTotalUsage, 0);
+  const usagePct = isUnlimited || currentLimit <= 0 ? 0 : Math.min((resolvedTotalUsage / currentLimit) * 100, 100);
   const activeKeyCount = currentData?.keys.filter(key => key.is_active).length ?? 0;
   const totalKeyCount = currentData?.keys.length ?? 0;
   const quotaTone = !currentData
     ? "neutral" as const
-    : !isUnlimited && totalUsage >= currentLimit
+    : !isUnlimited && resolvedTotalUsage >= currentLimit
       ? "danger" as const
       : !isUnlimited && usagePct >= 80
         ? "warning" as const
@@ -170,7 +171,18 @@ export default function UsageClient({
       .filter(group => group.jobs.length > 0);
   }, [sortedIngestionJobs, visibleJobIds]);
 
-  const showSkeleton = isLoading && !initialData;
+  const showSkeleton = isLoading && !currentData;
+  const usageStatus = isSyncing
+    ? { label: "Syncing usage", tone: "warning" as const, pulse: true }
+    : usageError
+      ? currentData
+        ? { label: "Usage stale", tone: "warning" as const, pulse: false }
+        : { label: "Usage unavailable", tone: "danger" as const, pulse: false }
+      : !currentData
+        ? isLoading
+          ? { label: "Loading usage", tone: "info" as const, pulse: true }
+          : { label: "Usage unavailable", tone: "danger" as const, pulse: false }
+        : { label: "Usage current", tone: "success" as const, pulse: false };
 
   return (
     <>
@@ -181,6 +193,7 @@ export default function UsageClient({
           plan: currentPlan,
           limit: currentLimit,
           isUnlimited,
+          isUsageStale: Boolean(usageError && currentData),
           alerts,
           onUpdate: refreshUsageData,
         }}
@@ -191,8 +204,8 @@ export default function UsageClient({
           description="Understand consumption, quota health, repository demand, and request performance across your workspace."
           rightAction={
             <>
-              <StatusPill tone={isSyncing ? "warning" : "success"} pulse={isSyncing}>
-                {isSyncing ? "Syncing usage" : "Usage current"}
+              <StatusPill tone={usageStatus.tone} pulse={usageStatus.pulse}>
+                {usageStatus.label}
               </StatusPill>
               <button type="button" onClick={handleExport} className="group flex shrink-0 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-300 shadow-sm transition hover:border-emerald-300/30 hover:text-emerald-200 sm:px-6">
                 <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0" fill="none" stroke="currentColor"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 20h14" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>

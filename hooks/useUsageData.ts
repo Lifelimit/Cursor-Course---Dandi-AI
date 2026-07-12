@@ -46,66 +46,90 @@ export function useUsageData<TUsageData extends UsageData = UsageData>({
   const [error, setError] = useState<string | null>(null);
   const isHydrated = useRef(initialData !== null);
   const syncResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const resolvedInitialDelay = initialRefreshDelayMs ?? (initialData ? 1000 : 0);
+  const inFlightRequest = useRef<Promise<TUsageData | null> | null>(null);
+  const activeController = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
+  const resolvedInitialDelay = initialRefreshDelayMs ?? (initialData !== null ? 1000 : 0);
 
-  const refresh = useCallback(async (background = false) => {
-    try {
-      if (background) {
-        setIsSyncing(true);
-      } else if (!isHydrated.current) {
-        setIsLoading(true);
-      }
+  const refresh = useCallback((background = false) => {
+    if (inFlightRequest.current) return inFlightRequest.current;
 
-      const init: RequestInit = {};
-      if (requestCache) init.cache = requestCache;
+    const controller = new AbortController();
+    activeController.current = controller;
 
-      const response = await fetch("/api/usage", init);
-      let json: unknown = null;
+    const request = (async () => {
       try {
-        json = await response.json();
-      } catch {
-        if (requireOkResponse) throw new Error(fallbackErrorMessage);
+        if (background) {
+          setIsSyncing(true);
+        } else if (!isHydrated.current) {
+          setIsLoading(true);
+        }
+
+        const init: RequestInit = { signal: controller.signal };
+        if (requestCache) init.cache = requestCache;
+
+        const response = await fetch("/api/usage", init);
+        let json: unknown = null;
+        try {
+          json = await response.json();
+        } catch {
+          if (requireOkResponse) throw new Error(fallbackErrorMessage);
+        }
+
+        if (requireOkResponse && !response.ok) {
+          const message = json && typeof json === "object" && "error" in json
+            ? String((json as { error?: unknown }).error || fallbackErrorMessage)
+            : fallbackErrorMessage;
+          throw new Error(message);
+        }
+
+        const nextData = json as TUsageData;
+        if (!isMounted.current) return null;
+
+        setData(nextData);
+        setError(null);
+        isHydrated.current = true;
+        onSuccess?.(nextData, { background });
+        return nextData;
+      } catch (err) {
+        if (controller.signal.aborted || !isMounted.current) return null;
+
+        const message = err instanceof Error ? err.message : fallbackErrorMessage;
+
+        if (logErrors) {
+          if (logErrorLabel) console.error(logErrorLabel, err);
+          else console.error(err);
+        }
+
+        if (!background || setErrorOnBackground) {
+          setError(message);
+        }
+
+        onError?.(message, err, { background });
+        return null;
+      } finally {
+        if (activeController.current === controller) {
+          activeController.current = null;
+        }
+        inFlightRequest.current = null;
+
+        if (isMounted.current) {
+          setIsLoading(false);
+
+          if (background) {
+            if (syncResetTimer.current) clearTimeout(syncResetTimer.current);
+            syncResetTimer.current = setTimeout(() => {
+              if (isMounted.current) setIsSyncing(false);
+            }, backgroundSyncResetDelayMs);
+          } else {
+            setIsSyncing(false);
+          }
+        }
       }
+    })();
 
-      if (requireOkResponse && !response.ok) {
-        const message = json && typeof json === "object" && "error" in json
-          ? String((json as { error?: unknown }).error || fallbackErrorMessage)
-          : fallbackErrorMessage;
-        throw new Error(message);
-      }
-
-      const nextData = json as TUsageData;
-      setData(nextData);
-      setError(null);
-      isHydrated.current = true;
-      onSuccess?.(nextData, { background });
-      return nextData;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : fallbackErrorMessage;
-
-      if (logErrors) {
-        if (logErrorLabel) console.error(logErrorLabel, err);
-        else console.error(err);
-      }
-
-      if (!background || setErrorOnBackground) {
-        setError(message);
-      }
-
-      onError?.(message, err, { background });
-      return null;
-    } finally {
-      setIsLoading(false);
-
-      if (background) {
-        if (syncResetTimer.current) clearTimeout(syncResetTimer.current);
-        syncResetTimer.current = setTimeout(() => {
-          setIsSyncing(false);
-        }, backgroundSyncResetDelayMs);
-      } else {
-        setIsSyncing(false);
-      }
-    }
+    inFlightRequest.current = request;
+    return request;
   }, [
     backgroundSyncResetDelayMs,
     fallbackErrorMessage,
@@ -119,28 +143,55 @@ export function useUsageData<TUsageData extends UsageData = UsageData>({
   ]);
 
   useEffect(() => {
+    isMounted.current = true;
+
     const initialTimer = fetchOnMount
       ? setTimeout(() => {
           void refresh(false);
         }, resolvedInitialDelay)
       : null;
 
-    const pollingTimer = pollingIntervalMs
-      ? setInterval(() => {
-          void refresh(true);
-        }, pollingIntervalMs)
-      : null;
+    let pollingTimer: ReturnType<typeof setInterval> | null = null;
+    const stopPolling = () => {
+      if (!pollingTimer) return;
+      clearInterval(pollingTimer);
+      pollingTimer = null;
+    };
+    const startPolling = () => {
+      if (!pollingIntervalMs || document.visibilityState === "hidden" || pollingTimer) return;
+      pollingTimer = setInterval(() => {
+        void refresh(true);
+      }, pollingIntervalMs);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        stopPolling();
+        return;
+      }
+
+      void refresh(true);
+      startPolling();
+    };
+
+    startPolling();
+    if (pollingIntervalMs) {
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    }
 
     return () => {
+      isMounted.current = false;
       if (initialTimer) clearTimeout(initialTimer);
-      if (pollingTimer) clearInterval(pollingTimer);
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      activeController.current?.abort();
+      activeController.current = null;
       if (syncResetTimer.current) clearTimeout(syncResetTimer.current);
     };
   }, [fetchOnMount, pollingIntervalMs, refresh, resolvedInitialDelay]);
 
   return {
     data,
-    currentData: data || initialData,
+    currentData: data ?? initialData,
     isLoading,
     isSyncing,
     error,

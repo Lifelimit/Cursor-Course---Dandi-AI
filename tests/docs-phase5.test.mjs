@@ -6,8 +6,15 @@ const source = await readFile(new URL("../app/docs/DocsClient.tsx", import.meta.
 
 test("docs retain the canonical repository intelligence flow", () => {
   assert.match(source, /Summarize gives an immediate overview/);
-  assert.match(source, /Prepare indexes repository content/);
+  assert.match(source, /Prepare indexes public repository content/);
   assert.match(source, /Preparation enables Ask; it is not required for Summary/);
+});
+
+test("docs preserve the accepted private repository boundary", () => {
+  assert.match(source, /Repository Summary also supports a private repository/);
+  assert.match(source, /Prepare and Ask currently support public repositories only/);
+  assert.match(source, /Private repository preparation is not supported/);
+  assert.match(source, /Private repository chat is not supported/);
 });
 
 test("docs navigation supports filtering and programmatic current location", () => {

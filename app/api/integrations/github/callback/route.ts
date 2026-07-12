@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 function accountRedirect(params: Record<string, string>, origin?: string) {
   const url = new URL("/account", origin || publicEnv.NEXT_PUBLIC_APP_URL);
-  url.searchParams.set("tab", "integrations");
+  url.searchParams.set("tab", "github");
   Object.entries(params).forEach(([key, value]) => {
     url.searchParams.set(key, value);
   });

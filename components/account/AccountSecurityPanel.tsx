@@ -7,6 +7,8 @@ type AccountSecurityPanelProps = {
   newEmail: string;
   isSavingPassword: boolean;
   isSavingEmail: boolean;
+  passwordError: string | null;
+  emailError: string | null;
   onNewPasswordChange: (value: string) => void;
   onConfirmPasswordChange: (value: string) => void;
   onNewEmailChange: (value: string) => void;
@@ -20,6 +22,8 @@ export function AccountSecurityPanel({
   newEmail,
   isSavingPassword,
   isSavingEmail,
+  passwordError,
+  emailError,
   onNewPasswordChange,
   onConfirmPasswordChange,
   onNewEmailChange,
@@ -41,16 +45,22 @@ export function AccountSecurityPanel({
             <p className="text-xs text-zinc-400">Set a new account password. Minimum 6 characters.</p>
           </div>
 
-          <form onSubmit={onUpdatePassword} className="space-y-4">
+          <form onSubmit={onUpdatePassword} className="space-y-4" aria-busy={isSavingPassword || undefined}>
             <div className="space-y-1">
               <label htmlFor="account-new-password" className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 ml-1">New Password</label>
               <input
                 id="account-new-password"
+                name="new-password"
                 type="password"
                 required
+                minLength={6}
+                autoComplete="new-password"
                 placeholder="••••••••"
                 value={newPassword}
                 onChange={(event) => onNewPasswordChange(event.target.value)}
+                disabled={isSavingPassword}
+                aria-invalid={Boolean(passwordError)}
+                aria-describedby={passwordError ? "account-password-error" : undefined}
                 className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 transition-colors"
               />
             </div>
@@ -59,14 +69,26 @@ export function AccountSecurityPanel({
               <label htmlFor="account-confirm-password" className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 ml-1">Confirm New Password</label>
               <input
                 id="account-confirm-password"
+                name="confirm-password"
                 type="password"
                 required
+                minLength={6}
+                autoComplete="new-password"
                 placeholder="••••••••"
                 value={confirmPassword}
                 onChange={(event) => onConfirmPasswordChange(event.target.value)}
+                disabled={isSavingPassword}
+                aria-invalid={Boolean(passwordError)}
+                aria-describedby={passwordError ? "account-password-error" : undefined}
                 className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 transition-colors"
               />
             </div>
+
+            {passwordError && (
+              <p id="account-password-error" role="alert" className="rounded-xl border border-rose-300/20 bg-rose-300/[0.06] px-3 py-2 text-xs font-medium leading-5 text-rose-100">
+                {passwordError}
+              </p>
+            )}
 
             <button
               type="submit"
@@ -99,19 +121,33 @@ export function AccountSecurityPanel({
             </div>
           </div>
 
-          <form onSubmit={onUpdateEmail} className="space-y-4">
+          <form onSubmit={onUpdateEmail} className="space-y-4" aria-busy={isSavingEmail || undefined}>
             <div className="space-y-1">
               <label htmlFor="account-new-email" className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 ml-1">New Email Address</label>
               <input
                 id="account-new-email"
+                name="email"
                 type="email"
                 required
+                autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
+                spellCheck={false}
                 placeholder="new-email@company.com"
                 value={newEmail}
                 onChange={(event) => onNewEmailChange(event.target.value)}
+                disabled={isSavingEmail}
+                aria-invalid={Boolean(emailError)}
+                aria-describedby={emailError ? "account-email-error" : undefined}
                 className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-xs text-white placeholder-zinc-600 outline-none focus:border-emerald-500/40 transition-colors"
               />
             </div>
+
+            {emailError && (
+              <p id="account-email-error" role="alert" className="rounded-xl border border-rose-300/20 bg-rose-300/[0.06] px-3 py-2 text-xs font-medium leading-5 text-rose-100">
+                {emailError}
+              </p>
+            )}
 
             <button
               type="submit"

@@ -67,7 +67,7 @@ export async function sendAlertEmail(to: string, keyName: string, usagePct: numb
                     <table width="100%" border="0" cellspacing="0" cellpadding="0">
                       <tr>
                         <td align="center">
-                          <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboards" style="display: inline-block; background-color: #000000; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-size: 16px; font-weight: 500;">Manage API Keys</a>
+                          <a href="${process.env.NEXT_PUBLIC_APP_URL}/account?tab=api" style="display: inline-block; background-color: #000000; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-size: 16px; font-weight: 500;">Manage API Keys</a>
                         </td>
                       </tr>
                     </table>
@@ -94,9 +94,8 @@ export async function sendAlertEmail(to: string, keyName: string, usagePct: numb
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Alert email sent successfully to ${to} for key ${keyName}`);
-  } catch (error) {
-    console.error("Error sending alert email:", error);
+  } catch {
+    console.error("Failed to send a usage alert email.");
   }
 }
 
@@ -215,8 +214,7 @@ export async function sendPlanChangeScheduledEmail(
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Plan change scheduled email sent successfully to ${to}`);
-  } catch (error) {
-    console.error("Error sending plan change scheduled email:", error);
+  } catch {
+    console.error("Failed to send a scheduled plan-change email.");
   }
 }

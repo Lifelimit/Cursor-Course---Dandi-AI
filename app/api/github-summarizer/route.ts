@@ -49,7 +49,11 @@ export async function POST(request: Request) {
     } catch (keyError) {
       const errorMessage = (keyError as Error).message;
       const status = errorMessage.includes("limit exceeded") ? 403 : 401;
-      return jsonError({ error: errorMessage }, status, corsHeaders);
+      return jsonError(
+        { error: status === 403 ? "Request limit exceeded for this API key or workspace." : "Invalid API key." },
+        status,
+        corsHeaders,
+      );
     }
 
     let githubUrl: string;
@@ -100,7 +104,7 @@ export async function POST(request: Request) {
             message = "This repository is not included in your GitHub App installation. Reconnect GitHub and grant access.";
             break;
           case "GITHUB_PRIVATE_REPO_TOKEN_FAILED":
-            message = `Failed to verify GitHub App installation access. Please check the Dandi GitHub App configuration or access permissions. Details: ${fetchErr.message}`;
+            message = "Dandi could not verify GitHub App access. Reconnect GitHub or review the repository grant, then retry.";
             break;
           case "GITHUB_REPO_NOT_FOUND":
             status = 404;
@@ -112,7 +116,7 @@ export async function POST(request: Request) {
       }
       
       return jsonError(
-        { error: fetchErr instanceof Error ? fetchErr.message : "Failed to fetch repository data" },
+        { error: "Dandi could not read this repository. Verify the URL and repository access, then retry." },
         422,
         corsHeaders
       );
@@ -136,20 +140,19 @@ export async function POST(request: Request) {
       });
 
       return response;
-    } catch (aiErr) {
-      console.error("AI Error:", aiErr);
+    } catch {
+      console.error("Repository summary generation failed.");
       const latencyMs = Date.now() - startTime;
-      const errMsg = aiErr instanceof Error ? aiErr.message : String(aiErr);
       await incrementKeyUsage(keyData, githubUrl, latencyMs, "error", request);
 
       return jsonError(
-        { error: "Failed to generate AI summary.", details: errMsg },
+        { error: "Failed to generate AI summary." },
         500,
         corsHeaders
       );
     }
-  } catch (err) {
-    console.error("API Error:", err);
+  } catch {
+    console.error("Repository summary request failed.");
     return jsonError({ error: "Internal server error" }, 500, corsHeaders);
   }
 }

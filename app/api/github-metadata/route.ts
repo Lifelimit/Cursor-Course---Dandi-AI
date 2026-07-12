@@ -16,7 +16,10 @@ export async function OPTIONS(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const corsHeaders = getCorsHeaders(request, corsOptions);
+  const corsHeaders = {
+    ...getCorsHeaders(request, corsOptions),
+    "Cache-Control": "no-store",
+  };
   if (!isCorsOriginAllowed(request)) return forbiddenCorsResponse(request);
 
   const rateLimited = await checkRateLimit(request, metadataRateLimit, corsHeaders);
@@ -24,7 +27,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   let githubUrl: string;
-  const apiKey = request.headers.get("x-api-key") || searchParams.get("apiKey") || "";
+  const apiKey = request.headers.get("x-api-key") || "";
 
   try {
     githubUrl = validateGitHubRepoUrl(searchParams.get("githubUrl"));
@@ -39,8 +42,8 @@ export async function GET(request: Request) {
   let keyData;
   try {
     keyData = await validateApiKey(apiKey);
-  } catch (keyError) {
-    return NextResponse.json({ error: (keyError as Error).message }, { status: 401, headers: corsHeaders });
+  } catch {
+    return NextResponse.json({ error: "Invalid API key." }, { status: 401, headers: corsHeaders });
   }
 
   // Resolve user ID for GitHub App authorization
@@ -70,7 +73,7 @@ export async function GET(request: Request) {
           message = "This repository is not included in your GitHub App installation. Reconnect GitHub and grant access.";
           break;
         case "GITHUB_PRIVATE_REPO_TOKEN_FAILED":
-          message = `Failed to verify GitHub App installation access. Please check the Dandi GitHub App configuration or access permissions. Details: ${err.message}`;
+          message = "Dandi could not verify GitHub App access. Reconnect GitHub or review the repository grant, then retry.";
           break;
         case "GITHUB_REPO_NOT_FOUND":
           status = 404;
@@ -82,7 +85,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : String(err) },
+      { error: "Repository metadata is temporarily unavailable." },
       { status: 500, headers: corsHeaders }
     );
   }

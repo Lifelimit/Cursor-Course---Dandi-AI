@@ -14,7 +14,7 @@ export default async function PlaygroundPage({ searchParams }: { searchParams: P
   }
 
   const { keys: initialKeysRaw, plan } = await getServerApiKeys();
-  const initialKeys = initialKeysRaw.map(mapApiKey);
+  const initialKeys = initialKeysRaw?.map(mapApiKey);
   const params = await searchParams;
   const candidateRepo = typeof params.repo === "string" ? params.repo : "";
   let initialRepositoryUrl = "";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, type FormEvent } from "react";
+import { useState, useEffect, useCallback, useMemo, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
@@ -35,6 +35,7 @@ import { AccountProfilePanel } from "@/components/account/AccountProfilePanel";
 import { AccountSecurityPanel } from "@/components/account/AccountSecurityPanel";
 import { AccountSettingsNav, type AccountSettingsSection } from "@/components/account/AccountSettingsNav";
 import { AccountWebhooksPanel } from "@/components/account/AccountWebhooksPanel";
+import { accountRoute } from "@/lib/routes";
 
 type AccessView = "api" | "browser";
 type DeliveryLogModalTab = "request" | "response";
@@ -56,7 +57,7 @@ async function readResponseError(response: Response, fallback: string) {
 
 export default function AccountClient({ initialSession }: { initialSession: Session | null }) {
   const { toast, showToast } = useToast();
-  const supabaseClient = createClient();
+  const supabaseClient = useMemo(() => createClient(), []);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -71,9 +72,11 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [passwordSaveError, setPasswordSaveError] = useState<string | null>(null);
 
   const [newEmail, setNewEmail] = useState("");
   const [isSavingEmail, setIsSavingEmail] = useState(false);
+  const [emailSaveError, setEmailSaveError] = useState<string | null>(null);
 
   const [webhookUrl, setWebhookUrl] = useState("");
   const [isSavingWebhook, setIsSavingWebhook] = useState(false);
@@ -144,9 +147,9 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
         setAccessLoadError(await readResponseError(accessRes, "Failed to load API key and request telemetry."));
       }
       setAccountLoadError(nextAccountLoadError);
-    } catch (err) {
-      console.error("Error loading account details:", err);
-      const message = err instanceof Error ? err.message : "Failed to fetch developer profile data.";
+    } catch {
+      console.error("Account details request failed.");
+      const message = "Account data is temporarily unavailable.";
       setAccountLoadError(message);
       setAccessLoadError(message);
       showToast("error", getToastErrorMessage("account", message));
@@ -171,8 +174,6 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
   useEffect(() => {
     const tab = searchParams.get("tab");
-    if (!tab) return;
-
     let active = true;
     queueMicrotask(() => {
       if (active) {
@@ -336,27 +337,36 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
   const handleUpdatePassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setPasswordSaveError(null);
+
     if (newPassword !== confirmPassword) {
-      showToast("error", getToastErrorMessage("account", "Passwords do not match."));
+      const message = "Passwords do not match.";
+      setPasswordSaveError(message);
+      showToast("error", getToastErrorMessage("account", message));
       return;
     }
     if (newPassword.length < 6) {
-      showToast("error", getToastErrorMessage("account", "Password must be at least 6 characters."));
+      const message = "Password must be at least 6 characters.";
+      setPasswordSaveError(message);
+      showToast("error", getToastErrorMessage("account", message));
       return;
     }
     setIsSavingPassword(true);
     try {
       const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
       if (error) {
-        showToast("error", getToastErrorMessage("account", error.message));
+        const message = getToastErrorMessage("account", error.message);
+        setPasswordSaveError(message);
+        showToast("error", message);
       } else {
         showToast("success", "Password updated successfully.");
         setNewPassword("");
         setConfirmPassword("");
       }
-    } catch (err) {
-      console.error(err);
-      showToast("error", getToastErrorMessage("account", "Error communicating with Supabase Auth."));
+    } catch {
+      const message = getToastErrorMessage("account", "Unable to update the account password.");
+      setPasswordSaveError(message);
+      showToast("error", message);
     } finally {
       setIsSavingPassword(false);
     }
@@ -364,19 +374,29 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
 
   const handleUpdateEmail = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!newEmail) return;
+    setEmailSaveError(null);
+
+    if (!newEmail) {
+      const message = "Enter a new email address.";
+      setEmailSaveError(message);
+      showToast("error", getToastErrorMessage("account", message));
+      return;
+    }
     setIsSavingEmail(true);
     try {
       const { error } = await supabaseClient.auth.updateUser({ email: newEmail });
       if (error) {
-        showToast("error", getToastErrorMessage("account", error.message));
+        const message = getToastErrorMessage("account", error.message);
+        setEmailSaveError(message);
+        showToast("error", message);
       } else {
         showToast("success", "Confirmation emails sent. Please check both the old and new addresses to complete the email change.");
         setNewEmail("");
       }
-    } catch (err) {
-      console.error(err);
-      showToast("error", getToastErrorMessage("account", "Unable to send the email change confirmation."));
+    } catch {
+      const message = getToastErrorMessage("account", "Unable to send the email change confirmation.");
+      setEmailSaveError(message);
+      showToast("error", message);
     } finally {
       setIsSavingEmail(false);
     }
@@ -442,7 +462,7 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
       <DashboardShell
         variant="account"
         sidebar={{
-          totalUsage: usage?.totalUsage || 0,
+          totalUsage: usage?.totalUsage ?? null,
           plan: userPlan,
           limit: planLimit,
           isUnlimited,
@@ -462,9 +482,11 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
             onChange={(section) => {
               setActiveTab(section);
               const params = new URLSearchParams(window.location.search);
-              if (params.get("tab") !== section) {
-                params.set("tab", section);
-                router.push(`/account?${params.toString()}`, { scroll: false });
+              const isCanonicalSection = section === "profile"
+                ? !params.has("tab")
+                : params.get("tab") === section;
+              if (!isCanonicalSection) {
+                router.push(accountRoute(section, params), { scroll: false });
               }
             }}
           />
@@ -571,9 +593,20 @@ export default function AccountClient({ initialSession }: { initialSession: Sess
                 newEmail={newEmail}
                 isSavingPassword={isSavingPassword}
                 isSavingEmail={isSavingEmail}
-                onNewPasswordChange={setNewPassword}
-                onConfirmPasswordChange={setConfirmPassword}
-                onNewEmailChange={setNewEmail}
+                passwordError={passwordSaveError}
+                emailError={emailSaveError}
+                onNewPasswordChange={(value) => {
+                  setPasswordSaveError(null);
+                  setNewPassword(value);
+                }}
+                onConfirmPasswordChange={(value) => {
+                  setPasswordSaveError(null);
+                  setConfirmPassword(value);
+                }}
+                onNewEmailChange={(value) => {
+                  setEmailSaveError(null);
+                  setNewEmail(value);
+                }}
                 onUpdatePassword={handleUpdatePassword}
                 onUpdateEmail={handleUpdateEmail}
               />

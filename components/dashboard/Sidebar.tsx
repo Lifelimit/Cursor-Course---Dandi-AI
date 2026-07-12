@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
@@ -8,12 +8,13 @@ import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { SidebarAlerts } from "./SidebarAlerts";
 import { formatRequestCount } from "@/lib/format";
+import { ROUTES } from "@/lib/routes";
 
 const NAV_ITEMS = [
   {
     name: "Dashboard",
     mobileName: "Dashboard",
-    href: "/dashboards",
+    href: ROUTES.dashboard,
     icon: (cls: string) => (
       <svg viewBox="0 0 24 24" className={cls} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="7" rx="1" />
@@ -24,9 +25,9 @@ const NAV_ITEMS = [
     )
   },
   {
-    name: "API Playground",
+    name: "Playground",
     mobileName: "Playground",
-    href: "/playground",
+    href: ROUTES.playground,
     icon: (cls: string) => (
       <svg viewBox="0 0 24 24" className={cls} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="16 18 22 12 16 6" />
@@ -35,9 +36,9 @@ const NAV_ITEMS = [
     )
   },
   {
-    name: "Usage Center",
+    name: "Usage Intelligence",
     mobileName: "Usage",
-    href: "/usage",
+    href: ROUTES.usage,
     icon: (cls: string) => (
       <svg viewBox="0 0 24 24" className={cls} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <line x1="18" y1="20" x2="18" y2="10" />
@@ -49,7 +50,7 @@ const NAV_ITEMS = [
   {
     name: "Billing",
     mobileName: "Billing",
-    href: "/billing",
+    href: ROUTES.billing,
     icon: (cls: string) => (
       <svg viewBox="0 0 24 24" className={cls} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <rect x="2" y="5" width="20" height="14" rx="2" />
@@ -58,9 +59,9 @@ const NAV_ITEMS = [
     )
   },
   {
-    name: "Account Settings",
-    mobileName: "Account",
-    href: "/account",
+    name: "Workspace settings",
+    mobileName: "Settings",
+    href: ROUTES.account,
     icon: (cls: string) => (
       <svg viewBox="0 0 24 24" className={cls} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -71,7 +72,7 @@ const NAV_ITEMS = [
   {
     name: "Documentation",
     mobileName: "Docs",
-    href: "/docs",
+    href: ROUTES.docs,
     icon: (cls: string) => (
       <svg viewBox="0 0 24 24" className={cls} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
@@ -96,21 +97,23 @@ export type SidebarProps = {
   plan?: string;
   limit?: number | null;
   isUnlimited?: boolean;
+  isUsageStale?: boolean;
   alerts?: SidebarAlert[];
   onUpdate?: () => void;
 };
 
 export function Sidebar({
-  totalUsage = 0,
+  totalUsage = null,
   plan = "Researcher",
-  limit = 50000,
+  limit = null,
   isUnlimited = false,
+  isUsageStale = false,
   alerts = [],
   onUpdate = () => {}
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -123,17 +126,20 @@ export function Sidebar({
   const usagePct = !hasUsage || isUnlimited || !hasLimit ? 0 : Math.min((resolvedTotalUsage / limit) * 100, 100);
   const usageRemaining = !hasUsage || isUnlimited || !hasLimit ? null : Math.max(limit - resolvedTotalUsage, 0);
   const usageTone =
+    !hasUsage ? "unknown" :
     isUnlimited ? "success" :
     usagePct >= 100 ? "critical" :
     usagePct >= 80 ? "warning" :
     "healthy";
   const usageLabel =
     !hasUsage ? "Unavailable" :
+    isUsageStale ? "Snapshot stale" :
     usageTone === "critical" ? "Limit reached" :
     usageTone === "warning" ? "Review usage" :
     isUnlimited ? "No monthly cap" :
     "Usage healthy";
   const progressColor =
+    usageTone === "unknown" ? "from-slate-700 to-slate-600" :
     usageTone === "critical" ? "from-rose-500 via-red-500 to-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.35)]" :
     usageTone === "warning" ? "from-amber-400 via-orange-400 to-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.35)]" :
     "from-emerald-500 via-cyan-500 to-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.3)]";
@@ -171,7 +177,7 @@ export function Sidebar({
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.push("/");
+    router.push(ROUTES.home);
     router.refresh();
   };
 
@@ -272,10 +278,10 @@ export function Sidebar({
             <div className="flex flex-col gap-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
               <Link
                 onClick={() => setIsProfileOpen(false)}
-                href="/account"
+                href={ROUTES.account}
                 className="rounded px-2.5 py-1.5 transition hover:bg-white/[0.04] hover:text-white"
               >
-                Account Settings
+                Workspace settings
               </Link>
               <button
                 type="button"
@@ -382,7 +388,8 @@ export function Sidebar({
             <span
               className={`shrink-0 rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-wider ${
                 usageTone === "critical" ? "border-rose-400/25 bg-rose-400/10 text-rose-300" :
-                usageTone === "warning" ? "border-amber-400/25 bg-amber-400/10 text-amber-300" :
+                usageTone === "warning" || isUsageStale ? "border-amber-400/25 bg-amber-400/10 text-amber-300" :
+                usageTone === "unknown" ? "border-slate-400/20 bg-slate-400/10 text-slate-300" :
                 "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
               }`}
             >
@@ -403,18 +410,28 @@ export function Sidebar({
           </div>
           <div className="min-w-0 text-right">
             <p className="font-mono text-xs font-bold tabular-nums text-slate-200">
-              {isUnlimited ? "Unlimited requests" : usageRemaining === null ? "Unavailable" : `${formatRequestCount(usageRemaining)} remaining`}
+              {!hasUsage ? "Unavailable" : isUnlimited ? "Unlimited requests" : usageRemaining === null ? "Unavailable" : `${formatRequestCount(usageRemaining)} remaining`}
             </p>
             <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-500">
-              {isUnlimited ? "Monthly request limit" : usageRemaining === null ? "Capacity status" : "Remaining quota"}
+              {!hasUsage ? "Capacity status" : isUnlimited ? "Monthly request limit" : usageRemaining === null ? "Capacity status" : "Remaining quota"}
             </p>
           </div>
         </div>
 
-        <div className="h-1.5 w-full overflow-hidden rounded-full border border-white/5 bg-slate-950">
+        <div
+          className="h-1.5 w-full overflow-hidden rounded-full border border-white/5 bg-slate-950"
+          role={hasUsage && !isUnlimited && hasLimit ? "meter" : undefined}
+          aria-label={hasUsage && !isUnlimited && hasLimit ? "Monthly request usage" : undefined}
+          aria-valuemin={hasUsage && !isUnlimited && hasLimit ? 0 : undefined}
+          aria-valuemax={hasUsage && !isUnlimited && hasLimit ? 100 : undefined}
+          aria-valuenow={hasUsage && !isUnlimited && hasLimit ? Math.round(usagePct) : undefined}
+          aria-valuetext={hasUsage && !isUnlimited && hasLimit
+            ? `${formatRequestCount(resolvedTotalUsage)} requests used, ${formatRequestCount(usageRemaining ?? 0)} remaining${isUsageStale ? ". Last available snapshot." : ""}`
+            : undefined}
+        >
           <div
             className={`h-full rounded-full bg-gradient-to-r transition-all duration-500 ${progressColor}`}
-            style={{ width: `${isUnlimited ? 100 : usagePct}%` }}
+            style={{ width: `${!hasUsage ? 0 : isUnlimited ? 100 : usagePct}%` }}
           />
         </div>
 
@@ -422,6 +439,10 @@ export function Sidebar({
               {!hasUsage ? (
             <p className="min-w-0 text-[9px] font-medium leading-relaxed text-slate-500">
               Usage status is unavailable until the snapshot reconnects.
+            </p>
+          ) : isUsageStale ? (
+            <p className="min-w-0 text-[9px] font-medium leading-relaxed text-amber-300/70">
+              Showing the last available snapshot while usage reconnects.
             </p>
           ) : isUnlimited ? (
             <p className="min-w-0 text-[9px] font-medium leading-relaxed text-slate-500">
@@ -433,7 +454,7 @@ export function Sidebar({
             </p>
           )}
           <Link
-            href={usageTone === "critical" ? "/billing" : "/usage"}
+            href={usageTone === "critical" ? ROUTES.billing : ROUTES.usage}
             className="shrink-0 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[8px] font-black uppercase tracking-wider text-slate-300 transition hover:border-emerald-300/25 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
           >
             {usageTone === "critical" ? "Upgrade" : "Details"}

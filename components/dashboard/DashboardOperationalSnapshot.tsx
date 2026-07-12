@@ -37,10 +37,10 @@ export function DashboardOperationalSnapshot({ usageData, activeApiKeyCount, cur
       <div className="mt-5 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <Link key={card.label} href={card.href} className="group min-w-0 rounded-2xl border border-white/[0.06] bg-slate-950/30 p-4 transition hover:border-white/[0.14] hover:bg-slate-950/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">
-            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-600">{card.label}</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-400">{card.label}</p>
             <p className={`mt-3 truncate text-xl font-bold tracking-tight ${card.tone}`}>{card.value}</p>
             <p className="mt-1 truncate text-[11px] leading-5 text-slate-500">{card.detail}</p>
-            <span className="mt-3 block text-[9px] font-black uppercase tracking-[0.15em] text-slate-700 transition group-hover:text-slate-400">View details ↗</span>
+            <span className="mt-3 block text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 transition group-hover:text-slate-300">View details ↗</span>
           </Link>
         ))}
       </div>

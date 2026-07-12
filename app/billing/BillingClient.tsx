@@ -37,9 +37,12 @@ export default function BillingClient({
   const [billingError, setBillingError] = useState<string | null>(null);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [cardToDelete, setCardToDelete] = useState<{ id: string; brand: string; last4: string } | null>(null);
+  const [isDeletingCard, setIsDeletingCard] = useState(false);
+  const [cardDeleteError, setCardDeleteError] = useState<string | null>(null);
   const [returnStatus, setReturnStatus] = useState<ReturnStatus>(null);
   const hasHandledReturn = useRef(false);
   const isHydrated = useRef(initialData !== null);
+  const deletionInFlight = useRef(false);
   const { toast, showToast } = useToast();
 
   const fetchInvoices = useCallback(async () => {
@@ -65,7 +68,7 @@ export default function BillingClient({
       const json = await response.json();
       setData(json);
       setBillingError(null);
-      isHydrated.current = false;
+      isHydrated.current = true;
       void fetchInvoices();
     } catch {
       const message = "Billing information is temporarily unavailable.";
@@ -94,8 +97,8 @@ export default function BillingClient({
   }, [fetchBillingData]);
 
   useEffect(() => {
-    const delay = initialData ? 1000 : 0;
-    const timer = window.setTimeout(() => void fetchBillingData(), delay);
+    if (initialData) return;
+    const timer = window.setTimeout(() => void fetchBillingData(), 0);
     return () => window.clearTimeout(timer);
   }, [fetchBillingData, initialData]);
 
@@ -112,18 +115,29 @@ export default function BillingClient({
   };
 
   const handleDeletePayment = async (paymentMethodId: string) => {
+    if (deletionInFlight.current) return;
+
+    deletionInFlight.current = true;
+    setIsDeletingCard(true);
+    setCardDeleteError(null);
+
     try {
       const response = await fetch("/api/stripe/delete-payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentMethodId }) });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to remove card.");
+        const errorData = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(errorData?.error || "Failed to remove card.");
       }
       await fetchBillingData();
       setCardToDelete(null);
       showToast("success", "Payment method removed.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to remove card.";
-      showToast("error", getToastErrorMessage("billing", message));
+      const safeMessage = getToastErrorMessage("billing", message);
+      setCardDeleteError(safeMessage);
+      showToast("error", safeMessage);
+    } finally {
+      deletionInFlight.current = false;
+      setIsDeletingCard(false);
     }
   };
 
@@ -143,7 +157,15 @@ export default function BillingClient({
     subscriptionFlow.launchBillingPlan({ planId, currentPlan, interval });
   };
 
-  const openDeleteConfirmation = (method: { id: string; brand: string; last4: string }) => setCardToDelete(method);
+  const openDeleteConfirmation = (method: { id: string; brand: string; last4: string }) => {
+    setCardDeleteError(null);
+    setCardToDelete(method);
+  };
+  const closeDeleteConfirmation = useCallback(() => {
+    if (deletionInFlight.current) return;
+    setCardDeleteError(null);
+    setCardToDelete(null);
+  }, []);
   const expiryParts = (expiry: string) => {
     const [month, year] = expiry.split("/").map(Number);
     return { month, year };
@@ -151,7 +173,7 @@ export default function BillingClient({
 
   return (
     <>
-      <DashboardShell variant="billing" sidebar={{ totalUsage: currentData?.totalUsage || 0, plan: currentPlan, limit: currentLimit, isUnlimited, alerts, onUpdate: fetchBillingData }}>
+      <DashboardShell variant="billing" sidebar={{ totalUsage: currentData?.totalUsage ?? null, plan: currentPlan, limit: currentLimit, isUnlimited, alerts, onUpdate: fetchBillingData }}>
         <DashboardPageHeader eyebrow="Account / Billing" title="Billing & Plans" description="Manage your subscription, payment methods, invoices, and future plan changes." />
 
         <div className="mt-6 space-y-8 pb-16 sm:mt-8 sm:space-y-10">
@@ -160,7 +182,7 @@ export default function BillingClient({
           {showSkeleton ? <BillingSkeleton /> : !currentData ? <GuidedError category="Internal server" title="Billing information is unavailable" explanation="We could not load your plan, usage, or payment information. No billing changes were made." nextAction="Refresh Billing to try again." possibleCauses={["Billing service temporarily unavailable", "Your session needs to be refreshed"]} onAction={fetchBillingData} actionLabel="Refresh Billing" /> : <>
             {billingError && <GuidedError category="Internal server" title="Billing could not refresh" explanation="The information below is the last successfully loaded billing state. No billing changes were made." nextAction="Refresh Billing when the service is available." onAction={fetchBillingData} actionLabel="Refresh Billing" compact />}
 
-            <PlanHero plan={currentPlan} limit={currentLimit} usage={currentData.totalUsage || 0} resetDate={currentData.resetDate ?? null} nextBillingDate={currentData.nextInvoiceDate ?? null} isUnlimited={isUnlimited} billingInterval={billingInterval} customerBalance={currentData.customerBalance ?? null} scheduledPlan={currentData.scheduledPlan} scheduledPlanDate={currentData.scheduledPlanDate} subscriptionStatus={currentData.subscriptionStatus} cancelAtPeriodEnd={currentData.cancelAtPeriodEnd} onManageSubscription={() => subscriptionFlow.openModal({ view: "overview" })} />
+            <PlanHero plan={currentPlan} limit={currentLimit} usage={currentData.totalUsage} resetDate={currentData.resetDate ?? null} nextBillingDate={currentData.nextInvoiceDate ?? null} isUnlimited={isUnlimited} billingInterval={billingInterval} customerBalance={currentData.customerBalance ?? null} scheduledPlan={currentData.scheduledPlan} scheduledPlanDate={currentData.scheduledPlanDate} subscriptionStatus={currentData.subscriptionStatus} cancelAtPeriodEnd={currentData.cancelAtPeriodEnd} onManageSubscription={() => subscriptionFlow.openModal({ view: "overview" })} />
 
             <section id="plans" aria-label="Plan comparison" className="space-y-6">
               <PlanComparison currentPlan={currentPlan} scheduledPlan={currentData.scheduledPlan} onUpgrade={handlePlanChange} billingInterval={billingInterval} />
@@ -190,7 +212,7 @@ export default function BillingClient({
 
       <SubscriptionModal key={subscriptionFlow.isModalOpen ? "open" : "closed"} isOpen={subscriptionFlow.isModalOpen} onClose={subscriptionFlow.closeModal} planName={currentPlan} nextBillingDate={currentData?.nextInvoiceDate} initialView={subscriptionFlow.modalInitialView} initialPendingPlan={subscriptionFlow.modalPendingPlan} initialBillingInterval={subscriptionFlow.modalBillingInterval} onSuccess={(message) => { showToast("success", message); void fetchBillingData(); }} onError={(message) => showToast("error", getToastErrorMessage("billing", message))} />
 
-      {cardToDelete && <ModalFrame open onClose={() => setCardToDelete(null)} size="md" titleId="remove-card-modal-title"><div className="space-y-6"><div className="border-b border-white/5 pb-6"><p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-rose-400">Payment method</p><h3 id="remove-card-modal-title" className="mt-2 font-serif text-2xl font-bold tracking-tight text-white">Remove payment method?</h3><p className="mt-2 text-sm leading-6 text-slate-400">Remove the <strong className="text-slate-200">{cardToDelete.brand}</strong> card ending in <strong className="text-slate-200">•••• {cardToDelete.last4}</strong>?{cardToDelete.id === defaultPaymentMethod?.id && <span className="mt-2 block text-rose-200">This is your default method. Removing it may affect renewals unless another method is available.</span>}</p></div><div className="flex flex-col-reverse gap-3 sm:flex-row"><button type="button" onClick={() => setCardToDelete(null)} className="min-h-12 flex-1 rounded-full border border-white/10 bg-white/[0.04] text-[10px] font-black uppercase tracking-[0.14em] text-slate-300 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300">Keep method</button><button type="button" onClick={() => void handleDeletePayment(cardToDelete.id)} className="min-h-12 flex-1 rounded-full bg-rose-600 text-[10px] font-black uppercase tracking-[0.14em] text-white hover:bg-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300">Remove method</button></div></div></ModalFrame>}
+      {cardToDelete && <ModalFrame open onClose={closeDeleteConfirmation} size="md" titleId="remove-card-modal-title"><div className="space-y-6" aria-busy={isDeletingCard}><div className="border-b border-white/5 pb-6"><p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-rose-400">Payment method</p><h3 id="remove-card-modal-title" className="mt-2 font-serif text-2xl font-bold tracking-tight text-white">Remove payment method?</h3><p className="mt-2 text-sm leading-6 text-slate-400">Remove the <strong className="text-slate-200">{cardToDelete.brand}</strong> card ending in <strong className="text-slate-200">•••• {cardToDelete.last4}</strong>?{cardToDelete.id === defaultPaymentMethod?.id && <span className="mt-2 block text-rose-200">This is your default method. Removing it may affect renewals unless another method is available.</span>}</p></div>{cardDeleteError && <p role="alert" className="rounded-2xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm font-medium leading-6 text-rose-100">{cardDeleteError}</p>}<div className="flex flex-col-reverse gap-3 sm:flex-row"><button type="button" onClick={closeDeleteConfirmation} disabled={isDeletingCard} className="min-h-12 flex-1 rounded-full border border-white/10 bg-white/[0.04] text-[10px] font-black uppercase tracking-[0.14em] text-slate-300 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-50">Keep method</button><button type="button" onClick={() => void handleDeletePayment(cardToDelete.id)} disabled={isDeletingCard} className="min-h-12 flex-1 rounded-full bg-rose-600 text-[10px] font-black uppercase tracking-[0.14em] text-white hover:bg-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-wait disabled:opacity-70">{isDeletingCard ? "Removing method…" : "Remove method"}</button></div></div></ModalFrame>}
       <Toast toast={toast} />
     </>
   );

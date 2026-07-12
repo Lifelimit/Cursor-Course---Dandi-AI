@@ -120,7 +120,17 @@ function QuotaHero({ currentData, currentPlan, currentLimit, isUnlimited, remain
               <span className="text-slate-500">{isUnlimited ? "Unlimited monthly requests" : `${formatRequestCount(remainingQuota ?? 0)} remaining`}</span>
             </div>
 
-            <div className="mt-7" aria-label={isUnlimited ? "Unlimited request capacity" : `${Math.round(usagePct)} percent of request quota used`}>
+            <div
+              className="mt-7"
+              role={isUnlimited ? "status" : "meter"}
+              aria-label="Request quota used"
+              aria-valuemin={isUnlimited ? undefined : 0}
+              aria-valuemax={isUnlimited ? undefined : 100}
+              aria-valuenow={isUnlimited ? undefined : Math.round(usagePct)}
+              aria-valuetext={isUnlimited
+                ? undefined
+                : `${formatRequestCount(totalUsage)} of ${formatRequestCount(currentLimit)} requests used`}
+            >
               <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
                 <span>Cycle consumption</span>
                 <span>{isUnlimited ? "Open capacity" : `${formatRequestCount(totalUsage)} / ${formatRequestCount(currentLimit)}`}</span>
@@ -201,23 +211,24 @@ function TrendChart({ data }: { data: DailyUsageTrend[] }) {
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <SectionHeading eyebrow="Consumption trends" title="Request activity" description="Daily volume and operational signals from the current usage data window." />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:flex-col lg:items-end">
-          <div className="flex rounded-xl border border-white/10 bg-slate-950/60 p-1" aria-label="Trend metric">
-            {(["requests", "latency", "outcomes"] as const).map(option => <button key={option} type="button" onClick={() => { setMetric(option); setHoveredIndex(null); }} className={`rounded-lg px-3 py-2 text-[9px] font-black uppercase tracking-[0.16em] transition ${metric === option ? "bg-emerald-300 text-slate-950" : "text-slate-500 hover:text-slate-200"}`}>{option === "outcomes" ? "Outcomes" : option}</button>)}
+          <div role="group" className="flex rounded-xl border border-white/10 bg-slate-950/60 p-1" aria-label="Trend metric">
+            {(["requests", "latency", "outcomes"] as const).map(option => <button key={option} type="button" aria-pressed={metric === option} onClick={() => { setMetric(option); setHoveredIndex(null); }} className={`rounded-lg px-3 py-2 text-[9px] font-black uppercase tracking-[0.16em] transition ${metric === option ? "bg-emerald-300 text-slate-950" : "text-slate-500 hover:text-slate-200"}`}>{option === "outcomes" ? "Outcomes" : option}</button>)}
           </div>
-          <div className="flex rounded-xl border border-white/10 bg-slate-950/60 p-1" aria-label="Trend range">
-            {([7, 30] as const).map(option => <button key={option} type="button" onClick={() => { setRange(option); setHoveredIndex(null); }} className={`rounded-lg px-3 py-2 text-[9px] font-black uppercase tracking-[0.16em] transition ${range === option ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-200"}`}>{option}D</button>)}
+          <div role="group" className="flex rounded-xl border border-white/10 bg-slate-950/60 p-1" aria-label="Trend range">
+            {([7, 30] as const).map(option => <button key={option} type="button" aria-pressed={range === option} onClick={() => { setRange(option); setHoveredIndex(null); }} className={`rounded-lg px-3 py-2 text-[9px] font-black uppercase tracking-[0.16em] transition ${range === option ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-200"}`}>{option}D</button>)}
           </div>
         </div>
       </div>
 
       <p className="sr-only" id={`trend-summary-${gradientId}`}>{summary}</p>
+      <p className="sr-only" id={`trend-instructions-${gradientId}`}>Use Left and Right Arrow, Home, or End to inspect individual days.</p>
       <div className="relative mt-8 rounded-2xl border border-white/10 bg-slate-950/45 p-2 sm:p-4">
         {!hasActivity ? (
           <div className="flex h-[260px] flex-col items-center justify-center text-center"><span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] text-slate-500"><Icon name="activity" /></span><p className="mt-4 text-sm font-bold text-slate-200">No trend line yet</p><p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">Analyze a repository in the Playground and this timeline will start recording real activity.</p><Link href="/playground?mode=summary" className="mt-4 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300 hover:underline">Open Playground</Link></div>
         ) : (
           <>
             <div className="mb-2 flex items-center justify-between px-2 text-[9px] font-black uppercase tracking-[0.16em] text-slate-500"><span>{metric === "latency" ? "Milliseconds" : metric === "outcomes" ? "Request events" : "Successful requests"}</span><span>{range === 7 ? "Last 7 days" : "Last 30 days"}</span></div>
-            <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-describedby={`trend-summary-${gradientId}`} aria-label={summary} tabIndex={0} className="h-[260px] w-full overflow-visible outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70" onMouseMove={event => selectNearestPoint(event.clientX, event.currentTarget.getBoundingClientRect())} onMouseLeave={() => setHoveredIndex(null)} onFocus={() => setHoveredIndex(dataset.length - 1)} onKeyDown={event => { if (dataset.length === 0) return; if (event.key === "ArrowLeft") setHoveredIndex(Math.max((hoveredIndex ?? dataset.length - 1) - 1, 0)); if (event.key === "ArrowRight") setHoveredIndex(Math.min((hoveredIndex ?? dataset.length - 1) + 1, dataset.length - 1)); if (event.key === "Home") setHoveredIndex(0); if (event.key === "End") setHoveredIndex(dataset.length - 1); }}>
+            <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-describedby={`trend-summary-${gradientId} trend-instructions-${gradientId}`} aria-label={summary} tabIndex={0} className="h-[260px] w-full overflow-visible outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70" onMouseMove={event => selectNearestPoint(event.clientX, event.currentTarget.getBoundingClientRect())} onMouseLeave={() => setHoveredIndex(null)} onFocus={() => setHoveredIndex(dataset.length - 1)} onKeyDown={event => { if (dataset.length === 0) return; if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return; event.preventDefault(); if (event.key === "ArrowLeft") setHoveredIndex(Math.max((hoveredIndex ?? dataset.length - 1) - 1, 0)); if (event.key === "ArrowRight") setHoveredIndex(Math.min((hoveredIndex ?? dataset.length - 1) + 1, dataset.length - 1)); if (event.key === "Home") setHoveredIndex(0); if (event.key === "End") setHoveredIndex(dataset.length - 1); }}>
               <defs><linearGradient id={`trend-fill-${gradientId}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={metric === "latency" ? "#a78bfa" : "#6ee7b7"} stopOpacity="0.28" /><stop offset="100%" stopColor={metric === "latency" ? "#a78bfa" : "#6ee7b7"} stopOpacity="0.01" /></linearGradient></defs>
               {[0, 0.25, 0.5, 0.75, 1].map(tick => { const y = padding.top + innerHeight * (1 - tick); return <g key={tick}><line x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke="rgba(148,163,184,0.16)" strokeDasharray="3 6" /><text x={padding.left - 10} y={y + 3} textAnchor="end" className="fill-slate-600 font-mono text-[9px]">{Math.round(maxValue * tick)}</text></g>; })}
               <line x1={padding.left} x2={width - padding.right} y1={height - padding.bottom} y2={height - padding.bottom} stroke="rgba(148,163,184,0.22)" />

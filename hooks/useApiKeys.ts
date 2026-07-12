@@ -3,21 +3,19 @@ import { ApiKey, ApiKeyApiResponse, mapApiKey } from "@/types/api";
 import type { ApiKeyMutationData } from "@/types/api-keys";
 import { supabase } from "@/lib/supabase-client";
 
-export function useApiKeys(initialData: ApiKey[] = []) {
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>(initialData);
-  const [isLoading, setIsLoading] = useState(initialData.length === 0);
+export function useApiKeys(initialData?: ApiKey[], initialPlan?: string | null) {
+  const hasInitialData = initialData !== undefined;
+  const hasCompleteInitialData = hasInitialData && Boolean(initialPlan);
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>(initialData ?? []);
+  const [plan, setPlan] = useState<string | null>(initialPlan ?? null);
+  const [isLoading, setIsLoading] = useState(!hasCompleteInitialData);
   const [errorMessage, setErrorMessage] = useState("");
-  const isHydrated = useRef(initialData.length > 0);
+  const shouldSkipInitialLoad = useRef(hasCompleteInitialData);
 
   const loadKeys = useCallback(async () => {
     // Avoid synchronous state updates in useEffect to prevent cascading renders
     await Promise.resolve();
-    if (isHydrated.current) {
-      setIsLoading(false);
-      isHydrated.current = false; // Next calls will refresh
-      return;
-    }
-    
+
     setIsLoading(true);
     setErrorMessage("");
     try {
@@ -30,6 +28,8 @@ export function useApiKeys(initialData: ApiKey[] = []) {
       }
 
       setApiKeys(payload.map(mapApiKey));
+      const responsePlan = response.headers.get("x-dandi-plan");
+      if (responsePlan) setPlan(responsePlan);
     } catch {
       setErrorMessage("Could not load API keys. Please check your connection and try again.");
     } finally {
@@ -38,23 +38,33 @@ export function useApiKeys(initialData: ApiKey[] = []) {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadKeys();
+    if (shouldSkipInitialLoad.current) {
+      shouldSkipInitialLoad.current = false;
+      return;
+    }
+
+    void loadKeys();
   }, [loadKeys]);
 
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
+    let isActive = true;
+
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      if (isActive && user) setUserId(user.id);
     });
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const hookId = useId();
   // Real-time subscription
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase || !userId) return;
 
     const channel = supabase
       .channel(`api_keys_changes_${hookId}`)
@@ -66,9 +76,12 @@ export function useApiKeys(initialData: ApiKey[] = []) {
           table: "api_keys",
         },
         (payload) => {
-          // Client-side security: ignore events for other users
-          const eventUserId = (payload.new as { user_id?: string })?.user_id || (payload.old as { user_id?: string })?.user_id;
-          if (userId && eventUserId && eventUserId !== userId) {
+          // RLS scopes the unfiltered channel. Keep DELETE events compatible with
+          // tables that only expose a primary key in `old`, while rejecting any
+          // event that explicitly identifies a different owner.
+          const eventUserId = (payload.new as { user_id?: string })?.user_id
+            || (payload.old as { user_id?: string })?.user_id;
+          if (eventUserId && eventUserId !== userId) {
             return;
           }
 
@@ -172,6 +185,7 @@ export function useApiKeys(initialData: ApiKey[] = []) {
 
   return {
     apiKeys,
+    plan,
     isLoading,
     errorMessage,
     createKey,

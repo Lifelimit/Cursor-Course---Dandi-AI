@@ -20,7 +20,7 @@ export type ApiKeySettings = {
 };
 
 export type ChatMessage = {
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant";
   content: string;
 };
 
@@ -154,8 +154,8 @@ export function validateChatMessages(value: unknown): ChatMessage[] {
     }
 
     const message = item as Record<string, unknown>;
-    if (message.role !== "user" && message.role !== "assistant" && message.role !== "system") {
-      throw new Error(`messages[${index}].role must be user, assistant, or system.`);
+    if (message.role !== "user" && message.role !== "assistant") {
+      throw new Error(`messages[${index}].role must be user or assistant.`);
     }
 
     if (typeof message.content !== "string") {

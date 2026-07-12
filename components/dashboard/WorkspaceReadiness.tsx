@@ -50,6 +50,14 @@ export function WorkspaceReadiness({
   usageStatus,
   attentionItems,
 }: WorkspaceReadinessProps) {
+  const hasAttention = attentionItems.length > 0;
+  const workspaceReady = !hasAttention && hasRepositoryWork;
+  const readinessLabel = hasAttention
+    ? attentionItems.length + " " + (attentionItems.length === 1 ? "item" : "items") + " need attention"
+    : workspaceReady
+      ? "Workspace ready"
+      : "Ready for first run";
+
   const items: ReadinessItem[] = [
     {
       label: "GitHub access",
@@ -85,23 +93,23 @@ export function WorkspaceReadiness({
   ];
 
   return (
-    <CommandPanel tone={attentionItems.length > 0 ? "default" : "elevated"} padding="md" className="relative overflow-hidden">
+    <CommandPanel tone={hasAttention ? "default" : "elevated"} padding="md" className="relative overflow-hidden">
       <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-cyan-400/[0.07] blur-3xl" />
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-3">
             <p className="dandi-type-metadata font-black uppercase text-cyan-200/80">Workspace signal</p>
-            <StatusPill tone={attentionItems.length > 0 ? "warning" : "success"} compact pulse={attentionItems.length === 0}>
-              {attentionItems.length > 0 ? `${attentionItems.length} ${attentionItems.length === 1 ? "item" : "items"} need attention` : "Workspace ready"}
+            <StatusPill tone={hasAttention ? "warning" : workspaceReady ? "success" : "info"} compact pulse={workspaceReady}>
+              {readinessLabel}
             </StatusPill>
           </div>
           <h2 className="mt-2 text-xl font-bold tracking-tight text-white sm:text-2xl">Readiness at a glance</h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">A compact view of the systems that make your next repository workflow possible.</p>
         </div>
-        {attentionItems.length === 0 && <span className="hidden text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 sm:block">No active alerts</span>}
+        {!hasAttention && <span className="hidden text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 sm:block">No active alerts</span>}
       </div>
 
-      {attentionItems.length > 0 && (
+      {hasAttention && (
         <div className="relative mt-5 space-y-2" aria-label="Workspace attention items">
           {attentionItems.map((item) => (
             <div key={item.label} className={`flex flex-col gap-3 rounded-2xl border p-3.5 sm:flex-row sm:items-center sm:justify-between ${item.tone === "danger" ? "border-rose-300/20 bg-rose-400/[0.06]" : "border-amber-300/20 bg-amber-400/[0.06]"}`}>

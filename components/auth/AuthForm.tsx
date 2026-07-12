@@ -98,7 +98,7 @@ export function AuthForm({ defaultMode, nextPath = "/dashboards" }: AuthFormProp
           password,
           options: {
             data: { full_name: fullName.trim() },
-            emailRedirectTo: getAuthCallbackUrl("/auth/success", { flow: "signup" }),
+            emailRedirectTo: getAuthCallbackUrl("/auth/success", { flow: "signup", returnTo: safeNext }),
           },
         });
 
