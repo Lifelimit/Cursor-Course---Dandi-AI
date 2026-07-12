@@ -526,10 +526,10 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
         </div>
       ) : (
         <div key={view} className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-500 sm:max-h-[calc(100dvh-3rem)]">
-          {/* Adaptive Header: Softened Rose-Red for destructive actions, Slate-950 for others */}
-          <div className={`relative overflow-hidden border-b border-white/5 p-6 transition-all duration-300 sm:p-8 ${(view === 'cancel-confirm' || view === 'remove-card-confirm' || view === 'key-downgrade-selector')
+          {/* Adaptive Header: Rose-red for destructive actions, slate for plan management flows */}
+          <div className={`relative overflow-hidden border-b border-white/5 p-6 transition-all duration-300 sm:p-8 ${(view === 'cancel-confirm' || view === 'remove-card-confirm')
             ? 'bg-rose-950/40 text-white'
-            : 'bg-slate-950 text-white border-b border-white/5'}`}>
+            : 'bg-slate-950 text-white'}`}>
             <ModalCloseButton
               onClick={onClose}
               className="absolute right-3 top-3 z-30 text-white/45 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:right-5 sm:top-5"
