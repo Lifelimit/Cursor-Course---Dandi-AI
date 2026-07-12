@@ -8,7 +8,7 @@ CREATE POLICY "Users can export their own usage logs"
   ON public.api_usage_log
   FOR SELECT
   TO authenticated
-  USING ((select auth.uid()) = user_id);
+  USING ((select auth.uid())::text = user_id);
 
 GRANT SELECT (
   api_key_id,

@@ -700,7 +700,7 @@ test("computes configurable CORS headers", () => {
 });
 
 test("GitHub App installation migration keeps direct clients read-only", () => {
-  const baseMigration = readFileSync(resolve(repoRoot, "supabase/migrations/20260622_create_github_app_installations.sql"), "utf8");
+  const baseMigration = readFileSync(resolve(repoRoot, "supabase/migrations/20260622115959_create_github_app_installations.sql"), "utf8");
   const hardeningMigration = readFileSync(resolve(repoRoot, "supabase/migrations/20260622120000_harden_github_app_installations.sql"), "utf8");
   const combinedSql = `${baseMigration}\n${hardeningMigration}`;
 

@@ -52,7 +52,7 @@ Private key formatting:
 
 The linked Supabase project must have these migrations applied before the callback can persist a connection:
 
-- `supabase/migrations/20260622_create_github_app_installations.sql`
+- `supabase/migrations/20260622115959_create_github_app_installations.sql`
 - `supabase/migrations/20260622120000_harden_github_app_installations.sql`
 
 After applying, verify:
