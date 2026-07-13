@@ -179,7 +179,7 @@ export default function DocsClient({ initialSession }: { initialSession: Session
   const docsWorkspace = <>
     <ContentRoot id={initialSession ? undefined : "docs-content"} tabIndex={initialSession ? undefined : -1} className={initialSession ? "pb-16" : "mx-auto max-w-7xl px-4 pb-24 pt-28 outline-none sm:px-6 md:pt-36"}>
       <div className="grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-12">
-        <aside aria-label="Documentation navigation" className="hidden h-fit space-y-5 lg:block">
+        <aside aria-label="Documentation navigation" className={`hidden h-fit space-y-5 lg:sticky lg:block lg:self-start ${initialSession ? "lg:top-6" : "lg:top-28"}`}>
           <div><p className="dandi-type-metadata text-emerald-300/75">Dandi API</p><p className="mt-2 text-sm font-semibold text-slate-200">Documentation workspace</p></div>
           <label className="block"><span className="sr-only">Search documentation</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search endpoints, errors, or concepts" className="w-full rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2.5 text-xs text-slate-200 outline-none placeholder:text-slate-600 focus:border-emerald-300/45 focus:ring-2 focus:ring-emerald-300/15" /></label>
           <NavList activeId={activeId} query={query} onSectionNavigate={scrollToSection} />
