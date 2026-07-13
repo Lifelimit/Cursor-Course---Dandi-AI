@@ -18,6 +18,7 @@ import { getPlanLimits } from "@/lib/constants";
 import { useUsageData } from "@/hooks/useUsageData";
 import type { UsageData } from "@/types/usage";
 import type { DashboardRepositoryWork } from "@/components/dashboard/dashboard-types";
+import { getLatestWorkByRepo } from "@/components/dashboard/repository-work-utils";
 import { playgroundRoute, ROUTES } from "@/lib/routes";
 
 function getDisplayName(initialDisplayName: string | null, user: User) {
@@ -87,7 +88,7 @@ export default function DashboardClient({
           ? { label: "Review soon", tone: "warning" as const, detail: usageRemainingDetail }
           : { label: "Healthy", tone: "success" as const, detail: usageRemainingDetail };
 
-  const failedWork = initialRecentWork.find((work) => work.status === "failed");
+  const failedWork = getLatestWorkByRepo(initialRecentWork).find((work) => work.status === "failed");
   const attentionItems = [
     usageData?.subscriptionStatus === "past_due" || usageData?.subscriptionStatus === "unpaid"
       ? { label: "Billing needs attention", detail: "Your subscription is not in a healthy payment state.", href: ROUTES.billing, action: "Review billing", tone: "danger" as const }

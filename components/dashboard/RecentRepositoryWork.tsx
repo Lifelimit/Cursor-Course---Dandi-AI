@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CommandPanel, StatusPill } from "@/components/command";
 import { formatShortDate } from "@/lib/format";
 import type { DashboardRepositoryWork } from "./dashboard-types";
+import { getLatestWorkByRepo } from "./repository-work-utils";
 import { playgroundRoute, ROUTES } from "@/lib/routes";
 
 function repoLabel(work: DashboardRepositoryWork) {
@@ -27,7 +28,7 @@ function workHref(work: DashboardRepositoryWork, mode: "summary" | "ask" = "ask"
 }
 
 export function RecentRepositoryWork({ works }: { works: DashboardRepositoryWork[] }) {
-  const visibleWorks = Array.from(new Map(works.map((work) => [work.repoUrl, work])).values()).slice(0, 4);
+  const visibleWorks = getLatestWorkByRepo(works).slice(0, 4);
 
   return (
     <CommandPanel padding="md" className="h-full">

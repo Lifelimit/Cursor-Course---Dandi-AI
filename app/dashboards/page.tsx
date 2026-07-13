@@ -47,8 +47,9 @@ export default async function DashboardsPage() {
     currentStep: job.current_step,
     summaryAvailable: Boolean(job.summary_available),
     indexAvailable: Boolean(job.index_available) || job.status === "completed",
-    // Keep provider/database details server-side; the dashboard only needs a recovery state.
-    errorMessage: job.status === "failed" ? "Dandi could not complete this repository workflow." : null,
+    errorMessage: job.status === "failed"
+      ? job.error_message ?? job.error ?? "Dandi could not complete this repository workflow."
+      : null,
     updatedAt: job.updated_at,
   }));
 
