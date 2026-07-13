@@ -4,6 +4,7 @@ import { formatShortDate } from "@/lib/format";
 import type { DashboardRepositoryWork } from "./dashboard-types";
 import { getLatestWorkByRepo } from "./repository-work-utils";
 import { playgroundRoute, ROUTES } from "@/lib/routes";
+import { getErrorGuidance } from "@/lib/error-guidance";
 
 function repoLabel(work: DashboardRepositoryWork) {
   if (work.repoName) return work.repoName;
@@ -16,7 +17,10 @@ function repoLabel(work: DashboardRepositoryWork) {
 }
 
 function statusMeta(work: DashboardRepositoryWork) {
-  if (work.status === "failed") return { label: "Needs attention", tone: "danger" as const, step: work.errorMessage || "Processing failed. Retry this workflow from Playground." };
+  if (work.status === "failed") {
+    const guidance = getErrorGuidance({ workflow: "repository-indexing", message: work.errorMessage });
+    return { label: "Needs attention", tone: "danger" as const, step: `${guidance.explanation} ${guidance.nextAction}` };
+  }
   if (work.status === "running") return { label: "Processing", tone: "info" as const, step: work.currentStep || "Dandi is processing this repository." };
   if (work.status === "queued") return { label: "Queued", tone: "info" as const, step: "Waiting for the repository workflow to start." };
   if (work.indexAvailable) return { label: "Prepared", tone: "success" as const, step: work.summaryAvailable ? "Summary complete · Ready for grounded questions" : "Ready for grounded questions" };

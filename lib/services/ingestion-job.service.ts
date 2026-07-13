@@ -83,7 +83,11 @@ function sanitizeIngestionError(error: unknown) {
   if (error instanceof ApiKeyQuotaError) return error.code === "unavailable" ? "Usage quota is temporarily unavailable. Retry repository preparation shortly." : "The workspace request allowance has been reached. Upgrade your plan or retry after the quota window resets.";
   if (error instanceof IngestionWorkerError && error.code === "JOB_CANCELLED") return CANCELLED_INGESTION_MESSAGE;
   if (isGeminiEmbeddingRateLimitError(error)) return "Gemini embedding rate limit reached. Dandi will retry this repository automatically.";
+  const providerError = error as Partial<EmbeddingAttemptError> | undefined;
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  if (providerError?.status === 404 || providerError?.upstreamStatus === "NOT_FOUND" || (message.includes("gemini") && message.includes("embedding") && (message.includes("not_found") || message.includes("not found")))) {
+    return "Gemini could not find the configured embedding model. Check GOOGLE_EMBEDDING_MODEL in Vercel (gemini-embedding-001), redeploy, then retry repository preparation.";
+  }
   if (message.includes("no queryable text")) return "No queryable text or code assets found in this repository.";
   if (message.includes("truncated")) return "GitHub returned a truncated repository tree. Reduce the repository size or retry later.";
   if (message.includes("credential is no longer available")) return "The ingestion credential is no longer available. Start repository preparation again.";

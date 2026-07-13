@@ -62,3 +62,17 @@ test("getLatestWorkByRepo surfaces unresolved repo failures only", () => {
   assert.equal(failedWork?.id, "3");
   assert.equal(failedWork?.errorMessage, "Tree read failed.");
 });
+
+test("repository refresh warnings explain Gemini configuration failures safely", async () => {
+  const [dashboard, guidance, ingestion] = await Promise.all([
+    read("app/dashboards/DashboardClient.tsx"),
+    read("lib/error-guidance.ts"),
+    read("lib/services/ingestion-job.service.ts"),
+  ]);
+
+  assert.match(dashboard, /Repository refresh needs attention/);
+  assert.match(dashboard, /Any previously saved index remains available/);
+  assert.match(guidance, /Embedding model needs attention/);
+  assert.match(guidance, /GOOGLE_EMBEDDING_MODEL to gemini-embedding-001/);
+  assert.match(ingestion, /Check GOOGLE_EMBEDDING_MODEL in Vercel \(gemini-embedding-001\)/);
+});

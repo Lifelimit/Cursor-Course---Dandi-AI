@@ -89,6 +89,7 @@ export default function DashboardClient({
           : { label: "Healthy", tone: "success" as const, detail: usageRemainingDetail };
 
   const failedWork = getLatestWorkByRepo(initialRecentWork).find((work) => work.status === "failed");
+  const failedWorkGuidance = failedWork ? getErrorGuidance({ workflow: "repository-indexing", message: failedWork.errorMessage }) : null;
   const attentionItems = [
     usageData?.subscriptionStatus === "past_due" || usageData?.subscriptionStatus === "unpaid"
       ? { label: "Billing needs attention", detail: "Your subscription is not in a healthy payment state.", href: ROUTES.billing, action: "Review billing", tone: "danger" as const }
@@ -101,7 +102,13 @@ export default function DashboardClient({
           ? { label: "Capacity is getting close", detail: "You are approaching the current cycle limit.", href: ROUTES.usage, action: "View capacity", tone: "warning" as const }
           : null,
     failedWork
-      ? { label: "Repository processing needs a retry", detail: failedWork.errorMessage || "Dandi could not complete the latest repository workflow.", href: playgroundRoute("ask", failedWork.repoUrl), action: "Retry workflow", tone: "warning" as const }
+      ? {
+          label: "Repository refresh needs attention",
+          detail: `${failedWorkGuidance?.explanation || "Dandi could not complete the latest repository workflow."} Any previously saved index remains available until a replacement succeeds. ${failedWorkGuidance?.nextAction || "Open the repository and retry preparation."}`,
+          href: playgroundRoute("ask", failedWork.repoUrl),
+          action: failedWorkGuidance?.actionLabel || "Retry indexing",
+          tone: "warning" as const,
+        }
       : null,
   ].filter((item): item is NonNullable<typeof item> => Boolean(item));
 

@@ -31,6 +31,13 @@ export function classifyError(message?: string | null, status?: number, code?: s
   const normalizedCode = (code || "").toUpperCase();
 
   if (
+    lower.includes("embedding model") ||
+    (lower.includes("gemini") && lower.includes("embedding") && (lower.includes("404") || lower.includes("not_found") || lower.includes("not found")))
+  ) {
+    return "AI provider";
+  }
+
+  if (
     normalizedCode === "RAG_EVIDENCE_NOT_FOUND" ||
     lower.includes("no relevant prepared repository evidence") ||
     lower.includes("refine the question or prepare the repository again")
@@ -203,6 +210,22 @@ export function getErrorGuidance({ workflow, message, status, code }: GuidanceIn
   const category = classifyError(message, status, code);
   const lower = (message || "").toLowerCase();
   const normalizedCode = (code || "").toUpperCase();
+
+  if (
+    workflow === "repository-indexing" &&
+    (lower.includes("embedding model") ||
+      (lower.includes("gemini") && lower.includes("embedding") && (lower.includes("404") || lower.includes("not_found") || lower.includes("not found"))))
+  ) {
+    return {
+      ...base,
+      category: "AI provider",
+      title: "Embedding model needs attention",
+      explanation: "Gemini could not find the embedding model configured for this deployment. This is a configuration problem, not a problem with the repository itself.",
+      nextAction: "Set GOOGLE_EMBEDDING_MODEL to gemini-embedding-001 in Vercel, redeploy, then retry indexing.",
+      possibleCauses: ["The model name is missing or misspelled", "Vercel is using an older environment value", "The latest deployment did not receive the updated environment variable"],
+      actionLabel: "Retry after fixing",
+    };
+  }
 
   if (category === "Quota") {
     return {
