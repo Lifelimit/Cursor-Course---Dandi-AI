@@ -14,7 +14,7 @@ export function DashboardShell({ sidebar, children, variant = "dashboard" }: Das
   return (
     <CommandShell
       variant={variant}
-      className="min-h-screen overflow-x-hidden"
+      className="min-h-screen"
     >
       <a
         href="#dashboard-main-content"

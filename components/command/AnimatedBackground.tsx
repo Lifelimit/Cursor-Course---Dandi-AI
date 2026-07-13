@@ -32,7 +32,7 @@ export function AnimatedBackground({
   return (
     <div
       className={cx(
-        "command-ambient dandi-surface-ambient relative overflow-hidden",
+        "command-ambient dandi-surface-ambient relative overflow-x-clip",
         intensityClasses[intensity],
         `command-ambient-${variant}`,
         className

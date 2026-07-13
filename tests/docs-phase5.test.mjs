@@ -45,6 +45,21 @@ test("code examples expose accessible copy controls and safe key placeholders", 
 
 test("mobile navigation and reduced-motion-safe anchor behavior remain available", () => {
   assert.match(source, /aria-expanded={mobileNavOpen}/);
-  assert.match(source, /scroll-mt-28/);
+  assert.match(source, /sectionClassName = initialSession \? "scroll-mt-6 space-y-6" : "scroll-mt-28 space-y-6"/);
   assert.match(source, /Skip to documentation/);
+});
+
+test("desktop docs navigation separates sticky positioning from internal scrolling", () => {
+  assert.match(source, /lg:self-start \$\{docsNavStickyClassName\}/);
+  assert.match(source, /docsNavStickyClassName = initialSession \? "lg:sticky lg:top-6 lg:z-20" : "lg:sticky lg:top-28 lg:z-20"/);
+  assert.match(source, /docsNavScrollClassName = initialSession \? "max-h-\[calc\(100dvh-2rem\)\]" : "max-h-\[calc\(100dvh-8rem\)\]"/);
+  assert.match(source, /className=\{`\$\{docsNavScrollClassName\} space-y-5 overflow-y-auto overscroll-y-contain pr-1`\}/);
+  assert.doesNotMatch(source, /stickyNavClassName/);
+  assert.doesNotMatch(source, /scrollIntoView\(\{ block: "nearest"/);
+  assert.doesNotMatch(source, /activeLink\?\.scrollIntoView/);
+});
+
+test("intentional section navigation still respects reduced motion", () => {
+  assert.match(source, /section\.scrollIntoView\(\{ behavior: reducedMotion \? "auto" : "smooth", block: "start" \}\)/);
+  assert.match(source, /useReducedMotion/);
 });

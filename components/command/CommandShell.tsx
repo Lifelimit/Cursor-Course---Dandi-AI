@@ -36,7 +36,7 @@ export function CommandShell({
   className,
 }: CommandShellProps) {
   const shellClassName = cx(
-    "dandi-type-interface min-h-dvh min-w-0 overflow-x-hidden bg-[var(--command-bg)] text-[var(--command-text)]",
+    "dandi-type-interface min-h-dvh min-w-0 overflow-x-clip bg-[var(--command-bg)] text-[var(--command-text)]",
     variantClasses[variant],
     className,
   );
