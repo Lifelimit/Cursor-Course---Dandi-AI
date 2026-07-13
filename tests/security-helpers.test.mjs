@@ -932,7 +932,7 @@ test("preserves unlimited Researcher key limits", () => {
 });
 
 test("resolves paid plans only when plan, price, and subscription status match the server catalog", () => {
-  const { resolvePaidPlanRequest, getEntitledPlanForSubscription, getPlanForPriceId } = loadTsModule("lib/billing-catalog.ts");
+  const { resolvePaidPlanRequest, getEntitledPlanForSubscription, getPlanForPriceId, getPlanForSubscription } = loadTsModule("lib/billing-catalog.ts");
 
   assert.deepEqual(resolvePaidPlanRequest({ planId: "Premium", priceId: "price_premium_year" }), {
     planId: "Premium",
@@ -950,6 +950,16 @@ test("resolves paid plans only when plan, price, and subscription status match t
     planId: "Researcher",
     interval: "month",
     priceId: "price_researcher_month",
+  });
+  assert.deepEqual(getPlanForSubscription({ items: { data: [{ price: "price_researcher_month" }] } }), {
+    planId: "Researcher",
+    interval: "month",
+    priceId: "price_researcher_month",
+  });
+  assert.deepEqual(getEntitledPlanForSubscription({ status: "active", items: { data: [{ price: "price_premium_year" }] } }), {
+    planId: "Premium",
+    interval: "year",
+    priceId: "price_premium_year",
   });
 });
 

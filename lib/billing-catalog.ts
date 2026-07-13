@@ -84,8 +84,15 @@ export function getPaidPlanForPlanId(planId: PaidPlanId, interval: BillingInterv
   return { planId, interval, priceId };
 }
 
+function getSubscriptionItemPriceId(
+  price: string | Stripe.Price | Stripe.DeletedPrice | null | undefined,
+) {
+  if (!price) return null;
+  return typeof price === "string" ? price : price.id;
+}
+
 export function getPlanForSubscription(subscription: Stripe.Subscription): PaidPlanRequest | null {
-  const priceId = subscription.items?.data?.[0]?.price?.id;
+  const priceId = getSubscriptionItemPriceId(subscription.items?.data?.[0]?.price);
   return getPlanForPriceId(priceId);
 }
 
