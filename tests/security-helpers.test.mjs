@@ -2104,6 +2104,24 @@ test("repository summary resolution stays public-only and gates server-token fal
   }
 });
 
+test("RAG repository identity always follows the canonical GitHub URL", () => {
+  const { buildRagRepositoryMetadataContext } = loadTsModule("lib/services/github.service.ts");
+  const context = buildRagRepositoryMetadataContext("https://github.com/facebook/react", {
+    owner: { login: "react" },
+    full_name: "react/react",
+    html_url: "https://github.com/react/react",
+    description: "React",
+  });
+
+  assert.deepEqual(context, {
+    owner: "facebook",
+    repo: "react",
+    fullName: "facebook/react",
+    description: "React",
+    htmlUrl: "https://github.com/facebook/react",
+  });
+});
+
 test("GitHub service supports optional installation token for private repositories", async () => {
   const originalFetch = globalThis.fetch;
   const { fetchGitHubReadme, fetchGitHubMetadata } = loadTsModule("lib/services/github.service.ts");
@@ -2238,6 +2256,9 @@ test("AI and repository routes retain grounded, opaque security boundaries", () 
   assert.match(ingestSource, /error: "Failed to create ingestion job\."/);
   assert.match(chatSource, /RAG_RETRIEVAL_UNAVAILABLE/);
   assert.match(chatSource, /RAG_EVIDENCE_NOT_FOUND/);
+  assert.match(chatSource, /Canonical owner or organization/);
+  assert.match(chatSource, /Never infer the owner/);
+  assert.match(chatSource, /retrieved repository evidence is low confidence/);
   assert.match(chatSource, /reserveApiKeyUsage\(keyData\)/);
   assert.match(summarySource, /reserveApiKeyUsage\(keyData\)/);
   assert.match(ingestionSource, /reserveApiKeyUsageForIngestionJob\(usageKeyData, job\.id\)/);

@@ -54,11 +54,13 @@ export function buildRagRepositoryMetadataContext(
 ): RagRepositoryMetadataContext {
   const { owner, repo } = getGitHubRepositoryParts(githubUrl);
   return {
-    owner: repository.owner?.login || owner,
+    // The user-supplied canonical URL is the source of truth for identity.
+    // Provider metadata must not silently replace the owner/repository pair.
+    owner,
     repo,
-    fullName: repository.full_name || `${owner}/${repo}`,
+    fullName: `${owner}/${repo}`,
     description: repository.description ?? null,
-    htmlUrl: repository.html_url ?? null,
+    htmlUrl: `https://github.com/${owner}/${repo}`,
   };
 }
 
