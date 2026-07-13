@@ -255,5 +255,19 @@ export function mapStripeErrorResponse(
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 
+  if (err instanceof stripe.errors.StripeCardError) {
+    return NextResponse.json(
+      { error: err.message || "Your card was declined. Try another payment method." },
+      { status: 402 },
+    );
+  }
+
+  if (err instanceof stripe.errors.StripeInvalidRequestError && err.message) {
+    return NextResponse.json(
+      { error: err.message },
+      { status: err.statusCode ?? 400 },
+    );
+  }
+
   return NextResponse.json({ error: fallbackMessage }, { status: 500 });
 }

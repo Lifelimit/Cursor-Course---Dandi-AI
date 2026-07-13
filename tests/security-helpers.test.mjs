@@ -1151,6 +1151,62 @@ test("resolves subscription SCA and billing payload helpers", () => {
   assert.match(finalizeRoute, /subscriptionCustomerId !== profile\.stripe_customer_id/);
   assert.match(finalizeRoute, /subscription\.metadata\?\.operationId && subscription\.metadata\.operationId !== operationId/);
   assert.match(finalizeRoute, /status: "processing", subscriptionId/);
+  assert.match(subscribeRoute, /supersedePendingCancellation/);
+  assert.match(subscribeRoute, /buildPlanChangeScheduleUpdate/);
+  assert.doesNotMatch(subscribeRoute, /prepareActiveSubscriptionForScheduledPlanChange/);
+});
+
+test("builds subscription schedule phases from the attached schedule current phase", () => {
+  const { buildPlanChangeScheduleUpdate } = loadTsModule("lib/services/stripe-billing-flow.service.ts");
+
+  const phaseStart = Math.floor(new Date("2026-06-01T00:00:00.000Z").getTime() / 1000);
+  const phaseEnd = Math.floor(new Date("2026-06-29T00:00:00.000Z").getTime() / 1000);
+  const subscriptionPeriodEnd = Math.floor(new Date("2026-07-15T00:00:00.000Z").getTime() / 1000);
+  const currentPrice = "price_researcher_month";
+  const targetPrice = "price_premium_month";
+
+  const schedule = {
+    phases: [
+      {
+        start_date: phaseStart,
+        end_date: phaseEnd,
+        items: [{ price: currentPrice, quantity: 1 }],
+      },
+    ],
+  };
+
+  const update = buildPlanChangeScheduleUpdate(schedule, targetPrice);
+  assert.equal(update.phases[0].start_date, phaseStart);
+  assert.equal(update.phases[0].end_date, phaseEnd);
+  assert.deepEqual(update.phases[0].items, [{ price: currentPrice, quantity: 1 }]);
+  assert.equal(update.phases[1].start_date, phaseEnd);
+  assert.deepEqual(update.phases[1].items, [{ price: targetPrice }]);
+  assert.equal(update.end_behavior, "release");
+  assert.equal(update.proration_behavior, "none");
+  assert.equal(update.effectiveAt, new Date(phaseEnd * 1000).toISOString());
+
+  const scheduleWithoutEndDate = {
+    phases: [
+      {
+        start_date: phaseStart,
+        items: [{ price: currentPrice, quantity: 2 }],
+      },
+    ],
+  };
+  const subscription = {
+    items: {
+      data: [{ current_period_end: subscriptionPeriodEnd }],
+    },
+  };
+
+  const fallbackUpdate = buildPlanChangeScheduleUpdate(
+    scheduleWithoutEndDate,
+    targetPrice,
+    subscription,
+  );
+  assert.equal(fallbackUpdate.phases[0].end_date, subscriptionPeriodEnd);
+  assert.equal(fallbackUpdate.phases[1].start_date, subscriptionPeriodEnd);
+  assert.deepEqual(fallbackUpdate.phases[0].items, [{ price: currentPrice, quantity: 2 }]);
 });
 
 test("reconciles scheduled plan state from Stripe subscription schedules", () => {

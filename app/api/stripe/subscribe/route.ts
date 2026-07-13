@@ -4,7 +4,7 @@ import { stripe } from "@/lib/stripe";
 import { getEntitledPlanForSubscription, getPlanForSubscription, resolvePaidPlanRequest, type PaidPlanRequest } from "@/lib/billing-catalog";
 import { getJsonObject, validateBillingDetails, validateOperationId, validatePaymentMethodId } from "@/lib/request-validation";
 import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
-import { buildSubscriptionProfilePayload, resolveSubscriptionPaymentState } from "@/lib/services/stripe-billing-flow.service";
+import { buildSubscriptionProfilePayload, resolveSubscriptionPaymentState, getSubscriptionPeriodBounds, buildPlanChangeScheduleUpdate, supersedePendingCancellation, resolveOrCreateSubscriptionSchedule } from "@/lib/services/stripe-billing-flow.service";
 import {
   buildPaymentMethodProfilePayload,
   getAuthenticatedBillingUser,
@@ -21,24 +21,14 @@ type ExpandedSubscription = Stripe.Subscription & {
   current_period_end?: number;
 };
 
-function getPeriodStart(subscription: ExpandedSubscription) {
-  return subscription.items.data[0]?.current_period_start
-    || subscription.current_period_start
-    || subscription.billing_cycle_anchor;
-}
-
-function getPeriodEnd(subscription: ExpandedSubscription) {
-  return subscription.items.data[0]?.current_period_end
-    || subscription.current_period_end;
-}
-
 function getPaymentMethodId(value: string | Stripe.PaymentMethod | null | undefined) {
   return typeof value === "string" ? value : value?.id || null;
 }
 
 function getActiveResult(subscription: ExpandedSubscription, plan: PaidPlanRequest): SubscriptionActionResult {
-  const effectiveAt = getPeriodStart(subscription)
-    ? new Date(getPeriodStart(subscription) * 1000).toISOString()
+  const { periodStart } = getSubscriptionPeriodBounds(subscription);
+  const effectiveAt = periodStart
+    ? new Date(periodStart * 1000).toISOString()
     : new Date().toISOString();
   return {
     status: "active",
@@ -142,48 +132,35 @@ export async function POST(request: Request) {
         return NextResponse.json(getActiveResult(activeSubscription, currentPlan));
       }
 
-      const periodStart = getPeriodStart(activeSubscription);
-      const periodEnd = getPeriodEnd(activeSubscription);
-      if (!periodStart || !periodEnd) {
-        return NextResponse.json({ error: "Stripe did not return a valid billing period." }, { status: 503 });
-      }
+      const subscriptionForSchedule = await supersedePendingCancellation(
+        activeSubscription,
+      ) as ExpandedSubscription;
 
-      const scheduleId = typeof activeSubscription.schedule === "string"
-        ? activeSubscription.schedule
-        : activeSubscription.schedule?.id;
-      const schedule = scheduleId
-        ? await stripe.subscriptionSchedules.retrieve(scheduleId)
-        : await stripe.subscriptionSchedules.create(
-            { from_subscription: activeSubscription.id },
-            { idempotencyKey: `dandi-${user.id}-${operationId}-schedule-create` },
-          );
+      const schedule = await resolveOrCreateSubscriptionSchedule(
+        subscriptionForSchedule,
+        `dandi-${user.id}-${operationId}-schedule-create`,
+      );
+
+      const scheduleUpdate = buildPlanChangeScheduleUpdate(
+        schedule,
+        planRequest.priceId,
+        subscriptionForSchedule,
+      );
 
       await stripe.subscriptionSchedules.update(
         schedule.id,
         {
-          phases: [
-            {
-              start_date: periodStart,
-              end_date: periodEnd,
-              items: [{
-                price: activeSubscription.items.data[0].price.id,
-                quantity: activeSubscription.items.data[0].quantity ?? 1,
-              }],
-            },
-            {
-              start_date: periodEnd,
-              items: [{ price: planRequest.priceId }],
-            },
-          ],
-          end_behavior: "release",
+          phases: scheduleUpdate.phases,
+          end_behavior: scheduleUpdate.end_behavior,
+          proration_behavior: scheduleUpdate.proration_behavior,
         },
         { idempotencyKey: `dandi-${user.id}-${operationId}-schedule-update` },
       );
 
-      const scheduledAt = new Date(periodEnd * 1000).toISOString();
+      const scheduledAt = scheduleUpdate.effectiveAt;
       const payload = buildSubscriptionProfilePayload({
         planRequest: currentPlan,
-        subscription: activeSubscription,
+        subscription: subscriptionForSchedule,
         scheduledPlan: planRequest.planId,
         scheduledPlanDate: scheduledAt,
       });
@@ -289,7 +266,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(getActiveResult(subscription, entitledPlan));
   } catch (error) {
-    console.error("Subscription operation failed.");
+    console.error("Subscription operation failed.", error);
     return mapStripeErrorResponse(error, "Failed to process subscription");
   }
 }

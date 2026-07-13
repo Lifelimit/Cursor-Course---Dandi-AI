@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { getPaidPlanForPlanId, getPlanForPriceId, type PaidPlanRequest } from "@/lib/billing-catalog";
+import { stripe } from "@/lib/stripe";
 import { isPaidPlanId, isUuid } from "@/lib/security-core";
 
 export { isActiveScheduledPlanChange } from "@/lib/billing-schedule";
@@ -333,4 +334,111 @@ export function buildSubscriptionDeletedProfilePayload(now = new Date()) {
 
 export function isDuplicateWebhookEventError(error: { code?: string } | null | undefined) {
   return error?.code === "23505";
+}
+
+export function isLiveSubscriptionScheduleStatus(
+  status: Stripe.SubscriptionSchedule.Status,
+) {
+  return status === "active" || status === "not_started";
+}
+
+export function getSubscriptionPeriodBounds(subscription: Stripe.Subscription) {
+  const periodStart = subscription.items.data[0]?.current_period_start
+    || (subscription as Stripe.Subscription & { current_period_start?: number }).current_period_start
+    || subscription.billing_cycle_anchor;
+  const periodEnd = subscription.items.data[0]?.current_period_end
+    || (subscription as Stripe.Subscription & { current_period_end?: number }).current_period_end;
+
+  return { periodStart, periodEnd };
+}
+
+function getScheduleItemPriceId(
+  price: string | Stripe.Price | Stripe.DeletedPrice | null | undefined,
+) {
+  if (!price) return null;
+  return typeof price === "string" ? price : price.id;
+}
+
+export function buildPlanChangeScheduleUpdate(
+  schedule: Stripe.SubscriptionSchedule,
+  targetPriceId: string,
+  subscription?: Stripe.Subscription,
+) {
+  const currentPhase = schedule.phases[0];
+  if (!currentPhase) {
+    throw new Error("Stripe schedule is missing its current phase.");
+  }
+
+  const phaseStart = currentPhase.start_date;
+  const phaseEnd = currentPhase.end_date
+    ?? (subscription ? getSubscriptionPeriodBounds(subscription).periodEnd : undefined);
+  if (!phaseEnd) {
+    throw new Error("Stripe did not return a valid billing period for the schedule phase.");
+  }
+
+  const phaseItems = currentPhase.items.map((item) => {
+    const priceId = getScheduleItemPriceId(item.price);
+    if (!priceId) {
+      throw new Error("Stripe schedule phase item is missing a price.");
+    }
+    return {
+      price: priceId,
+      quantity: item.quantity ?? 1,
+    };
+  });
+
+  return {
+    phases: [
+      {
+        start_date: phaseStart,
+        end_date: phaseEnd,
+        items: phaseItems,
+      },
+      {
+        start_date: phaseEnd,
+        items: [{ price: targetPriceId }],
+      },
+    ],
+    end_behavior: "release" as const,
+    proration_behavior: "none" as const,
+    effectiveAt: new Date(phaseEnd * 1000).toISOString(),
+  };
+}
+
+export async function supersedePendingCancellation(subscription: Stripe.Subscription) {
+  if (!subscription.cancel_at_period_end) {
+    return subscription;
+  }
+
+  const updated = await stripe.subscriptions.update(subscription.id, {
+    cancel_at_period_end: false,
+    metadata: {
+      ...subscription.metadata,
+      keys_to_keep: "",
+      cancel_requested_at: "",
+    },
+  });
+
+  return stripe.subscriptions.retrieve(updated.id);
+}
+
+export async function resolveOrCreateSubscriptionSchedule(
+  subscription: Stripe.Subscription,
+  idempotencyKey: string,
+) {
+  const scheduleId = typeof subscription.schedule === "string"
+    ? subscription.schedule
+    : subscription.schedule?.id;
+
+  if (scheduleId) {
+    const schedule = await stripe.subscriptionSchedules.retrieve(scheduleId);
+    if (isLiveSubscriptionScheduleStatus(schedule.status)) {
+      return schedule;
+    }
+  }
+
+  return stripe.subscriptionSchedules.create(
+    { from_subscription: subscription.id },
+    { idempotencyKey },
+  );
 }

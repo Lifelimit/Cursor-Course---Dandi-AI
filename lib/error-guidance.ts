@@ -145,6 +145,28 @@ const workflowDefaults: Record<ErrorWorkflow, GuidedErrorCopy> = {
   },
 };
 
+function getBillingToastAction(message?: string | null, status?: number) {
+  const lower = (message || "").toLowerCase();
+
+  if (lower.includes("scheduled") && lower.includes("cancel")) {
+    return "Remove the scheduled cancellation from Billing, then try the plan change again.";
+  }
+  if (lower.includes("authentication") || lower.includes("3d secure") || lower.includes("requires_action")) {
+    return "Complete the bank authorization prompt, then retry the plan change.";
+  }
+  if (lower.includes("declined") || lower.includes("payment method")) {
+    return message?.trim() || "Update your default payment method, then try again.";
+  }
+  if (status === 409 || lower.includes("unrecognized price") || lower.includes("payment attention")) {
+    return message?.trim() || "Refresh Billing and contact support if the issue continues.";
+  }
+  if (message?.trim() && !isLikelyTechnicalError(message)) {
+    return message.trim();
+  }
+
+  return null;
+}
+
 export function getErrorGuidance({ workflow, message, status }: GuidanceInput): GuidedErrorCopy {
   const base = workflowDefaults[workflow];
   const category = classifyError(message, status);
@@ -221,5 +243,11 @@ export function getErrorGuidance({ workflow, message, status }: GuidanceInput): 
 
 export function getToastErrorMessage(workflow: ErrorWorkflow, message?: string | null, status?: number) {
   const guidance = getErrorGuidance({ workflow, message, status });
+  if (workflow === "billing") {
+    const billingAction = getBillingToastAction(message, status);
+    if (billingAction) {
+      return `${guidance.title}: ${billingAction}`;
+    }
+  }
   return `${guidance.title}: ${guidance.nextAction}`;
 }
