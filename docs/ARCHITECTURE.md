@@ -2,7 +2,7 @@
 
 Dandi is a production-oriented Next.js developer platform for authenticated AI API access, usage monitoring, billing, and public-repository intelligence.
 
-For portfolio readers, start with the root [`README.md`](../README.md) for screenshots, setup, and limitations. This document summarizes system shape and trust boundaries.
+For portfolio readers, start with the root [`README.md`](../README.md) for setup and limitations. This document summarizes system shape and trust boundaries.
 
 ## System flow
 

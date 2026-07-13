@@ -6,8 +6,6 @@
 
 **Live app:** [dandi-orcin.vercel.app](https://dandi-orcin.vercel.app) · **Repository:** [Lifelimit/Cursor-Course---Dandi-AI](https://github.com/Lifelimit/Cursor-Course---Dandi-AI)
 
-![Dandi AI landing page showing the repository intelligence workflow preview](public/readme/dandi-overview.png)
-
 *Personal engineering project — feature-complete for its current scope. Not a commercial launch or course exercise.*
 
 ## Overview
@@ -32,22 +30,6 @@ Verified capabilities in the current codebase:
 - **GitHub App connection visibility** — verified installation metadata in Account Settings (display-only for repository reads)
 - **Signed webhook test delivery** — authenticated on-demand test sends with SSRF-resistant destination validation
 - **Account and session management** — Supabase Auth with email, password, magic link, and Google sign-in
-
-## Screenshots
-
-Captured from the live production app. Authenticated views redact profile name, email, and avatar areas before publication.
-
-| Area | Screenshot |
-| --- | --- |
-| Landing page and workflow preview | ![Dandi overview](public/readme/dandi-overview.png) |
-| API documentation workspace | ![Dandi API docs](public/readme/dandi-api-docs.png) |
-| Playground — Prepare & Ask (indexed repository) | ![Dandi RAG chat](public/readme/dandi-rag-chat.png) |
-| Usage Intelligence dashboard | ![Dandi usage dashboard](public/readme/dandi-usage-dashboard.png) |
-| Billing and subscription management | ![Dandi billing](public/readme/dandi-billing.png) |
-| Account — GitHub App integrations | ![Dandi account integrations](public/readme/dandi-account-integrations.png) |
-| Authenticated workspace entry (public login surface) | ![Dandi auth workspace](public/readme/dandi-auth-workspace.png) |
-
-Sanitization script: `scripts/sanitize-readme-screenshots.py`
 
 ## Architecture
 
@@ -228,7 +210,6 @@ Before pushing to GitHub, run `yarn lint` and `yarn typecheck` at minimum.
 | `supabase/migrations/` | Postgres schema, RLS policies, and vector storage |
 | `tests/` | Node regression tests |
 | `docs/` | Architecture, security guardrails, and decision records |
-| `public/readme/` | README screenshots |
 
 Domain map for targeted exploration: [`docs/DOMAIN_MAP.md`](docs/DOMAIN_MAP.md)
 
