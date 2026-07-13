@@ -14,11 +14,11 @@ except ImportError as exc:  # pragma: no cover - runtime helper
     ) from exc
 
 
-def redact_box(image: Image.Image, box: tuple[int, int, int, int], blur_radius: int = 14) -> None:
+def redact_box(image: Image.Image, box: tuple[int, int, int, int], blur_radius: int = 18) -> None:
     x0, y0, x1, y1 = box
     region = image.crop((x0, y0, x1, y1))
     small = region.resize(
-        (max(1, region.width // 10), max(1, region.height // 10)),
+        (max(1, region.width // 6), max(1, region.height // 6)),
         Image.Resampling.BILINEAR,
     )
     pixelated = small.resize(region.size, Image.Resampling.NEAREST)
@@ -38,45 +38,46 @@ def redact_relative(image: Image.Image, regions: list[tuple[float, float, float,
         redact_box(image, box)
 
 
-SANITIZATION_RULES: dict[str, list[tuple[float, float, float, float]]] = {
-    # Sidebar identity row only: avatar, name, and email (1440x900 desktop).
-    "dandi-usage-dashboard.png": [
-        (0.018, 0.775, 0.205, 0.835),
-    ],
-    "dandi-dashboard.png": [
-        (0.018, 0.775, 0.205, 0.835),
-    ],
-    # Header profile photo only.
-    "dandi-rag-chat.png": [
-        (0.918, 0.018, 0.982, 0.072),
-    ],
-    "dandi-billing.png": [
-        (0.918, 0.018, 0.982, 0.072),
-    ],
-    "dandi-account-integrations.png": [
-        (0.918, 0.018, 0.982, 0.072),
-    ],
-    "dandi-account-api.png": [
-        (0.918, 0.018, 0.982, 0.072),
-    ],
-    "dandi-playground-summarize.png": [
-        (0.918, 0.018, 0.982, 0.072),
-    ],
-    "dandi-repository-summary.png": [
-        (0.918, 0.018, 0.982, 0.072),
-    ],
-    "dandi-repository-summary-result.png": [
-        (0.918, 0.018, 0.982, 0.072),
-    ],
+MOBILE_SIDEBAR_IDENTITY = (0.03, 0.612, 0.40, 0.712)
+MOBILE_HEADER_AVATAR = (0.71, 0.010, 0.82, 0.050)
+DESKTOP_SIDEBAR_IDENTITY = (0.018, 0.775, 0.205, 0.835)
+DESKTOP_HEADER_AVATAR = (0.918, 0.018, 0.982, 0.072)
+
+SIDEBAR_SCREENSHOTS = {
+    "dandi-usage-dashboard.png",
+    "dandi-dashboard.png",
+}
+
+HEADER_SCREENSHOTS = {
+    "dandi-rag-chat.png",
+    "dandi-billing.png",
+    "dandi-account-integrations.png",
+    "dandi-account-api.png",
+    "dandi-playground-summarize.png",
+    "dandi-repository-summary.png",
+    "dandi-repository-summary-result.png",
 }
 
 
+def rules_for_image(filename: str, size: tuple[int, int]) -> list[tuple[float, float, float, float]]:
+    _width, height = size
+    mobile = height > 1200
+
+    if filename in SIDEBAR_SCREENSHOTS:
+        return [MOBILE_SIDEBAR_IDENTITY if mobile else DESKTOP_SIDEBAR_IDENTITY]
+
+    if filename in HEADER_SCREENSHOTS:
+        return [MOBILE_HEADER_AVATAR if mobile else DESKTOP_HEADER_AVATAR]
+
+    return []
+
+
 def sanitize_file(path: Path) -> bool:
-    rules = SANITIZATION_RULES.get(path.name)
+    image = Image.open(path).convert("RGB")
+    rules = rules_for_image(path.name, image.size)
     if not rules:
         return False
 
-    image = Image.open(path).convert("RGB")
     redact_relative(image, rules)
     image.save(path, format="PNG", optimize=True)
     return True
