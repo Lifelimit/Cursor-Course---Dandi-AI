@@ -35,13 +35,19 @@ Verified capabilities in the current codebase:
 
 ## Screenshots
 
+Captured from the live production app. Authenticated views redact profile name, email, and avatar areas before publication.
+
 | Area | Screenshot |
 | --- | --- |
 | Landing page and workflow preview | ![Dandi overview](public/readme/dandi-overview.png) |
 | API documentation workspace | ![Dandi API docs](public/readme/dandi-api-docs.png) |
-| Authenticated workspace entry | ![Dandi auth workspace](public/readme/dandi-auth-workspace.png) |
+| Playground — Prepare & Ask (indexed repository) | ![Dandi RAG chat](public/readme/dandi-rag-chat.png) |
+| Usage Intelligence dashboard | ![Dandi usage dashboard](public/readme/dandi-usage-dashboard.png) |
+| Billing and subscription management | ![Dandi billing](public/readme/dandi-billing.png) |
+| Account — GitHub App integrations | ![Dandi account integrations](public/readme/dandi-account-integrations.png) |
+| Authenticated workspace entry (public login surface) | ![Dandi auth workspace](public/readme/dandi-auth-workspace.png) |
 
-Authenticated screenshots for the Playground, Usage, Billing, and Account integrations pages are not included here because they require a signed-in session. The live app exposes those routes after login.
+Sanitization script: `scripts/sanitize-readme-screenshots.py`
 
 ## Architecture
 
