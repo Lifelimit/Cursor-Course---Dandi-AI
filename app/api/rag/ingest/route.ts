@@ -1,11 +1,9 @@
-import { after } from "next/server";
 import { NextResponse } from "next/server";
-import { getRequestTelemetry } from "@/lib/account-environments";
 import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOriginAllowed } from "@/lib/cors";
 import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { getApiKeyFromRequest, invalidJsonResponse, jsonError, missingApiKeyResponse, readGitHubRepoUrl, readJsonBody } from "@/lib/api-request";
 import { isUuid } from "@/lib/security-core";
-import { createIngestionJob, formatIngestionJob, getIngestionJob, runIngestionJob } from "@/lib/services/ingestion-job.service";
+import { createIngestionJob, formatIngestionJob, getIngestionJob } from "@/lib/services/ingestion-job.service";
 import { validateApiKey } from "@/lib/services/api-key.service";
 import { assertPublicRepositoryForRag, GitHubPublicRepositoryCheckError, GitHubPublicRepositoryRequiredError } from "@/lib/services/github.service";
 
@@ -101,15 +99,9 @@ export async function POST(request: Request) {
     const keyData = await validateApiKey(apiKey);
     await assertPublicRepositoryForRag(githubUrl);
     const { job, reused } = await createIngestionJob({ keyData, repoUrl: githubUrl });
-    const telemetry = getRequestTelemetry(request);
-
-    if (job.status === "queued" && !reused) {
-      after(() => {
-        runIngestionJob(job.id, telemetry, keyData).catch(() => {
-          console.error("RAG ingestion job failed.");
-        });
-      });
-    }
+    // The durable worker is advanced by the authenticated polling route. This
+    // request only creates/reuses the persisted job and never owns repository work.
+    if (job.status === "queued" && !reused) console.info("RAG ingestion job queued", { jobId: job.id, ownerId: keyData.browserUserId || keyData.user_id });
 
     return NextResponse.json(
       {

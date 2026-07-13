@@ -4,13 +4,24 @@ import test from "node:test";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
+test("API key edit labels disable spelling and use one shared focus treatment", async () => {
+  const [modal, utils] = await Promise.all([
+    read("components/account/AccountApiKeyEditModal.tsx"),
+    read("components/command/utils.ts"),
+  ]);
+
+  assert.match(modal, /id="account-edit-api-key-name"[\s\S]*spellCheck=\{false\}/);
+  assert.match(utils, /focus:border-emerald-300\/50 focus:!outline-none focus:ring-0/);
+  assert.doesNotMatch(utils, /focus-visible:ring/);
+});
+
 test("dashboard sidebar sticky positioning is configurable and defaults to sticky", async () => {
   const sidebar = await read("components/dashboard/Sidebar.tsx");
 
   assert.match(sidebar, /sticky\?: boolean;/);
   assert.match(sidebar, /sticky = true,/);
   assert.match(sidebar, /const sidebarPositionClassName = sticky/);
-  assert.match(sidebar, /\? "sticky top-3 md:top-12"/);
+  assert.match(sidebar, /\? "md:sticky md:top-6 md:max-h-\[calc\(100dvh-3rem\)\] md:overflow-x-clip md:overflow-y-auto md:overscroll-y-contain"/);
   assert.match(sidebar, /: "static"/);
   assert.match(sidebar, /\$\{sidebarPositionClassName\}/);
   assert.doesNotMatch(sidebar, /relative sticky top-3/);

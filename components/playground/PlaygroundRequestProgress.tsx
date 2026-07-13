@@ -8,6 +8,7 @@ import { CardSkeleton } from "@/components/ui/SkeletonBlocks";
 import { CommandPanel, StatusPill } from "@/components/command";
 import type { LogEntry } from "@/components/playground/NetworkLog";
 import { getErrorGuidance } from "@/lib/error-guidance";
+import type { IndexedRepositoryStats } from "@/hooks/useRepositoryIngestion";
 
 const NetworkLog = dynamic(() => import("@/components/playground/NetworkLog").then((mod) => mod.NetworkLog), {
   loading: () => <CardSkeleton lines={4} className="min-h-[20rem]" />,
@@ -27,6 +28,7 @@ type PlaygroundRequestProgressProps = {
   isIndexingActive: boolean;
   summaryLoadingStages: LoadingStage[];
   indexingLoadingStages: LoadingStage[];
+  indexedRepositoryStats?: IndexedRepositoryStats | null;
   showToast: (type: "success" | "error", message: string) => void;
 };
 
@@ -42,6 +44,7 @@ export function PlaygroundRequestProgress({
   isIndexingActive,
   summaryLoadingStages,
   indexingLoadingStages,
+  indexedRepositoryStats,
   showToast,
 }: PlaygroundRequestProgressProps) {
   return (
@@ -81,12 +84,23 @@ export function PlaygroundRequestProgress({
           />
         )}
         {activeTab === "rag" && (isIndexingActive || indexedRequestLogs.length > 0) && (
-          <LoadingStages
-            title={isIndexingActive ? "Preparing repository" : "Repository preparation workflow"}
-            description="Dandi prepares searchable repository evidence for source-backed questions."
-            stages={indexingLoadingStages}
-            className="mb-4"
-          />
+          <>
+            <LoadingStages
+              title={isIndexingActive ? "Preparing repository" : "Repository preparation workflow"}
+              description="Dandi prepares searchable repository evidence for source-backed questions."
+              stages={indexingLoadingStages}
+              className="mb-4"
+            />
+            {indexedRepositoryStats?.status === "retrying" ? (
+              <p className="mb-4 rounded-xl border border-amber-300/20 bg-amber-300/5 px-4 py-3 text-xs leading-relaxed text-amber-100/80">
+                Retrying from the saved checkpoint. The previous active index remains available while this refresh recovers.
+              </p>
+            ) : indexedRepositoryStats?.heartbeatAt && isIndexingActive ? (
+              <p className="mb-4 rounded-xl border border-white/10 bg-slate-950/30 px-4 py-3 text-xs leading-relaxed text-slate-400">
+                Durable worker progress: {indexedRepositoryStats.persistedChunkCount ?? indexedRepositoryStats.chunkCount ?? 0} chunks persisted; the browser will continue polling while the worker resumes bounded batches.
+              </p>
+            ) : null}
+          </>
         )}
         <details className="group rounded-2xl border border-white/10 bg-slate-950/35">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-semibold text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-inset">

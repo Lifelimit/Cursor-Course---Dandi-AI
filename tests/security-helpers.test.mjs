@@ -72,6 +72,9 @@ const googleEnvNames = [
   "GOOGLE_GENERATIVE_AI_API_KEY",
   "GOOGLE_EMBEDDING_PRIMARY",
   "GOOGLE_EMBEDDING_FALLBACK",
+  "RAG_EMBED_MAX_ATTEMPTS",
+  "RAG_EMBED_RETRY_BASE_MS",
+  "RAG_EMBED_RETRY_MAX_MS",
 ];
 
 function snapshotGoogleEnv() {
@@ -83,6 +86,13 @@ function restoreGoogleEnv(snapshot) {
     if (snapshot[name] === undefined) delete process.env[name];
     else process.env[name] = snapshot[name];
   }
+}
+
+function embeddingVector(first, second) {
+  const values = Array(768).fill(0);
+  values[0] = first;
+  values[1] = second;
+  return values;
 }
 
 function jsonResponse(body, init = {}) {
@@ -530,7 +540,7 @@ test("scheduled customer webhooks are deferred while on-demand tests remain supp
   const vercelConfig = readFileSync(resolve(repoRoot, "vercel.json"), "utf8");
   const apiKeySource = readFileSync(resolve(repoRoot, "lib/services/api-key.service.ts"), "utf8");
 
-  assert.equal(JSON.parse(vercelConfig).crons, undefined);
+  assert.deepEqual(JSON.parse(vercelConfig).crons, [{ path: "/api/internal/rag/worker", schedule: "0 3 * * *" }]);
   assert.equal(existsSync(removedQueueMigration), false);
   assert.doesNotMatch(profileRoute, /webhook_deliveries|webhook_failure_count|webhook_disabled_until/);
   assert.doesNotMatch(accountSource, /webhook-deliveries|production alert deliveries|retry outcomes/i);
@@ -543,7 +553,7 @@ test("scheduled customer webhooks are deferred while on-demand tests remain supp
   assert.doesNotMatch(stripeWebhookRoute, /enqueueProductionWebhookEvent|sendWebhookTestDelivery|webhook-delivery\.service/);
   assert.doesNotMatch(apiKeySource, /enqueueProductionWebhookEvent|webhook-delivery\.service/);
   assert.doesNotMatch(envSource, /CRON_[A-Z_]+/);
-  assert.doesNotMatch(envExample, /CRON_[A-Z_]+/);
+  assert.match(envExample, /CRON_SECRET/);
   assert.doesNotMatch(validationScript, /CRON_[A-Z_]+|webhook-delivery|worker auth/i);
 });
 
@@ -1490,10 +1500,10 @@ test("supports explicit model list options", async () => {
         );
       }
 
-      return jsonResponse({ embedding: { values: [0.3, 0.4] } });
+      return jsonResponse({ embedding: { values: embeddingVector(0.3, 0.4) } });
     };
 
-    assert.deepEqual(await googleEmbed("query", { models: ["gemini-embedding-001", "gemini-embedding-002"] }), [0.3, 0.4]);
+    assert.deepEqual(await googleEmbed("query", { models: ["gemini-embedding-001", "gemini-embedding-002"] }), embeddingVector(0.3, 0.4));
     assert.deepEqual(calls, ["gemini-embedding-001", "gemini-embedding-002"]);
   } finally {
     globalThis.fetch = originalFetch;
@@ -1528,10 +1538,10 @@ test("tries Gemini embedding keys in the failover order for the configured model
         );
       }
 
-      return jsonResponse({ embedding: { values: [0.1, 0.2] } });
+      return jsonResponse({ embedding: { values: embeddingVector(0.1, 0.2) } });
     };
 
-    assert.deepEqual(await googleEmbed("query"), [0.1, 0.2]);
+    assert.deepEqual(await googleEmbed("query"), embeddingVector(0.1, 0.2));
     assert.deepEqual(calls, [
       { key: "key-1", model: "configured-model" },
       { key: "key-2", model: "configured-model" },
@@ -1569,10 +1579,10 @@ test("dedupes identical Gemini embedding model option attempts", async () => {
         );
       }
 
-      return jsonResponse({ embedding: { values: [0.5, 0.6] } });
+      return jsonResponse({ embedding: { values: embeddingVector(0.5, 0.6) } });
     };
 
-    assert.deepEqual(await googleEmbed("query", { models: ["gemini-embedding-001", "models/gemini-embedding-001"] }), [0.5, 0.6]);
+    assert.deepEqual(await googleEmbed("query", { models: ["gemini-embedding-001", "models/gemini-embedding-001"] }), embeddingVector(0.5, 0.6));
     assert.deepEqual(calls, [
       { key: "key-1", model: "gemini-embedding-001" },
       { key: "key-2", model: "gemini-embedding-001" },
@@ -1625,6 +1635,8 @@ test("classifies exhausted Gemini embedding attempts as rate limit errors", asyn
   try {
     process.env.GOOGLE_API_KEYS = "key-1";
     process.env.GOOGLE_EMBEDDING_MODEL = "primary-model";
+    process.env.RAG_EMBED_RETRY_BASE_MS = "1";
+    process.env.RAG_EMBED_RETRY_MAX_MS = "1";
     console.warn = () => {};
     globalThis.fetch = async () =>
       jsonResponse(
@@ -1701,10 +1713,10 @@ test("uses the matching Gemini model resource for batch embedding requests", asy
       assert(body.requests.every((request) => request.model === "models/primary-model"));
       assert(body.requests.every((request) => request.embedContentConfig?.outputDimensionality === 768));
       assert(body.requests.every((request) => request.outputDimensionality === 768));
-      return jsonResponse({ embeddings: [{ values: [1, 2] }, { values: [3, 4] }] });
+      return jsonResponse({ embeddings: [{ values: embeddingVector(1, 2) }, { values: embeddingVector(3, 4) }] });
     };
 
-    assert.deepEqual(await googleBatchEmbed(["first", "second"]), [[1, 2], [3, 4]]);
+    assert.deepEqual(await googleBatchEmbed(["first", "second"]), [embeddingVector(1, 2), embeddingVector(3, 4)]);
   } finally {
     globalThis.fetch = originalFetch;
     restoreGoogleEnv(snapshot);
@@ -1726,10 +1738,10 @@ test("uses EmbedContentConfig dimensionality for single Gemini embedding request
       assert.equal(body.model, "models/gemini-embedding-001");
       assert.equal(body.embedContentConfig.outputDimensionality, 768);
       assert.equal(body.outputDimensionality, 768);
-      return jsonResponse({ embedding: { values: [0.7, 0.8] } });
+      return jsonResponse({ embedding: { values: embeddingVector(0.7, 0.8) } });
     };
 
-    assert.deepEqual(await googleEmbed("query"), [0.7, 0.8]);
+    assert.deepEqual(await googleEmbed("query"), embeddingVector(0.7, 0.8));
   } finally {
     globalThis.fetch = originalFetch;
     restoreGoogleEnv(snapshot);
@@ -1746,6 +1758,8 @@ test("keeps all batch embedding chunks on the first selected model", async () =>
   try {
     process.env.GOOGLE_API_KEYS = "key-1";
     process.env.GOOGLE_EMBEDDING_MODEL = "primary-model";
+    process.env.RAG_EMBED_RETRY_BASE_MS = "1";
+    process.env.RAG_EMBED_RETRY_MAX_MS = "1";
     console.warn = () => {};
     globalThis.fetch = async (url, options) => {
       const model = String(url).match(/models\/([^:]+):/)?.[1];
@@ -1760,13 +1774,15 @@ test("keeps all batch embedding chunks on the first selected model", async () =>
       }
 
       return jsonResponse({
-        embeddings: body.requests.map((_, index) => ({ values: [index, index + 1] })),
+        embeddings: body.requests.map((_, index) => ({ values: embeddingVector(index, index + 1) })),
       });
     };
 
-    await assert.rejects(() => googleBatchEmbedWithModel(Array.from({ length: 21 }, (_, index) => `chunk ${index}`)));
+    const result = await googleBatchEmbedWithModel(Array.from({ length: 21 }, (_, index) => `chunk ${index}`));
+    assert.equal(result.embeddings.length, 21);
     assert.deepEqual(calls, [
       { model: "primary-model", count: 20 },
+      { model: "primary-model", count: 1 },
       { model: "primary-model", count: 1 },
     ]);
   } finally {
@@ -1977,12 +1993,12 @@ test("request-created data ownership never uses the shared demo metering identit
   assert.match(ingestionService, /user_id: ownerId/);
   assert.match(ingestionService, /credential_type === "demo"/);
   assert.match(ingestionService, /if \(!job\.api_key_id\) return null/);
-  assert.match(ingestionService, /getApiKeyDataOwnerId\(requestKeyData\) === job\.user_id/);
-  assert.match(ingestionService, /requestKeyData\.id === "demo-id"/);
+  assert.match(ingestionService, /getApiKeyDataOwnerId\(input\.keyData\)/);
+  assert.match(ingestionService, /job\.credential_type === "demo"/);
   assert.doesNotMatch(ingestionService, /activeJobQuery\(input\.keyData\.user_id/);
   assert.match(
     readFileSync(resolve(repoRoot, "app/api/rag/ingest/route.ts"), "utf8"),
-    /runIngestionJob\(job\.id, telemetry, keyData\)/
+    /durable worker is advanced by the authenticated polling route/
   );
 });
 
@@ -2216,7 +2232,7 @@ test("AI and repository routes retain grounded, opaque security boundaries", () 
   assert.match(ingestionSource, /await assertPublicRepositoryForRag\(job\.repo_url\)/);
   assert.match(ingestionSource, /return "Repository ingestion failed\. Wait a moment, then retry preparation\."/);
   assert.match(ingestionSource, /reconcileIngestionJob/);
-  assert.match(ingestionSource, /Repository embedding is temporarily unavailable/);
+  assert.match(ingestionSource, /Gemini embedding rate limit reached/);
   assert.doesNotMatch(ingestionSource, /return message \|\| "Repository ingestion failed\."/);
   assert.match(ingestSource, /job\.status === "queued" && !reused/);
   assert.match(ingestSource, /error: "Failed to create ingestion job\."/);
@@ -2224,7 +2240,7 @@ test("AI and repository routes retain grounded, opaque security boundaries", () 
   assert.match(chatSource, /RAG_EVIDENCE_NOT_FOUND/);
   assert.match(chatSource, /reserveApiKeyUsage\(keyData\)/);
   assert.match(summarySource, /reserveApiKeyUsage\(keyData\)/);
-  assert.match(ingestionSource, /reserveApiKeyUsage\(usageKeyData\)/);
+  assert.match(ingestionSource, /reserveApiKeyUsageForIngestionJob\(usageKeyData, job\.id\)/);
   for (const routeSource of [
     summarySource,
     readFileSync(resolve(repoRoot, "app/api/github-metadata/route.ts"), "utf8"),
@@ -2360,7 +2376,7 @@ test("GitHub public quota fallback uses a server token for visibility only", () 
     "await assertPublicRepositoryForRag(job.repo_url)",
   );
   const ingestionTreeRead = ingestionSource.indexOf(
-    "fetchGitHubRepoTree(job.repo_url, branch)",
+    "fetchGitHubRepoTreeSnapshot(job.repo_url, branch)",
   );
   const ingestionContentRead = ingestionSource.indexOf(
     "fetchRawFileContent(job.repo_url, branch, file.path)",

@@ -150,6 +150,7 @@ export function AccountApiKeyEditModal({
               maxLength={100}
               required
               disabled={isSubmitting}
+              spellCheck={false}
               data-autofocus="true"
               className={`h-12 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 text-sm font-medium text-white outline-none transition placeholder:text-zinc-600 disabled:opacity-50 ${fieldFocusClasses}`}
             />

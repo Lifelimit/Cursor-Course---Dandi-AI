@@ -98,9 +98,9 @@ export function buildIndexingLoadingStages({
   const indexedAiStage = getModeLogStatus(indexedRequestLogs, "ai_processing");
   const currentStep = currentIndexStats?.currentStep;
   const isQueued = currentStep === "queued";
-  const isCloning = currentStep === "cloning";
-  const isAnalyzing = currentStep === "analyzing";
-  const isIndexing = currentStep === "indexing";
+  const isCloning = ["cloning", "validating", "fetching_tree"].includes(currentStep || "");
+  const isAnalyzing = ["analyzing", "selecting_files", "fetching_files", "chunking"].includes(currentStep || "");
+  const isIndexing = ["indexing", "embedding", "persisting", "finalizing", "retrying"].includes(currentStep || "");
   const isReady = currentStep === "ready" || ingestStatus === "completed";
   const hasAnalyzed = isIndexing || isReady;
 
@@ -120,19 +120,19 @@ export function buildIndexingLoadingStages({
     {
       id: "index-chunks",
       label: isCloning ? "Reading repository contents" : "Analyzing eligible files",
-      detail: currentIndexStats?.filesCount ? `${indexedFilesLabel} files selected` : "Reading the default branch and selecting text/code files",
+      detail: currentIndexStats?.filesCount ? `${indexedFilesLabel} files selected${currentIndexStats.skippedFileCount ? ` · ${currentIndexStats.skippedFileCount} skipped` : ""}` : "Reading the default branch and selecting text/code files",
       status: hasIndexingFailure ? "error" : isCloning || isAnalyzing ? "active" : hasAnalyzed ? "done" : "idle",
     },
     {
       id: "index-embeddings",
-      label: "Generating embeddings",
-      detail: currentIndexStats?.chunksCount ? `${indexedChunksLabel} chunks prepared` : "Encoding chunks for semantic search",
+      label: currentStep === "retrying" ? "Retrying safely" : "Generating embeddings",
+      detail: currentIndexStats?.retryCount ? `Attempt ${currentIndexStats.retryCount} · ${indexedChunksLabel} chunks persisted` : currentIndexStats?.chunksCount ? `${indexedChunksLabel} chunks prepared` : "Encoding bounded batches for semantic search",
       status: isIndexing ? "active" : isReady ? "done" : hasIndexingFailure && indexedAiStage === "error" ? "error" : "idle",
     },
     {
       id: "index-store",
-      label: "Preparing repository for questions",
-      detail: currentIndexStats?.chunksCount ? `${indexedChunksLabel} searchable chunks` : "Saving chunks and vector index",
+      label: currentStep === "finalizing" ? "Activating repository index" : "Persisting repository index",
+      detail: currentIndexStats?.chunksCount ? `${indexedChunksLabel} searchable chunks; previous index remains available` : "Saving chunks and validating the replacement index",
       status: isReady ? "done" : isIndexing ? "active" : hasIndexingFailure ? "error" : "idle",
     },
     {

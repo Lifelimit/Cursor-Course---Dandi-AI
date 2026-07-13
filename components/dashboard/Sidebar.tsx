@@ -179,7 +179,7 @@ export function Sidebar({
   };
 
   const sidebarPositionClassName = sticky
-    ? "sticky top-3 md:top-12"
+    ? "md:sticky md:top-6 md:max-h-[calc(100dvh-3rem)] md:overflow-x-clip md:overflow-y-auto md:overscroll-y-contain"
     : "static";
 
   return (

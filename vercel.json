@@ -1,1 +1,8 @@
-{}
+{
+  "crons": [
+    {
+      "path": "/api/internal/rag/worker",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

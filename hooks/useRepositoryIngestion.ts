@@ -6,7 +6,7 @@ import { getToastErrorMessage } from "@/lib/error-guidance";
 import type { ApiKey } from "@/types/api";
 import type { IngestionJobSummary, RagMessage } from "@/types/rag";
 
-export type RepositoryIngestStatus = "idle" | "crawling" | "embedding" | "completed" | "error";
+export type RepositoryIngestStatus = "idle" | "crawling" | "embedding" | "retrying" | "completed" | "cancelled" | "error";
 
 export type IndexedRepositoryStats = {
   repoUrl: string;
@@ -23,6 +23,20 @@ export type IndexedRepositoryStats = {
   updatedAt?: string;
   error?: string;
   errorMessage?: string;
+  heartbeatAt?: string | null;
+  leaseExpiresAt?: string | null;
+  retryAt?: string | null;
+  retryCount?: number | null;
+  lastProviderStatus?: number | null;
+  lastErrorCode?: string | null;
+  skippedFileCount?: number | null;
+  failedFileCount?: number | null;
+  preparedChunkCount?: number | null;
+  embeddedChunkCount?: number | null;
+  persistedChunkCount?: number | null;
+  fileCursor?: number | null;
+  chunkCursor?: number | null;
+  totalFiles?: number | null;
 };
 
 type UseRepositoryIngestionOptions = {
@@ -60,6 +74,20 @@ type IngestionResponse = {
   updatedAt?: string;
   error?: string;
   errorMessage?: string;
+  heartbeatAt?: string | null;
+  leaseExpiresAt?: string | null;
+  retryAt?: string | null;
+  retryCount?: number | null;
+  lastProviderStatus?: number | null;
+  lastErrorCode?: string | null;
+  skippedFileCount?: number | null;
+  failedFileCount?: number | null;
+  preparedChunkCount?: number | null;
+  embeddedChunkCount?: number | null;
+  persistedChunkCount?: number | null;
+  fileCursor?: number | null;
+  chunkCursor?: number | null;
+  totalFiles?: number | null;
 };
 
 const waitForTimeout = (ms: number, signal: AbortSignal) => new Promise<void>((resolve, reject) => {
@@ -139,8 +167,10 @@ const updateLogEntries = (entries: LogEntry[], id: string, updates: Partial<LogE
 
 export const toLocalIngestStatus = (job: IngestionJobSummary): RepositoryIngestStatus => {
   if (job.status === "completed") return "completed";
+  if (job.status === "cancelled") return "cancelled";
   if (job.status === "failed") return "error";
-  if (job.currentStep === "indexing") return "embedding";
+  if (job.status === "retrying" || job.currentStep === "retrying") return "retrying";
+  if (["embedding", "persisting", "indexing"].includes(job.currentStep || "")) return "embedding";
   if (job.status === "running" || job.status === "queued") return "crawling";
   return "idle";
 };
@@ -157,7 +187,7 @@ export function selectRestorableIngestionJob(
 const toIngestionJobSummary = (response: IngestionResponse, repoUrl: string): IngestionJobSummary => ({
   jobId: response.jobId || "",
   apiKeyId: response.apiKeyId,
-  status: response.status === "failed" || response.status === "completed" || response.status === "running" ? response.status : "queued",
+  status: ["failed", "completed", "running", "retrying", "cancel_requested", "cancelled"].includes(response.status || "") ? response.status as IngestionJobSummary["status"] : "queued",
   currentStep: response.currentStep as IngestionJobSummary["currentStep"],
   repoUrl,
   error: response.error,
@@ -170,6 +200,20 @@ const toIngestionJobSummary = (response: IngestionResponse, repoUrl: string): In
   completedAt: response.completedAt,
   failedAt: response.failedAt,
   updatedAt: response.updatedAt,
+  heartbeatAt: response.heartbeatAt,
+  leaseExpiresAt: response.leaseExpiresAt,
+  retryAt: response.retryAt,
+  retryCount: response.retryCount,
+  lastProviderStatus: response.lastProviderStatus,
+  lastErrorCode: response.lastErrorCode,
+  skippedFileCount: response.skippedFileCount,
+  failedFileCount: response.failedFileCount,
+  preparedChunkCount: response.preparedChunkCount,
+  embeddedChunkCount: response.embeddedChunkCount,
+  persistedChunkCount: response.persistedChunkCount,
+  fileCursor: response.fileCursor,
+  chunkCursor: response.chunkCursor,
+  totalFiles: response.totalFiles,
 });
 
 const getUnknownErrorMessage = (error: unknown, fallback: string) => {
@@ -190,20 +234,29 @@ async function pollIngestionJobUntilSettled(
   initialJob?: IngestionResponse,
 ) {
   let latestJob = initialJob;
-  for (let attempt = 0; attempt < 90; attempt++) {
+  let attempt = 0;
+  while (!controller.signal.aborted) {
     await waitUntilVisible(controller.signal);
     const pollDelay = getIngestionPollDelay(attempt);
     if (pollDelay > 0) {
       await waitForTimeout(pollDelay, controller.signal);
     }
     await waitUntilVisible(controller.signal);
-    const statusRes = await fetch(`/api/rag/ingest?jobId=${encodeURIComponent(jobId)}`, {
+    const statusRes = await fetch("/api/rag/ingest/advance", {
+      method: "POST",
       headers: { "x-api-key": apiKey },
+      body: JSON.stringify({ jobId }),
       signal: controller.signal,
     });
     const statusData = (await statusRes.json()) as IngestionResponse;
 
     if (!statusRes.ok) {
+      if ([408, 425, 429, 500, 502, 503, 504].includes(statusRes.status)) {
+        const retryAfter = Number(statusRes.headers.get("retry-after"));
+        await waitForTimeout(Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 15_000) : Math.min(10_000, 500 * 2 ** Math.min(attempt, 5)), controller.signal);
+        attempt += 1;
+        continue;
+      }
       throw new Error(statusData.error || "Failed to check ingestion job status.");
     }
 
@@ -214,16 +267,12 @@ async function pollIngestionJobUntilSettled(
       return statusData;
     }
 
-    if (statusData.status === "failed") {
+    if (statusData.status === "failed" || statusData.status === "cancelled") {
       throw new Error(statusData.errorMessage || statusData.error || "Ingestion job failed.");
     }
+    attempt += 1;
   }
-
-  if (latestJob?.status !== "completed") {
-    throw new Error("Ingestion job is still running. Please check again in a moment.");
-  }
-
-  return latestJob;
+  return latestJob ?? { status: "queued" as const };
 }
 
 export function useRepositoryIngestion({
@@ -279,6 +328,20 @@ export function useRepositoryIngestion({
       failedAt: job.failedAt,
       updatedAt: job.updatedAt,
       error: job.errorMessage || job.error || undefined,
+      heartbeatAt: job.heartbeatAt,
+      leaseExpiresAt: job.leaseExpiresAt,
+      retryAt: job.retryAt,
+      retryCount: job.retryCount,
+      lastProviderStatus: job.lastProviderStatus,
+      lastErrorCode: job.lastErrorCode,
+      skippedFileCount: job.skippedFileCount,
+      failedFileCount: job.failedFileCount,
+      preparedChunkCount: job.preparedChunkCount,
+      embeddedChunkCount: job.embeddedChunkCount,
+      persistedChunkCount: job.persistedChunkCount,
+      fileCursor: job.fileCursor,
+      chunkCursor: job.chunkCursor,
+      totalFiles: job.totalFiles,
     });
 
     setIngestStatus(localStatus);
@@ -298,7 +361,7 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
   };
 
   useEffect(() => {
-    if (ingestStatus === "crawling" || ingestStatus === "embedding" || isChatLoading) return;
+    if (ingestStatus === "crawling" || ingestStatus === "embedding" || ingestStatus === "retrying" || isChatLoading) return;
 
     let cancelled = false;
     const controller = new AbortController();
@@ -346,7 +409,7 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
         applyDurableJobState(matchingJob);
 
         if (
-          (matchingJob.status === "queued" || matchingJob.status === "running") &&
+          ["queued", "running", "retrying", "cancel_requested"].includes(matchingJob.status) &&
           matchingJob.jobId &&
           currentApiKey
         ) {
@@ -388,7 +451,7 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
               const errMsg = getUnknownErrorMessage(err, "Ingestion process encountered an error.");
               setErrorMessage(errMsg);
               setIngestStatus("error");
-              setIndexedRepositoryStats((prev) => ({
+              setIndexedRepositoryStats(() => ({
                 repoUrl: matchingJob.repoUrl,
                 jobId: matchingJob.jobId,
                 status: "failed",

@@ -1,0 +1,68 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import test from "node:test";
+
+const root = resolve(process.cwd());
+const read = (file) => readFileSync(resolve(root, file), "utf8");
+
+test("ingestion creation is detached from the request lifecycle", () => {
+  const route = read("app/api/rag/ingest/route.ts");
+  const worker = read("app/api/internal/rag/worker/route.ts");
+  const advance = read("app/api/rag/ingest/advance/route.ts");
+  assert.doesNotMatch(route, /from ['"]next\/server['"].*after|\bafter\(/s);
+  assert.match(route, /durable worker is advanced by the authenticated polling route/);
+  assert.match(worker, /authorization.*Bearer/);
+  assert.match(worker, /maxDuration = 55/);
+  assert.match(advance, /processIngestionJobUnit/);
+  assert.match(advance, /maxDuration = 55/);
+  assert.match(advance, /getIngestionJob/);
+  assert.match(read("vercel.json"), /api\/internal\/rag\/worker/);
+  assert.match(read("vercel.json"), /0 3 \* \* \*/);
+});
+
+test("embedding reliability is bounded and validates the provider contract", () => {
+  const source = read("lib/services/google-gemini.service.ts");
+  assert.match(source, /RAG_EMBED_REQUEST_TIMEOUT_MS/);
+  assert.match(source, /new AbortController\(\)/);
+  assert.match(source, /RAG_EMBED_MAX_ATTEMPTS/);
+  assert.match(source, /retryAfter/);
+  assert.match(source, /Number\.isFinite/);
+  assert.match(source, /values\.length !== EMBEDDING_DIMENSIONS/);
+  assert.match(source, /values\.length !== expectedCount/);
+});
+
+test("worker checkpoints are lease- and index-version-aware", () => {
+  const service = read("lib/services/ingestion-job.service.ts");
+  const migration = read("supabase/migrations/20260713090000_durable_rag_ingestion.sql");
+  assert.match(service, /claimIngestionJob/);
+  assert.match(service, /file_cursor/);
+  assert.match(service, /chunk_cursor/);
+  assert.match(service, /refreshIngestionLock/);
+  assert.match(service, /releaseIngestionLock/);
+  assert.match(service, /upsert\(rows, \{ onConflict: "index_version,file_path,chunk_index,content_hash" \}\)/);
+  assert.match(migration, /repository_index_versions/);
+  assert.match(migration, /activate_repository_index/);
+  assert.match(migration, /heartbeat_at/);
+  assert.match(migration, /lease_expires_at/);
+  assert.match(migration, /quota_reserved/);
+  assert.match(migration, /usage_finalized/);
+});
+
+test("retrieval is limited to the active completed index", () => {
+  const migration = read("supabase/migrations/20260713090000_durable_rag_ingestion.sql");
+  assert.match(migration, /iv\.status = 'active'/);
+  assert.match(migration, /iv\.user_id = p_user_id/);
+  assert.match(migration, /rc\.embedding_model = p_embedding_model/);
+  assert.match(read("app/api/rag/chat/route.ts"), /match_repository_chunks/);
+});
+
+test("polling remains active for retryable and resumable states", () => {
+  const hook = read("hooks/useRepositoryIngestion.ts");
+  assert.match(hook, /while \(!controller\.signal\.aborted\)/);
+  assert.match(hook, /\/api\/rag\/ingest\/advance/);
+  assert.match(hook, /method: "POST"/);
+  assert.match(hook, /"retrying"/);
+  assert.match(hook, /statusData\.status === "cancelled"/);
+  assert.match(hook, /Retry-After|retryAfter/);
+});

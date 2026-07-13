@@ -58,7 +58,7 @@ export function RepositoryRequestBuilder({
   handleIngest,
   handleDemoMode,
 }: RepositoryRequestBuilderProps) {
-  const isIngesting = ingestStatus === "crawling" || ingestStatus === "embedding";
+  const isIngesting = ingestStatus === "crawling" || ingestStatus === "embedding" || ingestStatus === "retrying";
   const ingestingLabel =
     currentStep === "queued"
       ? "Queued..."
@@ -66,8 +66,10 @@ export function RepositoryRequestBuilder({
         ? "Reading Repository..."
         : currentStep === "analyzing"
           ? "Reading README..."
-          : currentStep === "indexing" || ingestStatus === "embedding"
+          : currentStep === "embedding" || currentStep === "persisting" || currentStep === "indexing" || ingestStatus === "embedding"
             ? "Generating Embeddings..."
+            : ingestStatus === "retrying"
+              ? "Retrying safely..."
             : "Preparing Repository...";
 
   return (

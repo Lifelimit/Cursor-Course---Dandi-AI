@@ -54,12 +54,13 @@ function buildRepositoryMetadataPrompt(metadata: ReturnType<typeof buildRagRepos
 
 async function getRepositoryEmbeddingModel(repoUrl: string, userId: string) {
   const { data, error } = await supabaseAdmin
-    .from("repository_chunks")
+    .from("repository_index_versions")
     .select("embedding_model")
     .eq("repo_url", repoUrl)
     .eq("user_id", userId)
+    .eq("status", "active")
     .not("embedding_model", "is", null)
-    .order("created_at", { ascending: false })
+    .order("activated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 

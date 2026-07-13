@@ -302,7 +302,7 @@ export default function PlaygroundClient({
   const hasIndexingAttemptForCurrentRepo = Boolean(githubUrl && indexingAttemptedRepo === githubUrl);
   const hasIndexingFailure = hasIndexingAttemptForCurrentRepo && ingestStatus === "error";
   const shouldShowTopLevelError = Boolean(errorMessage) && !(activeTab === "rag" && hasIndexingFailure);
-  const isIndexingActive = ingestStatus === "crawling" || ingestStatus === "embedding";
+  const isIndexingActive = ingestStatus === "crawling" || ingestStatus === "embedding" || ingestStatus === "retrying";
   const hasSourceEvidence = ragMessages.some((message) => (message.sources?.length || 0) > 0);
   const retrievalAttempted = ragMessages.some((message) => message.sources !== undefined);
   const currentIndexStats = indexedRepositoryStats?.repoUrl === githubUrl ? indexedRepositoryStats : null;
@@ -530,6 +530,7 @@ export default function PlaygroundClient({
                     isIndexingActive={isIndexingActive}
                     summaryLoadingStages={summaryLoadingStages}
                     indexingLoadingStages={indexingLoadingStages}
+                    indexedRepositoryStats={indexedRepositoryStats}
                     showToast={showToast}
                   />
 

@@ -30,6 +30,30 @@ const USAGE_RESERVATION_SCRIPT = `
   return {1, 0, user_next, key_next}
 `;
 
+const INGESTION_USAGE_RESERVATION_SCRIPT = `
+  local user_key = KEYS[1]
+  local key_key = KEYS[2]
+  local reservation_key = KEYS[3]
+  local user_limit = tonumber(ARGV[1])
+  local key_limit = tonumber(ARGV[2])
+  local ttl = tonumber(ARGV[3])
+
+  local existing = redis.call("GET", reservation_key)
+  if existing == "1" then
+    return {1, 0, tonumber(redis.call("GET", user_key) or "0"), tonumber(redis.call("GET", key_key) or "0"), 1}
+  end
+  local user_current = tonumber(redis.call("GET", user_key) or "0")
+  local key_current = tonumber(redis.call("GET", key_key) or "0")
+  if user_limit >= 0 and user_current >= user_limit then return {0, 1, user_current, key_current, 0} end
+  if key_limit >= 0 and key_current >= key_limit then return {0, 2, user_current, key_current, 0} end
+  local user_next = redis.call("INCR", user_key)
+  local key_next = redis.call("INCR", key_key)
+  redis.call("EXPIRE", user_key, ttl)
+  redis.call("EXPIRE", key_key, ttl)
+  redis.call("SET", reservation_key, "1", "EX", ttl)
+  return {1, 0, user_next, key_next, 0}
+`;
+
 export type ApiKeyQuotaErrorCode = "key_limit" | "plan_limit" | "unavailable";
 
 export class ApiKeyQuotaError extends Error {
@@ -231,6 +255,33 @@ export async function reserveApiKeyUsage(
   } catch (error) {
     if (error instanceof ApiKeyQuotaError) throw error;
     console.error("Redis was unavailable during atomic usage reservation; blocking the request.");
+    throw new ApiKeyQuotaError("unavailable");
+  }
+}
+
+/** Reserve ingestion quota exactly once for a durable job, including after worker retries. */
+export async function reserveApiKeyUsageForIngestionJob(keyData: ValidatedApiKeyData, jobId: string): Promise<ApiKeyQuotaReservation> {
+  const now = new Date();
+  const currentMonth = getUsagePeriod(now).key;
+  const isDemoKey = keyData.id === "demo-id";
+  const userId = isDemoKey ? "demo" : keyData.user_id;
+  const userLimit = isDemoKey ? null : resolvePlan(keyData.plan).monthlyRequests;
+  const keyLimit = isDemoKey ? 1000 : keyData.monthly_limit ?? userLimit;
+  const ttlSeconds = getUsageCounterTtlSeconds(now);
+  const reservationKey = `usage:ingestion:${jobId}:${currentMonth}`;
+  try {
+    const result = await redis.eval(INGESTION_USAGE_RESERVATION_SCRIPT, [`usage:user:${userId}:${currentMonth}`, `usage:key:${keyData.id}:${currentMonth}`, reservationKey], [String(userLimit ?? -1), String(keyLimit ?? -1), String(ttlSeconds)]) as unknown;
+    const values = Array.isArray(result) ? result.map(Number) : [];
+    const [reserved, reason, userUsage, keyUsage] = values;
+    if (values.length < 4 || reserved !== 1 || !Number.isFinite(userUsage) || !Number.isFinite(keyUsage)) {
+      if (reserved === 0) throw new ApiKeyQuotaError(reason === 1 ? "plan_limit" : "key_limit");
+      throw new ApiKeyQuotaError("unavailable");
+    }
+    keyData.usage_count = keyUsage;
+    return { userUsage, keyUsage };
+  } catch (error) {
+    if (error instanceof ApiKeyQuotaError) throw error;
+    console.error("Redis was unavailable during durable ingestion quota reservation; blocking the worker.");
     throw new ApiKeyQuotaError("unavailable");
   }
 }

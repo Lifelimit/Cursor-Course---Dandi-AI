@@ -74,6 +74,15 @@ const requiredRuntimeSchema = {
     "ON DELETE SET NULL",
     "idx_api_usage_log_used_at",
   ],
+  "20260713090000_durable_rag_ingestion.sql": [
+    "repository_index_versions",
+    "activate_repository_index",
+    "synthetic active versions",
+    "heartbeat_at",
+    "lease_expires_at",
+    "quota_reserved",
+    "usage_finalized",
+  ],
   "20260712204401_atomic_stripe_webhook_downgrade.sql": [
     "apply_stripe_hobby_downgrade",
     "Selected API key ownership mismatch",

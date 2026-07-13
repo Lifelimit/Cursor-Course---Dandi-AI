@@ -165,6 +165,8 @@ Fill in `.env.local` using `.env.example` as the reference. Required groups:
 | Stripe secret, webhook secret, publishable key, price IDs | Billing and checkout |
 | Upstash Redis URL and token | Quotas and rate limits |
 | `GOOGLE_API_KEYS` | Embeddings and generation |
+| `CRON_SECRET` | Vercel Cron authentication for the bounded ingestion worker |
+| `RAG_WORKER_SECRET` | Optional separate secret for manually invoking the worker |
 
 Optional integrations:
 
@@ -178,6 +180,12 @@ CI and local `yarn ci:check` use mock values from `scripts/validate.sh`; they do
 ### Database
 
 Apply migrations from `supabase/migrations/` to your Supabase project before using dashboard, billing, usage, or RAG flows.
+
+### RAG ingestion worker
+
+Repository preparation is resumable: the ingest request creates a job, and the authenticated browser polling request advances one bounded file/chunk worker slice at a time. This keeps the flow usable on Vercel Hobby, where the protected Vercel Cron recovery sweep runs daily at 03:00 UTC. Configure `CRON_SECRET` (or the optional `RAG_WORKER_SECRET`) in the deployment and apply `20260713090000_durable_rag_ingestion.sql`. Optional timeout, retry, batch, repository-limit, and worker-budget settings are documented in `.env.example`.
+
+Run `node scripts/rag-readiness.mjs` for read-only provider, Supabase, retrieval-RPC, and Redis checks. Add `--mutate` only when a temporary vector insert/activate/retrieve/cleanup probe is acceptable in the target environment.
 
 ### Run and validate
 

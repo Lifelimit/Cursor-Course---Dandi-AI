@@ -172,9 +172,9 @@ export function buildRagProcessingSteps({
 }): PipelineFlowStep[] {
   const currentIngestionStep = currentIndexStats?.currentStep;
   const isQueued = currentIngestionStep === "queued";
-  const isCloning = currentIngestionStep === "cloning";
-  const isAnalyzing = currentIngestionStep === "analyzing";
-  const isIndexing = currentIngestionStep === "indexing";
+  const isCloning = ["cloning", "validating", "fetching_tree"].includes(currentIngestionStep || "");
+  const isAnalyzing = ["analyzing", "selecting_files", "fetching_files", "chunking"].includes(currentIngestionStep || "");
+  const isIndexing = ["indexing", "embedding", "persisting", "finalizing", "retrying"].includes(currentIngestionStep || "");
   const isReady = currentIngestionStep === "ready" || ingestStatus === "completed";
 
   return [
@@ -204,12 +204,12 @@ export function buildRagProcessingSteps({
     },
     {
       id: "rag-index",
-      label: isCloning ? "Cloning" : isAnalyzing ? "Analyzing" : "Indexing",
+      label: isCloning ? "Fetching tree" : isAnalyzing ? "Selecting files" : currentIngestionStep === "retrying" ? "Retrying" : "Indexing",
       sublabel: isCloning
         ? "Read branch and repository tree"
         : isAnalyzing
           ? "Select files and create chunks"
-          : "Embed chunks and store vectors",
+          : currentIngestionStep === "retrying" ? "Recovering from the durable checkpoint" : "Embed bounded batches and persist vectors",
       status: isIndexing || isCloning || isAnalyzing ? "active" : isReady ? "done" : hasIndexingFailure ? "error" : "idle",
     },
     {
@@ -249,8 +249,8 @@ export function buildLifecycleSteps({
   indexedChunksLabel: string;
 }): PipelineFlowStep[] {
   const currentIngestionStep = currentIndexStats?.currentStep;
-  const reachedAnalyzing = ["analyzing", "indexing", "ready"].includes(currentIngestionStep || "") || ingestStatus === "completed";
-  const reachedIndexing = ["indexing", "ready"].includes(currentIngestionStep || "") || ingestStatus === "completed";
+  const reachedAnalyzing = ["analyzing", "selecting_files", "fetching_files", "chunking", "indexing", "embedding", "persisting", "finalizing", "retrying", "ready"].includes(currentIngestionStep || "") || ingestStatus === "completed";
+  const reachedIndexing = ["indexing", "embedding", "persisting", "finalizing", "retrying", "ready"].includes(currentIngestionStep || "") || ingestStatus === "completed";
 
   return [
     {
@@ -265,7 +265,7 @@ export function buildLifecycleSteps({
       sublabel: activeTab === "summary" ? "Fetching public GitHub metadata" : "Starting repository ingestion job",
       status: activeTab === "summary"
         ? getPipelineStatus(requestLogs, "repo_fetch")
-        : currentIngestionStep === "cloning"
+        : ["cloning", "validating", "fetching_tree"].includes(currentIngestionStep || "")
           ? "active"
           : reachedAnalyzing
             ? "done"
@@ -277,7 +277,7 @@ export function buildLifecycleSteps({
       sublabel: activeTab === "summary" ? "Reading repository context for the summary" : "Selecting eligible files for chunks",
       status: activeTab === "summary"
         ? getPipelineStatus(requestLogs, "ai_processing")
-        : currentIngestionStep === "analyzing"
+        : ["analyzing", "selecting_files", "fetching_files", "chunking"].includes(currentIngestionStep || "")
           ? "active"
           : reachedIndexing
             ? "done"
@@ -296,10 +296,10 @@ export function buildLifecycleSteps({
       label: "Indexing",
       sublabel: activeTab === "summary"
         ? "Summary mode does not index repositories"
-        : currentIndexStats?.status === "completed" ? `${indexedFilesLabel} files / ${indexedChunksLabel} chunks` : currentIngestionStep === "indexing" || ingestStatus === "embedding" ? "Creating searchable chunks" : "Index a repository once to ask source-backed questions",
+        : currentIndexStats?.status === "completed" ? `${indexedFilesLabel} files / ${indexedChunksLabel} chunks` : ["indexing", "embedding", "persisting", "finalizing", "retrying"].includes(currentIngestionStep || "") || ingestStatus === "embedding" || ingestStatus === "retrying" ? currentIngestionStep === "retrying" ? "Retrying from the durable checkpoint" : "Creating searchable chunks" : "Index a repository once to ask source-backed questions",
       status: activeTab === "summary"
         ? "idle"
-        : currentIngestionStep === "ready" || ingestStatus === "completed" && currentIndexStats?.status === "completed" ? "done" : currentIngestionStep === "indexing" || ingestStatus === "embedding" ? "active" : hasIndexingFailure ? "error" : "idle",
+        : currentIngestionStep === "ready" || ingestStatus === "completed" && currentIndexStats?.status === "completed" ? "done" : ["indexing", "embedding", "persisting", "finalizing", "retrying"].includes(currentIngestionStep || "") || ingestStatus === "embedding" || ingestStatus === "retrying" ? "active" : hasIndexingFailure ? "error" : "idle",
     },
     {
       id: "lifecycle-ready",

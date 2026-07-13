@@ -288,7 +288,13 @@ export async function fetchGitHubBranch(githubUrl: string, token?: string): Prom
 /**
  * Recursively fetches a repository file tree
  */
-export async function fetchGitHubRepoTree(githubUrl: string, branch: string, token?: string): Promise<{ path: string; size: number }[]> {
+export type GitHubRepoTreeSnapshot = {
+  files: { path: string; size: number }[];
+  commitSha: string | null;
+  truncated: boolean;
+};
+
+export async function fetchGitHubRepoTreeSnapshot(githubUrl: string, branch: string, token?: string): Promise<GitHubRepoTreeSnapshot> {
   const { owner, repo } = getGitHubRepositoryParts(githubUrl);
 
   const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, {
@@ -300,7 +306,7 @@ export async function fetchGitHubRepoTree(githubUrl: string, branch: string, tok
   }
 
   const data = await response.json();
-  if (!data.tree) return [];
+  if (!data.tree) return { files: [], commitSha: typeof data.sha === "string" ? data.sha : null, truncated: Boolean(data.truncated) };
 
   // Allowed code & documentation text extensions
   const textExtensions = [
@@ -320,7 +326,7 @@ export async function fetchGitHubRepoTree(githubUrl: string, branch: string, tok
     size?: number;
   }
 
-  return (data.tree as GitHubTreeItem[])
+  const files = (data.tree as GitHubTreeItem[])
     .filter((item: GitHubTreeItem) => {
       if (item.type !== "blob") return false;
       const pathLower = item.path.toLowerCase();
@@ -333,6 +339,16 @@ export async function fetchGitHubRepoTree(githubUrl: string, branch: string, tok
       path: item.path,
       size: item.size || 0
     }));
+
+  return {
+    files,
+    commitSha: typeof data.sha === "string" ? data.sha : null,
+    truncated: Boolean(data.truncated),
+  };
+}
+
+export async function fetchGitHubRepoTree(githubUrl: string, branch: string, token?: string): Promise<{ path: string; size: number }[]> {
+  return (await fetchGitHubRepoTreeSnapshot(githubUrl, branch, token)).files;
 }
 
 /**
