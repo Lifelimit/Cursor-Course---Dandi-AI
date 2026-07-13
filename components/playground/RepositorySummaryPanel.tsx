@@ -138,10 +138,12 @@ export function RepositorySummaryPanel({
                       <span className="text-zinc-400">⚖</span>
                       <span>{repoMetadata.license}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 select-none">
-                      <span className="text-emerald-500 dark:text-emerald-400 font-serif lowercase italic">v</span>
-                      <span>{repoMetadata.version}</span>
-                    </div>
+                    {repoMetadata.version !== "Unknown" && (
+                      <div className="flex items-center gap-1.5 rounded-full border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 select-none">
+                        <span className="text-emerald-500 dark:text-emerald-400 font-serif lowercase italic">v</span>
+                        <span>{repoMetadata.version}</span>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
