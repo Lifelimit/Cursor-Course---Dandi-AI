@@ -26,6 +26,7 @@ test("authenticated docs use dashboard chrome while public docs keep public chro
 
   assert.match(docs, /const ContentRoot: "main" \| "div" = initialSession \? "div" : "main"/);
   assert.match(authenticatedBranch, /<AuthenticatedDocsShell/);
+  assert.match(docs, /sticky: false,/);
   assert.match(docs, /<DashboardShell/);
   assert.match(authenticatedBranch, /\{docsWorkspace\}/);
   assert.doesNotMatch(authenticatedBranch, /<Navbar|<Footer/);

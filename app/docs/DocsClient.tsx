@@ -169,6 +169,7 @@ function AuthenticatedDocsShell({ session, initialKeys, initialPlan, children }:
         isUnlimited,
         alerts,
         onUpdate: refreshKeys,
+        sticky: false,
       }}
     >
       {children}
