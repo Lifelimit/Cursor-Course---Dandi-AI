@@ -12,6 +12,8 @@ export type ModalFrameProps = {
   titleId?: string;
   className?: string;
   centered?: boolean;
+  /** Pin modal height and let children manage internal scrolling. */
+  contained?: boolean;
 };
 
 const sizeClasses: Record<NonNullable<ModalFrameProps["size"]>, string> = {
@@ -38,6 +40,7 @@ export function ModalFrame({
   titleId,
   className,
   centered = true,
+  contained = false,
 }: ModalFrameProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -143,8 +146,9 @@ export function ModalFrame({
         aria-labelledby={titleId || undefined}
         tabIndex={-1}
         className={cx(
-          "dandi-surface-elevated dandi-intensity-elevated my-3 w-full overflow-y-auto rounded-[24px] border p-5 text-[var(--command-text)] outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:p-8 md:rounded-[28px]",
+          "dandi-surface-elevated dandi-intensity-elevated my-3 w-full rounded-[24px] border p-5 text-[var(--command-text)] outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:my-0 sm:max-h-[calc(100dvh-3rem)] sm:p-8 md:rounded-[28px]",
           "max-h-[calc(100dvh-1.5rem)]",
+          contained ? "flex flex-col overflow-hidden" : "overflow-y-auto",
           sizeClasses[size],
           className,
         )}
