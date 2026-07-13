@@ -505,11 +505,13 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
 
   const modalSize = isInitializing
     ? "sm"
-    : (view === "update-payment" || view === "success" || view === "plan-change-review")
+    : (view === "update-payment" || view === "success")
     ? "xl"
-    : (view === "key-downgrade-selector" || view === "cancel-confirm")
+    : (view === "plan-change-review" || view === "key-downgrade-selector" || view === "cancel-confirm")
     ? "lg"
     : "md";
+
+  const isEmeraldHeader = view === "key-downgrade-selector" || view === "plan-change-review";
 
   return (
     <ModalFrame
@@ -525,16 +527,16 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
           <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-slate-500 text-center">Checking Plan Limits...</p>
         </div>
       ) : (
-        <div key={view} className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-500 sm:max-h-[calc(100dvh-3rem)]">
-          {/* Adaptive Header: rose for destructive, emerald for key allocation, slate for other flows */}
-          <div className={`relative overflow-hidden border-b p-6 transition-all duration-300 sm:p-8 ${
+        <div key={view} className="flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 sm:max-h-[calc(100dvh-3rem)]">
+          {/* Adaptive Header: rose for destructive, emerald for plan management, slate for other flows */}
+          <div className={`relative shrink-0 overflow-hidden border-b p-5 transition-all duration-300 sm:p-6 ${
             view === "cancel-confirm" || view === "remove-card-confirm"
               ? "border-white/5 bg-rose-950/40 text-white"
-              : view === "key-downgrade-selector"
+              : isEmeraldHeader
               ? "border-emerald-300/15 bg-[radial-gradient(circle_at_82%_0%,rgba(52,211,153,0.14),transparent_32%),linear-gradient(135deg,rgba(7,19,27,0.98),rgba(5,11,20,0.92))] text-white shadow-[inset_0_-1px_0_rgba(52,211,153,0.08)]"
               : "border-white/5 bg-slate-950 text-white"
           }`}>
-            {view === "key-downgrade-selector" && (
+            {isEmeraldHeader && (
               <>
                 <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(52,211,153,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(52,211,153,0.12)_1px,transparent_1px)] [background-size:24px_24px] [mask-image:linear-gradient(120deg,black,transparent_72%)]" />
                 <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-emerald-300/10 blur-[80px]" />
@@ -547,11 +549,13 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
 
             <div className="relative z-10 space-y-2 pr-12 sm:pr-14">
               <p className={`font-mono text-[10px] font-bold uppercase tracking-[0.22em] ${
-                view === "key-downgrade-selector" ? "text-emerald-300/70" : "text-white/45"
+                isEmeraldHeader ? "text-emerald-300/70" : "text-white/45"
               }`}>
                 {view === "overview" ? "Subscription" : view === "change-plan" ? "Select New Plan" : view === "update-payment" ? (pendingPlan ? (PLAN_RANKS[pendingPlan as keyof typeof PLAN_RANKS] > PLAN_RANKS[planName as keyof typeof PLAN_RANKS] ? "Complete Upgrade" : "Complete Downgrade") : "Billing Details") : view === "success" ? "Billing Result" : view === "plan-change-review" ? "Review Plan Change" : view === "remove-card-confirm" ? "Confirm Removal" : view === "key-downgrade-selector" ? "Hobby Plan Limit" : "Confirm Cancellation"}
               </p>
-              <h3 id="subscription-modal-title" className="font-serif text-3xl font-bold italic tracking-tight text-white sm:text-5xl">
+              <h3 id="subscription-modal-title" className={`font-serif font-bold italic tracking-tight text-white ${
+                view === "plan-change-review" ? "text-3xl sm:text-4xl" : "text-3xl sm:text-5xl"
+              }`}>
                 {view === "overview" ? planName : view === "change-plan" ? "Choose a Plan" : view === "update-payment" ? (pendingPlan ? "Payment Details" : "Payment Info") : view === "success" ? "Stripe Update" : view === "plan-change-review" ? "Confirm Switch" : view === "remove-card-confirm" ? "Remove Card?" : view === "key-downgrade-selector" ? "Select Keys" : "Cancel Plan?"}
               </h3>
             </div>
@@ -565,7 +569,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
           </div>
 
           {/* Body Section */}
-          <div className="p-5 sm:p-8">
+          <div className={`min-h-0 flex-1 overflow-y-auto ${view === "plan-change-review" ? "p-4 sm:p-5" : "p-5 sm:p-8"}`}>
             {view === "change-plan" ? (
               <PlanSelection
                 planName={planName}
