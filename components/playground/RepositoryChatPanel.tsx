@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, FormEventHandler, ReactNode, RefObject, SetStateAction } from "react";
 import { isLightweightGreeting } from "@/hooks/useRepositoryChat";
 import type { IndexedRepositoryStats } from "@/hooks/useRepositoryIngestion";
@@ -11,7 +11,6 @@ import type { RagMessage, RagSource } from "@/types/rag";
 
 type RepositoryChatPanelProps = {
   repositoryChatRef: RefObject<HTMLDivElement | null>;
-  chatBottomRef: RefObject<HTMLDivElement | null>;
   githubUrl: string;
   currentIndexStats: IndexedRepositoryStats | null;
   ragMessages: RagMessage[];
@@ -365,7 +364,6 @@ function renderMessageContent(content: string, showToast: (type: "success" | "er
 
 export function RepositoryChatPanel({
   repositoryChatRef,
-  chatBottomRef,
   githubUrl,
   currentIndexStats,
   ragMessages,
@@ -382,6 +380,27 @@ export function RepositoryChatPanel({
 }: RepositoryChatPanelProps) {
   const [completionAnnouncement, setCompletionAnnouncement] = useState("");
   const completionPendingRef = useRef(false);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollMessagesToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
+    const container = messagesScrollRef.current;
+    if (!container) return;
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: prefersReducedMotion ? "auto" : behavior,
+    });
+  }, []);
+
+  const lastMessageContentLength = ragMessages.at(-1)?.content?.length ?? 0;
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      scrollMessagesToBottom(isChatLoading ? "auto" : "smooth");
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isChatLoading, lastMessageContentLength, ragMessages.length, scrollMessagesToBottom]);
 
   useEffect(() => {
     let active = true;
@@ -425,12 +444,6 @@ export function RepositoryChatPanel({
     return turns;
   }, []);
   const hasConversationTurns = conversationTurns.length > 0;
-
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7671/ingest/3fcf3f8a-0cf3-4f66-82c0-0331514c5fd4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b41609'},body:JSON.stringify({sessionId:'b41609',location:'RepositoryChatPanel.tsx:layout',message:'conversation layout state',data:{hasConversationTurns,turnCount:conversationTurns.length,visibleMessageCount:visibleRagMessages.length,isChatLoading,quickPromptsVisible:!hasConversationTurns},timestamp:Date.now(),hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
-  }, [conversationTurns.length, hasConversationTurns, isChatLoading, visibleRagMessages.length]);
 
   return (
     <div ref={repositoryChatRef} className="space-y-6 scroll-mt-24 animate-in fade-in slide-in-from-bottom-4 duration-700" aria-label="Result plane">
@@ -490,7 +503,10 @@ export function RepositoryChatPanel({
           </div>
         </div>
 
-        <div className="mb-4 flex-1 space-y-6 overflow-y-auto rounded-[28px] border border-[var(--command-border)] bg-[var(--command-bg)]/35 p-3 pr-2 scroll-smooth sm:max-h-[620px] sm:min-h-[420px] sm:p-5">
+        <div
+          ref={messagesScrollRef}
+          className="mb-4 flex-1 space-y-6 overflow-y-auto rounded-[28px] border border-[var(--command-border)] bg-[var(--command-bg)]/35 p-3 pr-2 scroll-smooth sm:max-h-[620px] sm:min-h-[420px] sm:p-5"
+        >
           {!hasConversationTurns ? (
             <div className="rounded-3xl border border-[var(--command-border)] bg-slate-950/55 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-7">
               <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -662,7 +678,6 @@ export function RepositoryChatPanel({
               );
             })
           )}
-          <div ref={chatBottomRef} className="scroll-mt-24" />
         </div>
 
         {!hasConversationTurns && (

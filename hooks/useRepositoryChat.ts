@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { User } from "@supabase/supabase-js";
 import type { LogEntry } from "@/components/playground/NetworkLog";
 import { getErrorGuidance, getToastErrorMessage } from "@/lib/error-guidance";
@@ -25,7 +25,6 @@ type UseRepositoryChatOptions = {
   setErrorMessage: (message: string) => void;
   setIndexedLogState: (id: string, updates: Partial<LogEntry>) => void;
   getRepoPath: (url: string) => string;
-  scrollToSection: (target: RefObject<HTMLElement | null>) => void;
   showToast: (type: "success" | "error", message: string) => void;
 };
 
@@ -55,7 +54,6 @@ export function useRepositoryChat({
   setErrorMessage,
   setIndexedLogState,
   getRepoPath,
-  scrollToSection,
   showToast,
 }: UseRepositoryChatOptions) {
   const [ragMessages, setRagMessages] = useState<RagMessage[]>([]);
@@ -63,7 +61,6 @@ export function useRepositoryChat({
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [chatProgressStep, setChatProgressStep] = useState<ChatProgressStep>("idle");
   const repositoryChatRef = useRef<HTMLDivElement>(null);
-  const chatBottomRef = useRef<HTMLDivElement>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
   const askedRepositoryTrackedRef = useRef(
@@ -113,10 +110,6 @@ export function useRepositoryChat({
 
     const newMessages = [...ragMessages, { role: "user" as const, content: userMsg }];
     setRagMessages(newMessages);
-    // #region agent log
-    fetch('http://127.0.0.1:7671/ingest/3fcf3f8a-0cf3-4f66-82c0-0331514c5fd4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b41609'},body:JSON.stringify({sessionId:'b41609',location:'useRepositoryChat.ts:submit',message:'scroll targets on submit',data:{userMsgCount:newMessages.filter((m)=>m.role==='user').length,scrollToPanelTop:true,scrollToBottomNext:true},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
-    scrollToSection(repositoryChatRef);
 
     if (isLightweightGreeting(userMsg)) {
       await sleep(180);
@@ -128,17 +121,12 @@ export function useRepositoryChat({
           content: `Hi — ask me anything about **${getRepoPath(githubUrl)}**.`,
         },
       ]);
-      scrollToSection(chatBottomRef);
       setIsChatLoading(false);
       setChatProgressStep("idle");
       return;
     }
 
     setRagMessages((prev) => [...prev, { role: "assistant" as const, content: "" }]);
-    // #region agent log
-    fetch('http://127.0.0.1:7671/ingest/3fcf3f8a-0cf3-4f66-82c0-0331514c5fd4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b41609'},body:JSON.stringify({sessionId:'b41609',location:'useRepositoryChat.ts:assistant-placeholder',message:'scroll to chat bottom',data:{ragMessageCount:newMessages.length+1},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
-    scrollToSection(chatBottomRef);
 
     const startTime = getPerformanceNow();
     const maskedKey = "$DANDI_API_KEY";
@@ -185,7 +173,7 @@ export function useRepositoryChat({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({})) as { error?: string };
+        const errorData = await response.json().catch(() => ({})) as { error?: string; code?: string };
         setIndexedLogState("auth", {
           status: response.status === 401 || response.status === 403 ? "error" : "success",
           statusText: response.status === 401 || response.status === 403 ? "Rejected by API" : "Request reached API",
@@ -200,7 +188,10 @@ export function useRepositoryChat({
           responseHeaders: { "Content-Type": response.headers.get("content-type") || "application/json" },
           responseBody: errorData,
         });
-        throw new Error(errorData.error || "Repository question request failed.");
+        const chatError = new Error(errorData.error || "Repository question request failed.") as Error & { code?: string; status?: number };
+        chatError.code = errorData.code;
+        chatError.status = response.status;
+        throw chatError;
       }
 
       setIndexedLogState("auth", {
@@ -307,7 +298,9 @@ export function useRepositoryChat({
       setRagMessages((prev) => {
         const updated = [...prev];
         if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
-          const guidance = getErrorGuidance({ workflow: "repository-chat", message: errMsg });
+          const errCode = typeof err === "object" && err !== null && "code" in err ? String((err as { code?: unknown }).code || "") : undefined;
+          const errStatus = typeof err === "object" && err !== null && "status" in err ? Number((err as { status?: unknown }).status) : undefined;
+          const guidance = getErrorGuidance({ workflow: "repository-chat", message: errMsg, status: errStatus, code: errCode });
           updated[updated.length - 1] = {
             role: "assistant",
             content: `**${guidance.title}**\n\n${guidance.explanation}\n\n${guidance.nextAction}`,
@@ -315,7 +308,9 @@ export function useRepositoryChat({
         }
         return updated;
       });
-      showToast("error", getToastErrorMessage("repository-chat", errMsg));
+      const errCode = typeof err === "object" && err !== null && "code" in err ? String((err as { code?: unknown }).code || "") : undefined;
+      const errStatus = typeof err === "object" && err !== null && "status" in err ? Number((err as { status?: unknown }).status) : undefined;
+      showToast("error", getToastErrorMessage("repository-chat", errMsg, errStatus, errCode));
     } finally {
       if (requestControllerRef.current === controller) {
         requestControllerRef.current = null;
@@ -346,7 +341,6 @@ export function useRepositoryChat({
     isChatLoading,
     chatProgressStep,
     repositoryChatRef,
-    chatBottomRef,
     handleChatSubmit,
     resetChatHistoryToReadyMessage,
   };

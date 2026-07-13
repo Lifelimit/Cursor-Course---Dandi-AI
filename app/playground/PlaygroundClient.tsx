@@ -144,15 +144,11 @@ export default function PlaygroundClient({
       const element = target.current;
       if (!element) return;
 
-      const scrollYBefore = window.scrollY;
       const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       element.scrollIntoView({
         behavior: prefersReducedMotion ? "auto" : "smooth",
         block: "start",
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7671/ingest/3fcf3f8a-0cf3-4f66-82c0-0331514c5fd4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b41609'},body:JSON.stringify({sessionId:'b41609',location:'PlaygroundClient.tsx:scrollToSection',message:'scrollIntoView executed',data:{targetId:element.id||element.getAttribute('aria-label')||'unnamed',scrollYBefore,elementTop:element.getBoundingClientRect().top+scrollYBefore,behavior:prefersReducedMotion?'auto':'smooth'},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
     });
   };
 
@@ -184,7 +180,6 @@ export default function PlaygroundClient({
     isChatLoading,
     chatProgressStep,
     repositoryChatRef,
-    chatBottomRef,
     handleChatSubmit,
     resetChatHistoryToReadyMessage,
   } = useRepositoryChat({
@@ -195,7 +190,6 @@ export default function PlaygroundClient({
     setErrorMessage,
     setIndexedLogState: (id, updates) => indexedLogSetterRef.current(id, updates),
     getRepoPath,
-    scrollToSection,
     showToast,
   });
 
@@ -478,7 +472,6 @@ export default function PlaygroundClient({
               {activeTab === "rag" && ingestedRepo === githubUrl && ingestStatus === "completed" ? (
                 <RepositoryChatPanel
                   repositoryChatRef={repositoryChatRef}
-                  chatBottomRef={chatBottomRef}
                   githubUrl={githubUrl}
                   currentIndexStats={currentIndexStats}
                   ragMessages={ragMessages}

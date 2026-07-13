@@ -17,6 +17,7 @@ type GuidanceInput = {
   workflow: ErrorWorkflow;
   message?: string | null;
   status?: number;
+  code?: string | null;
 };
 
 const technicalPattern = /(supabase|database|rpc|pgvector|gemini|stripe|redis|schema|json|hnsw|internal server|server error|failed to fetch|network|timeout|unauthorized|invalid api key|limit exceeded|rate limit|quota|repository|github|webhook|password|email)/i;
@@ -25,8 +26,35 @@ export function isLikelyTechnicalError(message?: string | null) {
   return Boolean(message && technicalPattern.test(message));
 }
 
-export function classifyError(message?: string | null, status?: number): ErrorCategory {
+export function classifyError(message?: string | null, status?: number, code?: string | null): ErrorCategory {
   const lower = (message || "").toLowerCase();
+  const normalizedCode = (code || "").toUpperCase();
+
+  if (
+    normalizedCode === "RAG_EVIDENCE_NOT_FOUND" ||
+    lower.includes("no relevant prepared repository evidence") ||
+    lower.includes("refine the question or prepare the repository again")
+  ) {
+    return "Indexing";
+  }
+
+  if (
+    normalizedCode === "RAG_RETRIEVAL_UNAVAILABLE" ||
+    lower.includes("repository evidence is temporarily unavailable")
+  ) {
+    return "Internal server";
+  }
+
+  if (
+    normalizedCode === "GITHUB_PUBLIC_REPOSITORY_REQUIRED" ||
+    normalizedCode === "GITHUB_PUBLIC_REPOSITORY_CHECK_UNAVAILABLE" ||
+    lower.includes("supports public repositories only") ||
+    lower.includes("could not verify that this repository is public") ||
+    lower.includes("could not read the repository file tree") ||
+    lower.includes("could not read queryable repository content")
+  ) {
+    return "Repository access";
+  }
 
   if (status === 401 || status === 403 || lower.includes("unauthorized") || lower.includes("invalid api key") || lower.includes("auth")) {
     return "Authentication";
@@ -34,10 +62,13 @@ export function classifyError(message?: string | null, status?: number): ErrorCa
   if (status === 429 || lower.includes("quota") || lower.includes("limit exceeded") || lower.includes("rate limit") || lower.includes("too many requests")) {
     return "Quota";
   }
-  if (lower.includes("github") || lower.includes("repository") || lower.includes("repo") || lower.includes("not found")) {
+  if (lower.includes("ingest") || lower.includes("index") || lower.includes("embedding") || lower.includes("chunk") || lower.includes("pgvector") || lower.includes("prepare")) {
+    return "Indexing";
+  }
+  if (lower.includes("github") || lower.includes("not found")) {
     return "Repository access";
   }
-  if (lower.includes("ingest") || lower.includes("index") || lower.includes("embedding") || lower.includes("chunk") || lower.includes("pgvector")) {
+  if (lower.includes("repository") || lower.includes("repo")) {
     return "Indexing";
   }
   if (lower.includes("gemini") || lower.includes("ai") || lower.includes("stream") || lower.includes("model")) {
@@ -167,10 +198,11 @@ function getBillingToastAction(message?: string | null, status?: number) {
   return null;
 }
 
-export function getErrorGuidance({ workflow, message, status }: GuidanceInput): GuidedErrorCopy {
+export function getErrorGuidance({ workflow, message, status, code }: GuidanceInput): GuidedErrorCopy {
   const base = workflowDefaults[workflow];
-  const category = classifyError(message, status);
+  const category = classifyError(message, status, code);
   const lower = (message || "").toLowerCase();
+  const normalizedCode = (code || "").toUpperCase();
 
   if (category === "Quota") {
     return {
@@ -202,6 +234,37 @@ export function getErrorGuidance({ workflow, message, status }: GuidanceInput): 
       explanation: "Dandi could not read the repository for this workflow.",
       nextAction: "Confirm the GitHub URL is correct and reachable, then retry.",
       possibleCauses: ["Repository is private or unavailable", "URL is not a GitHub repository", "GitHub request failed"],
+    };
+  }
+
+  if (
+    category === "Indexing" &&
+    (normalizedCode === "RAG_EVIDENCE_NOT_FOUND" ||
+      lower.includes("no relevant prepared repository evidence") ||
+      lower.includes("refine the question or prepare the repository again"))
+  ) {
+    return {
+      ...base,
+      category: "Indexing",
+      title: "Repository Evidence Missing",
+      explanation: "Dandi could not find indexed source evidence for this question.",
+      nextAction: "Prepare the repository first, then ask a more specific question about files or behavior in the codebase.",
+      possibleCauses: ["Repository has not been prepared yet", "The question did not match indexed chunks", "A fresh preparation run may be needed"],
+      actionLabel: "Prepare Repository",
+    };
+  }
+
+  if (category === "Indexing") {
+    return {
+      ...base,
+      category,
+      title: workflow === "repository-chat" ? "Repository Question Unavailable" : base.title,
+      explanation: workflow === "repository-chat"
+        ? "This question needs prepared repository evidence before Dandi can answer."
+        : base.explanation,
+      nextAction: workflow === "repository-chat"
+        ? "Prepare the repository, confirm indexing completed, then retry your question."
+        : base.nextAction,
     };
   }
 
@@ -241,8 +304,8 @@ export function getErrorGuidance({ workflow, message, status }: GuidanceInput): 
   return { ...base, category };
 }
 
-export function getToastErrorMessage(workflow: ErrorWorkflow, message?: string | null, status?: number) {
-  const guidance = getErrorGuidance({ workflow, message, status });
+export function getToastErrorMessage(workflow: ErrorWorkflow, message?: string | null, status?: number, code?: string | null) {
+  const guidance = getErrorGuidance({ workflow, message, status, code });
   if (workflow === "billing") {
     const billingAction = getBillingToastAction(message, status);
     if (billingAction) {

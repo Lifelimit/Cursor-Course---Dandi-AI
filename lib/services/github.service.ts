@@ -31,11 +31,36 @@ export class GitHubPublicRepositoryCheckError extends Error {
 
 type GitHubRepositoryMetadata = {
   private?: unknown;
+  full_name?: string | null;
+  html_url?: string | null;
+  owner?: { login?: string | null } | null;
   stargazers_count?: number;
   license?: { spdx_id?: string | null; name?: string | null } | null;
   forks_count?: number;
   description?: string | null;
 };
+
+export type RagRepositoryMetadataContext = {
+  owner: string;
+  repo: string;
+  fullName: string;
+  description: string | null;
+  htmlUrl: string | null;
+};
+
+export function buildRagRepositoryMetadataContext(
+  githubUrl: string,
+  repository: GitHubRepositoryMetadata,
+): RagRepositoryMetadataContext {
+  const { owner, repo } = getGitHubRepositoryParts(githubUrl);
+  return {
+    owner: repository.owner?.login || owner,
+    repo,
+    fullName: repository.full_name || `${owner}/${repo}`,
+    description: repository.description ?? null,
+    htmlUrl: repository.html_url ?? null,
+  };
+}
 
 function getGitHubHeaders(token?: string): Record<string, string> {
   const headers: Record<string, string> = {
