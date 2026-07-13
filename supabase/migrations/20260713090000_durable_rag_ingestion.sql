@@ -25,8 +25,7 @@ ALTER TABLE public.repository_chunks
   ADD COLUMN IF NOT EXISTS end_offset integer;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_repository_chunks_version_identity
-  ON public.repository_chunks(index_version, file_path, chunk_index, content_hash)
-  WHERE index_version IS NOT NULL;
+  ON public.repository_chunks(index_version, file_path, chunk_index, content_hash);
 
 -- Preserve existing owner-scoped indexes without rewriting their vectors. These
 -- synthetic active versions have no commit SHA; the next refresh replaces them

@@ -83,6 +83,11 @@ const requiredRuntimeSchema = {
     "quota_reserved",
     "usage_finalized",
   ],
+  "20260713210000_fix_repository_chunk_upsert_conflict.sql": [
+    "DROP INDEX IF EXISTS",
+    "CREATE UNIQUE INDEX",
+    "idx_repository_chunks_version_identity",
+  ],
   "20260712204401_atomic_stripe_webhook_downgrade.sql": [
     "apply_stripe_hobby_downgrade",
     "Selected API key ownership mismatch",

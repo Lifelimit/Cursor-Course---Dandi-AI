@@ -301,7 +301,7 @@ async function heartbeat(job: IngestionJob, token: string, values: Record<string
 
 async function assertNotCancelled(jobId: string) {
   const latest = await loadJob(jobId);
-  if (["cancel_requested", "cancelled"].includes(latest.status)) throw new IngestionWorkerError("JOB_CANCELLED", CANCELLED_INGESTION_MESSAGE);
+  if (["cancel_requested", "cancelled"].includes(latest.status) || latest.cancel_requested_at) throw new IngestionWorkerError("JOB_CANCELLED", CANCELLED_INGESTION_MESSAGE);
   return latest;
 }
 

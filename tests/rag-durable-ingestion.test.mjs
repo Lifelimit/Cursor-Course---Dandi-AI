@@ -40,6 +40,7 @@ test("worker checkpoints are lease- and index-version-aware", () => {
   assert.match(service, /chunk_cursor/);
   assert.match(service, /refreshIngestionLock/);
   assert.match(service, /releaseIngestionLock/);
+  assert.match(service, /latest\.cancel_requested_at/);
   assert.match(service, /upsert\(rows, \{ onConflict: "index_version,file_path,chunk_index,content_hash" \}\)/);
   assert.match(migration, /repository_index_versions/);
   assert.match(migration, /activate_repository_index/);
@@ -47,6 +48,15 @@ test("worker checkpoints are lease- and index-version-aware", () => {
   assert.match(migration, /lease_expires_at/);
   assert.match(migration, /quota_reserved/);
   assert.match(migration, /usage_finalized/);
+  assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS idx_repository_chunks_version_identity[\s\S]*ON public\.repository_chunks\(index_version, file_path, chunk_index, content_hash\);/);
+  assert.doesNotMatch(migration, /WHERE index_version IS NOT NULL/);
+});
+
+test("durable ingestion chunk upserts use an inferable unique index", () => {
+  const migration = read("supabase/migrations/20260713210000_fix_repository_chunk_upsert_conflict.sql");
+  assert.match(migration, /DROP INDEX IF EXISTS public\.idx_repository_chunks_version_identity/);
+  assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS idx_repository_chunks_version_identity/);
+  assert.doesNotMatch(migration, /WHERE index_version IS NOT NULL/);
 });
 
 test("retrieval is limited to the active completed index", () => {
