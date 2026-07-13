@@ -406,29 +406,11 @@ export default function PlaygroundClient({
     hasPipelineError,
   });
   const summaryJsonData = buildSummaryJsonData({
-    activeKeyData,
     githubUrl,
     repoMetadata,
     summaryResult,
-    summaryFacts,
-    summaryHasData,
-    isLoadingSummary,
     summaryStatus,
     summaryStreamMessage,
-    ingestedRepo,
-    ingestStatus,
-    hasSourceEvidence,
-    retrievalAttempted,
-    currentIndexStats,
-    hasIndexingFailure,
-    isPipelineActive,
-    hasPipelineError,
-    transparencyRows,
-    pipelineSteps,
-    summaryProcessingSteps,
-    lifecycleSteps,
-    latencyRows,
-    getRepoPath,
   });
   const hasValidRepository = (() => {
     try {

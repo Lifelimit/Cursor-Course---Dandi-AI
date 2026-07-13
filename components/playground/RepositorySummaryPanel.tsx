@@ -89,7 +89,7 @@ export function RepositorySummaryPanel({
           onChange={(id) => setViewMode(id as "visual" | "json")}
           variant="pills"
         />
-        {viewMode === "json" && summaryHasData && (
+        {viewMode === "json" && summaryStatus !== "idle" && (
           <button
             type="button"
             onClick={() => {
