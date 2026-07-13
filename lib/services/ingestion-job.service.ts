@@ -21,6 +21,12 @@ const QUEUED_START_GRACE_MS = 60_000;
 const ORPHANED_INGESTION_MESSAGE = "Repository ingestion stopped unexpectedly. Retry preparation.";
 const TIMED_OUT_INGESTION_MESSAGE = "Repository ingestion timed out before finishing. Retry preparation.";
 
+const DEFAULT_FETCH_CONCURRENCY = 6;
+const DEFAULT_EMBED_FLUSH_CHUNKS = 200;
+const DEFAULT_INSERT_BATCH_SIZE = 200;
+const DEFAULT_PROGRESS_HEARTBEAT_MS = 2_500;
+const DEFAULT_LOCK_REFRESH_MS = 10_000;
+
 export type { IngestionJob, IngestionJobStatus, IngestionJobStep, IngestionKeyData, IngestionJobSummary } from "@/types/rag";
 
 type JobResult = {
@@ -212,6 +218,30 @@ function splitIntoChunks(text: string, path: string, chunkSize = 1000, overlap =
     i += chunkSize - overlap;
   }
   return chunks;
+}
+
+function toPositiveInt(value: string | undefined, fallback: number) {
+  const parsed = Number.parseInt((value ?? "").trim(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+async function runWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<void>
+) {
+  if (items.length === 0) return;
+  const maxConcurrency = Math.max(1, Math.min(concurrency, items.length));
+  let nextIndex = 0;
+  await Promise.all(
+    Array.from({ length: maxConcurrency }, async () => {
+      while (true) {
+        const index = nextIndex++;
+        if (index >= items.length) return;
+        await worker(items[index], index);
+      }
+    })
+  );
 }
 
 async function updateJob(jobId: string, values: Partial<IngestionJob>) {
@@ -443,6 +473,9 @@ export async function runIngestionJob(
 
     job = await updateJob(job.id, {
       files_count: filesToIngest.length,
+      indexed_file_count: 0,
+      chunks_count: 0,
+      chunk_count: 0,
     });
 
     await supabaseAdmin
@@ -451,60 +484,147 @@ export async function runIngestionJob(
       .eq("repo_url", job.repo_url)
       .eq("user_id", job.user_id);
 
-    const crawlResults = await Promise.all(
-      filesToIngest.map(async (file) => {
-        try {
-          const text = await fetchRawFileContent(job.repo_url, branch, file.path);
-          return { path: file.path, chunks: splitIntoChunks(text, file.path) };
-        } catch {
-          console.warn("A repository file was skipped during ingestion.");
-          return { path: file.path, chunks: [] };
-        }
-      })
-    );
-
-    const allChunks = crawlResults.flatMap((result) =>
-      result.chunks.map((content) => ({ path: result.path, content }))
-    );
-
-    if (allChunks.length === 0) {
-      throw new Error("Dandi could not read queryable repository content from GitHub.");
-    }
-
     job = await updateJob(job.id, {
       current_step: "indexing",
-      chunks_count: allChunks.length,
+      indexed_file_count: 0,
+      chunks_count: 0,
+      chunk_count: 0,
     });
 
-    if (allChunks.length > 0) {
-      const { embeddings, model } = await googleBatchEmbedWithModel(allChunks.map((chunk) => chunk.content));
-      const rowsToInsert = allChunks.map((chunk, index) => ({
-        repo_url: job.repo_url,
-        user_id: job.user_id,
-        api_key_id: job.api_key_id,
-        credential_type: job.credential_type,
-        embedding_model: model,
-        file_path: chunk.path,
-        content: chunk.content,
-        embedding: embeddings[index],
-      }));
+    const fetchConcurrency = toPositiveInt(process.env.RAG_INGEST_FETCH_CONCURRENCY, DEFAULT_FETCH_CONCURRENCY);
+    const embedFlushChunks = toPositiveInt(process.env.RAG_INGEST_EMBED_FLUSH_CHUNKS, DEFAULT_EMBED_FLUSH_CHUNKS);
+    const insertBatchSize = toPositiveInt(process.env.RAG_INGEST_INSERT_BATCH_SIZE, DEFAULT_INSERT_BATCH_SIZE);
+    const heartbeatMs = toPositiveInt(process.env.RAG_INGEST_PROGRESS_HEARTBEAT_MS, DEFAULT_PROGRESS_HEARTBEAT_MS);
+    const lockRefreshMs = toPositiveInt(process.env.RAG_INGEST_LOCK_REFRESH_MS, DEFAULT_LOCK_REFRESH_MS);
 
-      const { error: insertError } = await supabaseAdmin
-        .from("repository_chunks")
-        .insert(rowsToInsert);
+    let indexedFileCount = 0;
+    let preparedChunkCount = 0;
+    let insertedChunkCount = 0;
+    let lastHeartbeatAt = 0;
+    let lastLockRefreshAt = 0;
 
-      if (insertError) {
-        throw new Error(`Failed to insert repository chunks into Supabase: ${insertError.message}`);
+    const maybeRefreshLock = async (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastLockRefreshAt < lockRefreshMs) return;
+      lastLockRefreshAt = now;
+      try {
+        await redis.expire(lockKey, LOCK_TTL_SEC);
+      } catch {
+        // Best-effort; do not fail the ingestion job on lock refresh issues.
+        console.warn("Failed to refresh ingestion lock TTL.");
       }
+    };
+
+    const maybeHeartbeat = async (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastHeartbeatAt < heartbeatMs) {
+        await maybeRefreshLock(false);
+        return;
+      }
+      lastHeartbeatAt = now;
+      await maybeRefreshLock(false);
+      try {
+        job = await updateJob(job.id, {
+          indexed_file_count: indexedFileCount,
+          chunks_count: preparedChunkCount,
+          chunk_count: insertedChunkCount,
+        });
+      } catch {
+        // Best-effort; we still want to continue indexing even if progress updates fail.
+        console.warn("Failed to persist ingestion progress.");
+      }
+    };
+
+    const pendingChunks: { path: string; content: string }[] = [];
+    let flushInFlight: Promise<void> | null = null;
+
+    const flushPendingChunks = async (force = false) => {
+      while (pendingChunks.length >= embedFlushChunks || (force && pendingChunks.length > 0)) {
+        const batch = pendingChunks.splice(0, Math.min(embedFlushChunks, pendingChunks.length));
+        const { embeddings, model } = await googleBatchEmbedWithModel(batch.map((chunk) => chunk.content));
+
+        for (let i = 0; i < batch.length; i += insertBatchSize) {
+          const slice = batch.slice(i, i + insertBatchSize);
+          const sliceEmbeddings = embeddings.slice(i, i + slice.length);
+          const rowsToInsert = slice.map((chunk, index) => ({
+            repo_url: job.repo_url,
+            user_id: job.user_id,
+            api_key_id: job.api_key_id,
+            credential_type: job.credential_type,
+            embedding_model: model,
+            file_path: chunk.path,
+            content: chunk.content,
+            embedding: sliceEmbeddings[index],
+          }));
+
+          const { error: insertError } = await supabaseAdmin
+            .from("repository_chunks")
+            .insert(rowsToInsert);
+
+          if (insertError) {
+            throw new Error(`Failed to insert repository chunks into Supabase: ${insertError.message}`);
+          }
+
+          insertedChunkCount += rowsToInsert.length;
+          await maybeHeartbeat(false);
+        }
+      }
+    };
+
+    const ensureFlushed = async (force = false) => {
+      if (flushInFlight) {
+        await flushInFlight;
+        if (!force) return;
+      }
+      flushInFlight = (async () => {
+        try {
+          await flushPendingChunks(force);
+        } finally {
+          flushInFlight = null;
+        }
+      })();
+      await flushInFlight;
+    };
+
+    await runWithConcurrency(filesToIngest, fetchConcurrency, async (file) => {
+      await maybeHeartbeat(false);
+
+      let text = "";
+      try {
+        text = await fetchRawFileContent(job.repo_url, branch, file.path);
+      } catch {
+        console.warn("A repository file was skipped during ingestion.");
+        return;
+      }
+
+      const chunks = splitIntoChunks(text, file.path);
+      indexedFileCount += 1;
+      preparedChunkCount += chunks.length;
+
+      for (const content of chunks) {
+        pendingChunks.push({ path: file.path, content });
+      }
+
+      await maybeHeartbeat(false);
+
+      if (pendingChunks.length >= embedFlushChunks) {
+        await ensureFlushed(false);
+      }
+    });
+
+    await ensureFlushed(true);
+
+    if (insertedChunkCount === 0) {
+      throw new Error("Dandi could not read queryable repository content from GitHub.");
     }
 
     const completedJob = await updateJob(job.id, {
       status: "completed",
       current_step: "ready",
       files_count: filesToIngest.length,
-      chunks_count: allChunks.length,
-      indexed_file_count: filesToIngest.length,
-      chunk_count: allChunks.length,
+      chunks_count: preparedChunkCount,
+      indexed_file_count: indexedFileCount,
+      chunk_count: insertedChunkCount,
       index_available: true,
       completed_at: new Date().toISOString(),
     });
