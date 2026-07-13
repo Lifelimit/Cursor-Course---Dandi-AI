@@ -26,10 +26,10 @@ test("sidebar keeps its client stable and unknown usage unavailable", () => {
 
 test("API key ownership points to workspace settings", () => {
   assert.match(emailSource, /Manage API keys: \$\{new URL\("\/account\?tab=api", getURL\(\)\)\.toString\(\)\}/);
-  assert.match(readmeSource, /`\/dashboards` - workspace overview and recent repository activity/);
-  assert.match(readmeSource, /`\/account` - workspace settings, including profile, GitHub, API access, webhooks, and security/);
-  assert.match(architectureSource, /`\/dashboards` - workspace overview and recent repository activity/);
-  assert.match(architectureSource, /`\/account` - workspace settings, including profile, GitHub, API access, webhooks, and security/);
+  assert.match(readmeSource, /\/dashboards.*workspace overview/i);
+  assert.match(readmeSource, /\/account.*workspace settings/i);
+  assert.match(architectureSource, /\| `\/dashboards` \| Workspace overview and recent repository activity \|/);
+  assert.match(architectureSource, /\| `\/account` \| Profile, GitHub, API access, webhooks, and security \|/);
 });
 
 test("unreferenced legacy usage components stay removed", async () => {

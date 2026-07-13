@@ -17,15 +17,23 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   metadataBase: new URL(getURL()),
   title: "Dandi AI — Repository Intelligence API",
-  description: "README-grounded public repository summaries and source-backed questions over repositories you explicitly prepare.",
+  description:
+    "Production-oriented developer platform for public repository intelligence, RAG workflows, API access, usage controls, and subscription billing.",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "Dandi AI",
-    description: "README-grounded public repository summaries and source-backed prepared-repository questions.",
+    title: "Dandi AI — Repository Intelligence API",
+    description:
+      "Public repository summaries, retrieval-based questioning, API key management, usage monitoring, and Stripe billing in one workspace.",
     url: "/",
     siteName: "Dandi AI",
     locale: "en_US",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Dandi AI — Repository Intelligence API",
+    description:
+      "Full-stack AI developer platform for repository intelligence, RAG, API access, and billing.",
   },
 };
 
