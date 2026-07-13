@@ -1,0 +1,9 @@
+#!/bin/sh
+# Remove Cursor agent attribution trailers from commit messages.
+commit_msg_file="$1"
+[ -f "$commit_msg_file" ] || exit 0
+
+tmp="$(mktemp)"
+grep -v '^Co-authored-by: Cursor <cursoragent@cursor.com>$' "$commit_msg_file" \
+  | grep -v '^Made-with: Cursor$' > "$tmp"
+mv "$tmp" "$commit_msg_file"
