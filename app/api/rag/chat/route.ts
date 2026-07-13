@@ -1,5 +1,6 @@
 import { streamText } from "ai";
 import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOriginAllowed } from "@/lib/cors";
+import { getGitHubRepositoryParts } from "@/lib/github-url";
 import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { validateChatMessages } from "@/lib/request-validation";
 import { getApiKeyFromRequest, invalidJsonResponse, jsonError, missingApiKeyResponse, readGitHubRepoUrl, readJsonBody } from "@/lib/api-request";
@@ -117,6 +118,10 @@ export async function POST(request: Request) {
     }
 
     await assertPublicRepositoryForRag(githubUrl);
+    const { owner, repo } = getGitHubRepositoryParts(githubUrl);
+    // #region agent log
+    fetch('http://127.0.0.1:7671/ingest/3fcf3f8a-0cf3-4f66-82c0-0331514c5fd4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b41609'},body:JSON.stringify({sessionId:'b41609',location:'rag/chat/route.ts:metadata',message:'github metadata available at chat time',data:{owner,repo,query:userQuery.slice(0,120),metadataInjectedIntoPrompt:false},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     try {
       await reserveApiKeyUsage(keyData);
     } catch (quotaError) {
@@ -160,6 +165,10 @@ export async function POST(request: Request) {
         corsHeaders,
       );
     }
+
+    // #region agent log
+    fetch('http://127.0.0.1:7671/ingest/3fcf3f8a-0cf3-4f66-82c0-0331514c5fd4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b41609'},body:JSON.stringify({sessionId:'b41609',location:'rag/chat/route.ts:retrieval',message:'chunk retrieval results',data:{query:userQuery.slice(0,120),chunkCount:matchedChunks?.length??0,topSimilarity:matchedChunks?.[0]?.similarity??null,filePaths:(matchedChunks||[]).slice(0,5).map((c:MatchedRepositoryChunk)=>c.file_path),similarities:(matchedChunks||[]).slice(0,5).map((c:MatchedRepositoryChunk)=>Number(c.similarity.toFixed(3)))},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
 
     if (!matchedChunks?.length) {
       await finalizeUsage("error");

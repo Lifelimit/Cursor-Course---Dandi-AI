@@ -113,6 +113,9 @@ export function useRepositoryChat({
 
     const newMessages = [...ragMessages, { role: "user" as const, content: userMsg }];
     setRagMessages(newMessages);
+    // #region agent log
+    fetch('http://127.0.0.1:7671/ingest/3fcf3f8a-0cf3-4f66-82c0-0331514c5fd4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b41609'},body:JSON.stringify({sessionId:'b41609',location:'useRepositoryChat.ts:submit',message:'scroll targets on submit',data:{userMsgCount:newMessages.filter((m)=>m.role==='user').length,scrollToPanelTop:true,scrollToBottomNext:true},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     scrollToSection(repositoryChatRef);
 
     if (isLightweightGreeting(userMsg)) {
@@ -132,6 +135,9 @@ export function useRepositoryChat({
     }
 
     setRagMessages((prev) => [...prev, { role: "assistant" as const, content: "" }]);
+    // #region agent log
+    fetch('http://127.0.0.1:7671/ingest/3fcf3f8a-0cf3-4f66-82c0-0331514c5fd4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b41609'},body:JSON.stringify({sessionId:'b41609',location:'useRepositoryChat.ts:assistant-placeholder',message:'scroll to chat bottom',data:{ragMessageCount:newMessages.length+1},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     scrollToSection(chatBottomRef);
 
     const startTime = getPerformanceNow();

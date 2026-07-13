@@ -426,6 +426,12 @@ export function RepositoryChatPanel({
   }, []);
   const hasConversationTurns = conversationTurns.length > 0;
 
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7671/ingest/3fcf3f8a-0cf3-4f66-82c0-0331514c5fd4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b41609'},body:JSON.stringify({sessionId:'b41609',location:'RepositoryChatPanel.tsx:layout',message:'conversation layout state',data:{hasConversationTurns,turnCount:conversationTurns.length,visibleMessageCount:visibleRagMessages.length,isChatLoading,quickPromptsVisible:!hasConversationTurns},timestamp:Date.now(),hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+  }, [conversationTurns.length, hasConversationTurns, isChatLoading, visibleRagMessages.length]);
+
   return (
     <div ref={repositoryChatRef} className="space-y-6 scroll-mt-24 animate-in fade-in slide-in-from-bottom-4 duration-700" aria-label="Result plane">
       <CommandPanel tone="elevated" interactive className="flex min-h-[560px] flex-col p-5 sm:p-8">
