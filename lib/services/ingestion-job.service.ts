@@ -19,8 +19,8 @@ import type { IngestionJob, IngestionJobStep, IngestionKeyData, IngestionJobSumm
 const LOCK_TTL_SEC = 120;
 const LEASE_TTL_MS = 90_000;
 const DEFAULT_WORKER_MAX_MS = 45_000;
-const DEFAULT_MAX_CHUNKS_PER_INVOCATION = 16;
-const DEFAULT_MAX_FILES_PER_INVOCATION = 4;
+const DEFAULT_MAX_CHUNKS_PER_INVOCATION = 20;
+const DEFAULT_MAX_FILES_PER_INVOCATION = 8;
 const WORKER_SAFETY_WINDOW_MS = 8_000;
 const DEFAULT_MAX_JOB_RETRIES = 8;
 const ORPHANED_INGESTION_MESSAGE = "Repository ingestion is being resumed after a worker stopped unexpectedly.";
@@ -343,7 +343,6 @@ async function processOneWorkerUnit(job: IngestionJob, token: string, telemetry?
   }
   job = await prepareJob(job, token);
   const files = Array.isArray(job.selected_files) ? job.selected_files : [];
-  let filesProcessed = 0;
 
   while (true) {
     const fileCursor = job.file_cursor ?? 0;
@@ -360,28 +359,57 @@ async function processOneWorkerUnit(job: IngestionJob, token: string, telemetry?
       job = await updateJob(job.id, { lease_owner: null, lease_expires_at: null }, token);
       return { job, outcome: "completed" };
     }
-    if (filesProcessed >= maxFilesPerInvocation || Date.now() + WORKER_SAFETY_WINDOW_MS >= deadline) return { job, outcome: "progressed" };
-
-    const file = files[fileCursor];
-    const branch = job.branch || "main";
-    let text = "";
-    try {
-      text = await fetchRawFileContent(job.repo_url, branch, file.path);
-    } catch {
-      job = await heartbeat(job, token, { current_step: "fetching_files", file_cursor: fileCursor + 1, chunk_cursor: 0, failed_file_count: (job.failed_file_count ?? 0) + 1, skipped_file_count: (job.skipped_file_count ?? 0) + 1, last_error_code: "GITHUB_FILE_FETCH_FAILED" });
-      filesProcessed += 1;
-      continue;
-    }
-    const chunks = splitIntoChunks(text, file.path);
-    const chunkCursor = job.chunk_cursor ?? 0;
-    if (chunks.length === 0) {
-      job = await heartbeat(job, token, { file_cursor: fileCursor + 1, chunk_cursor: 0, current_step: "fetching_files" });
-      filesProcessed += 1;
-      continue;
-    }
-    const batch = chunks.slice(chunkCursor, chunkCursor + maxChunksPerInvocation);
     if (Date.now() + WORKER_SAFETY_WINDOW_MS >= deadline) return { job, outcome: "progressed" };
-    job = await heartbeat(job, token, { current_step: "embedding", prepared_chunk_count: Math.max(job.prepared_chunk_count ?? 0, chunkCursor + batch.length), chunks_count: Math.max(job.chunks_count ?? 0, chunkCursor + batch.length) });
+
+    const branch = job.branch || "main";
+    let nextFileCursor = fileCursor;
+    let nextChunkCursor = job.chunk_cursor ?? 0;
+    let filesVisited = 0;
+    let failedFiles = 0;
+    let skippedFiles = 0;
+    const batch: ReturnType<typeof splitIntoChunks> = [];
+
+    while (batch.length < maxChunksPerInvocation && filesVisited < maxFilesPerInvocation && nextFileCursor < files.length) {
+      if (Date.now() + WORKER_SAFETY_WINDOW_MS >= deadline) break;
+      const file = files[nextFileCursor];
+      let text = "";
+      try {
+        text = await fetchRawFileContent(job.repo_url, branch, file.path);
+      } catch {
+        nextFileCursor += 1;
+        nextChunkCursor = 0;
+        filesVisited += 1;
+        failedFiles += 1;
+        skippedFiles += 1;
+        continue;
+      }
+      const chunks = splitIntoChunks(text, file.path);
+      if (chunks.length === 0) {
+        nextFileCursor += 1;
+        nextChunkCursor = 0;
+        filesVisited += 1;
+        continue;
+      }
+      const remaining = maxChunksPerInvocation - batch.length;
+      const fileBatch = chunks.slice(nextChunkCursor, nextChunkCursor + remaining);
+      batch.push(...fileBatch);
+      const fileFinished = nextChunkCursor + fileBatch.length >= chunks.length;
+      if (fileFinished) {
+        nextFileCursor += 1;
+        nextChunkCursor = 0;
+        filesVisited += 1;
+      } else {
+        nextChunkCursor += fileBatch.length;
+        break;
+      }
+    }
+
+    if (batch.length === 0) {
+      if (nextFileCursor === fileCursor && failedFiles === 0 && skippedFiles === 0) return { job, outcome: "progressed" };
+      job = await heartbeat(job, token, { current_step: "fetching_files", file_cursor: nextFileCursor, chunk_cursor: nextChunkCursor, failed_file_count: (job.failed_file_count ?? 0) + failedFiles, skipped_file_count: (job.skipped_file_count ?? 0) + skippedFiles, last_error_code: failedFiles > 0 ? "GITHUB_FILE_FETCH_FAILED" : job.last_error_code });
+      continue;
+    }
+
     const { embeddings, model } = await googleBatchEmbedWithModel(batch.map((chunk) => chunk.content));
     if (embeddings.length !== batch.length) throw new IngestionWorkerError("EMBEDDING_INVALID_RESPONSE", "Gemini returned a mismatched embedding count.");
     await assertNotCancelled(job.id);
@@ -389,10 +417,8 @@ async function processOneWorkerUnit(job: IngestionJob, token: string, telemetry?
     const { error: insertError } = await supabaseAdmin.from("repository_chunks").upsert(rows, { onConflict: "index_version,file_path,chunk_index,content_hash" });
     if (insertError) throw new IngestionWorkerError("DATABASE_INSERT_FAILED", "Failed to insert repository chunks.", true);
     const persistedCount = job.index_version ? await countVersionChunks(job.index_version) : 0;
-    const nextCursor = chunkCursor + batch.length;
-    const fileFinished = nextCursor >= chunks.length;
-    job = await heartbeat(job, token, { current_step: fileFinished ? "fetching_files" : "embedding", file_cursor: fileFinished ? fileCursor + 1 : fileCursor, chunk_cursor: fileFinished ? 0 : nextCursor, chunk_count: persistedCount, chunks_count: persistedCount, prepared_chunk_count: persistedCount, embedded_chunk_count: persistedCount, persisted_chunk_count: persistedCount });
-    if (fileFinished) filesProcessed += 1;
+    job = await heartbeat(job, token, { current_step: nextChunkCursor > 0 ? "embedding" : "fetching_files", file_cursor: nextFileCursor, chunk_cursor: nextChunkCursor, chunk_count: persistedCount, chunks_count: persistedCount, prepared_chunk_count: persistedCount, embedded_chunk_count: persistedCount, persisted_chunk_count: persistedCount, failed_file_count: (job.failed_file_count ?? 0) + failedFiles, skipped_file_count: (job.skipped_file_count ?? 0) + skippedFiles });
+    if (nextFileCursor < files.length) return { job, outcome: "progressed" };
   }
 }
 

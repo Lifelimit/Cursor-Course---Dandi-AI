@@ -183,7 +183,7 @@ Apply migrations from `supabase/migrations/` to your Supabase project before usi
 
 ### RAG ingestion worker
 
-Repository preparation is resumable: the ingest request creates a job, and the authenticated browser polling request advances bounded file/chunk worker slices at a time. Each slice can embed up to 16 chunks and process up to four selected files, subject to the serverless time budget, before persisting a durable checkpoint. This keeps the flow usable on Vercel Hobby, where the protected Vercel Cron recovery sweep runs daily at 03:00 UTC. Configure `CRON_SECRET` (or the optional `RAG_WORKER_SECRET`) in the deployment and apply `20260713090000_durable_rag_ingestion.sql`. Optional timeout, retry, batch, repository-limit, and worker-budget settings are documented in `.env.example`.
+Repository preparation is resumable: the ingest request creates a job, and the authenticated browser polling request advances bounded file/chunk worker slices at a time. Each slice can aggregate up to 20 chunks from up to eight selected files into one embedding and persistence batch, subject to the serverless time budget, before persisting a durable checkpoint. This keeps the flow usable on Vercel Hobby, where the protected Vercel Cron recovery sweep runs daily at 03:00 UTC. Configure `CRON_SECRET` (or the optional `RAG_WORKER_SECRET`) in the deployment and apply `20260713090000_durable_rag_ingestion.sql`. Optional timeout, retry, batch, repository-limit, and worker-budget settings are documented in `.env.example`.
 
 Run `node scripts/rag-readiness.mjs` for read-only provider, Supabase, retrieval-RPC, and Redis checks. Add `--mutate` only when a temporary vector insert/activate/retrieve/cleanup probe is acceptable in the target environment.
 

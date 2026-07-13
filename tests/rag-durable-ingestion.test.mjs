@@ -41,11 +41,12 @@ test("worker checkpoints are lease- and index-version-aware", () => {
   assert.match(service, /refreshIngestionLock/);
   assert.match(service, /releaseIngestionLock/);
   assert.match(service, /latest\.cancel_requested_at/);
-  assert.match(service, /DEFAULT_MAX_CHUNKS_PER_INVOCATION = 16/);
-  assert.match(service, /DEFAULT_MAX_FILES_PER_INVOCATION = 4/);
+  assert.match(service, /DEFAULT_MAX_CHUNKS_PER_INVOCATION = 20/);
+  assert.match(service, /DEFAULT_MAX_FILES_PER_INVOCATION = 8/);
   assert.match(service, /RAG_WORKER_MAX_FILES_PER_INVOCATION/);
   assert.match(service, /WORKER_SAFETY_WINDOW_MS/);
-  assert.match(service, /while \(true\)/);
+  assert.match(service, /batch\.push\(\.\.\.fileBatch\)/);
+  assert.match(service, /const remaining = maxChunksPerInvocation - batch\.length/);
   assert.match(service, /upsert\(rows, \{ onConflict: "index_version,file_path,chunk_index,content_hash" \}\)/);
   assert.match(migration, /repository_index_versions/);
   assert.match(migration, /activate_repository_index/);
