@@ -6,6 +6,8 @@
 
 **Live app:** [dandi-orcin.vercel.app](https://dandi-orcin.vercel.app) · **Repository:** [Lifelimit/Cursor-Course---Dandi-AI](https://github.com/Lifelimit/Cursor-Course---Dandi-AI)
 
+![Dandi AI landing page showing the repository intelligence workflow preview](public/readme/dandi-overview.png)
+
 *Personal engineering project — feature-complete for its current scope. Not a commercial launch or course exercise.*
 
 ## Overview
@@ -148,7 +150,7 @@ Deliberate scope boundaries:
 git clone https://github.com/Lifelimit/Cursor-Course---Dandi-AI.git
 cd Cursor-Course---Dandi-AI
 yarn install
-cp .env.example .env.local
+cp .env.example .env.local   # local secrets file (gitignored); fill in values below
 ```
 
 Fill in `.env.local` using `.env.example` as the reference. Required groups:
