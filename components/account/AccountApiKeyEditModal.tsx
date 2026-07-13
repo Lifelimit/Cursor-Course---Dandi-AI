@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { ModalFrame } from "@/components/command";
+import { fieldFocusClasses, numberInputClasses } from "@/components/command/utils";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { GuidedError } from "@/components/ui/GuidedError";
 import type { ToastType } from "@/hooks/useToast";
@@ -150,7 +151,7 @@ export function AccountApiKeyEditModal({
               required
               disabled={isSubmitting}
               data-autofocus="true"
-              className="h-12 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 text-sm font-medium text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 disabled:opacity-50"
+              className={`h-12 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 text-sm font-medium text-white outline-none transition placeholder:text-zinc-600 disabled:opacity-50 ${fieldFocusClasses}`}
             />
           </div>
 
@@ -163,7 +164,7 @@ export function AccountApiKeyEditModal({
                   type="button"
                   onClick={() => setKeyType(type)}
                   aria-pressed={keyType === type}
-                  className={`rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+                  className={`rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/25 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                     keyType === type
                       ? "border-emerald-400/50 bg-emerald-500/10 text-white"
                       : "border-white/5 bg-slate-950/30 text-zinc-400 hover:border-white/10 hover:bg-slate-950/50 hover:text-white"
@@ -207,7 +208,7 @@ export function AccountApiKeyEditModal({
                     inputMode="numeric"
                     value={alertThreshold}
                     onChange={(event) => setAlertThreshold(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 text-sm font-medium text-white outline-none focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10"
+                    className={`h-11 w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 text-sm font-medium text-white outline-none transition ${fieldFocusClasses} ${numberInputClasses}`}
                   />
                 </label>
                 <label className={`flex items-start gap-3 ${emailAlertsAvailable ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}>

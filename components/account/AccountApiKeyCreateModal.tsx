@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { ModalFrame } from "@/components/command";
+import { fieldFocusClasses } from "@/components/command/utils";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { GuidedError } from "@/components/ui/GuidedError";
 import type { ToastType } from "@/hooks/useToast";
@@ -216,7 +217,7 @@ export function AccountApiKeyCreateModal({
               required
               disabled={isSubmitting}
               data-autofocus="true"
-              className="h-14 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 text-sm font-medium text-white outline-none transition placeholder:text-zinc-600 focus:border-emerald-500/40 focus:ring-4 focus:ring-emerald-500/10 disabled:opacity-50"
+              className={`h-14 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 text-sm font-medium text-white outline-none transition placeholder:text-zinc-600 disabled:opacity-50 ${fieldFocusClasses}`}
             />
           </div>
 
