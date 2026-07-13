@@ -14,11 +14,11 @@ except ImportError as exc:  # pragma: no cover - runtime helper
     ) from exc
 
 
-def redact_box(image: Image.Image, box: tuple[int, int, int, int], blur_radius: int = 24) -> None:
+def redact_box(image: Image.Image, box: tuple[int, int, int, int], blur_radius: int = 14) -> None:
     x0, y0, x1, y1 = box
     region = image.crop((x0, y0, x1, y1))
     small = region.resize(
-        (max(1, region.width // 16), max(1, region.height // 16)),
+        (max(1, region.width // 10), max(1, region.height // 10)),
         Image.Resampling.BILINEAR,
     )
     pixelated = small.resize(region.size, Image.Resampling.NEAREST)
@@ -39,19 +39,34 @@ def redact_relative(image: Image.Image, regions: list[tuple[float, float, float,
 
 
 SANITIZATION_RULES: dict[str, list[tuple[float, float, float, float]]] = {
-    # Sidebar profile card: avatar, name, email, and sign-out row.
+    # Sidebar identity row only: avatar, name, and email (1440x900 desktop).
     "dandi-usage-dashboard.png": [
-        (0.02, 0.48, 0.37, 0.71),
+        (0.018, 0.775, 0.205, 0.835),
     ],
-    # Header profile photo on compact layouts.
+    "dandi-dashboard.png": [
+        (0.018, 0.775, 0.205, 0.835),
+    ],
+    # Header profile photo only.
     "dandi-rag-chat.png": [
-        (0.88, 0.012, 0.985, 0.055),
+        (0.918, 0.018, 0.982, 0.072),
     ],
     "dandi-billing.png": [
-        (0.76, 0.012, 0.90, 0.055),
+        (0.918, 0.018, 0.982, 0.072),
     ],
     "dandi-account-integrations.png": [
-        (0.76, 0.012, 0.90, 0.055),
+        (0.918, 0.018, 0.982, 0.072),
+    ],
+    "dandi-account-api.png": [
+        (0.918, 0.018, 0.982, 0.072),
+    ],
+    "dandi-playground-summarize.png": [
+        (0.918, 0.018, 0.982, 0.072),
+    ],
+    "dandi-repository-summary.png": [
+        (0.918, 0.018, 0.982, 0.072),
+    ],
+    "dandi-repository-summary-result.png": [
+        (0.918, 0.018, 0.982, 0.072),
     ],
 }
 
