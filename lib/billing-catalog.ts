@@ -78,6 +78,12 @@ export function getPlanForPriceId(priceId?: string | null): PaidPlanRequest | nu
   return getPriceEntries().find((entry) => entry.priceId === priceId) ?? null;
 }
 
+export function getPaidPlanForPlanId(planId: PaidPlanId, interval: BillingInterval): PaidPlanRequest | null {
+  const priceId = getCatalog()[planId]?.[interval];
+  if (!priceId) return null;
+  return { planId, interval, priceId };
+}
+
 export function getPlanForSubscription(subscription: Stripe.Subscription): PaidPlanRequest | null {
   const priceId = subscription.items?.data?.[0]?.price?.id;
   return getPlanForPriceId(priceId);

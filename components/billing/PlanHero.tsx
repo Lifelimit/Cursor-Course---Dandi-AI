@@ -5,6 +5,7 @@ import { CommandPanel, StatusPill } from "@/components/command";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ANNUAL_SAVINGS_PERCENT, getPlanAnnualTotal, PLANS, PLAN_DETAILS } from "@/lib/constants";
 import { formatCurrencyFromCents, formatLongDate, formatLongDateWithoutYear, formatRequestCount } from "@/lib/format";
+import { isActiveScheduledPlanChange } from "@/lib/billing-schedule";
 import type { BillingData } from "@/types/billing";
 
 type PlanHeroProps = {
@@ -71,6 +72,11 @@ export function PlanHero({
       : pct >= 80
         ? `You have used ${Math.round(pct)}% of the included capacity this cycle.`
         : "Your current plan comfortably supports this cycle’s usage.";
+  const hasPendingScheduledChange = isActiveScheduledPlanChange(
+    scheduledPlan,
+    scheduledPlanDate,
+    planConfig.id,
+  );
 
   return (
     <CommandPanel padding="none" className="relative isolate overflow-hidden border-emerald-300/20 bg-[radial-gradient(circle_at_82%_0%,rgba(45,212,191,0.14),transparent_30%),linear-gradient(135deg,rgba(7,19,27,0.98),rgba(5,11,20,0.92))] shadow-[0_30px_100px_rgba(16,185,129,0.08)]">
@@ -104,7 +110,7 @@ export function PlanHero({
             <BalanceMetric balance={customerBalance} />
           </div>
 
-          {scheduledPlan && scheduledPlan !== planConfig.id && (
+          {hasPendingScheduledChange && (
             <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.08] p-4 sm:flex sm:items-center sm:justify-between sm:gap-5">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-200">Scheduled change</p>

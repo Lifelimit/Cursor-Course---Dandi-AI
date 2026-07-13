@@ -1,6 +1,8 @@
 import Stripe from "stripe";
-import { getPlanForPriceId, type PaidPlanRequest } from "@/lib/billing-catalog";
-import { isUuid } from "@/lib/security-core";
+import { getPaidPlanForPlanId, getPlanForPriceId, type PaidPlanRequest } from "@/lib/billing-catalog";
+import { isPaidPlanId, isUuid } from "@/lib/security-core";
+
+export { isActiveScheduledPlanChange } from "@/lib/billing-schedule";
 
 export type BillingProfileSnapshot = {
   plan?: string | null;
@@ -66,6 +68,58 @@ export function resolveScheduledPlanFromSchedule(
   };
 }
 
+export function resolveEffectiveBillingState(input: {
+  profile: BillingProfileSnapshot;
+  subscription: Stripe.Subscription;
+  schedule: Stripe.SubscriptionSchedule | null;
+  verifiedPlan: PaidPlanRequest;
+  now?: Date;
+}) {
+  const now = input.now ?? new Date();
+  const scheduleIsActive = input.schedule
+    && (input.schedule.status === "active" || input.schedule.status === "not_started");
+  let { scheduledPlan, scheduledPlanDate } = scheduleIsActive && input.schedule
+    ? resolveScheduledPlanFromSchedule(input.schedule, now)
+    : { scheduledPlan: null, scheduledPlanDate: null };
+
+  const profileScheduledPlan = input.profile.stripe_scheduled_plan || null;
+  const profileScheduledDate = input.profile.stripe_scheduled_plan_date || null;
+  const profileScheduleIsOverdue = Boolean(
+    profileScheduledPlan
+    && profileScheduledDate
+    && new Date(profileScheduledDate) <= now,
+  );
+
+  let overdueScheduledPlan: PaidPlanRequest | null = null;
+  if (profileScheduleIsOverdue && profileScheduledPlan && isPaidPlanId(profileScheduledPlan)) {
+    const targetPlan = getPaidPlanForPlanId(profileScheduledPlan, input.verifiedPlan.interval);
+    if (targetPlan && targetPlan.planId !== input.verifiedPlan.planId) {
+      overdueScheduledPlan = targetPlan;
+    }
+  }
+
+  if (profileScheduleIsOverdue) {
+    const scheduleDateIsFuture = scheduledPlanDate && new Date(scheduledPlanDate) > now;
+    if (!scheduleDateIsFuture) {
+      scheduledPlan = null;
+      scheduledPlanDate = null;
+    }
+  }
+
+  if (overdueScheduledPlan && input.verifiedPlan.planId === overdueScheduledPlan.planId) {
+    overdueScheduledPlan = null;
+    scheduledPlan = null;
+    scheduledPlanDate = null;
+  }
+
+  return {
+    plan: input.verifiedPlan.planId,
+    scheduledPlan,
+    scheduledPlanDate,
+    overdueScheduledPlan,
+  };
+}
+
 export function buildProfileBillingReconciliationPayload(input: {
   profile: BillingProfileSnapshot;
   subscription: Stripe.Subscription;
@@ -81,17 +135,19 @@ export function buildProfileBillingReconciliationPayload(input: {
   const interval =
     input.subscription.items?.data?.[0]?.price?.recurring?.interval === "year" ? "year" : "month";
 
-  const scheduleIsActive = input.schedule
-    && (input.schedule.status === "active" || input.schedule.status === "not_started");
-  const { scheduledPlan, scheduledPlanDate } = scheduleIsActive && input.schedule
-    ? resolveScheduledPlanFromSchedule(input.schedule, now)
-    : { scheduledPlan: null, scheduledPlanDate: null };
+  const effectiveState = resolveEffectiveBillingState({
+    profile: input.profile,
+    subscription: input.subscription,
+    schedule: input.schedule,
+    verifiedPlan: input.verifiedPlan,
+    now,
+  });
 
-  const targetPlan = input.verifiedPlan.planId;
+  const targetPlan = effectiveState.plan;
   const planChanged = (input.profile.plan || "Hobby") !== targetPlan;
   const scheduledChanged =
-    (input.profile.stripe_scheduled_plan || null) !== scheduledPlan
-    || (input.profile.stripe_scheduled_plan_date || null) !== scheduledPlanDate;
+    (input.profile.stripe_scheduled_plan || null) !== effectiveState.scheduledPlan
+    || (input.profile.stripe_scheduled_plan_date || null) !== effectiveState.scheduledPlanDate;
   const billingDateChanged = (input.profile.billing_next_date || null) !== renewalDate;
   const intervalChanged = (input.profile.billing_interval || null) !== interval;
   const subscriptionIdChanged = input.profile.stripe_subscription_id !== input.subscription.id;
@@ -105,8 +161,8 @@ export function buildProfileBillingReconciliationPayload(input: {
     stripe_subscription_id: input.subscription.id,
     billing_interval: interval,
     billing_next_date: renewalDate,
-    stripe_scheduled_plan: scheduledPlan,
-    stripe_scheduled_plan_date: scheduledPlanDate,
+    stripe_scheduled_plan: effectiveState.scheduledPlan,
+    stripe_scheduled_plan_date: effectiveState.scheduledPlanDate,
     updated_at: now.toISOString(),
   };
 }

@@ -1156,9 +1156,11 @@ test("resolves subscription SCA and billing payload helpers", () => {
 test("reconciles scheduled plan state from Stripe subscription schedules", () => {
   const {
     buildProfileBillingReconciliationPayload,
+    resolveEffectiveBillingState,
     resolveScheduledPlanFromSchedule,
     buildWebhookSubscriptionUpdatePayload,
   } = loadTsModule("lib/services/stripe-billing-flow.service.ts");
+  const { isActiveScheduledPlanChange } = loadTsModule("lib/billing-schedule.ts");
 
   const researcherYear = "price_researcher_year";
   const premiumYear = "price_premium_year";
@@ -1233,6 +1235,49 @@ test("reconciles scheduled plan state from Stripe subscription schedules", () =>
   assert.equal(webhookPayload.plan, "Premium");
   assert.equal(webhookPayload.stripe_scheduled_plan, null);
   assert.equal(webhookPayload.stripe_scheduled_plan_date, null);
+
+  const overdueProfile = {
+    plan: "Researcher",
+    billing_interval: "year",
+    stripe_subscription_id: "sub_123",
+    stripe_scheduled_plan: "Premium",
+    stripe_scheduled_plan_date: new Date(phaseOneEnd * 1000).toISOString(),
+  };
+  const overdueState = resolveEffectiveBillingState({
+    profile: overdueProfile,
+    subscription: {
+      id: "sub_123",
+      items: { data: [{ price: { id: researcherYear, recurring: { interval: "year" } } }] },
+    },
+    schedule: futureSchedule,
+    verifiedPlan: { planId: "Researcher", interval: "year", priceId: researcherYear },
+    now: afterEffectiveDate,
+  });
+  assert.equal(overdueState.overdueScheduledPlan?.planId, "Premium");
+  assert.equal(overdueState.scheduledPlan, null);
+  assert.equal(overdueState.scheduledPlanDate, null);
+
+  const overduePayload = buildProfileBillingReconciliationPayload({
+    profile: overdueProfile,
+    subscription: {
+      id: "sub_123",
+      status: "active",
+      items: {
+        data: [{
+          price: { id: researcherYear, recurring: { interval: "year" } },
+          current_period_end: phaseOneEnd + 86400 * 365,
+        }],
+      },
+    },
+    schedule: futureSchedule,
+    verifiedPlan: { planId: "Researcher", interval: "year", priceId: researcherYear },
+    now: afterEffectiveDate,
+  });
+  assert.equal(overduePayload?.stripe_scheduled_plan, null);
+  assert.equal(overduePayload?.stripe_scheduled_plan_date, null);
+
+  assert.equal(isActiveScheduledPlanChange("Premium", new Date(phaseOneEnd * 1000).toISOString(), "Researcher", beforeEffectiveDate), true);
+  assert.equal(isActiveScheduledPlanChange("Premium", new Date(phaseOneEnd * 1000).toISOString(), "Researcher", afterEffectiveDate), false);
 });
 
 test("builds structured account access from browser, active and inactive keys, and request telemetry", () => {

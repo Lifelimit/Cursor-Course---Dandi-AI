@@ -97,10 +97,9 @@ export default function BillingClient({
   }, [fetchBillingData]);
 
   useEffect(() => {
-    if (initialData) return;
     const timer = window.setTimeout(() => void fetchBillingData(), 0);
     return () => window.clearTimeout(timer);
-  }, [fetchBillingData, initialData]);
+  }, [fetchBillingData]);
 
   const handleSetDefault = async (paymentMethodId: string) => {
     try {
@@ -185,7 +184,7 @@ export default function BillingClient({
             <PlanHero plan={currentPlan} limit={currentLimit} usage={currentData.totalUsage} resetDate={currentData.resetDate ?? null} nextBillingDate={currentData.nextInvoiceDate ?? null} isUnlimited={isUnlimited} billingInterval={billingInterval} customerBalance={currentData.customerBalance ?? null} scheduledPlan={currentData.scheduledPlan} scheduledPlanDate={currentData.scheduledPlanDate} subscriptionStatus={currentData.subscriptionStatus} cancelAtPeriodEnd={currentData.cancelAtPeriodEnd} onManageSubscription={() => subscriptionFlow.openModal({ view: "overview" })} />
 
             <section id="plans" aria-label="Plan comparison" className="space-y-6">
-              <PlanComparison currentPlan={currentPlan} scheduledPlan={currentData.scheduledPlan} onUpgrade={handlePlanChange} billingInterval={billingInterval} />
+              <PlanComparison currentPlan={currentPlan} scheduledPlan={currentData.scheduledPlan} scheduledPlanDate={currentData.scheduledPlanDate} onUpgrade={handlePlanChange} billingInterval={billingInterval} />
             </section>
 
             <section aria-label="Payment methods" className="space-y-6">

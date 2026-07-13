@@ -2,9 +2,10 @@ import Stripe from "stripe";
 import { redis } from "@/lib/redis";
 import { stripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getEntitledPlanForSubscription } from "@/lib/billing-catalog";
+import { getEntitledPlanForSubscription, type PaidPlanRequest } from "@/lib/billing-catalog";
 import {
   buildProfileBillingReconciliationPayload,
+  resolveEffectiveBillingState,
   type BillingProfileSnapshot,
 } from "@/lib/services/stripe-billing-flow.service";
 import { formatIsoDatePart } from "@/lib/format";
@@ -326,6 +327,26 @@ async function selfHealBillingDate(
   return null;
 }
 
+async function applyOverdueScheduledPlanChange(
+  subscription: Stripe.Subscription,
+  schedule: Stripe.SubscriptionSchedule | null,
+  targetPlan: PaidPlanRequest,
+) {
+  const subscriptionItemId = subscription.items.data[0]?.id;
+  if (!subscriptionItemId) return subscription;
+
+  await stripe.subscriptions.update(subscription.id, {
+    items: [{ id: subscriptionItemId, price: targetPlan.priceId }],
+    proration_behavior: "none",
+  });
+
+  if (schedule?.id && (schedule.status === "active" || schedule.status === "not_started")) {
+    await stripe.subscriptionSchedules.release(schedule.id);
+  }
+
+  return stripe.subscriptions.retrieve(subscription.id);
+}
+
 export async function reconcileProfileBillingFromStripe(
   userId: string,
   profile: BillingProfileSnapshot,
@@ -356,15 +377,39 @@ export async function reconcileProfileBillingFromStripe(
 
     if (!subscription) return null;
 
-    const verifiedPlan = getEntitledPlanForSubscription(subscription);
+    let verifiedPlan = getEntitledPlanForSubscription(subscription);
     if (!verifiedPlan) return null;
 
-    const scheduleId = typeof subscription.schedule === "string"
+    let scheduleId = typeof subscription.schedule === "string"
       ? subscription.schedule
       : subscription.schedule?.id;
-    const schedule = scheduleId
+    let schedule = scheduleId
       ? await stripe.subscriptionSchedules.retrieve(scheduleId)
       : null;
+
+    const effectiveState = resolveEffectiveBillingState({
+      profile,
+      subscription,
+      schedule,
+      verifiedPlan,
+    });
+
+    if (effectiveState.overdueScheduledPlan) {
+      subscription = await applyOverdueScheduledPlanChange(
+        subscription,
+        schedule,
+        effectiveState.overdueScheduledPlan,
+      );
+      verifiedPlan = getEntitledPlanForSubscription(subscription);
+      if (!verifiedPlan) return null;
+
+      scheduleId = typeof subscription.schedule === "string"
+        ? subscription.schedule
+        : subscription.schedule?.id;
+      schedule = scheduleId
+        ? await stripe.subscriptionSchedules.retrieve(scheduleId)
+        : null;
+    }
 
     const payload = buildProfileBillingReconciliationPayload({
       profile,

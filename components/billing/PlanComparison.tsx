@@ -3,20 +3,28 @@
 import { useState } from "react";
 import { ANNUAL_SAVINGS_PERCENT, getPlanAnnualTotal, PLAN_DETAILS, PLANS, PLAN_RANKS } from "@/lib/constants";
 import { CommandPanel, StatusPill } from "@/components/command";
+import { isActiveScheduledPlanChange } from "@/lib/billing-schedule";
 
 export function PlanComparison({
   currentPlan,
   scheduledPlan,
+  scheduledPlanDate,
   onUpgrade,
   billingInterval: initialInterval = "month",
 }: {
   currentPlan: string;
   scheduledPlan?: string | null;
+  scheduledPlanDate?: string | null;
   onUpgrade: (plan: string, interval: "month" | "year") => void;
   billingInterval?: "month" | "year";
 }) {
   const [selectedInterval, setSelectedInterval] = useState<"month" | "year">(initialInterval);
   const normalizedCurrentPlan = currentPlan.toLowerCase();
+  const hasPendingScheduledChange = isActiveScheduledPlanChange(
+    scheduledPlan,
+    scheduledPlanDate,
+    currentPlan,
+  );
 
   return (
     <div className="space-y-7 sm:space-y-9">
@@ -36,7 +44,8 @@ export function PlanComparison({
         {PLANS.map((plan) => {
           const details = PLAN_DETAILS[plan.id];
           const isCurrent = normalizedCurrentPlan === plan.id.toLowerCase();
-          const isScheduled = Boolean(scheduledPlan && scheduledPlan.toLowerCase() === plan.id.toLowerCase() && !isCurrent);
+          const isScheduled = hasPendingScheduledChange
+            && Boolean(scheduledPlan && scheduledPlan.toLowerCase() === plan.id.toLowerCase() && !isCurrent);
           const currentRank = PLAN_RANKS[Object.keys(PLAN_RANKS).find((key) => key.toLowerCase() === normalizedCurrentPlan) || "Hobby"] ?? PLAN_RANKS.Hobby;
           const isUpgrade = PLAN_RANKS[plan.id] > currentRank;
           const displayPrice = selectedInterval === "year" && plan.yearlyPrice ? plan.yearlyPrice : plan.price;

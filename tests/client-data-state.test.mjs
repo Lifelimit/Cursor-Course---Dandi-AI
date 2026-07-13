@@ -49,10 +49,11 @@ test("Playground retries ambiguous server hydration and follows repository query
   assert.doesNotMatch(client, /initialKeys = \[\]/);
 });
 
-test("billing trusts server hydration and locks payment deletion while pending", async () => {
+test("billing refreshes after server hydration and locks payment deletion while pending", async () => {
   const source = await read("app/billing/BillingClient.tsx");
 
-  assert.match(source, /if \(initialData\) return/);
+  assert.match(source, /window\.setTimeout\(\(\) => void fetchBillingData\(\), 0\)/);
+  assert.doesNotMatch(source, /if \(initialData\) return/);
   assert.match(source, /if \(deletionInFlight\.current\) return/);
   assert.match(source, /aria-busy=\{isDeletingCard\}/);
   assert.match(source, /role="alert"/);
