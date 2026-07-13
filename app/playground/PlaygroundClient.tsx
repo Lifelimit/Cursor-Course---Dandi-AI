@@ -202,6 +202,7 @@ export default function PlaygroundClient({
     setIndexedLogState,
     handleIngest: submitIngest,
     resetIngestedRepository,
+    cancelIngestionJob,
   } = useRepositoryIngestion({
     apiKey,
     githubUrl,
@@ -503,6 +504,7 @@ export default function PlaygroundClient({
                     ingestStatus={ingestStatus}
                     currentStep={currentIndexStats?.currentStep}
                     ingestedRepo={ingestedRepo}
+                    cancelIngestionJob={cancelIngestionJob}
                     setApiKey={setTrackedApiKey}
                     setSelectedKey={setSelectedKey}
                     setSelectValue={setSelectValue}

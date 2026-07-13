@@ -388,6 +388,24 @@ export async function getIngestionJob(input: {
   return reconcileIngestionJob(toIngestionJob(data));
 }
 
+export async function cancelIngestionJob(input: {
+  jobId: string;
+  keyData: IngestionKeyData;
+}) {
+  const job = await getIngestionJob(input);
+  if (job.status === "completed") return job;
+
+  const message = "Repository ingestion cancelled by user.";
+  return updateJob(job.id, {
+    status: "failed",
+    current_step: "failed",
+    error: message,
+    error_message: message,
+    failed_at: new Date().toISOString(),
+    completed_at: new Date().toISOString(),
+  });
+}
+
 export async function listRecentIngestionJobs(input: {
   userId: string;
   apiKeyId?: string | null;
@@ -523,6 +541,17 @@ export async function runIngestionJob(
       }
       lastHeartbeatAt = now;
       await maybeRefreshLock(false);
+      try {
+        const latest = await loadJob(job.id);
+        if (latest.status === "failed" && (latest.error_message || latest.error)?.toLowerCase().includes("cancelled")) {
+          throw new Error("Repository ingestion cancelled.");
+        }
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("cancelled")) {
+          throw err;
+        }
+        // If the cancellation check fails, continue indexing and rely on lock/orphan reconciliation.
+      }
       try {
         job = await updateJob(job.id, {
           indexed_file_count: indexedFileCount,

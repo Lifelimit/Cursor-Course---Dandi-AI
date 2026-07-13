@@ -641,6 +641,37 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     setIndexedRequestLogs([]);
   }, []);
 
+  const cancelIngestionJob = useCallback(async () => {
+    const jobId = indexedRepositoryStats?.jobId;
+    if (!apiKey || !jobId) return;
+
+    ingestionControllerRef.current?.abort();
+    ingestionControllerRef.current = null;
+
+    try {
+      const res = await fetch("/api/rag/ingest/cancel", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+        },
+        body: JSON.stringify({ jobId }),
+      });
+      const data = (await res.json()) as IngestionResponse;
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to cancel ingestion job.");
+      }
+
+      applyDurableJobState(toIngestionJobSummary(data, githubUrl));
+      setErrorMessage("Repository ingestion cancelled.");
+      setIngestStatus("error");
+      showToast("success", "Stopped repository indexing.");
+    } catch (err) {
+      const errMsg = getUnknownErrorMessage(err, "Failed to cancel ingestion job.");
+      showToast("error", errMsg);
+    }
+  }, [apiKey, githubUrl, indexedRepositoryStats?.jobId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return {
     indexedRequestLogs,
     ingestStatus,
@@ -650,5 +681,6 @@ Processed ${completedJob.filesCount} files into ${completedJob.chunksCount} sear
     setIndexedLogState,
     handleIngest,
     resetIngestedRepository,
+    cancelIngestionJob,
   };
 }

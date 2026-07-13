@@ -24,6 +24,7 @@ type RepositoryRequestBuilderProps = {
   ingestStatus: RepositoryIngestStatus;
   currentStep?: string;
   ingestedRepo: string | null;
+  cancelIngestionJob?: () => void | Promise<void>;
   setApiKey: Dispatch<SetStateAction<string>>;
   setSelectedKey: Dispatch<SetStateAction<string>>;
   setSelectValue: Dispatch<SetStateAction<string>>;
@@ -48,6 +49,7 @@ export function RepositoryRequestBuilder({
   ingestStatus,
   currentStep,
   ingestedRepo,
+  cancelIngestionJob,
   setApiKey,
   setSelectedKey,
   setSelectValue,
@@ -225,25 +227,36 @@ export function RepositoryRequestBuilder({
               )}
             </button>
           ) : (
-            <button
-              type="submit"
-              disabled={isIngesting || isOverLimit}
-              className="group flex flex-1 items-center justify-center gap-2.5 rounded-2xl bg-emerald-400 px-5 py-4 text-[10px] font-black uppercase tracking-[0.16em] text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.18)] transition-all hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-3 sm:px-8 sm:py-5 sm:text-xs sm:tracking-widest cursor-pointer"
-            >
-              {isIngesting ? (
-                <>
-                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950"></div>
-                  {ingestingLabel}
-                </>
-              ) : (
-                <>
-                  {ingestedRepo === githubUrl && ingestStatus === "completed" ? "Re-index repository" : "Prepare repository"}
-                  <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
-                    <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </>
+            <>
+              <button
+                type="submit"
+                disabled={isIngesting || isOverLimit}
+                className="group flex flex-1 items-center justify-center gap-2.5 rounded-2xl bg-emerald-400 px-5 py-4 text-[10px] font-black uppercase tracking-[0.16em] text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.18)] transition-all hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-3 sm:px-8 sm:py-5 sm:text-xs sm:tracking-widest cursor-pointer"
+              >
+                {isIngesting ? (
+                  <>
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950/20 border-t-slate-950"></div>
+                    {ingestingLabel}
+                  </>
+                ) : (
+                  <>
+                    {ingestedRepo === githubUrl && ingestStatus === "completed" ? "Re-index repository" : "Prepare repository"}
+                    <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor">
+                      <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </>
+                )}
+              </button>
+              {isIngesting && cancelIngestionJob && (
+                <button
+                  type="button"
+                  onClick={() => void cancelIngestionJob()}
+                  className="flex items-center justify-center rounded-2xl border border-red-300/25 bg-red-300/[0.08] px-5 py-4 text-[10px] font-black uppercase tracking-[0.16em] text-red-100 shadow-sm transition-all hover:border-red-300/35 hover:bg-red-300/[0.12] sm:px-8 sm:py-5 sm:text-xs sm:tracking-widest cursor-pointer"
+                >
+                  Stop
+                </button>
               )}
-            </button>
+            </>
           )}
           <button
             type="button"
