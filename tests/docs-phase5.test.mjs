@@ -60,6 +60,9 @@ test("desktop docs navigation separates sticky positioning from internal scrolli
 });
 
 test("intentional section navigation still respects reduced motion", () => {
-  assert.match(source, /section\.scrollIntoView\(\{ behavior: reducedMotion \? "auto" : "smooth", block: "start" \}\)/);
   assert.match(source, /useReducedMotion/);
+  assert.match(source, /if \(reducedMotion\) \{/);
+  assert.match(source, /window\.scrollTo\(\{ top: targetY, behavior: "auto" \}\)/);
+  assert.match(source, /easeOutCubic/);
+  assert.doesNotMatch(source, /section\.scrollIntoView/);
 });
