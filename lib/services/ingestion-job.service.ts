@@ -19,7 +19,9 @@ import type { IngestionJob, IngestionJobStep, IngestionKeyData, IngestionJobSumm
 const LOCK_TTL_SEC = 120;
 const LEASE_TTL_MS = 90_000;
 const DEFAULT_WORKER_MAX_MS = 45_000;
-const DEFAULT_MAX_CHUNKS_PER_INVOCATION = 8;
+const DEFAULT_MAX_CHUNKS_PER_INVOCATION = 16;
+const DEFAULT_MAX_FILES_PER_INVOCATION = 4;
+const WORKER_SAFETY_WINDOW_MS = 8_000;
 const DEFAULT_MAX_JOB_RETRIES = 8;
 const ORPHANED_INGESTION_MESSAGE = "Repository ingestion is being resumed after a worker stopped unexpectedly.";
 const CANCELLED_INGESTION_MESSAGE = "Repository ingestion cancelled by user.";
@@ -329,6 +331,8 @@ async function finalizeUsage(job: IngestionJob, usageKeyData: IngestionKeyData |
 
 async function processOneWorkerUnit(job: IngestionJob, token: string, telemetry?: RequestTelemetry): Promise<{ job: IngestionJob; outcome: WorkerOutcome }> {
   const deadline = Date.now() + positiveInt("RAG_WORKER_MAX_MS", DEFAULT_WORKER_MAX_MS, 55_000);
+  const maxChunksPerInvocation = positiveInt("RAG_WORKER_MAX_CHUNKS_PER_INVOCATION", DEFAULT_MAX_CHUNKS_PER_INVOCATION, 20);
+  const maxFilesPerInvocation = positiveInt("RAG_WORKER_MAX_FILES_PER_INVOCATION", DEFAULT_MAX_FILES_PER_INVOCATION, 8);
   job = await assertNotCancelled(job.id);
   const usageKeyData = await loadUsageKeyData(job);
   if (!usageKeyData && !job.quota_reserved) throw new IngestionWorkerError("CREDENTIAL_UNAVAILABLE", "The ingestion credential is no longer available. Start repository preparation again.");
@@ -339,44 +343,57 @@ async function processOneWorkerUnit(job: IngestionJob, token: string, telemetry?
   }
   job = await prepareJob(job, token);
   const files = Array.isArray(job.selected_files) ? job.selected_files : [];
-  const fileCursor = job.file_cursor ?? 0;
-  if (fileCursor >= files.length) {
-    job = await heartbeat(job, token, { current_step: "finalizing" });
-    if (!job.index_version) throw new IngestionWorkerError("DATABASE_INDEX_VERSION_FAILED", "Repository index version is missing.");
-    const count = await countVersionChunks(job.index_version);
-    if (count <= 0) throw new IngestionWorkerError("NO_PERSISTED_CHUNKS", "Dandi could not read queryable repository content from GitHub.");
-    const { error } = await supabaseAdmin.rpc("activate_repository_index", { p_version_id: job.index_version, p_user_id: job.user_id, p_repo_url: job.repo_url });
-    if (error) throw new IngestionWorkerError("DATABASE_ACTIVATION_FAILED", "Failed to activate the repository index.", true);
-    job = await heartbeat(job, token, { status: "completed", current_step: "ready", index_available: true, chunk_count: count, chunks_count: count, prepared_chunk_count: count, embedded_chunk_count: count, persisted_chunk_count: count, completed_at: nowIso() });
-    await finalizeUsage(job, usageKeyData, telemetry, "success");
-    job = await updateJob(job.id, { lease_owner: null, lease_expires_at: null }, token);
-    return { job, outcome: "completed" };
+  let filesProcessed = 0;
+
+  while (true) {
+    const fileCursor = job.file_cursor ?? 0;
+    if (fileCursor >= files.length) {
+      if (Date.now() + WORKER_SAFETY_WINDOW_MS >= deadline) return { job, outcome: "progressed" };
+      job = await heartbeat(job, token, { current_step: "finalizing" });
+      if (!job.index_version) throw new IngestionWorkerError("DATABASE_INDEX_VERSION_FAILED", "Repository index version is missing.");
+      const count = await countVersionChunks(job.index_version);
+      if (count <= 0) throw new IngestionWorkerError("NO_PERSISTED_CHUNKS", "Dandi could not read queryable repository content from GitHub.");
+      const { error } = await supabaseAdmin.rpc("activate_repository_index", { p_version_id: job.index_version, p_user_id: job.user_id, p_repo_url: job.repo_url });
+      if (error) throw new IngestionWorkerError("DATABASE_ACTIVATION_FAILED", "Failed to activate the repository index.", true);
+      job = await heartbeat(job, token, { status: "completed", current_step: "ready", index_available: true, chunk_count: count, chunks_count: count, prepared_chunk_count: count, embedded_chunk_count: count, persisted_chunk_count: count, completed_at: nowIso() });
+      await finalizeUsage(job, usageKeyData, telemetry, "success");
+      job = await updateJob(job.id, { lease_owner: null, lease_expires_at: null }, token);
+      return { job, outcome: "completed" };
+    }
+    if (filesProcessed >= maxFilesPerInvocation || Date.now() + WORKER_SAFETY_WINDOW_MS >= deadline) return { job, outcome: "progressed" };
+
+    const file = files[fileCursor];
+    const branch = job.branch || "main";
+    let text = "";
+    try {
+      text = await fetchRawFileContent(job.repo_url, branch, file.path);
+    } catch {
+      job = await heartbeat(job, token, { current_step: "fetching_files", file_cursor: fileCursor + 1, chunk_cursor: 0, failed_file_count: (job.failed_file_count ?? 0) + 1, skipped_file_count: (job.skipped_file_count ?? 0) + 1, last_error_code: "GITHUB_FILE_FETCH_FAILED" });
+      filesProcessed += 1;
+      continue;
+    }
+    const chunks = splitIntoChunks(text, file.path);
+    const chunkCursor = job.chunk_cursor ?? 0;
+    if (chunks.length === 0) {
+      job = await heartbeat(job, token, { file_cursor: fileCursor + 1, chunk_cursor: 0, current_step: "fetching_files" });
+      filesProcessed += 1;
+      continue;
+    }
+    const batch = chunks.slice(chunkCursor, chunkCursor + maxChunksPerInvocation);
+    if (Date.now() + WORKER_SAFETY_WINDOW_MS >= deadline) return { job, outcome: "progressed" };
+    job = await heartbeat(job, token, { current_step: "embedding", prepared_chunk_count: Math.max(job.prepared_chunk_count ?? 0, chunkCursor + batch.length), chunks_count: Math.max(job.chunks_count ?? 0, chunkCursor + batch.length) });
+    const { embeddings, model } = await googleBatchEmbedWithModel(batch.map((chunk) => chunk.content));
+    if (embeddings.length !== batch.length) throw new IngestionWorkerError("EMBEDDING_INVALID_RESPONSE", "Gemini returned a mismatched embedding count.");
+    await assertNotCancelled(job.id);
+    const rows = batch.map((chunk, index) => ({ repo_url: job.repo_url, user_id: job.user_id, api_key_id: job.api_key_id, credential_type: job.credential_type, index_version: job.index_version, embedding_model: model, file_path: chunk.path, chunk_index: chunk.chunkIndex, content_hash: chunk.contentHash, start_offset: chunk.startOffset, end_offset: chunk.endOffset, content: chunk.content, embedding: embeddings[index] }));
+    const { error: insertError } = await supabaseAdmin.from("repository_chunks").upsert(rows, { onConflict: "index_version,file_path,chunk_index,content_hash" });
+    if (insertError) throw new IngestionWorkerError("DATABASE_INSERT_FAILED", "Failed to insert repository chunks.", true);
+    const persistedCount = job.index_version ? await countVersionChunks(job.index_version) : 0;
+    const nextCursor = chunkCursor + batch.length;
+    const fileFinished = nextCursor >= chunks.length;
+    job = await heartbeat(job, token, { current_step: fileFinished ? "fetching_files" : "embedding", file_cursor: fileFinished ? fileCursor + 1 : fileCursor, chunk_cursor: fileFinished ? 0 : nextCursor, chunk_count: persistedCount, chunks_count: persistedCount, prepared_chunk_count: persistedCount, embedded_chunk_count: persistedCount, persisted_chunk_count: persistedCount });
+    if (fileFinished) filesProcessed += 1;
   }
-  if (Date.now() >= deadline) throw new IngestionWorkerError("JOB_EXECUTION_EXPIRED", "Worker slice reached its execution limit.", true);
-  const file = files[fileCursor];
-  const branch = job.branch || "main";
-  job = await heartbeat(job, token, { current_step: "fetching_files" });
-  let text = "";
-  try { text = await fetchRawFileContent(job.repo_url, branch, file.path); } catch { return { job: await heartbeat(job, token, { current_step: "fetching_files", file_cursor: fileCursor + 1, chunk_cursor: 0, failed_file_count: (job.failed_file_count ?? 0) + 1, skipped_file_count: (job.skipped_file_count ?? 0) + 1, last_error_code: "GITHUB_FILE_FETCH_FAILED" }), outcome: "progressed" }; }
-  const chunks = splitIntoChunks(text, file.path);
-  const chunkCursor = job.chunk_cursor ?? 0;
-  if (chunks.length === 0) return { job: await heartbeat(job, token, { file_cursor: fileCursor + 1, chunk_cursor: 0, current_step: "fetching_files" }), outcome: "progressed" };
-  const maxChunks = positiveInt("RAG_WORKER_MAX_CHUNKS_PER_INVOCATION", DEFAULT_MAX_CHUNKS_PER_INVOCATION, 20);
-  const batch = chunks.slice(chunkCursor, chunkCursor + maxChunks);
-  if (Date.now() >= deadline) throw new IngestionWorkerError("JOB_EXECUTION_EXPIRED", "Worker slice reached its execution limit.", true);
-  job = await heartbeat(job, token, { current_step: "embedding", prepared_chunk_count: Math.max(job.prepared_chunk_count ?? 0, chunkCursor + batch.length), chunks_count: Math.max(job.chunks_count ?? 0, chunkCursor + batch.length) });
-  const { embeddings, model } = await googleBatchEmbedWithModel(batch.map((chunk) => chunk.content));
-  if (embeddings.length !== batch.length) throw new IngestionWorkerError("EMBEDDING_INVALID_RESPONSE", "Gemini returned a mismatched embedding count.");
-  job = await heartbeat(job, token, { current_step: "persisting", embedded_chunk_count: Math.max(job.embedded_chunk_count ?? 0, chunkCursor + batch.length) });
-  await assertNotCancelled(job.id);
-  const rows = batch.map((chunk, index) => ({ repo_url: job.repo_url, user_id: job.user_id, api_key_id: job.api_key_id, credential_type: job.credential_type, index_version: job.index_version, embedding_model: model, file_path: chunk.path, chunk_index: chunk.chunkIndex, content_hash: chunk.contentHash, start_offset: chunk.startOffset, end_offset: chunk.endOffset, content: chunk.content, embedding: embeddings[index] }));
-  const { error: insertError } = await supabaseAdmin.from("repository_chunks").upsert(rows, { onConflict: "index_version,file_path,chunk_index,content_hash" });
-  if (insertError) throw new IngestionWorkerError("DATABASE_INSERT_FAILED", "Failed to insert repository chunks.", true);
-  const persistedCount = job.index_version ? await countVersionChunks(job.index_version) : 0;
-  const nextCursor = chunkCursor + batch.length;
-  const fileFinished = nextCursor >= chunks.length;
-  job = await heartbeat(job, token, { current_step: fileFinished ? "fetching_files" : "embedding", file_cursor: fileFinished ? fileCursor + 1 : fileCursor, chunk_cursor: fileFinished ? 0 : nextCursor, chunk_count: persistedCount, chunks_count: persistedCount, prepared_chunk_count: persistedCount, embedded_chunk_count: persistedCount, persisted_chunk_count: persistedCount });
-  return { job, outcome: "progressed" };
 }
 
 async function handleWorkerError(job: IngestionJob, token: string, error: unknown, telemetry?: RequestTelemetry) {
