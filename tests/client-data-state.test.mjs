@@ -69,7 +69,9 @@ test("API key hydration distinguishes an empty server result and waits for an ow
   assert.match(source, /useState\(!hasCompleteInitialData\)/);
   assert.match(source, /shouldSkipInitialLoad/);
   assert.match(source, /response\.headers\.get\("x-dandi-plan"\)/);
-  assert.match(source, /if \(!supabase \|\| !userId\) return/);
+  assert.match(source, /import \{ createClient \} from "@\/lib\/supabase\/client"/);
+  assert.match(source, /useMemo\(\(\) => createClient\(\), \[\]\)/);
+  assert.match(source, /if \(!userId\) return/);
   assert.match(source, /eventUserId && eventUserId !== userId/);
   assert.doesNotMatch(source, /filter:\s*["'`]/);
 });

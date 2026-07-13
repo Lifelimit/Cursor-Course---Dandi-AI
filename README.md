@@ -46,13 +46,15 @@ This repository currently covers:
 
 The app exposes route handlers under `app/api`, including:
 
-- `/api/keys` and `/api/keys/[id]` for API key management
+- `/api/keys`, `/api/keys/[id]`, and `/api/keys/bulk-delete` for API key management and alert settings
 - `/api/validate` for API key validation
-- `/api/usage`, `/api/usage/export`, and `/api/usage/alert` for telemetry and alerts
+- `/api/usage` and `/api/usage/export` for telemetry
 - `/api/github-metadata` and `/api/github-summarizer` for repository analysis
-- `/api/rag/ingest` and `/api/rag/chat` for repository ingestion and retrieval chat
+- `/api/rag/ingest`, `/api/rag/jobs`, and `/api/rag/chat` for repository ingestion and retrieval chat
+- `/api/integrations/github/*` for GitHub App connection flows
 - `/api/stripe/*` and `/api/webhooks/stripe` for billing workflows
-- `/api/profile` for account profile data
+- `/api/profile`, `/api/profile/webhook-secret`, and `/api/profile/webhook-test` for account profile and webhook settings
+- `/api/account` and `/api/account/environments` for account lifecycle and environment metadata
 
 ## Getting Started
 
@@ -91,10 +93,11 @@ Use Yarn for all scripts:
 ```bash
 yarn lint
 yarn typecheck
+yarn test
 yarn build
 ```
 
-The local CI helper runs linting, typechecking, and a production build with mock build-time environment variables:
+The local CI helper runs migration checks, linting, typechecking, tests, and a production build with mock build-time environment variables:
 
 ```bash
 yarn ci:check
@@ -116,8 +119,9 @@ Repo-specific agent instructions live in `AGENTS.md`.
 Codex project skills live in `.codex/skills`:
 
 - `dandi-execute` - implementation workflow
-- `dandi-ideate` - architecture and brainstorming workflow
+- `dandi-brainstorm` - architecture and brainstorming workflow (`dandi-ideate` is a compatibility alias)
 - `dandi-audit` - review and quality workflow
 - `dandi-plan` - staged planning workflow
+- `dandi-security-review` - security and trust-boundary review workflow
 
 These are committed with the project so they can travel with the repository.

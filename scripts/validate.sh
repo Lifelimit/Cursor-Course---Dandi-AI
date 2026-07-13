@@ -14,7 +14,7 @@ export STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-sk_test_mock}"
 export STRIPE_WEBHOOK_SECRET="${STRIPE_WEBHOOK_SECRET:-whsec_mock}"
 export UPSTASH_REDIS_REST_URL="${UPSTASH_REDIS_REST_URL:-https://mock.upstash.io}"
 export UPSTASH_REDIS_REST_TOKEN="${UPSTASH_REDIS_REST_TOKEN:-mock-token}"
-export GOOGLE_API_KEY="${GOOGLE_API_KEY:-mock-google-key}"
+export GOOGLE_API_KEYS="${GOOGLE_API_KEYS:-mock-google-key}"
 export API_KEY_HMAC_SECRET="${API_KEY_HMAC_SECRET:-mock-hmac-secret-key-32-chars-for-ci-pipeline-pass}"
 # Optional delivery stays disabled during deterministic local/CI validation.
 # Exporting the complete empty group also prevents a partial developer

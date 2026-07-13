@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useId, useRef } from "react";
+import { useState, useEffect, useCallback, useId, useMemo, useRef } from "react";
 import { ApiKey, ApiKeyApiResponse, mapApiKey } from "@/types/api";
 import type { ApiKeyMutationData } from "@/types/api-keys";
-import { supabase } from "@/lib/supabase-client";
+import { createClient } from "@/lib/supabase/client";
 
 export function useApiKeys(initialData?: ApiKey[], initialPlan?: string | null) {
   const hasInitialData = initialData !== undefined;
@@ -46,10 +46,10 @@ export function useApiKeys(initialData?: ApiKey[], initialPlan?: string | null) 
     void loadKeys();
   }, [loadKeys]);
 
+  const supabase = useMemo(() => createClient(), []);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!supabase) return;
     let isActive = true;
 
     void supabase.auth.getUser().then(({ data: { user } }) => {
@@ -59,12 +59,12 @@ export function useApiKeys(initialData?: ApiKey[], initialPlan?: string | null) 
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [supabase.auth]);
 
   const hookId = useId();
   // Real-time subscription
   useEffect(() => {
-    if (!supabase || !userId) return;
+    if (!userId) return;
 
     const channel = supabase
       .channel(`api_keys_changes_${hookId}`)
@@ -106,11 +106,9 @@ export function useApiKeys(initialData?: ApiKey[], initialPlan?: string | null) 
       .subscribe();
 
     return () => {
-      if (supabase) {
-        supabase.removeChannel(channel);
-      }
+      supabase.removeChannel(channel);
     };
-  }, [hookId, userId]);
+  }, [hookId, supabase, userId]);
 
 
   const createKey = async (data: ApiKeyMutationData & {

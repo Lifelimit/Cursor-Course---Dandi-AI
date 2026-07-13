@@ -6,10 +6,10 @@
  * of the auth-gated architecture.
  *
  * Access: Manually navigate to /protected, then paste a key into the form.
- * Requires an active session (enforced by
- * both middleware.ts protectedRoutes and this page's server-side auth check).
+ * Requires an active session (enforced by proxy.ts protected-route checks and
+ * this page's server-side auth check).
  *
- * If this route is no longer needed, remove it along with its middleware entry.
+ * If this route is no longer needed, remove it along with its proxy.ts entry.
  */
 
 import { createClient } from "@/lib/supabase/server";

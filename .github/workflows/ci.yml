@@ -32,7 +32,7 @@ jobs:
       STRIPE_WEBHOOK_SECRET: "whsec_mock"
       UPSTASH_REDIS_REST_URL: "https://mock.upstash.io"
       UPSTASH_REDIS_REST_TOKEN: "mock-token"
-      GOOGLE_API_KEY: "mock-google-key"
+      GOOGLE_API_KEYS: "mock-google-key"
       API_KEY_HMAC_SECRET: "mock-hmac-secret-key-32-chars-for-ci-pipeline-pass"
 
     steps:

@@ -7,7 +7,7 @@ Compact routing map for finding the right area before reading files broadly. Som
 | `app/` | Next.js routes, pages, layouts, route handlers, auth callback, hidden `/protected` route | `app/<route>/page.tsx`, `app/api/<domain>/route.ts` |
 | `components/` | UI components grouped by product area plus shared primitives | `components/ui/`, `components/dashboard/`, `components/billing/`, `components/usage/`, `components/playground/`, `components/auth/` |
 | `hooks/` | Client-only React hooks | `hooks/useApiKeys.ts`, `hooks/useToast.ts` |
-| `lib/supabase/` | Browser/server Supabase clients and session-aware helpers | `lib/supabase/client.ts`, `lib/supabase/server.ts`, `lib/supabase-client.ts`, `lib/supabase-admin.ts` |
+| `lib/supabase/` | Browser/server Supabase clients and session-aware helpers | `lib/supabase/client.ts`, `lib/supabase/server.ts`, `lib/supabase-admin.ts` |
 | `lib/billing/` | Stripe, plans, subscriptions, payment methods, invoices, billing safety | `lib/stripe.ts`, `lib/billing-catalog.ts`, `lib/services/stripe-*.ts` |
 | `lib/usage/` | Quotas, rate limits, usage counters, alerts, Redis-backed hot paths | `lib/rate-limit.ts`, `lib/redis.ts`, `lib/alerts.ts`, `lib/services/api-key-limits.service.ts` |
 | `lib/rag/` | AI/RAG orchestration, ingestion jobs, file selection, model provider calls | `lib/services/ai.service.ts`, `lib/services/google-gemini.service.ts`, `lib/services/ingestion-job.service.ts`, `lib/services/rag-file-selection.service.ts` |

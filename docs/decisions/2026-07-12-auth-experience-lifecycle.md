@@ -1,5 +1,8 @@
 # Dandi authentication experience lifecycle
 
+Date: 2026-07-12
+Status: Accepted
+
 ## Decision
 
 Keep Supabase Auth as the sole authentication provider and use one shared split-screen `AuthExperienceShell` for interactive auth entry points and server-rendered auth states. Client components own only form interaction; server pages own session checks and route redirects.
