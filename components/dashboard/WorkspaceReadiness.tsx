@@ -29,18 +29,31 @@ const toneDot: Record<ReadinessTone, string> = {
 
 function ReadinessItemView({ item }: { item: ReadinessItem }) {
   const content = (
-    <div className="group flex min-w-0 items-start gap-3 rounded-2xl border border-white/[0.06] bg-slate-950/35 p-3.5 transition hover:border-white/[0.12] hover:bg-slate-950/55">
+    <div className="group flex h-full min-w-0 items-start gap-3 rounded-2xl border border-white/[0.06] bg-slate-950/35 p-3.5 transition hover:border-white/[0.12] hover:bg-slate-950/55">
       <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${toneDot[item.tone]}`} aria-hidden="true" />
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
         <p className="mt-1 truncate text-sm font-bold text-white">{item.value}</p>
         <p className="mt-1 text-[11px] leading-5 text-slate-500">{item.detail}</p>
       </div>
-      {item.href && <span className="ml-auto pt-0.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-emerald-300" aria-hidden="true">↗</span>}
+      <span
+        className={`shrink-0 pt-0.5 ${item.href ? "text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-emerald-300" : "invisible"}`}
+        aria-hidden="true"
+      >
+        ↗
+      </span>
     </div>
   );
 
-  return item.href ? <Link href={item.href}>{content}</Link> : content;
+  if (item.href) {
+    return (
+      <Link href={item.href} className="block h-full min-w-0">
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className="h-full min-w-0">{content}</div>;
 }
 
 export function WorkspaceReadiness({
@@ -125,7 +138,7 @@ export function WorkspaceReadiness({
         </div>
       )}
 
-      <div className="relative mt-5 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="relative mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {items.map((item) => <ReadinessItemView key={item.label} item={item} />)}
       </div>
     </CommandPanel>
