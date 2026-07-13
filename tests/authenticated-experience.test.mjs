@@ -8,7 +8,9 @@ test("the docs page forwards the optional session to one shared documentation wo
   const page = await read("app/docs/page.tsx");
 
   assert.match(page, /getVerifiedSession\(supabase\)/);
-  assert.match(page, /<DocsClient initialSession=\{session\} \/>/);
+  assert.match(page, /getServerApiKeys\(\)/);
+  assert.match(page, /<DocsClient initialSession=\{session\} initialKeys=\{initialKeys\} initialPlan=\{plan\} \/>/);
+  assert.match(page, /<DocsClient initialSession=\{null\} \/>/);
 });
 
 test("authenticated docs use dashboard chrome while public docs keep public chrome", async () => {
@@ -23,7 +25,8 @@ test("authenticated docs use dashboard chrome while public docs keep public chro
   const publicBranch = docs.slice(publicStart);
 
   assert.match(docs, /const ContentRoot: "main" \| "div" = initialSession \? "div" : "main"/);
-  assert.match(authenticatedBranch, /<DashboardShell/);
+  assert.match(authenticatedBranch, /<AuthenticatedDocsShell/);
+  assert.match(docs, /<DashboardShell/);
   assert.match(authenticatedBranch, /\{docsWorkspace\}/);
   assert.doesNotMatch(authenticatedBranch, /<Navbar|<Footer/);
 

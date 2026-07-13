@@ -8,6 +8,10 @@ import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import { CodeWindow, CommandPanel, ScrollFrame, StatusPill } from "@/components/command";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { PLAN_DETAILS } from "@/lib/constants";
+import { computeSidebarAlerts } from "@/lib/alerts";
+import { useApiKeys } from "@/hooks/useApiKeys";
+import type { ApiKey } from "@/types/api";
 import { publicEnv } from "@/lib/env";
 
 type NavItem = { id: string; label: string; terms: string };
@@ -138,21 +142,41 @@ function ParameterTable({ children, label }: { children: ReactNode; label: strin
   return <ScrollFrame axis="x" minWidth="560px" label={label} className="w-full rounded-xl border border-white/10 bg-slate-950/50 [&_table]:w-full [&_th]:bg-white/[0.03] [&_th]:px-4 [&_th]:py-3 [&_th]:text-left [&_th]:text-[10px] [&_th]:font-black [&_th]:uppercase [&_th]:tracking-widest [&_th]:text-slate-400 [&_td]:border-t [&_td]:border-white/5 [&_td]:px-4 [&_td]:py-3 [&_td]:align-top [&_td]:text-xs [&_td]:leading-5 [&_td]:text-slate-400"><table>{children}</table></ScrollFrame>;
 }
 
-function NavList({ activeId, query, onNavigate, onSectionNavigate, reducedMotion }: { activeId: string; query: string; onNavigate?: () => void; onSectionNavigate: (id: string) => void; reducedMotion: boolean }) {
-  const listRef = useRef<HTMLDivElement>(null);
+function NavList({ activeId, query, onNavigate, onSectionNavigate }: { activeId: string; query: string; onNavigate?: () => void; onSectionNavigate: (id: string) => void }) {
   const normalizedQuery = query.trim().toLowerCase();
   const groups = navGroups.map((group) => ({ ...group, items: group.items.filter((item) => !normalizedQuery || `${item.label} ${item.terms}`.toLowerCase().includes(normalizedQuery)) })).filter((group) => group.items.length);
-
-  useEffect(() => {
-    const activeLink = listRef.current?.querySelector<HTMLElement>('a[aria-current="location"]');
-    activeLink?.scrollIntoView({ block: "nearest", behavior: reducedMotion ? "auto" : "smooth" });
-  }, [activeId, reducedMotion]);
-
   if (!groups.length) return <p role="status" className="rounded-lg border border-dashed border-white/10 p-3 text-xs leading-5 text-slate-400">No sections match this filter. Try an endpoint, error, or concept.</p>;
-  return <div ref={listRef} className="space-y-6">{groups.map((group) => <div key={group.label} className="space-y-2"><p className="dandi-type-metadata text-zinc-500">{group.label}</p><ul className="space-y-1">{group.items.map((item) => <li key={item.id}><a href={`#${item.id}`} onClick={(event) => { event.preventDefault(); onSectionNavigate(item.id); onNavigate?.(); }} aria-current={activeId === item.id ? "location" : undefined} className={`block rounded-lg border px-3 py-2 text-xs font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 ${activeId === item.id ? "border-emerald-300/25 bg-emerald-300/[0.08] text-emerald-200" : "border-transparent text-slate-400 hover:border-white/10 hover:bg-white/[0.03] hover:text-white"}`}>{item.label}</a></li>)}</ul></div>)}</div>;
+  return <div className="space-y-6">{groups.map((group) => <div key={group.label} className="space-y-2"><p className="dandi-type-metadata text-zinc-500">{group.label}</p><ul className="space-y-1">{group.items.map((item) => <li key={item.id}><a href={`#${item.id}`} onClick={(event) => { event.preventDefault(); onSectionNavigate(item.id); onNavigate?.(); }} aria-current={activeId === item.id ? "location" : undefined} className={`block rounded-lg border px-3 py-2 text-xs font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 ${activeId === item.id ? "border-emerald-300/25 bg-emerald-300/[0.08] text-emerald-200" : "border-transparent text-slate-400 hover:border-white/10 hover:bg-white/[0.03] hover:text-white"}`}>{item.label}</a></li>)}</ul></div>)}</div>;
 }
 
-export default function DocsClient({ initialSession }: { initialSession: Session | null }) {
+function AuthenticatedDocsShell({ session, initialKeys, initialPlan, children }: { session: Session; initialKeys?: ApiKey[]; initialPlan?: string | null; children: ReactNode }) {
+  const metadataPlan = (session.user.user_metadata as { plan?: string } | undefined)?.plan ?? null;
+  const { apiKeys, refreshKeys, plan: hydratedPlan } = useApiKeys(initialKeys, initialPlan ?? metadataPlan);
+  const totalUsage = apiKeys.reduce((acc, key) => acc + (key.usage_count || 0), 0);
+  const currentPlan = hydratedPlan || initialPlan || metadataPlan || "Plan unavailable";
+  const planDetail = PLAN_DETAILS[currentPlan as keyof typeof PLAN_DETAILS] || PLAN_DETAILS.Hobby;
+  const currentLimit = planDetail.monthlyLimit ?? 1_000_000;
+  const isUnlimited = planDetail.monthlyLimit === null;
+  const alerts = computeSidebarAlerts(apiKeys);
+
+  return (
+    <DashboardShell
+      variant="dashboard"
+      sidebar={{
+        totalUsage,
+        plan: currentPlan,
+        limit: currentLimit,
+        isUnlimited,
+        alerts,
+        onUpdate: refreshKeys,
+      }}
+    >
+      {children}
+    </DashboardShell>
+  );
+}
+
+export default function DocsClient({ initialSession, initialKeys, initialPlan }: { initialSession: Session | null; initialKeys?: ApiKey[]; initialPlan?: string | null }) {
   const [activeId, setActiveId] = useState("overview");
   const [query, setQuery] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -193,13 +217,13 @@ export default function DocsClient({ initialSession }: { initialSession: Session
           <aside aria-label="Documentation navigation" className={`${stickyNavClassName} space-y-5 overflow-y-auto overscroll-y-contain pr-1`}>
             <div><p className="dandi-type-metadata text-emerald-300/75">Dandi API</p><p className="mt-2 text-sm font-semibold text-slate-200">Documentation workspace</p></div>
             <label className="block"><span className="sr-only">Search documentation</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search endpoints, errors, or concepts" className="w-full rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2.5 text-xs text-slate-200 outline-none placeholder:text-slate-600 focus:border-emerald-300/45 focus:ring-2 focus:ring-emerald-300/15" /></label>
-            <NavList activeId={activeId} query={query} onSectionNavigate={scrollToSection} reducedMotion={reducedMotion} />
+            <NavList activeId={activeId} query={query} onSectionNavigate={scrollToSection} />
             <CommandPanel className="p-4"><p className="dandi-type-metadata text-emerald-300/70">Action plane</p><p className="mt-2 text-xs leading-5 text-slate-400">Use the Playground with your own key to run the same Summary or Prepare & Ask workflow.</p></CommandPanel>
           </aside>
         </div>
         <div className="min-w-0 flex-1 space-y-16">
           <header className="max-w-3xl space-y-4"><p className="dandi-type-metadata text-emerald-300/75">Developer workspace / API reference</p><h1 className="font-serif text-4xl font-bold tracking-tight text-white sm:text-5xl">Build with repository intelligence.</h1><p className="text-base leading-8 text-slate-400">Move from a repository overview to prepared, source-backed questions without leaving the Dandi workflow.</p></header>
-          <div className="lg:hidden"><button type="button" onClick={() => setMobileNavOpen((open) => !open)} aria-expanded={mobileNavOpen} aria-controls="mobile-docs-navigation" className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-xs font-bold text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60">Browse documentation <span aria-hidden="true">{mobileNavOpen ? "−" : "+"}</span></button>{mobileNavOpen && <div id="mobile-docs-navigation" className="mt-2 rounded-xl border border-white/10 bg-slate-950/70 p-4"><label className="block"><span className="sr-only">Search documentation</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search endpoints, errors, or concepts" className="mb-5 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-xs text-slate-200 outline-none placeholder:text-slate-600 focus:border-emerald-300/45" /></label><NavList activeId={activeId} query={query} onSectionNavigate={scrollToSection} onNavigate={() => setMobileNavOpen(false)} reducedMotion={reducedMotion} /></div>}</div>
+          <div className="lg:hidden"><button type="button" onClick={() => setMobileNavOpen((open) => !open)} aria-expanded={mobileNavOpen} aria-controls="mobile-docs-navigation" className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3 text-xs font-bold text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60">Browse documentation <span aria-hidden="true">{mobileNavOpen ? "−" : "+"}</span></button>{mobileNavOpen && <div id="mobile-docs-navigation" className="mt-2 rounded-xl border border-white/10 bg-slate-950/70 p-4"><label className="block"><span className="sr-only">Search documentation</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search endpoints, errors, or concepts" className="mb-5 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-xs text-slate-200 outline-none placeholder:text-slate-600 focus:border-emerald-300/45" /></label><NavList activeId={activeId} query={query} onSectionNavigate={scrollToSection} onNavigate={() => setMobileNavOpen(false)} /></div>}</div>
 
           <section id="overview" className="scroll-mt-28 space-y-6"><SectionHeader eyebrow="Product model" title="Repository intelligence flow">Summarize gives an immediate overview of an accessible repository. Prepare indexes public repository content into retrieval-ready chunks. Ask retrieves relevant prepared context and returns an answer with source evidence when matches are available.</SectionHeader><div className="grid gap-3 sm:grid-cols-3">{[["01", "Summarize", "Inspect structure, purpose, and key components immediately."], ["02", "Prepare", "Create or restore a durable completed preparation job for a public repository."], ["03", "Ask", "Query the prepared public repository and inspect associated evidence."]].map(([number, title, text]) => <CommandPanel key={title} className="space-y-2 p-4"><span className="dandi-type-metadata text-emerald-300">{number}</span><h3 className="font-bold text-slate-100">{title}</h3><p className="text-xs leading-5 text-slate-400">{text}</p></CommandPanel>)}</div><p className="max-w-3xl text-sm leading-7 text-slate-400"><strong className="font-semibold text-slate-200">Preparation enables Ask; it is not required for Summary.</strong> Summary does not automatically prepare a repository.</p></section>
 
@@ -222,14 +246,10 @@ export default function DocsClient({ initialSession }: { initialSession: Session
   </>;
 
   if (initialSession) {
-    const plan = (initialSession.user.user_metadata as { plan?: string } | undefined)?.plan || "Hobby";
     return (
-      <DashboardShell
-        variant="dashboard"
-        sidebar={{ totalUsage: null, plan, limit: null, alerts: [] }}
-      >
+      <AuthenticatedDocsShell session={initialSession} initialKeys={initialKeys} initialPlan={initialPlan}>
         {docsWorkspace}
-      </DashboardShell>
+      </AuthenticatedDocsShell>
     );
   }
 
