@@ -455,7 +455,10 @@ export default function PlaygroundClient({
                 const params = new URLSearchParams(window.location.search);
                 const mode = tab === "summary" ? "summary" : "ask";
                 if (params.get("mode") !== mode) {
-                  router.push(playgroundRoute(mode, undefined, params), { scroll: false });
+                  // Mode changes are local UI state. Updating the URL directly keeps an
+                  // active ingestion job and its progress mounted while preserving a
+                  // shareable/bookmarkable mode query.
+                  window.history.replaceState(window.history.state, "", playgroundRoute(mode, undefined, params));
                 }
               }}
             />
