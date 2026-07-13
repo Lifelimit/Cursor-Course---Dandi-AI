@@ -1,6 +1,9 @@
 import { getURL } from "@/lib/utils/url-helper";
 
 export const DEFAULT_AUTH_REDIRECT = "/dashboards";
+export const PASSWORD_RESET_ROUTE = "/auth/reset-password";
+export const LEGACY_PASSWORD_RESET_ROUTE = "/reset-password";
+export const RECOVERY_COOKIE_NAME = "dandi-recovery-session";
 
 const AUTH_ENTRY_ROUTES = new Set([
   "/login",
@@ -43,6 +46,10 @@ export function getAuthCallbackUrl(next: string, extraParams?: Record<string, st
   }
 
   return url.toString();
+}
+
+export function isPasswordResetRoute(pathname: string | null | undefined) {
+  return pathname === PASSWORD_RESET_ROUTE || pathname === LEGACY_PASSWORD_RESET_ROUTE;
 }
 
 export function getAuthFailureReason(value: string | null | undefined) {

@@ -13,8 +13,8 @@ Keep Supabase Auth as the sole authentication provider and use one shared split-
 | --- | --- | --- |
 | `/login` | magic-link request, password sign-in, Google OAuth, invalid credentials, provider cancellation, callback failure | safe `next`, otherwise `/dashboards` |
 | `/signup` | password account creation, magic-link account creation where enabled, Google OAuth, confirmation required, existing account | safe `next`, otherwise `/dashboards` |
-| `/forgot-password` | recovery request, neutral email-sent response, validation/network failure | `/reset-password` through the Supabase callback |
-| `/reset-password` | recovery-session validation, expired/invalid session, password rules, mismatch, update success | safe `next`, otherwise `/dashboards` |
+| `/forgot-password` | recovery request, neutral email-sent response, validation/network failure | `/auth/reset-password` through the Supabase callback |
+| `/auth/reset-password` | recovery-session validation, expired/invalid session, password rules, mismatch, update success | safe `next`, otherwise `/dashboards` |
 | `/auth/callback` | code exchange, OAuth cancellation, expired/invalid link, exchange failure | validated `next`; signup confirmation uses `/auth/success` |
 | `/auth/success` | email verified, account created, missing/invalid confirmation session | `/dashboards` or explicit sign-in recovery |
 

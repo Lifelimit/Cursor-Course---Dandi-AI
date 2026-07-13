@@ -86,6 +86,8 @@ Concrete protections verified in the repository:
 
 See [`docs/SECURITY_RLS_CHECKLIST.md`](docs/SECURITY_RLS_CHECKLIST.md) and [`docs/SECURITY_REVIEW_GUIDE.md`](docs/SECURITY_REVIEW_GUIDE.md).
 
+Password recovery setup, Supabase redirect URLs, preview guidance, and dashboard-only email template notes are documented in [`docs/AUTH_PASSWORD_RECOVERY.md`](docs/AUTH_PASSWORD_RECOVERY.md).
+
 ## Reliability and validation
 
 Local and CI validation scripts (from `package.json`):

@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { GuidedError } from "@/components/ui/GuidedError";
 import { getAuthErrorGuidance, normalizeAuthError, type AuthErrorKind } from "@/lib/auth-errors";
 import { getAuthCallbackUrl, getSafeAuthRedirect } from "@/lib/auth-utils";
+import { AUTH_PASSWORD_MIN_LENGTH, isValidAuthEmail, normalizeAuthEmail } from "@/lib/auth-validation";
 
 interface AuthFormProps {
   defaultMode: "login" | "signup";
@@ -77,7 +79,8 @@ export function AuthForm({ defaultMode, nextPath = "/dashboards" }: AuthFormProp
     if (isLoading) return;
     clearError();
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    const normalizedEmail = normalizeAuthEmail(email);
+    if (!isValidAuthEmail(normalizedEmail)) {
       setAuthError(new Error("Invalid email"));
       return;
     }
@@ -85,8 +88,8 @@ export function AuthForm({ defaultMode, nextPath = "/dashboards" }: AuthFormProp
       setAuthError(new Error("Name is required"));
       return;
     }
-    if (usePassword && (!password || (isSignUp && password.length < 12))) {
-      setAuthError(new Error("Password must be at least 12 characters"));
+    if (usePassword && (!password || (isSignUp && password.length < AUTH_PASSWORD_MIN_LENGTH))) {
+      setAuthError(new Error(`Password must be at least ${AUTH_PASSWORD_MIN_LENGTH} characters`));
       return;
     }
 
@@ -94,7 +97,7 @@ export function AuthForm({ defaultMode, nextPath = "/dashboards" }: AuthFormProp
     try {
       if (usePassword && isSignUp) {
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
+          email: normalizedEmail,
           password,
           options: {
             data: { full_name: fullName.trim() },
@@ -116,7 +119,7 @@ export function AuthForm({ defaultMode, nextPath = "/dashboards" }: AuthFormProp
       }
 
       if (usePassword) {
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
         if (error) throw error;
         if (!hasNavigated.current) {
           hasNavigated.current = true;
@@ -127,7 +130,7 @@ export function AuthForm({ defaultMode, nextPath = "/dashboards" }: AuthFormProp
       }
 
       const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim(),
+        email: normalizedEmail,
         options: { emailRedirectTo: getAuthCallbackUrl(safeNext) },
       });
       if (error) throw error;
@@ -203,7 +206,7 @@ export function AuthForm({ defaultMode, nextPath = "/dashboards" }: AuthFormProp
         {usePassword && <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
             <label htmlFor={passwordId} className="dandi-label ml-1">Password</label>
-            {!isSignUp && <a href={`/forgot-password?next=${encodeURIComponent(safeNext)}`} className="text-xs font-semibold text-emerald-300 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Forgot password?</a>}
+            {!isSignUp && <Link href={`/forgot-password?next=${encodeURIComponent(safeNext)}`} className="rounded-lg px-1 py-1 text-xs font-semibold text-emerald-300 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Forgot password?</Link>}
           </div>
           <div className="relative">
             <input id={passwordId} name="password" type={showPassword ? "text" : "password"} autoComplete={isSignUp ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} required disabled={isLoading} aria-describedby={isSignUp ? `${passwordId}-hint` : guidance ? errorId : undefined} aria-invalid={errorKind === "weak-password" ? "true" : undefined} className="dandi-field px-4 py-3.5 pr-14 text-sm font-medium sm:px-5 sm:pr-14" placeholder="••••••••" />

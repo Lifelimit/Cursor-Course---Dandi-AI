@@ -10,7 +10,8 @@ export type AuthErrorKind =
   | "weak-password"
   | "password-mismatch"
   | "account-exists"
-  | "rate-limited";
+  | "rate-limited"
+  | "configuration";
 
 type NormalizedAuthError = {
   kind: AuthErrorKind;
@@ -38,7 +39,7 @@ export function normalizeAuthError(error: unknown): NormalizedAuthError {
   if (message.includes("name is required")) {
     return { kind: "missing-name", technicalDetails: "AUTH_NAME_REQUIRED" };
   }
-  if (message.includes("password") && (message.includes("6") || message.includes("weak") || message.includes("short"))) {
+  if (message.includes("password") && (message.includes("weak") || message.includes("short") || /\b\d+\b/.test(message))) {
     return { kind: "weak-password", technicalDetails: "AUTH_WEAK_PASSWORD" };
   }
   if (message.includes("expired") || message.includes("otp_expired")) {
@@ -46,6 +47,13 @@ export function normalizeAuthError(error: unknown): NormalizedAuthError {
   }
   if (message.includes("network") || message.includes("fetch") || message.includes("timeout")) {
     return { kind: "network", technicalDetails: "AUTH_NETWORK_FAILURE" };
+  }
+  if (
+    message.includes("configuration") ||
+    message.includes("environment") ||
+    (message.includes("required") && message.includes("supabase"))
+  ) {
+    return { kind: "configuration", technicalDetails: "AUTH_CONFIGURATION_MISSING" };
   }
 
   return { kind: "auth-failed", technicalDetails: "AUTH_REQUEST_FAILED" };
@@ -84,8 +92,8 @@ export function getAuthErrorGuidance(kind: AuthErrorKind): GuidedErrorCopy {
     "weak-password": {
       category: "Validation",
       title: "Choose a stronger password",
-      explanation: "Dandi passwords must be at least 6 characters long.",
-      nextAction: "Use a password with at least 6 characters, then try again.",
+      explanation: "Dandi passwords must be at least 12 characters long.",
+      nextAction: "Use a password with at least 12 characters, then try again.",
       actionLabel: "Review field",
     },
     "password-mismatch": {
@@ -142,6 +150,13 @@ export function getAuthErrorGuidance(kind: AuthErrorKind): GuidedErrorCopy {
       title: "Connection interrupted",
       explanation: "Dandi could not complete the authentication request.",
       nextAction: "Check your connection and try again.",
+      actionLabel: "Try again",
+    },
+    configuration: {
+      category: "Internal server",
+      title: "Recovery is not configured",
+      explanation: "Dandi could not prepare a secure recovery request right now.",
+      nextAction: "Try again later or contact the workspace administrator.",
       actionLabel: "Try again",
     },
     "callback-failed": {

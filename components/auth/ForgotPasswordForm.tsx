@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { GuidedError } from "@/components/ui/GuidedError";
 import { getAuthErrorGuidance, normalizeAuthError, type AuthErrorKind } from "@/lib/auth-errors";
-import { getAuthCallbackUrl, getSafeAuthRedirect } from "@/lib/auth-utils";
+import { getAuthCallbackUrl, getSafeAuthRedirect, PASSWORD_RESET_ROUTE } from "@/lib/auth-utils";
+import { isValidAuthEmail, normalizeAuthEmail } from "@/lib/auth-validation";
 import { createClient } from "@/lib/supabase/client";
 
 export function ForgotPasswordForm({ nextPath = "/dashboards" }: { nextPath?: string }) {
@@ -21,17 +22,19 @@ export function ForgotPasswordForm({ nextPath = "/dashboards" }: { nextPath?: st
     setErrorKind(null);
     setTechnicalDetails(undefined);
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    const normalizedEmail = normalizeAuthEmail(email);
+    if (!isValidAuthEmail(normalizedEmail)) {
       setErrorKind("invalid-email");
       return;
     }
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: getAuthCallbackUrl("/reset-password", { returnTo: safeNext }),
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: getAuthCallbackUrl(PASSWORD_RESET_ROUTE, { flow: "recovery", returnTo: safeNext }),
       });
       if (error) throw error;
+      setEmail(normalizedEmail);
       setIsSent(true);
     } catch (authError) {
       const normalized = normalizeAuthError(authError);
@@ -52,7 +55,10 @@ export function ForgotPasswordForm({ nextPath = "/dashboards" }: { nextPath?: st
           <p className="mt-4 text-sm leading-6 text-slate-400">If an eligible account exists for this address, a recovery email has been sent.</p>
           <p className="mt-4 break-words font-mono text-sm text-emerald-200">{email}</p>
         </div>
-        <button type="button" onClick={() => setIsSent(false)} className="rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-300 transition hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Use a different email</button>
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center sm:gap-4">
+          <button type="button" onClick={() => setIsSent(false)} className="rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-300 transition hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Send another email</button>
+          <button type="button" onClick={() => { setEmail(""); setIsSent(false); }} className="rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70">Use a different email</button>
+        </div>
       </div>
     );
   }
@@ -65,7 +71,7 @@ export function ForgotPasswordForm({ nextPath = "/dashboards" }: { nextPath?: st
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
         <div className="space-y-2">
           <label htmlFor="recovery-email" className="dandi-label ml-1">Email address</label>
-          <input id="recovery-email" name="email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required disabled={isLoading} aria-invalid={errorKind === "invalid-email" ? "true" : undefined} className="dandi-field px-4 py-3.5 text-sm font-medium sm:px-5" placeholder="name@company.com" />
+          <input id="recovery-email" name="email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); if (errorKind) { setErrorKind(null); setTechnicalDetails(undefined); } }} required disabled={isLoading} aria-describedby={errorKind ? "recovery-error" : undefined} aria-invalid={errorKind === "invalid-email" ? "true" : undefined} className="dandi-field px-4 py-3.5 text-sm font-medium sm:px-5" placeholder="name@company.com" />
         </div>
         <button type="submit" disabled={isLoading} aria-busy={isLoading || undefined} className="min-h-12 w-full rounded-xl bg-emerald-300 px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">{isLoading ? "Preparing secure recovery…" : "Send recovery email"}</button>
       </form>
