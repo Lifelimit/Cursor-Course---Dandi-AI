@@ -2215,6 +2215,8 @@ test("AI and repository routes retain grounded, opaque security boundaries", () 
   assert.match(chatSource, /await assertPublicRepositoryForRag\(githubUrl\)/);
   assert.match(ingestionSource, /await assertPublicRepositoryForRag\(job\.repo_url\)/);
   assert.match(ingestionSource, /return "Repository ingestion failed\. Wait a moment, then retry preparation\."/);
+  assert.match(ingestionSource, /reconcileIngestionJob/);
+  assert.match(ingestionSource, /Repository embedding is temporarily unavailable/);
   assert.doesNotMatch(ingestionSource, /return message \|\| "Repository ingestion failed\."/);
   assert.match(ingestSource, /job\.status === "queued" && !reused/);
   assert.match(ingestSource, /error: "Failed to create ingestion job\."/);

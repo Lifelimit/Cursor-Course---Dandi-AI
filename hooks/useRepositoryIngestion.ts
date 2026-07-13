@@ -181,6 +181,51 @@ const getUnknownErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+async function pollIngestionJobUntilSettled(
+  jobId: string,
+  repoUrl: string,
+  apiKey: string,
+  controller: AbortController,
+  onUpdate: (job: IngestionJobSummary) => void,
+  initialJob?: IngestionResponse,
+) {
+  let latestJob = initialJob;
+  for (let attempt = 0; attempt < 90; attempt++) {
+    await waitUntilVisible(controller.signal);
+    const pollDelay = getIngestionPollDelay(attempt);
+    if (pollDelay > 0) {
+      await waitForTimeout(pollDelay, controller.signal);
+    }
+    await waitUntilVisible(controller.signal);
+    const statusRes = await fetch(`/api/rag/ingest?jobId=${encodeURIComponent(jobId)}`, {
+      headers: { "x-api-key": apiKey },
+      signal: controller.signal,
+    });
+    const statusData = (await statusRes.json()) as IngestionResponse;
+
+    if (!statusRes.ok) {
+      throw new Error(statusData.error || "Failed to check ingestion job status.");
+    }
+
+    latestJob = statusData;
+    onUpdate(toIngestionJobSummary(statusData, repoUrl));
+
+    if (statusData.status === "completed") {
+      return statusData;
+    }
+
+    if (statusData.status === "failed") {
+      throw new Error(statusData.errorMessage || statusData.error || "Ingestion job failed.");
+    }
+  }
+
+  if (latestJob?.status !== "completed") {
+    throw new Error("Ingestion job is still running. Please check again in a moment.");
+  }
+
+  return latestJob;
+}
+
 export function useRepositoryIngestion({
   apiKey,
   githubUrl,
@@ -299,6 +344,64 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
 
         if (currentApiKey && currentKey && matchingJob.apiKeyId && matchingJob.apiKeyId !== currentKey.id) return;
         applyDurableJobState(matchingJob);
+
+        if (
+          (matchingJob.status === "queued" || matchingJob.status === "running") &&
+          matchingJob.jobId &&
+          currentApiKey
+        ) {
+          ingestionControllerRef.current?.abort();
+          const pollController = new AbortController();
+          ingestionControllerRef.current = pollController;
+          setIndexingAttemptedRepo(matchingJob.repoUrl);
+
+          void (async () => {
+            try {
+              const completedJob = await pollIngestionJobUntilSettled(
+                matchingJob.jobId,
+                matchingJob.repoUrl,
+                currentApiKey,
+                pollController,
+                applyDurableJobState,
+              );
+              if (cancelled || getCurrentApiKey() !== requestedApiKey) return;
+              if (getCurrentGithubUrl().trim() !== matchingJob.repoUrl) return;
+
+              setIngestStatus("completed");
+              setIngestedRepo(matchingJob.repoUrl);
+              setIndexedRepositoryStats({
+                repoUrl: matchingJob.repoUrl,
+                jobId: matchingJob.jobId,
+                status: "completed",
+                currentStep: completedJob.currentStep,
+                filesCount: completedJob.indexedFileCount ?? completedJob.filesCount,
+                chunksCount: completedJob.chunkCount ?? completedJob.chunksCount,
+                indexedFileCount: completedJob.indexedFileCount,
+                chunkCount: completedJob.chunkCount,
+                indexAvailable: completedJob.indexAvailable,
+                completedAt: completedJob.completedAt,
+                updatedAt: completedJob.updatedAt,
+              });
+            } catch (err) {
+              if (err instanceof Error && err.name === "AbortError") return;
+              if (cancelled || getCurrentApiKey() !== requestedApiKey) return;
+              const errMsg = getUnknownErrorMessage(err, "Ingestion process encountered an error.");
+              setErrorMessage(errMsg);
+              setIngestStatus("error");
+              setIndexedRepositoryStats((prev) => ({
+                repoUrl: matchingJob.repoUrl,
+                jobId: matchingJob.jobId,
+                status: "failed",
+                currentStep: "failed",
+                error: errMsg,
+              }));
+            } finally {
+              if (ingestionControllerRef.current === pollController) {
+                ingestionControllerRef.current = null;
+              }
+            }
+          })();
+        }
       } catch {
         // Durable restoration is best-effort and must not block the Playground.
       }
@@ -421,45 +524,27 @@ Processed ${typeof filesCount === "number" ? filesCount : "confirmed"} files int
       });
 
       let completedJob = data;
-      for (let attempt = 0; attempt < 90; attempt++) {
-        await waitUntilVisible(controller.signal);
-        const pollDelay = getIngestionPollDelay(attempt);
-        if (pollDelay > 0) {
-          await waitForTimeout(pollDelay, controller.signal);
-        }
-        await waitUntilVisible(controller.signal);
-        const statusRes = await fetch(`/api/rag/ingest?jobId=${encodeURIComponent(data.jobId as string)}`, {
-          headers: { "x-api-key": apiKey },
-          signal: controller.signal,
-        });
-        const statusData = (await statusRes.json()) as IngestionResponse;
-
-        if (!statusRes.ok) {
-          throw new Error(statusData.error || "Failed to check ingestion job status.");
-        }
-
-        setIndexedLogState("ai_processing", {
-          responseBody: {
-            jobId: data.jobId,
-            status: statusData.status,
-            currentStep: statusData.currentStep,
-            filesCount: statusData.filesCount,
-            chunksCount: statusData.chunksCount,
-            indexedFileCount: statusData.indexedFileCount,
-            chunkCount: statusData.chunkCount,
-          },
-        });
-        applyDurableJobState(toIngestionJobSummary(statusData, githubUrl));
-
-        if (statusData.status === "completed") {
-          completedJob = statusData;
-          break;
-        }
-
-        if (statusData.status === "failed") {
-          throw new Error(statusData.errorMessage || statusData.error || "Ingestion job failed.");
-        }
-      }
+      completedJob = await pollIngestionJobUntilSettled(
+        data.jobId as string,
+        githubUrl,
+        apiKey,
+        controller,
+        (job) => {
+          setIndexedLogState("ai_processing", {
+            responseBody: {
+              jobId: data.jobId,
+              status: job.status,
+              currentStep: job.currentStep,
+              filesCount: job.filesCount,
+              chunksCount: job.chunksCount,
+              indexedFileCount: job.indexedFileCount,
+              chunkCount: job.chunkCount,
+            },
+          });
+          applyDurableJobState(job);
+        },
+        data,
+      );
 
       if (completedJob.status !== "completed") {
         throw new Error("Ingestion job is still running. Please check again in a moment.");

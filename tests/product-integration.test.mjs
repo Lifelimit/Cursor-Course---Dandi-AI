@@ -158,4 +158,5 @@ test("repository preparation polling is abortable and sleeps while the page is h
   assert.match(source, /document\.visibilityState !== "hidden"/);
   assert.match(source, /signal: controller\.signal/);
   assert.match(source, /ingestionControllerRef\.current\?\.abort\(\)/);
+  assert.match(source, /pollIngestionJobUntilSettled/);
 });

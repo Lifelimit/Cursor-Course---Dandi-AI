@@ -16,6 +16,10 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import type { IngestionJob, IngestionJobStep, IngestionKeyData, IngestionJobSummary } from "@/types/rag";
 
 const LOCK_TTL_SEC = 900;
+const STALE_ACTIVE_JOB_MS = LOCK_TTL_SEC * 1000;
+const QUEUED_START_GRACE_MS = 60_000;
+const ORPHANED_INGESTION_MESSAGE = "Repository ingestion stopped unexpectedly. Retry preparation.";
+const TIMED_OUT_INGESTION_MESSAGE = "Repository ingestion timed out before finishing. Retry preparation.";
 
 export type { IngestionJob, IngestionJobStatus, IngestionJobStep, IngestionKeyData, IngestionJobSummary } from "@/types/rag";
 
@@ -98,13 +102,79 @@ function sanitizeIngestionError(err: unknown) {
     return "Dandi could not read queryable repository content from GitHub.";
   }
 
+  if (lowerMessage.includes("gemini embedding")) {
+    return "Repository embedding is temporarily unavailable. Retry preparation shortly.";
+  }
+
+  if (lowerMessage.includes("ingestion stopped unexpectedly") || lowerMessage.includes("timed out before finishing")) {
+    return message;
+  }
+
   return "Repository ingestion failed. Wait a moment, then retry preparation.";
+}
+
+function getIngestionLockKey(job: IngestionJob) {
+  return `lock:ingest:${job.user_id}:${job.repo_url}`;
+}
+
+function isActiveIngestionJob(job: IngestionJob) {
+  return job.status === "queued" || job.status === "running";
+}
+
+function getJobAgeMs(job: IngestionJob, now = Date.now()) {
+  return now - new Date(job.updated_at).getTime();
+}
+
+async function hasActiveIngestionLock(job: IngestionJob) {
+  const lockValue = await redis.get<string>(getIngestionLockKey(job));
+  return Boolean(lockValue);
+}
+
+export async function isOrphanedActiveIngestionJob(job: IngestionJob) {
+  if (!isActiveIngestionJob(job)) return false;
+  if (getJobAgeMs(job) >= STALE_ACTIVE_JOB_MS) return true;
+
+  const lockHeld = await hasActiveIngestionLock(job);
+  if (job.status === "running") return !lockHeld;
+  return !lockHeld && getJobAgeMs(job) > QUEUED_START_GRACE_MS;
+}
+
+async function failOrphanedIngestionJob(job: IngestionJob) {
+  const message = getJobAgeMs(job) >= STALE_ACTIVE_JOB_MS
+    ? TIMED_OUT_INGESTION_MESSAGE
+    : ORPHANED_INGESTION_MESSAGE;
+
+  return updateJob(job.id, {
+    status: "failed",
+    current_step: "failed",
+    error: message,
+    error_message: message,
+    failed_at: new Date().toISOString(),
+    completed_at: new Date().toISOString(),
+  });
+}
+
+export async function reconcileIngestionJob(job: IngestionJob) {
+  if (!(await isOrphanedActiveIngestionJob(job))) return job;
+  return failOrphanedIngestionJob(job);
+}
+
+async function reconcileIngestionJobs(jobs: IngestionJob[]) {
+  return Promise.all(jobs.map((job) => reconcileIngestionJob(job)));
+}
+
+function getPublicIngestionErrorMessage(job: IngestionJob) {
+  if (job.status !== "failed") return null;
+  const raw = job.error_message ?? job.error;
+  if (!raw) return "Repository ingestion failed. Wait a moment, then retry preparation.";
+  if (job.error_message) return job.error_message;
+  return sanitizeIngestionError(new Error(raw));
 }
 
 export function formatIngestionJob(job: IngestionJob): IngestionJobSummary {
   const indexedFileCount = job.status === "completed" ? job.indexed_file_count ?? job.files_count : job.indexed_file_count;
   const chunkCount = job.status === "completed" ? job.chunk_count ?? job.chunks_count : job.chunk_count;
-  const errorMessage = job.error_message ?? job.error;
+  const errorMessage = getPublicIngestionErrorMessage(job);
 
   return {
     jobId: job.id,
@@ -233,7 +303,10 @@ export async function createIngestionJob(input: {
   const ownerId = getApiKeyDataOwnerId(input.keyData);
   const existing = await activeJobQuery(ownerId, input.repoUrl);
   if (existing.data) {
-    return { job: toIngestionJob(existing.data), reused: true };
+    const existingJob = await reconcileIngestionJob(toIngestionJob(existing.data));
+    if (isActiveIngestionJob(existingJob)) {
+      return { job: existingJob, reused: true };
+    }
   }
 
   const { data, error } = await supabaseAdmin
@@ -254,7 +327,10 @@ export async function createIngestionJob(input: {
     if (error.code === "23505") {
       const duplicate = await activeJobQuery(ownerId, input.repoUrl);
       if (duplicate.data) {
-        return { job: toIngestionJob(duplicate.data), reused: true };
+        const duplicateJob = await reconcileIngestionJob(toIngestionJob(duplicate.data));
+        if (isActiveIngestionJob(duplicateJob)) {
+          return { job: duplicateJob, reused: true };
+        }
       }
     }
     throw new Error(`Failed to create ingestion job: ${error.message}`);
@@ -279,7 +355,7 @@ export async function getIngestionJob(input: {
     throw new Error("Ingestion job not found.");
   }
 
-  return toIngestionJob(data);
+  return reconcileIngestionJob(toIngestionJob(data));
 }
 
 export async function listRecentIngestionJobs(input: {
@@ -299,7 +375,7 @@ export async function listRecentIngestionJobs(input: {
     throw new Error(`Failed to load ingestion jobs: ${error.message}`);
   }
 
-  return (data ?? []).map(toIngestionJob);
+  return reconcileIngestionJobs((data ?? []).map(toIngestionJob));
 }
 
 export async function runIngestionJob(

@@ -33,7 +33,8 @@ test("dashboard recovery uses latest job per repo before flagging failures", asy
   ]);
 
   assert.match(dashboard, /getLatestWorkByRepo\(initialRecentWork\)\.find\(\(work\) => work\.status === "failed"\)/);
-  assert.match(dashboardPage, /job\.error_message \?\? job\.error/);
+  assert.match(dashboardPage, /formatIngestionJob\(job\)/);
+  assert.match(dashboardPage, /formatted\.errorMessage/);
   assert.match(recentWork, /getLatestWorkByRepo\(works\)/);
 });
 

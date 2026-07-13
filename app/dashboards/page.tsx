@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import DashboardClient from "./DashboardClient";
 import { redirect } from "next/navigation";
 import { getServerUsageData } from "@/lib/services/server-data.service";
-import { listRecentIngestionJobs } from "@/lib/services/ingestion-job.service";
+import { formatIngestionJob, listRecentIngestionJobs } from "@/lib/services/ingestion-job.service";
 import { getPrimaryGitHubInstallationForUserWithClient } from "@/lib/services/github-app.service";
 import type { UsageData } from "@/types/usage";
 import type { DashboardRepositoryWork } from "@/components/dashboard/dashboard-types";
@@ -39,19 +39,20 @@ export default async function DashboardsPage() {
     githubConnected = null;
   }
 
-  const recentWork: DashboardRepositoryWork[] = recentIngestionJobs.map((job) => ({
-    id: job.id,
-    repoName: job.repo_name,
-    repoUrl: job.repo_url,
-    status: job.status,
-    currentStep: job.current_step,
-    summaryAvailable: Boolean(job.summary_available),
-    indexAvailable: Boolean(job.index_available) || job.status === "completed",
-    errorMessage: job.status === "failed"
-      ? job.error_message ?? job.error ?? "Dandi could not complete this repository workflow."
-      : null,
-    updatedAt: job.updated_at,
-  }));
+  const recentWork: DashboardRepositoryWork[] = recentIngestionJobs.map((job) => {
+    const formatted = formatIngestionJob(job);
+    return {
+      id: job.id,
+      repoName: job.repo_name,
+      repoUrl: job.repo_url,
+      status: job.status,
+      currentStep: job.current_step,
+      summaryAvailable: Boolean(job.summary_available),
+      indexAvailable: Boolean(job.index_available) || job.status === "completed",
+      errorMessage: formatted.errorMessage ?? null,
+      updatedAt: job.updated_at,
+    };
+  });
 
   const initialUsageData: UsageData | null = usageData
     ? {
