@@ -43,6 +43,8 @@ test("worker checkpoints are lease- and index-version-aware", () => {
   assert.match(service, /latest\.cancel_requested_at/);
   assert.match(service, /DEFAULT_MAX_CHUNKS_PER_INVOCATION = 20/);
   assert.match(service, /DEFAULT_MAX_FILES_PER_INVOCATION = 8/);
+  assert.match(service, /DEFAULT_FILE_FETCH_CONCURRENCY = 4/);
+  assert.match(service, /Promise\.all\(filesToFetch\.map/);
   assert.match(service, /RAG_WORKER_MAX_FILES_PER_INVOCATION/);
   assert.match(service, /WORKER_SAFETY_WINDOW_MS/);
   assert.match(service, /batch\.push\(\.\.\.fileBatch\)/);

@@ -107,38 +107,13 @@ const waitForTimeout = (ms: number, signal: AbortSignal) => new Promise<void>((r
   signal.addEventListener("abort", handleAbort, { once: true });
 });
 
-const waitUntilVisible = (signal: AbortSignal) => new Promise<void>((resolve, reject) => {
-  if (signal.aborted) {
-    reject(new DOMException("The operation was aborted.", "AbortError"));
-    return;
-  }
-  if (document.visibilityState !== "hidden") {
-    resolve();
-    return;
-  }
-
-  const cleanup = () => {
-    document.removeEventListener("visibilitychange", handleVisibilityChange);
-    signal.removeEventListener("abort", handleAbort);
-  };
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === "hidden") return;
-    cleanup();
-    resolve();
-  };
-  const handleAbort = () => {
-    cleanup();
-    reject(new DOMException("The operation was aborted.", "AbortError"));
-  };
-
-  document.addEventListener("visibilitychange", handleVisibilityChange);
-  signal.addEventListener("abort", handleAbort, { once: true });
-});
 const getIngestionPollDelay = (attempt: number) => {
-  if (attempt === 0) return 0;
-  if (attempt <= 4) return 500;
-  if (attempt <= 8) return 1000;
-  return 2000;
+  const visibleDelay = attempt === 0 ? 0 : attempt <= 4 ? 500 : attempt <= 8 ? 1000 : 2000;
+  // Hobby deployments use the authenticated browser poll as the worker trigger.
+  // Keep advancing in a background tab, but slow it down to stay well below the
+  // 30 requests/minute advance-route limit.
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") return Math.max(visibleDelay, 4000);
+  return visibleDelay;
 };
 
 const getPerformanceNow = () => performance.now();
@@ -236,12 +211,10 @@ async function pollIngestionJobUntilSettled(
   let latestJob = initialJob;
   let attempt = 0;
   while (!controller.signal.aborted) {
-    await waitUntilVisible(controller.signal);
     const pollDelay = getIngestionPollDelay(attempt);
     if (pollDelay > 0) {
       await waitForTimeout(pollDelay, controller.signal);
     }
-    await waitUntilVisible(controller.signal);
     const statusRes = await fetch("/api/rag/ingest/advance", {
       method: "POST",
       headers: { "x-api-key": apiKey },

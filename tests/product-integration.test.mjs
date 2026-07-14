@@ -149,13 +149,13 @@ test("hidden API key validation never places credentials in the URL", async () =
   assert.match(validationRoute, /"Retry-After": "60"/);
 });
 
-test("repository preparation polling is abortable and sleeps while the page is hidden", async () => {
+test("repository preparation polling remains active in hidden tabs at a safe cadence", async () => {
   const source = await read("hooks/useRepositoryIngestion.ts");
 
   assert.match(source, /ingestionControllerRef/);
   assert.match(source, /new AbortController\(\)/);
-  assert.match(source, /waitUntilVisible\(controller\.signal\)/);
-  assert.match(source, /document\.visibilityState !== "hidden"/);
+  assert.match(source, /document\.visibilityState === "hidden"/);
+  assert.match(source, /Math\.max\(visibleDelay, 4000\)/);
   assert.match(source, /signal: controller\.signal/);
   assert.match(source, /ingestionControllerRef\.current\?\.abort\(\)/);
   assert.match(source, /pollIngestionJobUntilSettled/);

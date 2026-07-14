@@ -21,6 +21,7 @@ const LEASE_TTL_MS = 90_000;
 const DEFAULT_WORKER_MAX_MS = 45_000;
 const DEFAULT_MAX_CHUNKS_PER_INVOCATION = 20;
 const DEFAULT_MAX_FILES_PER_INVOCATION = 8;
+const DEFAULT_FILE_FETCH_CONCURRENCY = 4;
 const WORKER_SAFETY_WINDOW_MS = 8_000;
 const DEFAULT_MAX_JOB_RETRIES = 8;
 const ORPHANED_INGESTION_MESSAGE = "Repository ingestion is being resumed after a worker stopped unexpectedly.";
@@ -337,6 +338,7 @@ async function processOneWorkerUnit(job: IngestionJob, token: string, telemetry?
   const deadline = Date.now() + positiveInt("RAG_WORKER_MAX_MS", DEFAULT_WORKER_MAX_MS, 55_000);
   const maxChunksPerInvocation = positiveInt("RAG_WORKER_MAX_CHUNKS_PER_INVOCATION", DEFAULT_MAX_CHUNKS_PER_INVOCATION, 20);
   const maxFilesPerInvocation = positiveInt("RAG_WORKER_MAX_FILES_PER_INVOCATION", DEFAULT_MAX_FILES_PER_INVOCATION, 8);
+  const fileFetchConcurrency = Math.min(maxFilesPerInvocation, DEFAULT_FILE_FETCH_CONCURRENCY);
   job = await assertNotCancelled(job.id);
   const usageKeyData = await loadUsageKeyData(job);
   if (!usageKeyData && !job.quota_reserved) throw new IngestionWorkerError("CREDENTIAL_UNAVAILABLE", "The ingestion credential is no longer available. Start repository preparation again.");
@@ -375,36 +377,49 @@ async function processOneWorkerUnit(job: IngestionJob, token: string, telemetry?
 
     while (batch.length < maxChunksPerInvocation && filesVisited < maxFilesPerInvocation && nextFileCursor < files.length) {
       if (Date.now() + WORKER_SAFETY_WINDOW_MS >= deadline) break;
-      const file = files[nextFileCursor];
-      let text = "";
-      try {
-        text = await fetchRawFileContent(job.repo_url, branch, file.path);
-      } catch {
-        nextFileCursor += 1;
-        nextChunkCursor = 0;
-        filesVisited += 1;
-        failedFiles += 1;
-        skippedFiles += 1;
-        continue;
-      }
-      const chunks = splitIntoChunks(text, file.path);
-      if (chunks.length === 0) {
-        nextFileCursor += 1;
-        nextChunkCursor = 0;
-        filesVisited += 1;
-        continue;
-      }
-      const remaining = maxChunksPerInvocation - batch.length;
-      const fileBatch = chunks.slice(nextChunkCursor, nextChunkCursor + remaining);
-      batch.push(...fileBatch);
-      const fileFinished = nextChunkCursor + fileBatch.length >= chunks.length;
-      if (fileFinished) {
-        nextFileCursor += 1;
-        nextChunkCursor = 0;
-        filesVisited += 1;
-      } else {
-        nextChunkCursor += fileBatch.length;
-        break;
+      const fetchCount = nextChunkCursor > 0
+        ? 1
+        : Math.min(fileFetchConcurrency, maxFilesPerInvocation - filesVisited, files.length - nextFileCursor);
+      const filesToFetch = files.slice(nextFileCursor, nextFileCursor + fetchCount);
+      const fetchedFiles = await Promise.all(filesToFetch.map(async (file) => {
+        try {
+          return { file, text: await fetchRawFileContent(job.repo_url, branch, file.path) };
+        } catch {
+          return { file, failed: true as const };
+        }
+      }));
+
+      for (const fetchedFile of fetchedFiles) {
+        if (batch.length >= maxChunksPerInvocation || filesVisited >= maxFilesPerInvocation) break;
+        if (fetchedFile.failed) {
+          nextFileCursor += 1;
+          nextChunkCursor = 0;
+          filesVisited += 1;
+          failedFiles += 1;
+          skippedFiles += 1;
+          continue;
+        }
+
+        const chunks = splitIntoChunks(fetchedFile.text, fetchedFile.file.path);
+        if (chunks.length === 0) {
+          nextFileCursor += 1;
+          nextChunkCursor = 0;
+          filesVisited += 1;
+          continue;
+        }
+
+        const remaining = maxChunksPerInvocation - batch.length;
+        const fileBatch = chunks.slice(nextChunkCursor, nextChunkCursor + remaining);
+        batch.push(...fileBatch);
+        const fileFinished = nextChunkCursor + fileBatch.length >= chunks.length;
+        if (fileFinished) {
+          nextFileCursor += 1;
+          nextChunkCursor = 0;
+          filesVisited += 1;
+        } else {
+          nextChunkCursor += fileBatch.length;
+          break;
+        }
       }
     }
 
