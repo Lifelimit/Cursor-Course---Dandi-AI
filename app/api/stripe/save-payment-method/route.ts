@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { getJsonObject, validateBillingDetails, validatePaymentMethodId } from "@/lib/request-validation";
+import { getJsonObject, validateBillingDetails, validateOptionalBoolean, validatePaymentMethodId } from "@/lib/request-validation";
 import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
 import {
   buildPaymentMethodProfilePayload,
   getAuthenticatedBillingUser,
   getBillingProfile,
   mapStripeErrorResponse,
+  getCustomerDefaultPaymentMethodId,
   persistDefaultPaymentMethod,
   requireStripeCustomerId,
   updateAuthBillingMetadata,
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
 
     const paymentMethodId = validatePaymentMethodId(body.paymentMethodId);
     const billingDetails = validateBillingDetails(body.billingDetails);
+    const makeDefault = validateOptionalBoolean(body.makeDefault, "makeDefault") ?? false;
 
     // 1. Retrieve the customer ID
     const profile = await getBillingProfile<BillingProfile>(supabase, user.id, "stripe_customer_id");
@@ -72,12 +74,20 @@ export async function POST(req: Request) {
       await stripe.paymentMethods.attach(paymentMethodId, { customer: customerId });
     }
 
-    // 4. Set as default payment method
-    await persistDefaultPaymentMethod(customerId, paymentMethodId);
+    // 4. Only explicitly selected cards become the customer default.
+    if (makeDefault) {
+      await persistDefaultPaymentMethod(customerId, paymentMethodId);
+    }
+
+    const currentDefaultPaymentMethodId = await getCustomerDefaultPaymentMethodId(customerId);
 
     // 5. Update profiles and user_metadata
     const paymentMethodData = buildPaymentMethodProfilePayload(pm, { nullFallback: true });
-    const updateData = { ...paymentMethodData };
+    const updateData: Record<string, unknown> = {};
+
+    if (makeDefault) {
+      Object.assign(updateData, paymentMethodData);
+    }
 
     if (billingDetails) {
       updateData.billing_street = billingDetails.street;
@@ -87,18 +97,22 @@ export async function POST(req: Request) {
       updateData.billing_country = billingDetails.country;
     }
 
-    // Update profiles table
-    await updateProfileBillingMetadata(user.id, updateData, {
-      errorLog: "❌ Save PM: Failed to update profile in database:",
-    });
+    if (Object.keys(updateData).length > 0) {
+      await updateProfileBillingMetadata(user.id, updateData, {
+        errorLog: "❌ Save PM: Failed to update profile in database:",
+      });
 
-    // Update auth metadata
-    await updateAuthBillingMetadata(user, updateData, {
-      errorLog: "❌ Save PM: Failed to update auth metadata:",
-    });
+      await updateAuthBillingMetadata(user, updateData, {
+        errorLog: "❌ Save PM: Failed to update auth metadata:",
+      });
+    }
 
     return NextResponse.json(
-      { success: true, paymentMethod: paymentMethodData },
+      {
+        success: true,
+        isDefault: currentDefaultPaymentMethodId === paymentMethodId,
+        paymentMethod: paymentMethodData,
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (err) {

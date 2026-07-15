@@ -36,6 +36,14 @@ export function getJsonObject(value: unknown): Record<string, unknown> {
     : {};
 }
 
+export function validateOptionalBoolean(value: unknown, fieldName: string) {
+  if (value === undefined) return undefined;
+  if (typeof value !== "boolean") {
+    throw new BillingRequestValidationError(`${fieldName} must be a boolean.`);
+  }
+  return value;
+}
+
 const safeApiKeyValidationPatterns = [
   /^Name is required\.$/i,
   /^Name must be 100 characters or less\.$/i,

@@ -282,11 +282,14 @@ export function buildWebhookSubscriptionUpdatePayload(input: {
     stripe_customer_id: input.customerId,
     updated_at: (input.now ?? new Date()).toISOString(),
     stripe_subscription_id: input.subscriptionId,
-    payment_method_last4: input.paymentMethodDetails?.last4,
-    payment_method_brand: input.paymentMethodDetails?.brand,
-    payment_method_expiry: input.paymentMethodDetails?.expiry,
     billing_next_date: renewalDate,
   };
+
+  if (input.paymentMethodDetails !== undefined) {
+    updatePayload.payment_method_last4 = input.paymentMethodDetails?.last4 ?? null;
+    updatePayload.payment_method_brand = input.paymentMethodDetails?.brand ?? null;
+    updatePayload.payment_method_expiry = input.paymentMethodDetails?.expiry ?? null;
+  }
 
   if (input.verifiedPlan) {
     updatePayload.plan = input.verifiedPlan.planId;

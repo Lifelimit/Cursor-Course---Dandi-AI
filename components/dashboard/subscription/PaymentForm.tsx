@@ -23,6 +23,9 @@ type PaymentFormProps = {
   setPendingPlan: (plan: string | null) => void;
   initialView?: string;
   cardData: BillingDetails & { number: string; brand: string; expiry: string };
+  hasDefaultPaymentMethod: boolean;
+  makeDefault: boolean;
+  setMakeDefault: (makeDefault: boolean) => void;
 };
 
 const ELEMENT_OPTIONS = {
@@ -55,7 +58,10 @@ export function PaymentForm({
   setView,
   setPendingPlan,
   initialView,
-  cardData
+  cardData,
+  hasDefaultPaymentMethod,
+  makeDefault,
+  setMakeDefault,
 }: PaymentFormProps) {
   const [brand, setBrand] = useState("");
 
@@ -261,6 +267,25 @@ export function PaymentForm({
           <p className="text-[9px] text-emerald-500/70">Card details are handled by Stripe. Dandi does not store full card numbers.</p>
         </div>
       </div>
+
+      <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-emerald-300/25">
+        <input
+          type="checkbox"
+          checked={makeDefault}
+          onChange={(event) => setMakeDefault(event.target.checked)}
+          className="mt-0.5 h-4 w-4 accent-emerald-400"
+        />
+        <span className="space-y-1">
+          <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-slate-200">Make this my default payment method</span>
+          <span className="block text-xs leading-5 text-slate-500">
+            {makeDefault
+              ? "This card will be used for future billing and renewals."
+              : hasDefaultPaymentMethod
+                ? "This card will be saved as a secondary method."
+                : "This card will be saved without a default until you choose one."}
+          </span>
+        </span>
+      </label>
 
       <div className="flex flex-col gap-3 pt-4">
         <button 

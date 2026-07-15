@@ -121,6 +121,29 @@ export async function getOrCreateOwnedStripeCustomer(input: {
   return customer.id;
 }
 
+function getPaymentMethodId(value: string | Stripe.PaymentMethod | null | undefined) {
+  return typeof value === "string" ? value : value?.id || null;
+}
+
+export function isRenewableStripeSubscription(subscription: Stripe.Subscription) {
+  return subscription.status !== "canceled" && subscription.status !== "incomplete_expired";
+}
+
+export async function listRenewableStripeSubscriptions(customerId: string) {
+  const subscriptions = await stripe.subscriptions.list({
+    customer: customerId,
+    status: "all",
+    limit: 100,
+  });
+  return subscriptions.data.filter(isRenewableStripeSubscription);
+}
+
+export async function getCustomerDefaultPaymentMethodId(customerId: string) {
+  const customer = await stripe.customers.retrieve(customerId);
+  if (customer.deleted) return null;
+  return getPaymentMethodId(customer.invoice_settings.default_payment_method);
+}
+
 export function requireStripeCustomerId(
   profile: { stripe_customer_id?: string | null } | null,
   errorMessage: string
@@ -143,34 +166,26 @@ export async function persistDefaultPaymentMethod(customerId: string, paymentMet
     },
   });
 
-  const subscriptions = await stripe.subscriptions.list({
-    customer: customerId,
-    status: "all",
-    limit: 100,
-  });
-  const renewableSubscriptions = subscriptions.data.filter(
-    (subscription) => subscription.status !== "canceled" && subscription.status !== "incomplete_expired",
-  );
+  const renewableSubscriptions = await listRenewableStripeSubscriptions(customerId);
   await Promise.all(renewableSubscriptions.map((subscription) =>
     stripe.subscriptions.update(subscription.id, { default_payment_method: paymentMethodId }),
   ));
 }
 
-export async function clearDefaultPaymentMethod(customerId: string) {
-  await stripe.customers.update(customerId, {
-    invoice_settings: { default_payment_method: "" },
-  });
-  const subscriptions = await stripe.subscriptions.list({
-    customer: customerId,
-    status: "all",
-    limit: 100,
-  });
-  const renewableSubscriptions = subscriptions.data.filter(
-    (subscription) => subscription.status !== "canceled" && subscription.status !== "incomplete_expired",
+export async function clearPaymentMethodReferences(customerId: string, paymentMethodId: string) {
+  const customer = await stripe.customers.retrieve(customerId);
+  if (!customer.deleted && getPaymentMethodId(customer.invoice_settings.default_payment_method) === paymentMethodId) {
+    await stripe.customers.update(customerId, {
+      invoice_settings: { default_payment_method: "" },
+    });
+  }
+
+  const renewableSubscriptions = await listRenewableStripeSubscriptions(customerId);
+  await Promise.all(
+    renewableSubscriptions
+      .filter((subscription) => getPaymentMethodId(subscription.default_payment_method) === paymentMethodId)
+      .map((subscription) => stripe.subscriptions.update(subscription.id, { default_payment_method: "" })),
   );
-  await Promise.all(renewableSubscriptions.map((subscription) =>
-    stripe.subscriptions.update(subscription.id, { default_payment_method: "" }),
-  ));
 }
 
 export function buildPaymentMethodProfilePayload(

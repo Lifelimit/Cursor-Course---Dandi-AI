@@ -10,6 +10,10 @@ import {
   parseKeysToKeep,
   resolveScheduledPlanFromSchedule,
 } from "@/lib/services/stripe-billing-flow.service";
+import {
+  getCustomerDefaultPaymentMethodId,
+  persistDefaultPaymentMethod,
+} from "@/lib/services/stripe-route.service";
 
 const WEBHOOK_PROCESSING_LEASE_MS = 10 * 60 * 1000;
 
@@ -129,6 +133,20 @@ async function buildVerifiedSubscriptionUpdatePayload(input: {
   });
 }
 
+async function getCustomerDefaultPaymentMethodDetails(customerId: string) {
+  const paymentMethodId = await getCustomerDefaultPaymentMethodId(customerId);
+  if (!paymentMethodId) return null;
+
+  const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+  if (!paymentMethod.card) return null;
+
+  return {
+    brand: paymentMethod.card.brand,
+    last4: paymentMethod.card.last4,
+    expiry: `${paymentMethod.card.exp_month}/${paymentMethod.card.exp_year}`,
+  };
+}
+
 export async function POST(req: Request) {
   const body = await req.text();
   const signature = (await headers()).get("Stripe-Signature") as string;
@@ -216,12 +234,14 @@ export async function POST(req: Request) {
               return NextResponse.json({ received: true, duplicate: true });
             }
             
-            // 2. Set as default payment method for the customer
-            await stripe.customers.update(customerId, {
-              invoice_settings: { default_payment_method: pmId }
-            });
+            // 2. Legacy setup sessions only claim the default slot when it is empty.
+            const existingDefaultPaymentMethodId = await getCustomerDefaultPaymentMethodId(customerId);
+            const shouldMakeDefault = !existingDefaultPaymentMethodId;
+            if (shouldMakeDefault) {
+              await persistDefaultPaymentMethod(customerId, pmId);
+            }
 
-            if (pm.card) {
+            if (shouldMakeDefault && pm.card) {
               paymentMethodDetails = {
                 brand: pm.card.brand,
                 last4: pm.card.last4,
@@ -249,43 +269,8 @@ export async function POST(req: Request) {
         }
         
         try {
-          let pmId = subscription.default_payment_method as string;
-          
-          // If not explicitly set on subscription, check customer's default
-          if (!pmId) {
-            const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
-            pmId = customer.invoice_settings?.default_payment_method as string;
-          }
-
-          // If still not set, fetch the customer's payment methods and set the first one as default
-          if (!pmId) {
-            const existingMethods = await stripe.paymentMethods.list({
-              customer: customerId,
-              type: "card",
-            });
-            if (existingMethods.data.length > 0) {
-              pmId = existingMethods.data[0].id;
-              await stripe.customers.update(customerId, {
-                invoice_settings: { default_payment_method: pmId }
-              });
-            }
-          }
-
-          if (pmId) {
-            // Set as default payment method for the customer so it becomes the Primary Method
-            await stripe.customers.update(customerId, {
-              invoice_settings: { default_payment_method: pmId }
-            });
-
-            const pm = await stripe.paymentMethods.retrieve(pmId);
-            if (pm.card) {
-              paymentMethodDetails = {
-                brand: pm.card.brand,
-                last4: pm.card.last4,
-                expiry: `${pm.card.exp_month}/${pm.card.exp_year}`
-              };
-            }
-          }
+          // Subscription-specific methods do not replace the customer default.
+          paymentMethodDetails = await getCustomerDefaultPaymentMethodDetails(customerId);
         } catch {
           console.warn("Stripe payment method details could not be retrieved.");
         }

@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { getEntitledPlanForSubscription, getPlanForSubscription, resolvePaidPlanRequest, type PaidPlanRequest } from "@/lib/billing-catalog";
-import { getJsonObject, validateBillingDetails, validateOperationId, validatePaymentMethodId } from "@/lib/request-validation";
+import { getJsonObject, validateBillingDetails, validateOperationId, validateOptionalBoolean, validatePaymentMethodId } from "@/lib/request-validation";
 import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
 import { buildSubscriptionProfilePayload, resolveSubscriptionPaymentState, getSubscriptionPeriodBounds, buildPlanChangeScheduleUpdate, supersedePendingCancellation, resolveOrCreateSubscriptionSchedule } from "@/lib/services/stripe-billing-flow.service";
 import {
   buildPaymentMethodProfilePayload,
   getAuthenticatedBillingUser,
+  getCustomerDefaultPaymentMethodId,
   getOrCreateOwnedStripeCustomer,
   mapStripeErrorResponse,
   persistDefaultPaymentMethod,
@@ -91,6 +92,7 @@ export async function POST(request: Request) {
 
     const operationId = validateOperationId(body.operationId);
     const billingDetails = validateBillingDetails(body.billingDetails);
+    const makeDefault = validateOptionalBoolean(body.makeDefault, "makeDefault") ?? false;
     const customerId = await getOrCreateOwnedStripeCustomer({ supabase, user });
 
     const requestedPaymentMethodId = body.paymentMethodId
@@ -98,7 +100,9 @@ export async function POST(request: Request) {
       : null;
     if (requestedPaymentMethodId) {
       await getOwnedPaymentMethod(requestedPaymentMethodId, customerId);
-      await persistDefaultPaymentMethod(customerId, requestedPaymentMethodId);
+      if (makeDefault) {
+        await persistDefaultPaymentMethod(customerId, requestedPaymentMethodId);
+      }
     }
 
     const subscriptions = await stripe.subscriptions.list({
@@ -122,11 +126,12 @@ export async function POST(request: Request) {
       }
 
       if (currentPlan.priceId === planRequest.priceId) {
+        const customerDefaultPaymentMethodId = await getCustomerDefaultPaymentMethodId(customerId);
         await persistActiveSubscription({
           user,
           subscription: activeSubscription,
           plan: currentPlan,
-          paymentMethodId: requestedPaymentMethodId || getPaymentMethodId(activeSubscription.default_payment_method),
+          paymentMethodId: customerDefaultPaymentMethodId,
           billingDetails,
         });
         return NextResponse.json(getActiveResult(activeSubscription, currentPlan));
@@ -257,11 +262,12 @@ export async function POST(request: Request) {
       return NextResponse.json(result, { status: 202 });
     }
 
+    const customerDefaultPaymentMethodId = await getCustomerDefaultPaymentMethodId(customerId);
     await persistActiveSubscription({
       user,
       subscription,
       plan: entitledPlan,
-      paymentMethodId,
+      paymentMethodId: customerDefaultPaymentMethodId,
       billingDetails,
     });
     return NextResponse.json(getActiveResult(subscription, entitledPlan));

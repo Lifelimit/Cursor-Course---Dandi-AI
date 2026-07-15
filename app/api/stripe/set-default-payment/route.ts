@@ -8,6 +8,7 @@ import {
   mapStripeErrorResponse,
   persistDefaultPaymentMethod,
   requireStripeCustomerId,
+  updateAuthBillingMetadata,
   updateProfileBillingMetadata,
 } from "@/lib/services/stripe-route.service";
 
@@ -40,11 +41,15 @@ export async function POST(req: Request) {
 
     // 3. Retrieve the payment method details for immediate DB update
     if (pm.card) {
+      const paymentMethodData = buildPaymentMethodProfilePayload(pm, { includeUpdatedAt: true });
       await updateProfileBillingMetadata(
         user.id,
-        buildPaymentMethodProfilePayload(pm, { includeUpdatedAt: true }),
+        paymentMethodData,
         { errorLog: "❌ Set Default PM: Failed to update profile in database:" }
       );
+      await updateAuthBillingMetadata(user, paymentMethodData, {
+        errorLog: "Set default payment method auth metadata update failed.",
+      });
     }
 
     return NextResponse.json({ success: true });

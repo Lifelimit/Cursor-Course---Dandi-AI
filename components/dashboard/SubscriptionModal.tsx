@@ -58,6 +58,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
   const [showCvc, setShowCvc] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<string | null>(initialPendingPlan || null);
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [makeDefault, setMakeDefault] = useState(false);
   const [isInitializing, setIsInitializing] = useState(initialPendingPlan === "Hobby");
   const [billingInterval, setBillingInterval] = useState<"month" | "year">(initialBillingInterval || "month");
   const hasInitializedRef = React.useRef(false);
@@ -101,7 +102,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
       if (isOpen) {
         let targetView = initialView || "overview";
         const finalPendingPlan = initialPendingPlan || null;
-        const defaultPaymentMethod = paymentMethods?.find((method) => method.isDefault) || paymentMethods?.[0] || null;
+        const defaultPaymentMethod = paymentMethods?.find((method) => method.isDefault) || null;
 
         // Unified Downgrade Audit
         if (finalPendingPlan === "Hobby") {
@@ -125,6 +126,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
 
         setView(targetView);
         setPendingPlan(finalPendingPlan);
+        setMakeDefault(!defaultPaymentMethod);
         setBillingInterval(initialBillingInterval || "month");
 
         const s = user;
@@ -190,6 +192,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
   const completeSubscription = async (options: {
     paymentMethodId?: string;
     billingDetails?: Record<string, string | null>;
+    makeDefault?: boolean;
   } = {}) => {
     if (!pendingPlan || pendingPlan === "Hobby") {
       throw new Error("Choose a paid plan before continuing.");
@@ -214,6 +217,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
         operationId,
         paymentMethodId: options.paymentMethodId,
         billingDetails: options.billingDetails,
+        makeDefault: options.makeDefault,
       }),
     });
 
@@ -356,29 +360,39 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
           body: JSON.stringify({
             paymentMethodId,
             billingDetails,
+            makeDefault,
           }),
         });
 
-        const saveResult = await saveRes.json();
-        if (saveResult.error) {
-          throw new Error(saveResult.error);
+        const saveResult = await saveRes.json() as {
+          error?: string;
+          isDefault?: boolean;
+          paymentMethod?: {
+            payment_method_last4?: string | null;
+            payment_method_brand?: string | null;
+            payment_method_expiry?: string | null;
+          };
+        };
+        if (!saveRes.ok || saveResult.error) {
+          throw new Error(saveResult.error || "Failed to save payment method.");
         }
 
-        // 4. Update local state
-        setCardData({
-          name: formValues.name,
-          number: `•••• •••• •••• ${saveResult.paymentMethod?.payment_method_last4 || "••••"}`,
-          brand: saveResult.paymentMethod?.payment_method_brand || "Card",
-          expiry: saveResult.paymentMethod?.payment_method_expiry || "",
-          cvc: "•••",
-          street: formValues.street,
-          city: formValues.city,
-          state: formValues.state,
-          zip: formValues.zip,
-          country: formValues.country,
-        });
+        if (saveResult.isDefault) {
+          setCardData({
+            name: formValues.name,
+            number: `•••• •••• •••• ${saveResult.paymentMethod?.payment_method_last4 || "••••"}`,
+            brand: saveResult.paymentMethod?.payment_method_brand || "Card",
+            expiry: saveResult.paymentMethod?.payment_method_expiry || "",
+            cvc: "•••",
+            street: formValues.street,
+            city: formValues.city,
+            state: formValues.state,
+            zip: formValues.zip,
+            country: formValues.country,
+          });
+        }
 
-        onSuccess?.("Payment method updated and saved.");
+        onSuccess?.(saveResult.isDefault ? "Payment method updated and saved." : "Payment method saved as a secondary method.");
         setView("overview");
       } else {
         // SCENARIO 2: Upgrades use the same customer-bound SetupIntent proof.
@@ -387,6 +401,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
         await completeSubscription({
           paymentMethodId,
           billingDetails,
+          makeDefault,
         });
 
         setCardData((current) => ({
@@ -434,7 +449,7 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
     if (cardData.number) {
       setView("plan-change-review");
     } else {
-      setView("update-payment");
+        setView("update-payment");
     }
   };
 
@@ -598,6 +613,9 @@ function SubscriptionModalContent({ isOpen, onClose, planName, nextBillingDate, 
                   setPendingPlan={setPendingPlan}
                   initialView={initialView}
                   cardData={cardData}
+                  hasDefaultPaymentMethod={Boolean(paymentMethods?.some((method) => method.isDefault))}
+                  makeDefault={makeDefault}
+                  setMakeDefault={setMakeDefault}
                 />
                 <OrderSummary pendingPlan={pendingPlan} billingInterval={billingInterval} />
               </div>

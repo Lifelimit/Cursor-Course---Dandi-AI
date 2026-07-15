@@ -491,12 +491,12 @@ export async function getStripePaymentDisplay(
 
     return {
       customerBalance,
-      paymentMethods: methods.data.map((pm, idx) => ({
+      paymentMethods: methods.data.map((pm) => ({
         id: pm.id,
         brand: pm.card?.brand || "Card",
         last4: pm.card?.last4 || "****",
         expiry: pm.card ? `${pm.card.exp_month}/${pm.card.exp_year}` : "N/A",
-        isDefault: defaultMethodId ? pm.id === defaultMethodId : idx === 0
+        isDefault: Boolean(defaultMethodId && pm.id === defaultMethodId)
       })),
     };
   } catch (error) {

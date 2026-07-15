@@ -4,20 +4,24 @@ import { getJsonObject, validatePaymentMethodId } from "@/lib/request-validation
 import { getOwnedPaymentMethod } from "@/lib/services/stripe-safety.service";
 import {
   buildClearPaymentMethodProfilePayload,
-  buildPaymentMethodProfilePayload,
-  clearDefaultPaymentMethod,
+  clearPaymentMethodReferences,
   getAuthenticatedBillingUser,
   getBillingProfile,
+  getCustomerDefaultPaymentMethodId,
+  listRenewableStripeSubscriptions,
   mapStripeErrorResponse,
-  persistDefaultPaymentMethod,
   requireStripeCustomerId,
+  updateAuthBillingMetadata,
   updateProfileBillingMetadata,
 } from "@/lib/services/stripe-route.service";
 
 type BillingProfile = {
   stripe_customer_id: string | null;
-  payment_method_last4: string | null;
 };
+
+function getPaymentMethodId(value: string | { id: string } | null | undefined) {
+  return typeof value === "string" ? value : value?.id || null;
+}
 
 export async function POST(req: Request) {
   try {
@@ -32,47 +36,37 @@ export async function POST(req: Request) {
     }
     const paymentMethodId = validatePaymentMethodId(body.paymentMethodId);
 
-    // 1. Get Customer ID and Current Default PM from Supabase
-    const profile = await getBillingProfile<BillingProfile>(supabase, user.id, "stripe_customer_id, payment_method_last4");
+    const profile = await getBillingProfile<BillingProfile>(supabase, user.id, "stripe_customer_id");
     const { customerId, response: missingCustomerResponse } = requireStripeCustomerId(profile, "Customer not found");
     if (missingCustomerResponse) return missingCustomerResponse;
 
-    // 2. Detach Payment Method from Stripe
-    const pm = await getOwnedPaymentMethod(paymentMethodId, customerId);
-    
-    // Check if this card is the one stored in Supabase
-    const isCurrentDefaultInDB = profile?.payment_method_last4 === pm.card?.last4;
+    const customerDefaultPaymentMethodId = await getCustomerDefaultPaymentMethodId(customerId);
+    await getOwnedPaymentMethod(paymentMethodId, customerId);
+
+    const renewableSubscriptions = await listRenewableStripeSubscriptions(customerId);
+    const isSubscriptionDefault = renewableSubscriptions.some(
+      (subscription) => getPaymentMethodId(subscription.default_payment_method) === paymentMethodId,
+    );
+    const isCustomerDefault = customerDefaultPaymentMethodId === paymentMethodId;
+
+    if (isSubscriptionDefault && !isCustomerDefault) {
+      return NextResponse.json(
+        { error: "This payment method is used by a subscription. Choose another subscription payment method before removing it." },
+        { status: 409 },
+      );
+    }
 
     await stripe.paymentMethods.detach(paymentMethodId);
 
-    // 3. If we deleted the card that was shown as "Primary" in our DB, 
-    // we should try to find a new one to show or clear it.
-    if (isCurrentDefaultInDB) {
-      const remainingMethods = await stripe.paymentMethods.list({
-        customer: customerId,
-        type: "card",
-        limit: 1
+    if (isCustomerDefault) {
+      await clearPaymentMethodReferences(customerId, paymentMethodId);
+      const clearPayload = buildClearPaymentMethodProfilePayload();
+      await updateProfileBillingMetadata(user.id, clearPayload, {
+        errorLog: "Delete payment method profile cleanup failed.",
       });
-
-      if (remainingMethods.data.length > 0) {
-        const newPM = remainingMethods.data[0];
-        // Set this new one as default in Stripe if no default is set
-        await persistDefaultPaymentMethod(customerId, newPM.id);
-
-        await updateProfileBillingMetadata(
-          user.id,
-          buildPaymentMethodProfilePayload(newPM, { includeUpdatedAt: true, optionalCardExpiry: true }),
-          { errorLog: "❌ Delete PM: Failed to update profile in database:" }
-        );
-      } else {
-        // No cards left
-        await clearDefaultPaymentMethod(customerId);
-        await updateProfileBillingMetadata(
-          user.id,
-          buildClearPaymentMethodProfilePayload(),
-          { errorLog: "❌ Delete PM: Failed to clear profile payment method in database:" }
-        );
-      }
+      await updateAuthBillingMetadata(user, clearPayload, {
+        errorLog: "Delete payment method auth metadata cleanup failed.",
+      });
     }
 
     return NextResponse.json({ success: true });
