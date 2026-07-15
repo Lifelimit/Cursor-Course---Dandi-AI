@@ -183,7 +183,7 @@ export function Sidebar({
     : "static";
 
   return (
-    <aside className={`dandi-surface-workspace dandi-intensity-standard relative z-[100] flex h-fit w-full flex-col gap-3 rounded-2xl border p-3 text-slate-100 backdrop-blur-2xl md:w-72 md:shrink-0 md:gap-6 md:rounded-[32px] md:p-6 ${sidebarPositionClassName}`}>
+    <aside className={`dandi-mask-radial dandi-surface-workspace dandi-intensity-standard relative isolate z-[100] flex h-fit w-full flex-col gap-3 overflow-hidden rounded-2xl border p-3 text-slate-100 backdrop-blur-2xl md:w-72 md:shrink-0 md:gap-6 md:rounded-[32px] md:p-6 ${sidebarPositionClassName}`}>
       {/* Subtle background glow */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
       <div aria-hidden="true" className="pointer-events-none absolute -left-20 -top-24 h-48 w-48 rounded-full bg-emerald-500/5 blur-3xl" />

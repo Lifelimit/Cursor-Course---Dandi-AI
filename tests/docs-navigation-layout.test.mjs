@@ -24,6 +24,7 @@ test("dashboard sidebar sticky positioning is configurable and defaults to stick
   assert.match(sidebar, /\? "md:sticky md:top-6 md:max-h-\[calc\(100dvh-3rem\)\] md:overflow-x-clip md:overflow-y-auto md:overscroll-y-contain"/);
   assert.match(sidebar, /: "static"/);
   assert.match(sidebar, /\$\{sidebarPositionClassName\}/);
+  assert.match(sidebar, /dandi-mask-radial dandi-surface-workspace[\s\S]*isolate[\s\S]*overflow-hidden/);
   assert.doesNotMatch(sidebar, /relative sticky top-3/);
 });
 
