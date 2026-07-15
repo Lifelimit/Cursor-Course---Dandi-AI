@@ -1795,6 +1795,43 @@ test("keeps all batch embedding chunks on the first selected model", async () =>
   }
 });
 
+test("reduces a rate-limited Gemini batch before escalating the ingestion retry", async () => {
+  const snapshot = snapshotGoogleEnv();
+  const originalFetch = globalThis.fetch;
+  const originalWarn = console.warn;
+  const calls = [];
+  const { googleBatchEmbedWithModel } = loadTsModule("lib/services/google-gemini.service.ts");
+
+  try {
+    process.env.GOOGLE_API_KEYS = "key-1";
+    process.env.GOOGLE_EMBEDDING_MODEL = "primary-model";
+    process.env.RAG_EMBED_BATCH_SIZE = "100";
+    process.env.RAG_EMBED_MAX_ATTEMPTS = "1";
+    process.env.RAG_EMBED_RETRY_BASE_MS = "1";
+    process.env.RAG_EMBED_RETRY_MAX_MS = "1";
+    console.warn = () => {};
+    globalThis.fetch = async (_url, options) => {
+      const body = JSON.parse(options.body);
+      calls.push(body.requests.length);
+      if (body.requests.length > 50) {
+        return jsonResponse(
+          { error: { status: "RESOURCE_EXHAUSTED", message: "quota exceeded" } },
+          { status: 429, statusText: "Too Many Requests" }
+        );
+      }
+      return jsonResponse({ embeddings: body.requests.map((_, index) => ({ values: embeddingVector(index, index + 1) })) });
+    };
+
+    const result = await googleBatchEmbedWithModel(Array.from({ length: 100 }, (_, index) => `chunk ${index}`));
+    assert.equal(result.embeddings.length, 100);
+    assert.deepEqual(calls, [100, 50, 50]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
+    restoreGoogleEnv(snapshot);
+  }
+});
+
 test("builds usage display trends from parsed Redis logs", () => {
   const {
     buildCountOnlyDailyTrend,

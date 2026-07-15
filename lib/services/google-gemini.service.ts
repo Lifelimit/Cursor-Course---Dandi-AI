@@ -1,6 +1,7 @@
 const EMBEDDING_DIMENSIONS = 768;
 const DEFAULT_EMBEDDING_BATCH_SIZE = 100;
 const MAX_EMBEDDING_BATCH_SIZE = 100;
+const MIN_RATE_LIMIT_BATCH_SIZE = 20;
 const DEFAULT_EMBEDDING_BATCH_DELAY_MS = 0;
 const DEFAULT_EMBED_REQUEST_TIMEOUT_MS = 30_000;
 const DEFAULT_EMBED_MAX_ATTEMPTS = 3;
@@ -258,18 +259,32 @@ export async function googleBatchEmbedWithModel(values: string[], options: Embed
   const delayMs = getNonNegativeInt("RAG_EMBED_BATCH_DELAY_MS", DEFAULT_EMBEDDING_BATCH_DELAY_MS);
   const embeddingsResults: number[][][] = [];
   let selectedModel = "";
-  for (let i = 0; i < values.length; i += batchSize) {
-    const batch = values.slice(i, i + batchSize);
-    const result = await runWithEmbeddingFailover(async (apiKey, model, signal) => {
-      const response = await fetchGeminiEmbedding(apiKey, model, {
-        requests: batch.map((text) => ({ model: getModelResourceName(model), content: { parts: [{ text }] }, embedContentConfig: getEmbeddingConfig(), outputDimensionality: EMBEDDING_DIMENSIONS })),
-      }, "batchEmbedContents", signal);
-      const data = (await response.json()) as { embeddings?: unknown };
-      return validateBatch(data.embeddings, batch.length);
-    }, selectedModel ? { ...options, models: [selectedModel] } : options);
+  let offset = 0;
+  let effectiveBatchSize = batchSize;
+  while (offset < values.length) {
+    const batch = values.slice(offset, offset + effectiveBatchSize);
+    let result: EmbeddingFailoverResult<number[][]>;
+    try {
+      result = await runWithEmbeddingFailover(async (apiKey, model, signal) => {
+        const response = await fetchGeminiEmbedding(apiKey, model, {
+          requests: batch.map((text) => ({ model: getModelResourceName(model), content: { parts: [{ text }] }, embedContentConfig: getEmbeddingConfig(), outputDimensionality: EMBEDDING_DIMENSIONS })),
+        }, "batchEmbedContents", signal);
+        const data = (await response.json()) as { embeddings?: unknown };
+        return validateBatch(data.embeddings, batch.length);
+      }, selectedModel ? { ...options, models: [selectedModel] } : options);
+    } catch (error) {
+      if (isGeminiEmbeddingRateLimitError(error) && effectiveBatchSize > MIN_RATE_LIMIT_BATCH_SIZE) {
+        const nextBatchSize = Math.max(MIN_RATE_LIMIT_BATCH_SIZE, Math.ceil(effectiveBatchSize / 2));
+        console.warn("Gemini embedding batch was rate limited; reducing the next request size", { from: effectiveBatchSize, to: nextBatchSize });
+        effectiveBatchSize = nextBatchSize;
+        continue;
+      }
+      throw error;
+    }
     selectedModel = result.model;
     embeddingsResults.push(result.value);
-    if (i + batchSize < values.length) await waitWithSignal(delayMs, options.signal);
+    offset += batch.length;
+    if (offset < values.length) await waitWithSignal(delayMs, options.signal);
   }
   return { embeddings: embeddingsResults.flat(), model: selectedModel || getEmbeddingModel() };
 }
