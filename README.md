@@ -2,9 +2,9 @@
 
 **Production-oriented AI developer platform for repository intelligence, RAG workflows, API access, usage controls, and subscription billing.**
 
-[![CI](https://github.com/Lifelimit/Cursor-Course---Dandi-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/Lifelimit/Cursor-Course---Dandi-AI/actions/workflows/ci.yml)
+[![CI](https://github.com/Lifelimit/dandiAI/actions/workflows/ci.yml/badge.svg)](https://github.com/Lifelimit/dandiAI/actions/workflows/ci.yml)
 
-**Live app:** [dandi-orcin.vercel.app](https://dandi-orcin.vercel.app) · **Repository:** [Lifelimit/Cursor-Course---Dandi-AI](https://github.com/Lifelimit/Cursor-Course---Dandi-AI)
+**Live app:** [dandi-orcin.vercel.app](https://dandi-orcin.vercel.app) · **Repository:** [Lifelimit/dandiAI](https://github.com/Lifelimit/dandiAI)
 
 ![Dandi AI landing page showing the repository intelligence workflow preview](public/readme/dandi-overview.png)
 
@@ -149,8 +149,8 @@ Deliberate scope boundaries:
 ### Setup
 
 ```bash
-git clone https://github.com/Lifelimit/Cursor-Course---Dandi-AI.git
-cd Cursor-Course---Dandi-AI
+git clone https://github.com/Lifelimit/dandiAI.git
+cd dandiAI
 yarn install
 cp .env.example .env.local   # local secrets file (gitignored); fill in values below
 ```
