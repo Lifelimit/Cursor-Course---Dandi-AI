@@ -48,8 +48,16 @@ jobs:
       - name: Install dependencies from lockfile
         run: yarn install --frozen-lockfile
 
-      - name: Audit production dependencies
-        run: yarn audit --groups dependencies --level high
+      - name: Audit dependency vulnerabilities
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          vuln-type: library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
 
       - name: Cache Next.js build
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
