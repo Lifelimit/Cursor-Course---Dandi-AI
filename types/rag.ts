@@ -15,7 +15,7 @@ export type IngestionJobStep =
   | "ready"
   | "cancelled"
   | "failed"
-  // Legacy values remain readable for jobs created before the durable worker migration.
+  // Legacy values remain readable for jobs created before durable ingestion.
   | "cloning"
   | "analyzing"
   | "summarizing"

@@ -4,7 +4,7 @@ import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { getApiKeyFromRequest, invalidJsonResponse, jsonError, missingApiKeyResponse, readJsonBody } from "@/lib/api-request";
 import { isUuid } from "@/lib/security-core";
 import { getRequestTelemetry } from "@/lib/account-environments";
-import { formatIngestionJob, getIngestionJob, processIngestionJobUnit } from "@/lib/services/ingestion-job.service";
+import { formatIngestionJob, getIngestionJob, processIngestionJob } from "@/lib/services/ingestion-job.service";
 import { validateApiKey } from "@/lib/services/api-key.service";
 
 export const runtime = "nodejs";
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
   try {
     const keyData = await validateApiKey(apiKey);
     const ownedJob = await getIngestionJob({ jobId, keyData });
-    const result = await processIngestionJobUnit(ownedJob.id, getRequestTelemetry(request));
+    const result = await processIngestionJob(ownedJob.id, getRequestTelemetry(request));
     return NextResponse.json({ success: true, ...formatIngestionJob(result.job) }, { headers: corsHeaders });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to advance ingestion job.";

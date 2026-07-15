@@ -542,7 +542,7 @@ test("scheduled customer webhooks are deferred while on-demand tests remain supp
   const vercelConfig = readFileSync(resolve(repoRoot, "vercel.json"), "utf8");
   const apiKeySource = readFileSync(resolve(repoRoot, "lib/services/api-key.service.ts"), "utf8");
 
-  assert.deepEqual(JSON.parse(vercelConfig).crons, [{ path: "/api/internal/rag/worker", schedule: "0 3 * * *" }]);
+  assert.deepEqual(JSON.parse(vercelConfig), {});
   assert.equal(existsSync(removedQueueMigration), false);
   assert.doesNotMatch(profileRoute, /webhook_deliveries|webhook_failure_count|webhook_disabled_until/);
   assert.doesNotMatch(accountSource, /webhook-deliveries|production alert deliveries|retry outcomes/i);
@@ -555,7 +555,7 @@ test("scheduled customer webhooks are deferred while on-demand tests remain supp
   assert.doesNotMatch(stripeWebhookRoute, /enqueueProductionWebhookEvent|sendWebhookTestDelivery|webhook-delivery\.service/);
   assert.doesNotMatch(apiKeySource, /enqueueProductionWebhookEvent|webhook-delivery\.service/);
   assert.doesNotMatch(envSource, /CRON_[A-Z_]+/);
-  assert.match(envExample, /CRON_SECRET/);
+  assert.doesNotMatch(envExample, /CRON_SECRET|RAG_WORKER_SECRET/);
   assert.doesNotMatch(validationScript, /CRON_[A-Z_]+|webhook-delivery|worker auth/i);
 });
 
@@ -1760,6 +1760,7 @@ test("keeps all batch embedding chunks on the first selected model", async () =>
   try {
     process.env.GOOGLE_API_KEYS = "key-1";
     process.env.GOOGLE_EMBEDDING_MODEL = "primary-model";
+    process.env.RAG_EMBED_BATCH_SIZE = "20";
     process.env.RAG_EMBED_RETRY_BASE_MS = "1";
     process.env.RAG_EMBED_RETRY_MAX_MS = "1";
     console.warn = () => {};
@@ -2000,7 +2001,7 @@ test("request-created data ownership never uses the shared demo metering identit
   assert.doesNotMatch(ingestionService, /activeJobQuery\(input\.keyData\.user_id/);
   assert.match(
     readFileSync(resolve(repoRoot, "app/api/rag/ingest/route.ts"), "utf8"),
-    /durable worker is advanced by the authenticated polling route/
+    /processIngestionJob\(job\.id/
   );
 });
 

@@ -1,7 +1,7 @@
 const EMBEDDING_DIMENSIONS = 768;
-const DEFAULT_EMBEDDING_BATCH_SIZE = 20;
-const MAX_EMBEDDING_BATCH_SIZE = 20;
-const DEFAULT_EMBEDDING_BATCH_DELAY_MS = 500;
+const DEFAULT_EMBEDDING_BATCH_SIZE = 100;
+const MAX_EMBEDDING_BATCH_SIZE = 100;
+const DEFAULT_EMBEDDING_BATCH_DELAY_MS = 0;
 const DEFAULT_EMBED_REQUEST_TIMEOUT_MS = 30_000;
 const DEFAULT_EMBED_MAX_ATTEMPTS = 3;
 const DEFAULT_EMBED_RETRY_BASE_MS = 750;
@@ -57,6 +57,12 @@ function getModelResourceName(model: string) {
 function getPositiveInt(name: string, fallback: number, max?: number) {
   const parsed = Number.parseInt((process.env[name] || "").trim(), 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return max ? Math.min(parsed, max) : parsed;
+}
+
+function getNonNegativeInt(name: string, fallback: number, max?: number) {
+  const parsed = Number.parseInt((process.env[name] || "").trim(), 10);
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
   return max ? Math.min(parsed, max) : parsed;
 }
 
@@ -222,6 +228,9 @@ export function getGoogleApiKeys() {
 
 export function getEmbeddingModel() { return normalizeModelName(process.env.GOOGLE_EMBEDDING_MODEL, DEFAULT_EMBEDDING_MODEL); }
 export function getEmbeddingDimensions() { return EMBEDDING_DIMENSIONS; }
+export function getEmbeddingBatchSize() {
+  return getPositiveInt("RAG_EMBED_BATCH_SIZE", DEFAULT_EMBEDDING_BATCH_SIZE, MAX_EMBEDDING_BATCH_SIZE);
+}
 
 export function isGeminiEmbeddingRateLimitError(error: unknown): boolean {
   const candidate = error as Partial<EmbeddingAttemptError> | undefined;
@@ -245,8 +254,8 @@ export async function googleEmbed(value: string, options: EmbeddingRequestOption
 
 export async function googleBatchEmbedWithModel(values: string[], options: EmbeddingRequestOptions = {}): Promise<{ embeddings: number[][]; model: string }> {
   if (values.length === 0) return { embeddings: [], model: getEmbeddingModel() };
-  const batchSize = getPositiveInt("RAG_EMBED_BATCH_SIZE", DEFAULT_EMBEDDING_BATCH_SIZE, MAX_EMBEDDING_BATCH_SIZE);
-  const delayMs = getPositiveInt("RAG_EMBED_BATCH_DELAY_MS", DEFAULT_EMBEDDING_BATCH_DELAY_MS);
+  const batchSize = getEmbeddingBatchSize();
+  const delayMs = getNonNegativeInt("RAG_EMBED_BATCH_DELAY_MS", DEFAULT_EMBEDDING_BATCH_DELAY_MS);
   const embeddingsResults: number[][][] = [];
   let selectedModel = "";
   for (let i = 0; i < values.length; i += batchSize) {

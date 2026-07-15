@@ -10,7 +10,7 @@ import {
   GitHubPublicRepositoryCheckError,
   GitHubPublicRepositoryRequiredError,
 } from "@/lib/services/github.service";
-import { googleBatchEmbedWithModel, isGeminiEmbeddingRateLimitError, type EmbeddingAttemptError } from "@/lib/services/google-gemini.service";
+import { getEmbeddingBatchSize, googleBatchEmbedWithModel, isGeminiEmbeddingRateLimitError, type EmbeddingAttemptError } from "@/lib/services/google-gemini.service";
 import { selectRagFiles } from "@/lib/services/rag-file-selection.service";
 import { redis } from "@/lib/redis";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -18,13 +18,11 @@ import type { IngestionJob, IngestionJobStep, IngestionKeyData, IngestionJobSumm
 
 const LOCK_TTL_SEC = 120;
 const LEASE_TTL_MS = 90_000;
-const DEFAULT_WORKER_MAX_MS = 45_000;
-const DEFAULT_MAX_CHUNKS_PER_INVOCATION = 20;
-const DEFAULT_MAX_FILES_PER_INVOCATION = 8;
+const DEFAULT_INGESTION_MAX_MS = 45_000;
 const DEFAULT_FILE_FETCH_CONCURRENCY = 4;
-const WORKER_SAFETY_WINDOW_MS = 8_000;
+const INGESTION_SAFETY_WINDOW_MS = 8_000;
 const DEFAULT_MAX_JOB_RETRIES = 8;
-const ORPHANED_INGESTION_MESSAGE = "Repository ingestion is being resumed after a worker stopped unexpectedly.";
+const ORPHANED_INGESTION_MESSAGE = "Repository ingestion is being resumed after the previous request stopped unexpectedly.";
 const CANCELLED_INGESTION_MESSAGE = "Repository ingestion cancelled by user.";
 
 const LOCK_REFRESH_SCRIPT = "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('EXPIRE', KEYS[1], ARGV[2]) else return 0 end";
@@ -32,12 +30,12 @@ const LOCK_RELEASE_SCRIPT = "if redis.call('GET', KEYS[1]) == ARGV[1] then retur
 
 export type { IngestionJob, IngestionJobStatus, IngestionJobStep, IngestionKeyData, IngestionJobSummary } from "@/types/rag";
 type RequestTelemetry = ReturnType<typeof getRequestTelemetry>;
-type WorkerOutcome = "completed" | "progressed" | "retrying" | "cancelled" | "failed" | "locked" | "idle";
+type IngestionOutcome = "completed" | "progressed" | "retrying" | "cancelled" | "failed" | "locked" | "idle";
 
-class IngestionWorkerError extends Error {
+class IngestionExecutionError extends Error {
   constructor(public readonly code: string, message: string, public readonly retryable = false, public readonly providerStatus?: number) {
     super(message);
-    this.name = "IngestionWorkerError";
+    this.name = "IngestionExecutionError";
   }
 }
 
@@ -72,7 +70,7 @@ function deriveCurrentStep(job: IngestionJob): IngestionJobStep {
 function safeErrorCode(error: unknown) {
   const candidate = error as Partial<EmbeddingAttemptError> | undefined;
   if (candidate?.code) return candidate.code;
-  if (error instanceof IngestionWorkerError) return error.code;
+  if (error instanceof IngestionExecutionError) return error.code;
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
   if (message.includes("tree")) return "GITHUB_TREE_FETCH_FAILED";
   if (message.includes("insert") || message.includes("supabase")) return "DATABASE_INSERT_FAILED";
@@ -82,7 +80,7 @@ function safeErrorCode(error: unknown) {
 function sanitizeIngestionError(error: unknown) {
   if (error instanceof GitHubPublicRepositoryRequiredError || error instanceof GitHubPublicRepositoryCheckError) return error.message;
   if (error instanceof ApiKeyQuotaError) return error.code === "unavailable" ? "Usage quota is temporarily unavailable. Retry repository preparation shortly." : "The workspace request allowance has been reached. Upgrade your plan or retry after the quota window resets.";
-  if (error instanceof IngestionWorkerError && error.code === "JOB_CANCELLED") return CANCELLED_INGESTION_MESSAGE;
+  if (error instanceof IngestionExecutionError && error.code === "JOB_CANCELLED") return CANCELLED_INGESTION_MESSAGE;
   if (isGeminiEmbeddingRateLimitError(error)) return "Gemini embedding rate limit reached. Dandi will retry this repository automatically.";
   const providerError = error as Partial<EmbeddingAttemptError> | undefined;
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
@@ -94,7 +92,7 @@ function sanitizeIngestionError(error: unknown) {
   if (message.includes("credential is no longer available")) return "The ingestion credential is no longer available. Start repository preparation again.";
   if (message.includes("invalid embedding") || message.includes("mismatched embedding")) return "The embedding provider returned an invalid vector. Retry preparation shortly.";
   if (message.includes("schema") || message.includes("insert repository chunks")) return "Dandi could not persist the repository index. Verify the latest Supabase migrations.";
-  if (error instanceof IngestionWorkerError && error.code === "JOB_EXECUTION_EXPIRED") return "This worker slice reached its execution limit. Dandi will resume from the saved checkpoint.";
+  if (error instanceof IngestionExecutionError && error.code === "JOB_EXECUTION_EXPIRED") return "This indexing request reached its execution limit. Dandi will resume from the saved checkpoint.";
   return "Repository ingestion failed. Wait a moment, then retry preparation.";
 }
 
@@ -128,8 +126,8 @@ async function updateJob(jobId: string, values: Record<string, unknown>, leaseTo
   let query = supabaseAdmin.from("ingestion_jobs").update({ ...values, updated_at: nowIso() }).eq("id", jobId);
   if (leaseToken) query = query.eq("lease_owner", leaseToken);
   const { data, error } = await query.select("*").maybeSingle();
-  if (error) throw new IngestionWorkerError("DATABASE_JOB_UPDATE_FAILED", "Failed to update the ingestion job.", true);
-  if (!data) throw new IngestionWorkerError("JOB_LEASE_LOST", "Ingestion worker lease is no longer owned.", true);
+  if (error) throw new IngestionExecutionError("DATABASE_JOB_UPDATE_FAILED", "Failed to update the ingestion job.", true);
+  if (!data) throw new IngestionExecutionError("JOB_LEASE_LOST", "Ingestion request lease is no longer owned.", true);
   return toIngestionJob(data);
 }
 
@@ -297,7 +295,7 @@ export async function listRecentIngestionJobs(input: { userId: string; apiKeyId?
 
 async function countVersionChunks(indexVersion: string) {
   const { count, error } = await supabaseAdmin.from("repository_chunks").select("id", { count: "exact", head: true }).eq("index_version", indexVersion);
-  if (error) throw new IngestionWorkerError("DATABASE_COUNT_FAILED", "Failed to verify persisted repository chunks.", true);
+  if (error) throw new IngestionExecutionError("DATABASE_COUNT_FAILED", "Failed to verify persisted repository chunks.", true);
   return count ?? 0;
 }
 
@@ -308,7 +306,7 @@ async function heartbeat(job: IngestionJob, token: string, values: Record<string
 
 async function assertNotCancelled(jobId: string) {
   const latest = await loadJob(jobId);
-  if (["cancel_requested", "cancelled"].includes(latest.status) || latest.cancel_requested_at) throw new IngestionWorkerError("JOB_CANCELLED", CANCELLED_INGESTION_MESSAGE);
+  if (["cancel_requested", "cancelled"].includes(latest.status) || latest.cancel_requested_at) throw new IngestionExecutionError("JOB_CANCELLED", CANCELLED_INGESTION_MESSAGE);
   return latest;
 }
 
@@ -319,12 +317,12 @@ async function prepareJob(job: IngestionJob, token: string) {
   const branch = await fetchGitHubBranch(job.repo_url);
   job = await heartbeat(job, token, { current_step: "fetching_tree", branch });
   const snapshot = await fetchGitHubRepoTreeSnapshot(job.repo_url, branch);
-  if (snapshot.truncated) throw new IngestionWorkerError("GITHUB_TREE_TRUNCATED", "GitHub returned a truncated repository tree.", false);
+  if (snapshot.truncated) throw new IngestionExecutionError("GITHUB_TREE_TRUNCATED", "GitHub returned a truncated repository tree.", false);
   const files = selectRagFiles(snapshot.files, { maxFileCount: positiveInt("RAG_MAX_FILE_COUNT", 40, 100), maxFileSizeBytes: positiveInt("RAG_MAX_FILE_SIZE_BYTES", 50_000, 250_000) });
-  if (files.length === 0) throw new IngestionWorkerError("NO_QUERYABLE_ASSETS", "No queryable text or code assets found in this repository.");
+  if (files.length === 0) throw new IngestionExecutionError("NO_QUERYABLE_ASSETS", "No queryable text or code assets found in this repository.");
   job = await heartbeat(job, token, { current_step: "selecting_files", selected_files: files, files_count: files.length, skipped_file_count: Math.max(0, snapshot.files.length - files.length), commit_sha: snapshot.commitSha });
   const { data: version, error } = await supabaseAdmin.from("repository_index_versions").insert({ user_id: job.user_id, repo_url: job.repo_url, commit_sha: snapshot.commitSha, embedding_model: process.env.GOOGLE_EMBEDDING_MODEL?.replace(/^models\//, "") || "gemini-embedding-001", status: "building" }).select("id").single();
-  if (error || !version?.id) throw new IngestionWorkerError("DATABASE_INDEX_VERSION_FAILED", "Failed to create a repository index version.", true);
+  if (error || !version?.id) throw new IngestionExecutionError("DATABASE_INDEX_VERSION_FAILED", "Failed to create a repository index version.", true);
   return heartbeat(job, token, { current_step: "fetching_files", index_version: version.id, file_cursor: 0, chunk_cursor: 0, chunks_count: 0, chunk_count: 0, prepared_chunk_count: 0, embedded_chunk_count: 0, persisted_chunk_count: 0 });
 }
 
@@ -334,16 +332,15 @@ async function finalizeUsage(job: IngestionJob, usageKeyData: IngestionKeyData |
   await supabaseAdmin.from("ingestion_jobs").update({ usage_finalized: true, updated_at: nowIso() }).eq("id", job.id).eq("usage_finalized", false);
 }
 
-async function processOneWorkerUnit(job: IngestionJob, token: string, telemetry?: RequestTelemetry): Promise<{ job: IngestionJob; outcome: WorkerOutcome }> {
-  const deadline = Date.now() + positiveInt("RAG_WORKER_MAX_MS", DEFAULT_WORKER_MAX_MS, 55_000);
-  const maxChunksPerInvocation = positiveInt("RAG_WORKER_MAX_CHUNKS_PER_INVOCATION", DEFAULT_MAX_CHUNKS_PER_INVOCATION, 20);
-  const maxFilesPerInvocation = positiveInt("RAG_WORKER_MAX_FILES_PER_INVOCATION", DEFAULT_MAX_FILES_PER_INVOCATION, 8);
-  const fileFetchConcurrency = Math.min(maxFilesPerInvocation, DEFAULT_FILE_FETCH_CONCURRENCY);
+async function processOneIngestionBatch(job: IngestionJob, token: string, telemetry?: RequestTelemetry): Promise<{ job: IngestionJob; outcome: IngestionOutcome }> {
+  const deadline = Date.now() + DEFAULT_INGESTION_MAX_MS;
+  const embeddingBatchSize = getEmbeddingBatchSize();
+  const fileFetchConcurrency = DEFAULT_FILE_FETCH_CONCURRENCY;
   job = await assertNotCancelled(job.id);
   const usageKeyData = await loadUsageKeyData(job);
-  if (!usageKeyData && !job.quota_reserved) throw new IngestionWorkerError("CREDENTIAL_UNAVAILABLE", "The ingestion credential is no longer available. Start repository preparation again.");
+  if (!usageKeyData && !job.quota_reserved) throw new IngestionExecutionError("CREDENTIAL_UNAVAILABLE", "The ingestion credential is no longer available. Start repository preparation again.");
   if (!job.quota_reserved) {
-    if (!usageKeyData) throw new IngestionWorkerError("CREDENTIAL_UNAVAILABLE", "The ingestion credential is no longer available. Start repository preparation again.");
+    if (!usageKeyData) throw new IngestionExecutionError("CREDENTIAL_UNAVAILABLE", "The ingestion credential is no longer available. Start repository preparation again.");
     await reserveApiKeyUsageForIngestionJob(usageKeyData, job.id);
     job = await heartbeat(job, token, { quota_reserved: true });
   }
@@ -353,33 +350,32 @@ async function processOneWorkerUnit(job: IngestionJob, token: string, telemetry?
   while (true) {
     const fileCursor = job.file_cursor ?? 0;
     if (fileCursor >= files.length) {
-      if (Date.now() + WORKER_SAFETY_WINDOW_MS >= deadline) return { job, outcome: "progressed" };
+      if (Date.now() + INGESTION_SAFETY_WINDOW_MS >= deadline) return { job, outcome: "progressed" };
       job = await heartbeat(job, token, { current_step: "finalizing" });
-      if (!job.index_version) throw new IngestionWorkerError("DATABASE_INDEX_VERSION_FAILED", "Repository index version is missing.");
+      if (!job.index_version) throw new IngestionExecutionError("DATABASE_INDEX_VERSION_FAILED", "Repository index version is missing.");
       const count = await countVersionChunks(job.index_version);
-      if (count <= 0) throw new IngestionWorkerError("NO_PERSISTED_CHUNKS", "Dandi could not read queryable repository content from GitHub.");
+      if (count <= 0) throw new IngestionExecutionError("NO_PERSISTED_CHUNKS", "Dandi could not read queryable repository content from GitHub.");
       const { error } = await supabaseAdmin.rpc("activate_repository_index", { p_version_id: job.index_version, p_user_id: job.user_id, p_repo_url: job.repo_url });
-      if (error) throw new IngestionWorkerError("DATABASE_ACTIVATION_FAILED", "Failed to activate the repository index.", true);
+      if (error) throw new IngestionExecutionError("DATABASE_ACTIVATION_FAILED", "Failed to activate the repository index.", true);
       job = await heartbeat(job, token, { status: "completed", current_step: "ready", index_available: true, chunk_count: count, chunks_count: count, prepared_chunk_count: count, embedded_chunk_count: count, persisted_chunk_count: count, completed_at: nowIso() });
       await finalizeUsage(job, usageKeyData, telemetry, "success");
       job = await updateJob(job.id, { lease_owner: null, lease_expires_at: null }, token);
       return { job, outcome: "completed" };
     }
-    if (Date.now() + WORKER_SAFETY_WINDOW_MS >= deadline) return { job, outcome: "progressed" };
+    if (Date.now() + INGESTION_SAFETY_WINDOW_MS >= deadline) return { job, outcome: "progressed" };
 
     const branch = job.branch || "main";
     let nextFileCursor = fileCursor;
     let nextChunkCursor = job.chunk_cursor ?? 0;
-    let filesVisited = 0;
     let failedFiles = 0;
     let skippedFiles = 0;
     const batch: ReturnType<typeof splitIntoChunks> = [];
 
-    while (batch.length < maxChunksPerInvocation && filesVisited < maxFilesPerInvocation && nextFileCursor < files.length) {
-      if (Date.now() + WORKER_SAFETY_WINDOW_MS >= deadline) break;
+    while (batch.length < embeddingBatchSize && nextFileCursor < files.length) {
+      if (Date.now() + INGESTION_SAFETY_WINDOW_MS >= deadline) break;
       const fetchCount = nextChunkCursor > 0
         ? 1
-        : Math.min(fileFetchConcurrency, maxFilesPerInvocation - filesVisited, files.length - nextFileCursor);
+        : Math.min(fileFetchConcurrency, files.length - nextFileCursor);
       const filesToFetch = files.slice(nextFileCursor, nextFileCursor + fetchCount);
       const fetchedFiles = await Promise.all(filesToFetch.map(async (file) => {
         try {
@@ -390,11 +386,10 @@ async function processOneWorkerUnit(job: IngestionJob, token: string, telemetry?
       }));
 
       for (const fetchedFile of fetchedFiles) {
-        if (batch.length >= maxChunksPerInvocation || filesVisited >= maxFilesPerInvocation) break;
+        if (batch.length >= embeddingBatchSize) break;
         if (fetchedFile.failed) {
           nextFileCursor += 1;
           nextChunkCursor = 0;
-          filesVisited += 1;
           failedFiles += 1;
           skippedFiles += 1;
           continue;
@@ -404,18 +399,16 @@ async function processOneWorkerUnit(job: IngestionJob, token: string, telemetry?
         if (chunks.length === 0) {
           nextFileCursor += 1;
           nextChunkCursor = 0;
-          filesVisited += 1;
           continue;
         }
 
-        const remaining = maxChunksPerInvocation - batch.length;
+        const remaining = embeddingBatchSize - batch.length;
         const fileBatch = chunks.slice(nextChunkCursor, nextChunkCursor + remaining);
         batch.push(...fileBatch);
         const fileFinished = nextChunkCursor + fileBatch.length >= chunks.length;
         if (fileFinished) {
           nextFileCursor += 1;
           nextChunkCursor = 0;
-          filesVisited += 1;
         } else {
           nextChunkCursor += fileBatch.length;
           break;
@@ -430,42 +423,41 @@ async function processOneWorkerUnit(job: IngestionJob, token: string, telemetry?
     }
 
     const { embeddings, model } = await googleBatchEmbedWithModel(batch.map((chunk) => chunk.content));
-    if (embeddings.length !== batch.length) throw new IngestionWorkerError("EMBEDDING_INVALID_RESPONSE", "Gemini returned a mismatched embedding count.");
+    if (embeddings.length !== batch.length) throw new IngestionExecutionError("EMBEDDING_INVALID_RESPONSE", "Gemini returned a mismatched embedding count.");
     await assertNotCancelled(job.id);
     const rows = batch.map((chunk, index) => ({ repo_url: job.repo_url, user_id: job.user_id, api_key_id: job.api_key_id, credential_type: job.credential_type, index_version: job.index_version, embedding_model: model, file_path: chunk.path, chunk_index: chunk.chunkIndex, content_hash: chunk.contentHash, start_offset: chunk.startOffset, end_offset: chunk.endOffset, content: chunk.content, embedding: embeddings[index] }));
     const { error: insertError } = await supabaseAdmin.from("repository_chunks").upsert(rows, { onConflict: "index_version,file_path,chunk_index,content_hash" });
-    if (insertError) throw new IngestionWorkerError("DATABASE_INSERT_FAILED", "Failed to insert repository chunks.", true);
+    if (insertError) throw new IngestionExecutionError("DATABASE_INSERT_FAILED", "Failed to insert repository chunks.", true);
     const persistedCount = job.index_version ? await countVersionChunks(job.index_version) : 0;
     job = await heartbeat(job, token, { current_step: nextChunkCursor > 0 ? "embedding" : "fetching_files", file_cursor: nextFileCursor, chunk_cursor: nextChunkCursor, chunk_count: persistedCount, chunks_count: persistedCount, prepared_chunk_count: persistedCount, embedded_chunk_count: persistedCount, persisted_chunk_count: persistedCount, failed_file_count: (job.failed_file_count ?? 0) + failedFiles, skipped_file_count: (job.skipped_file_count ?? 0) + skippedFiles });
-    if (nextFileCursor < files.length) return { job, outcome: "progressed" };
   }
 }
 
-async function handleWorkerError(job: IngestionJob, token: string, error: unknown, telemetry?: RequestTelemetry) {
-  if (error instanceof IngestionWorkerError && error.code === "JOB_LEASE_LOST") return { job, outcome: "retrying" as WorkerOutcome };
+async function handleIngestionError(job: IngestionJob, token: string, error: unknown, telemetry?: RequestTelemetry) {
+  if (error instanceof IngestionExecutionError && error.code === "JOB_LEASE_LOST") return { job, outcome: "retrying" as IngestionOutcome };
   const code = safeErrorCode(error);
   const publicMessage = sanitizeIngestionError(error);
-  const retryable = error instanceof IngestionWorkerError ? error.retryable : Boolean((error as Partial<EmbeddingAttemptError>)?.retryable || isGeminiEmbeddingRateLimitError(error));
+  const retryable = error instanceof IngestionExecutionError ? error.retryable : Boolean((error as Partial<EmbeddingAttemptError>)?.retryable || isGeminiEmbeddingRateLimitError(error));
   const nextRetryCount = (job.retry_count ?? 0) + (retryable ? 1 : 0);
   const canRetry = retryable && nextRetryCount <= positiveInt("RAG_MAX_JOB_RETRIES", DEFAULT_MAX_JOB_RETRIES, 20);
   if (canRetry) {
     const delay = Math.min(60_000, 1_000 * 2 ** Math.min(nextRetryCount - 1, 6));
     const next = await updateJob(job.id, { status: "retrying", current_step: "retrying", error: publicMessage, error_message: publicMessage, last_error_code: code, last_provider_status: (error as Partial<EmbeddingAttemptError>)?.status ?? null, retry_count: nextRetryCount, retry_at: new Date(Date.now() + delay).toISOString(), lease_owner: null, lease_expires_at: null, heartbeat_at: nowIso() }, token).catch(() => job);
-    console.warn("RAG ingestion worker will retry", { jobId: job.id, phase: job.current_step, errorCode: code, retryCount: nextRetryCount });
-    return { job: next, outcome: "retrying" as WorkerOutcome };
+    console.warn("RAG ingestion request will retry", { jobId: job.id, phase: job.current_step, errorCode: code, retryCount: nextRetryCount });
+    return { job: next, outcome: "retrying" as IngestionOutcome };
   }
   const next = await updateJob(job.id, { status: "failed", current_step: "failed", error: publicMessage, error_message: publicMessage, failed_at: nowIso(), completed_at: nowIso(), last_error_code: code, last_provider_status: (error as Partial<EmbeddingAttemptError>)?.status ?? null, lease_owner: null, lease_expires_at: null, heartbeat_at: nowIso() }, token).catch(() => job);
   const usage = await loadUsageKeyData(next);
   await finalizeUsage(next, usage, telemetry, "error").catch(() => undefined);
-  return { job: next, outcome: "failed" as WorkerOutcome };
+  return { job: next, outcome: "failed" as IngestionOutcome };
 }
 
-export async function processIngestionJobUnit(jobId: string, telemetry?: RequestTelemetry): Promise<{ job: IngestionJob; outcome: WorkerOutcome }> {
+export async function processIngestionJob(jobId: string, telemetry?: RequestTelemetry): Promise<{ job: IngestionJob; outcome: IngestionOutcome }> {
   const original = await loadJob(jobId);
   if (["completed", "failed", "cancelled"].includes(original.status)) return { job: original, outcome: original.status === "completed" ? "completed" : original.status === "cancelled" ? "cancelled" : "failed" };
   if (original.status === "retrying" && original.retry_at && Date.parse(original.retry_at) > Date.now()) return { job: original, outcome: "retrying" };
   const lockKey = getIngestionLockKey(original);
-  const token = `worker:${crypto.randomUUID()}`;
+  const token = `ingestion:${crypto.randomUUID()}`;
   if (!(await acquireIngestionLock(lockKey, token))) return { job: original, outcome: "locked" };
   try {
     let job: IngestionJob;
@@ -475,36 +467,18 @@ export async function processIngestionJobUnit(jobId: string, telemetry?: Request
       job = claimed;
     } catch { return { job: original, outcome: "locked" }; }
     try {
-      const result = await processOneWorkerUnit(job, token, telemetry);
+      const result = await processOneIngestionBatch(job, token, telemetry);
       return result;
     } catch (error) {
-      if (error instanceof IngestionWorkerError && error.code === "JOB_CANCELLED") {
+      if (error instanceof IngestionExecutionError && error.code === "JOB_CANCELLED") {
         const cancelled = await updateJob(job.id, { status: "cancelled", current_step: "cancelled", error: CANCELLED_INGESTION_MESSAGE, error_message: CANCELLED_INGESTION_MESSAGE, completed_at: nowIso(), lease_owner: null, lease_expires_at: null }, token).catch(() => job);
         const usage = await loadUsageKeyData(cancelled);
         await finalizeUsage(cancelled, usage, telemetry, "error").catch(() => undefined);
         return { job: cancelled, outcome: "cancelled" };
       }
-      return handleWorkerError(job, token, error, telemetry);
+      return handleIngestionError(job, token, error, telemetry);
     }
   } finally {
     try { await releaseIngestionLock(lockKey, token); } catch { console.warn("Failed to release an owned ingestion lock."); }
   }
-}
-
-export async function processQueuedIngestionJobs(input: { limit?: number; telemetry?: RequestTelemetry } = {}) {
-  const limit = Math.min(Math.max(input.limit ?? 1, 1), 5);
-  const { data, error } = await supabaseAdmin.from("ingestion_jobs").select("*").in("status", ["queued", "retrying", "running", "cancel_requested"]).order("created_at", { ascending: true }).limit(limit * 3);
-  if (error) throw new Error("Failed to load ingestion worker queue.");
-  const results: Array<{ job: IngestionJob; outcome: WorkerOutcome }> = [];
-  for (const candidate of (data ?? []).filter((value) => value.status !== "retrying" || !value.retry_at || Date.parse(value.retry_at) <= Date.now()).filter((value) => value.status !== "running" || !value.lease_expires_at || Date.parse(value.lease_expires_at) <= Date.now()).slice(0, limit)) {
-    results.push(await processIngestionJobUnit(candidate.id, input.telemetry));
-  }
-  return results;
-}
-
-// Kept as a compatibility export for scripts and older internal callers. It now
-// processes one bounded worker unit and never owns the entire repository run.
-export async function runIngestionJob(jobId: string, telemetry?: RequestTelemetry, requestKeyData?: IngestionKeyData) {
-  void requestKeyData;
-  return (await processIngestionJobUnit(jobId, telemetry)).job;
 }

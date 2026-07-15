@@ -1,10 +1,10 @@
-# Durable RAG ingestion worker
+# Durable RAG ingestion with direct Gemini execution
 
 ## Decision
 
-Repository preparation is a durable database-backed job. `POST /api/rag/ingest` creates or reuses a job and returns immediately. The authenticated browser calls `/api/rag/ingest/advance` while it polls; each request claims one job lease and processes bounded chunks across a small number of selected files before persisting a checkpoint. Vercel invokes `/api/internal/rag/worker` through a daily cron recovery sweep for jobs whose browser was closed or whose request stopped unexpectedly.
+Repository preparation is a durable database-backed job. `POST /api/rag/ingest` creates or reuses a job and directly runs the Gemini embedding pipeline until the request safety window is reached. Larger jobs continue through the authenticated `/api/rag/ingest/advance` route after each durable checkpoint. There is no background ingestion worker or cron recovery path; a later authenticated page load resumes an active job.
 
-The worker uses an ownership-checked Redis lock as a fast duplicate guard and a Supabase lease/heartbeat as the durable source of truth. A lost invocation becomes `retrying` and can resume from `file_cursor` and `chunk_cursor`. Quota reservation and final usage telemetry are persisted on the job so retries do not reserve or record the same lifecycle repeatedly.
+The direct executor uses an ownership-checked Redis lock as a fast duplicate guard and a Supabase lease/heartbeat as the durable source of truth. A lost request becomes `retrying` and can resume from `file_cursor` and `chunk_cursor`. Each Gemini batch is persisted before its cursor is advanced; replaying a batch is safe because chunk identity is unique and persistence uses an idempotent upsert. Quota reservation and final usage telemetry are persisted on the job so retries do not reserve or record the same lifecycle repeatedly.
 
 ## Index safety
 
@@ -12,6 +12,6 @@ Each refresh writes to a new `repository_index_versions` row. Chunks are keyed b
 
 ## Operational contract
 
-Set Vercel's `CRON_SECRET` for the scheduled invocation, or set `RAG_WORKER_SECRET` when using an explicitly authenticated worker invocation. Apply `supabase/migrations/20260713090000_durable_rag_ingestion.sql` before deploying code. Run `node scripts/rag-readiness.mjs` for read-only checks and `node scripts/rag-readiness.mjs --mutate` only against an environment where a temporary diagnostic row can be created and deleted.
+Apply `supabase/migrations/20260713090000_durable_rag_ingestion.sql` before deploying code. Run `node scripts/rag-readiness.mjs` for read-only checks and `node scripts/rag-readiness.mjs --mutate` only against an environment where a temporary diagnostic row can be created and deleted.
 
-Both worker routes are deliberately bounded by `maxDuration = 55`; neither is a promise that a single serverless request can finish a repository. The default worker slice aggregates up to 20 chunks from up to eight selected files into one provider/database batch, returning early when the safety window is reached. The polling advance route is authenticated with the user API key, rate-limited, and ownership-checked before it can claim work. The Vercel Hobby cron runs daily at 03:00 UTC as recovery; if the browser is closed, the job remains queued/retryable until that sweep or a later authenticated session resumes it.
+The ingest and advance routes are deliberately bounded by `maxDuration = 55`; small repositories generally finish in one direct request, while larger repositories return after the safety window with a durable checkpoint. Gemini batches default to 100 embeddings with no fixed delay between successful batches. The advance route is authenticated with the user API key, rate-limited, and ownership-checked before it can claim work. If the browser is closed, a later authenticated session resumes the job.

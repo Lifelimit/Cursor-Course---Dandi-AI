@@ -3,9 +3,13 @@ import { corsPreflightResponse, forbiddenCorsResponse, getCorsHeaders, isCorsOri
 import { createIpRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { getApiKeyFromRequest, invalidJsonResponse, jsonError, missingApiKeyResponse, readGitHubRepoUrl, readJsonBody } from "@/lib/api-request";
 import { isUuid } from "@/lib/security-core";
-import { createIngestionJob, formatIngestionJob, getIngestionJob } from "@/lib/services/ingestion-job.service";
+import { createIngestionJob, formatIngestionJob, getIngestionJob, processIngestionJob } from "@/lib/services/ingestion-job.service";
 import { validateApiKey } from "@/lib/services/api-key.service";
 import { assertPublicRepositoryForRag, GitHubPublicRepositoryCheckError, GitHubPublicRepositoryRequiredError } from "@/lib/services/github.service";
+import { getRequestTelemetry } from "@/lib/account-environments";
+
+export const runtime = "nodejs";
+export const maxDuration = 55;
 
 const corsOptions = {
   methods: "GET, POST, OPTIONS",
@@ -99,14 +103,15 @@ export async function POST(request: Request) {
     const keyData = await validateApiKey(apiKey);
     await assertPublicRepositoryForRag(githubUrl);
     const { job, reused } = await createIngestionJob({ keyData, repoUrl: githubUrl });
-    // The durable worker is advanced by the authenticated polling route. This
-    // request only creates/reuses the persisted job and never owns repository work.
-    if (job.status === "queued" && !reused) console.info("RAG ingestion job queued", { jobId: job.id, ownerId: keyData.browserUserId || keyData.user_id });
+    const result = ["queued", "running", "retrying", "cancel_requested"].includes(job.status)
+      ? await processIngestionJob(job.id, getRequestTelemetry(request))
+      : { job, outcome: "idle" as const };
+    if (result.job.status === "queued" && !reused) console.info("RAG ingestion job created", { jobId: result.job.id });
 
     return NextResponse.json(
       {
         success: true,
-        ...formatIngestionJob(job),
+        ...formatIngestionJob(result.job),
       },
       { headers: corsHeaders }
     );

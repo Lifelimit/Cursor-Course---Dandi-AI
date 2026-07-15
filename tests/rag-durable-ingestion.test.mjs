@@ -6,19 +6,16 @@ import test from "node:test";
 const root = resolve(process.cwd());
 const read = (file) => readFileSync(resolve(root, file), "utf8");
 
-test("ingestion creation is detached from the request lifecycle", () => {
+test("ingestion runs directly through Gemini and has no worker or cron path", () => {
   const route = read("app/api/rag/ingest/route.ts");
-  const worker = read("app/api/internal/rag/worker/route.ts");
   const advance = read("app/api/rag/ingest/advance/route.ts");
-  assert.doesNotMatch(route, /from ['"]next\/server['"].*after|\bafter\(/s);
-  assert.match(route, /durable worker is advanced by the authenticated polling route/);
-  assert.match(worker, /authorization.*Bearer/);
-  assert.match(worker, /maxDuration = 55/);
-  assert.match(advance, /processIngestionJobUnit/);
+  assert.match(route, /processIngestionJob/);
+  assert.match(route, /maxDuration = 55/);
+  assert.match(advance, /processIngestionJob/);
   assert.match(advance, /maxDuration = 55/);
   assert.match(advance, /getIngestionJob/);
-  assert.match(read("vercel.json"), /api\/internal\/rag\/worker/);
-  assert.match(read("vercel.json"), /0 3 \* \* \*/);
+  assert.deepEqual(JSON.parse(read("vercel.json")), {});
+  assert.doesNotMatch(route, /after\(/);
 });
 
 test("embedding reliability is bounded and validates the provider contract", () => {
@@ -32,7 +29,7 @@ test("embedding reliability is bounded and validates the provider contract", () 
   assert.match(source, /values\.length !== expectedCount/);
 });
 
-test("worker checkpoints are lease- and index-version-aware", () => {
+test("direct ingestion checkpoints are lease- and index-version-aware", () => {
   const service = read("lib/services/ingestion-job.service.ts");
   const migration = read("supabase/migrations/20260713090000_durable_rag_ingestion.sql");
   assert.match(service, /claimIngestionJob/);
@@ -41,14 +38,13 @@ test("worker checkpoints are lease- and index-version-aware", () => {
   assert.match(service, /refreshIngestionLock/);
   assert.match(service, /releaseIngestionLock/);
   assert.match(service, /latest\.cancel_requested_at/);
-  assert.match(service, /DEFAULT_MAX_CHUNKS_PER_INVOCATION = 20/);
-  assert.match(service, /DEFAULT_MAX_FILES_PER_INVOCATION = 8/);
+  assert.match(service, /DEFAULT_INGESTION_MAX_MS = 45_000/);
   assert.match(service, /DEFAULT_FILE_FETCH_CONCURRENCY = 4/);
   assert.match(service, /Promise\.all\(filesToFetch\.map/);
-  assert.match(service, /RAG_WORKER_MAX_FILES_PER_INVOCATION/);
-  assert.match(service, /WORKER_SAFETY_WINDOW_MS/);
+  assert.match(service, /INGESTION_SAFETY_WINDOW_MS/);
   assert.match(service, /batch\.push\(\.\.\.fileBatch\)/);
-  assert.match(service, /const remaining = maxChunksPerInvocation - batch\.length/);
+  assert.match(service, /const remaining = embeddingBatchSize - batch\.length/);
+  assert.doesNotMatch(service, /processQueuedIngestionJobs|RAG_WORKER_MAX/);
   assert.match(service, /upsert\(rows, \{ onConflict: "index_version,file_path,chunk_index,content_hash" \}\)/);
   assert.match(migration, /repository_index_versions/);
   assert.match(migration, /activate_repository_index/);

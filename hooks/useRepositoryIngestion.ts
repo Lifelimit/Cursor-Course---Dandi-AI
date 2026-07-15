@@ -108,11 +108,8 @@ const waitForTimeout = (ms: number, signal: AbortSignal) => new Promise<void>((r
 });
 
 const getIngestionPollDelay = (attempt: number) => {
-  const visibleDelay = attempt === 0 ? 0 : attempt <= 4 ? 500 : attempt <= 8 ? 1000 : 2000;
-  // Hobby deployments use the authenticated browser poll as the worker trigger.
-  // Keep advancing in a background tab, but slow it down to stay well below the
-  // 30 requests/minute advance-route limit.
-  if (typeof document !== "undefined" && document.visibilityState === "hidden") return Math.max(visibleDelay, 4000);
+  const visibleDelay = attempt === 0 ? 0 : attempt === 1 ? 250 : attempt <= 3 ? 750 : attempt <= 6 ? 1500 : 3000;
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") return Math.max(visibleDelay, 5000);
   return visibleDelay;
 };
 
@@ -209,12 +206,13 @@ async function pollIngestionJobUntilSettled(
   initialJob?: IngestionResponse,
 ) {
   let latestJob = initialJob;
+  if (latestJob?.status === "completed") return latestJob;
   let attempt = 0;
   while (!controller.signal.aborted) {
     const pollDelay = getIngestionPollDelay(attempt);
-    if (pollDelay > 0) {
-      await waitForTimeout(pollDelay, controller.signal);
-    }
+    const retryAt = latestJob?.retryAt ? Date.parse(latestJob.retryAt) : Number.NaN;
+    const retryDelay = Number.isFinite(retryAt) ? Math.max(0, retryAt - Date.now()) : 0;
+    await waitForTimeout(Math.max(pollDelay, retryDelay), controller.signal);
     const statusRes = await fetch("/api/rag/ingest/advance", {
       method: "POST",
       headers: { "x-api-key": apiKey },

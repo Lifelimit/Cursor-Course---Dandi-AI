@@ -155,7 +155,7 @@ test("repository preparation polling remains active in hidden tabs at a safe cad
   assert.match(source, /ingestionControllerRef/);
   assert.match(source, /new AbortController\(\)/);
   assert.match(source, /document\.visibilityState === "hidden"/);
-  assert.match(source, /Math\.max\(visibleDelay, 4000\)/);
+  assert.match(source, /Math\.max\(visibleDelay, 5000\)/);
   assert.match(source, /signal: controller\.signal/);
   assert.match(source, /ingestionControllerRef\.current\?\.abort\(\)/);
   assert.match(source, /pollIngestionJobUntilSettled/);
