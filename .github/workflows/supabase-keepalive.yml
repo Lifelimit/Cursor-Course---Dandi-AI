@@ -1,0 +1,51 @@
+name: Supabase Keepalive
+
+on:
+  schedule:
+    # Once daily — enough activity for Free-tier pause prevention.
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping Supabase REST (profiles)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "Missing SUPABASE_URL or SUPABASE_ANON_KEY secret."
+            exit 1
+          fi
+
+          # Normalize trailing slash so path join is stable.
+          BASE_URL="${SUPABASE_URL%/}"
+          URL="${BASE_URL}/rest/v1/profiles?select=id&limit=1"
+
+          HTTP_CODE="$(curl -sS -o /tmp/supabase-keepalive-body -w "%{http_code}" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            -H "Accept: application/json" \
+            "$URL")"
+
+          echo "HTTP status: ${HTTP_CODE}"
+
+          case "${HTTP_CODE}" in
+            2??) exit 0 ;;
+            *)
+              echo "Keepalive request failed (non-2xx)."
+              exit 1
+              ;;
+          esac
